@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator kysely {
+  provider     = "prisma-kysely"
+  output       = "../src/types/db"
+  enumFileName = "enums.ts"
+  fileName     = "types.ts"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @unique @default(dbgenerated("gen_random_uuid()"))
+  address     String   @unique
+  xpub        String   @unique
+  nickname    String?
+  createdAt   DateTime @default(now())
+  profileLink String?
+
+  Collection  Collection[]
+  Purchase    Purchase[]
+  Collectible Collectible[]
+}
+
+model Collection {
+  id          String   @unique @default(dbgenerated("gen_random_uuid()"))
+  name        String
+  ticker      String
+  description String
+  supply      Int
+  price       Float
+  createdAt   DateTime @default(now())
+  walletLimit Int
+  logoKey     String
+  totalCount  Int      @default(0)
+  mintedCount Int      @default(0)
+
+  POStartDate BigInt
+
+  userId      String
+  User        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Collectible Collectible[]
+}
+
+model Collectible {
+  id                String             @unique @default(dbgenerated("gen_random_uuid()"))
+  name              String
+  createdAt         DateTime           @default(now())
+  fileKey           String
+  status            COLLECTIBLE_STATUS @default(ACTIVE)
+  generatedPsbtTxId String?
+
+  ownerId String?
+  User    User?   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  collectionId String
+  Collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  transactionId String?
+  Transaction   Transaction? @relation(fields: [transactionId], references: [id])
+  Purchase      Purchase[]
+}
+
+model Purchase {
+  id        String   @unique @default(dbgenerated("gen_random_uuid()"))
+  createdAt DateTime @default(dbgenerated("now()"))
+
+  collectibleId String
+  Collectible   Collectible @relation(fields: [collectibleId], references: [id], onDelete: Cascade)
+
+  buyerId String
+  User    User   @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+
+  transactionId String
+  Transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+}
+
+model Transaction {
+  id          String             @unique @default(dbgenerated("gen_random_uuid()"))
+  txid        String             @unique
+  createdAt   DateTime           @default(dbgenerated("now()"))
+  status      TRANSACTION_STATUS @default(TRANSACTION_UNCONFIRMED)
+  Purchase    Purchase[]
+  Collectible Collectible[]
+}
+
+enum COLLECTIBLE_STATUS {
+  ACTIVE
+  ON_HOLD
+  SOLD
+}
+
+enum TRANSACTION_STATUS {
+  TRANSACTION_UNCONFIRMED
+  TRANSACION_CONFIRMED
+  TRANSACTION_FAILED
+}
