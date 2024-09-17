@@ -6,7 +6,7 @@ import { Purchase } from "../types/db/types";
 import { CustomError } from "../exceptions/CustomError";
 
 export const purchaseController = {
-  generateTransaction: async (
+  generateHex: async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
@@ -17,7 +17,7 @@ export const purchaseController = {
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
 
-      const result = await purchaseServices.generateTransaction(
+      const result = await purchaseServices.generateHex(
         collectionId,
         req.user.id
       );

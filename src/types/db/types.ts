@@ -13,6 +13,7 @@ export type Collectible = {
   fileKey: string;
   status: Generated<COLLECTIBLE_STATUS>;
   generatedPsbtTxId: string | null;
+  onHoldUntil: Timestamp | null;
   ownerId: string | null;
   collectionId: string;
   transactionId: string | null;

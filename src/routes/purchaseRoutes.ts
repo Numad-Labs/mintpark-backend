@@ -8,7 +8,7 @@ purchaseRouter.post("/", authenticateToken, purchaseController.create);
 purchaseRouter.post(
   "/:collectionId/generate",
   authenticateToken,
-  purchaseController.generateTransaction
+  purchaseController.generateHex
 );
 
 export = purchaseRouter;

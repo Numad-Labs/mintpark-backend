@@ -54,6 +54,7 @@ model Collectible {
   fileKey           String
   status            COLLECTIBLE_STATUS @default(ACTIVE)
   generatedPsbtTxId String?
+  onHoldUntil DateTime?
 
   ownerId String?
   User    User?   @relation(fields: [ownerId], references: [id], onDelete: Cascade)

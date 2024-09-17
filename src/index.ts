@@ -12,6 +12,7 @@ import { notFound } from "./middlewares/notFound";
 import collectionRouter from "./routes/collectionRoutes";
 import collectibleRouter from "./routes/collectibleRoutes";
 import purchaseRouter from "./routes/purchaseRoutes";
+import { checkAndUpdateCollectibleStatus } from "./cron";
 
 export const redis = new Redis(config.REDIS_CONNECTION_STRING);
 
@@ -36,7 +37,7 @@ app.use("/api/v1/purchase", purchaseRouter);
 app.use(errorHandler);
 app.use(notFound);
 
-// updateTransactionStatus();
+checkAndUpdateCollectibleStatus();
 
 app.listen(config.PORT, () => {
   console.log(`Server has started on port ${config.PORT}`);

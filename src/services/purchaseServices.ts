@@ -13,7 +13,7 @@ import { mintForAnduroWallet } from "../libs/coordinate/mint";
 import { checkTransactionStatus, getUtxos } from "../libs/coordinate/libs";
 
 export const purchaseServices = {
-  generateTransaction: async (collectionId: string, userId: string) => {
+  generateHex: async (collectionId: string, userId: string) => {
     const collection = await collectionRepository.getById(collectionId);
     if (!collection) throw new CustomError("Collection not found.", 400);
 
@@ -71,8 +71,12 @@ export const purchaseServices = {
     collection.mintedCount++;
     await collectionRepository.update(collection.id, collection);
 
+    const lockReleaseDate = new Date();
+    lockReleaseDate.setMinutes(lockReleaseDate.getMinutes() + 5);
+
     pickedCollectible.status = "ON_HOLD";
     pickedCollectible.transactionId = result.txId;
+    pickedCollectible.onHoldUntil = lockReleaseDate;
     const updatedCollectible = await collectibleRepository.update(
       pickedCollectible.id,
       pickedCollectible

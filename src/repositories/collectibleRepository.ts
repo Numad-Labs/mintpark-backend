@@ -56,4 +56,14 @@ export const collectibleRepository = {
 
     return collectible;
   },
+  updateExpiredOnHoldCollectibles: async (currentDate: Date) => {
+    const collectibles = await db
+      .updateTable("Collectible")
+      .set({ status: "ACTIVE" })
+      .where("Collectible.status", "=", "ON_HOLD")
+      .where("Collectible.onHoldUntil", "<", currentDate)
+      .execute();
+
+    return collectibles;
+  },
 };

@@ -38,6 +38,9 @@ CREATE TABLE "Collectible" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "fileKey" TEXT NOT NULL,
     "status" "COLLECTIBLE_STATUS" NOT NULL DEFAULT 'ACTIVE',
+    "generatedPsbtTxId" TEXT,
+    "onHoldUntil" TIMESTAMP(3),
+    "ownerId" TEXT,
     "collectionId" TEXT NOT NULL,
     "transactionId" TEXT
 );
@@ -85,6 +88,9 @@ CREATE UNIQUE INDEX "Transaction_txid_key" ON "Transaction"("txid");
 
 -- AddForeignKey
 ALTER TABLE "Collection" ADD CONSTRAINT "Collection_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Collectible" ADD CONSTRAINT "Collectible_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Collectible" ADD CONSTRAINT "Collectible_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "Collection"("id") ON DELETE CASCADE ON UPDATE CASCADE;
