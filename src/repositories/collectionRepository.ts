@@ -1,6 +1,7 @@
 import { Insertable, Kysely, Transaction, Updateable } from "kysely";
 import { Collection, DB } from "../types/db/types";
 import { db } from "../utils/db";
+import { LAYER_TYPE } from "@prisma/client";
 
 export const collectionRepository = {
   create: async (
@@ -42,6 +43,26 @@ export const collectionRepository = {
     const collections = await db
       .selectFrom("Collection")
       .selectAll()
+      .orderBy("Collection.createdAt desc")
+      .execute();
+
+    return collections;
+  },
+  getByOwnerAddress: async (ownerAddress: string) => {
+    const collections = await db
+      .selectFrom("Collection")
+      .selectAll()
+      .where("Collection.ownerAddress", "=", ownerAddress)
+      .orderBy("Collection.createdAt desc")
+      .execute();
+
+    return collections;
+  },
+  getByLayerType: async (layerType: LAYER_TYPE) => {
+    const collections = await db
+      .selectFrom("Collection")
+      .selectAll()
+      .where("Collection.layer_type", "=", layerType)
       .orderBy("Collection.createdAt desc")
       .execute();
 

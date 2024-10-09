@@ -5,10 +5,51 @@ import { Collectible } from "../types/db/types";
 import { collectibleServices } from "../services/collectibleServices";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import { CustomError } from "../exceptions/CustomError";
-import { mintForAnduroWallet } from "../libs/coordinate/mint";
-import { FEE_RATE, SERVICE_FEE_ADDRESS } from "../libs/constants";
+import { orderRepository } from "../repositories/orderRepository";
 
 export const collectibleController = {
+  createOrder: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user)
+        throw new CustomError("Could not retrieve id from the token", 400);
+
+      const file = req.file as Express.Multer.File;
+      if (!file) throw new CustomError("Please provide the file", 400);
+      const { name, creator, description, mintLayerType, feeRate } = req.body;
+      if (!name || !mintLayerType || !feeRate)
+        throw new CustomError(
+          "Please provide all required fields. (name, mintLayerType, feeRate).",
+          400
+        );
+      const order = await collectibleServices.createOrderToMintCollectible(
+        file,
+        req.user.address,
+        mintLayerType,
+        feeRate
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          orderId: order.order_id,
+          fundingAddress: order.funding_address,
+          serviceFee: order.service_fee,
+          networkFee: order.network_fee,
+          requiredAmountToFund: order.amount,
+          feeRate: order.feeRate,
+          mintLayerType: order.layer_type,
+          status: order.status,
+          quantity: order.quantity,
+        },
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
   mint: async (
     req: AuthenticatedRequest,
     res: Response,
@@ -18,30 +59,20 @@ export const collectibleController = {
       if (!req.user)
         throw new CustomError("Could not retrieve id from the token", 400);
 
-      const { payload, ticker, headline, supply, assetType } = req.body;
+      const { orderId } = req.body;
+      const order = await orderRepository.getById(orderId);
+      if (!order) throw new CustomError("Order not found", 404);
+      if (order.user_address !== req.user.address)
+        throw new CustomError("You are not allowed to do this action.", 403);
 
-      const collectible: tokenData = {
-        address: null,
-        xpub: req.user.xpub,
-        opReturnValues: payload,
-        assetType: assetType,
-        headline: headline,
-        ticker: ticker,
-        supply: supply,
-      };
-
-      const txHex = await mintForAnduroWallet(
-        collectible,
-        SERVICE_FEE_ADDRESS,
-        10000,
-        FEE_RATE
+      const result = await collectibleServices.generateHexForCollectible(
+        orderId,
+        req.user.address
       );
 
       return res.status(200).json({
         success: true,
-        data: {
-          hex: txHex.hex,
-        },
+        data: result,
       });
     } catch (e) {
       next(e);

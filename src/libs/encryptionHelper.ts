@@ -21,12 +21,17 @@ export const encryptionHelper = {
     if (!algorithm || !secretKey || !iv)
       throw new Error("No env provided to encryptData.");
 
-    const decipher = crypto.createDecipheriv(algorithm, secretKey, iv);
+    try {
+      const decipher = crypto.createDecipheriv(algorithm, secretKey, iv);
 
-    let decryptedData = decipher.update(encryptedData, "hex", "utf-8");
+      let decryptedData = decipher.update(encryptedData, "hex", "utf-8");
 
-    decryptedData += decipher.final("utf-8");
+      decryptedData += decipher.final("utf-8");
+      const parsedData = JSON.parse(decryptedData);
 
-    return JSON.parse(decryptedData);
+      return parsedData;
+    } catch (e) {
+      return false;
+    }
   },
 };

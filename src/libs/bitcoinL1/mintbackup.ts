@@ -1,0 +1,242 @@
+import * as bitcoin from "bitcoinjs-lib";
+import * as ecc from "tiny-secp256k1";
+import { ECPairFactory } from "ecpair";
+import { Taptree } from "bitcoinjs-lib/src/types";
+import BIP32Factory from "bip32";
+import { CustomError } from "../../exceptions/CustomError";
+import { inscriptionData, tokenData, unisatUtxo } from "../../../custom";
+import {
+  getUtxosWithAddress,
+  selectUtxos,
+  TX_EMPTY_SIZE,
+  TX_INPUT_P2TR,
+  TX_OUTPUT_P2TR,
+  WITNESS_SCALE_FACTOR,
+} from "./libs";
+import { calculateUnsignedSegwitTxid } from "./libs";
+import { parseDataUrl } from "../parseImage";
+
+bitcoin.initEccLib(ecc);
+const ECPair = ECPairFactory(ecc);
+const bip32 = BIP32Factory(ecc);
+
+function toXOnly(pubkey: Buffer): Buffer {
+  return pubkey.slice(1, 33);
+}
+
+export async function mintForBitcoin(
+  params: {
+    data: tokenData;
+    toAddress: string;
+    price: number;
+    fundingAddress: string;
+    fundingPrivateKey: string;
+  },
+  network: bitcoin.networks.Network = bitcoin.networks.testnet,
+  feeRate: number
+) {
+  const keyPair = ECPair.fromPrivateKey(
+    Buffer.from(params.fundingPrivateKey, "hex"),
+    { network }
+  );
+  const address = params.fundingAddress;
+
+  const privateKey = keyPair.privateKey!;
+  const node = bip32.fromPrivateKey(privateKey, Buffer.alloc(32), network);
+
+  //start of real code
+  const pubkey = node.publicKey;
+  const internalPubKey = toXOnly(pubkey);
+
+  // Create the base script ASM
+  let inscriptionData: inscriptionData = parseDataUrl(
+    params.data.opReturnValues,
+    params.data.supply,
+    params.data.address
+  );
+  let leafScriptAsm = `${internalPubKey.toString(
+    "hex"
+  )} OP_CHECKSIG OP_FALSE OP_IF `;
+  leafScriptAsm += `6f7264 `;
+  leafScriptAsm += `01 `;
+  const mimeTypeHex = Buffer.from(inscriptionData.contentType).toString("hex");
+  leafScriptAsm += `${mimeTypeHex} `;
+  leafScriptAsm += `OP_FALSE `;
+  const maxChunkSize = 520;
+  let body = Buffer.from(inscriptionData.imageBuffer);
+  let bodySize = body.length;
+  for (let i = 0; i < bodySize; i += maxChunkSize) {
+    let end = i + maxChunkSize;
+    if (end > bodySize) {
+      end = bodySize;
+    }
+    const chunk = body.slice(i, end);
+    const chunkHex = chunk.toString("hex");
+    leafScriptAsm += `${chunkHex} `;
+  }
+  leafScriptAsm += `OP_ENDIF`;
+  const leafScript = bitcoin.script.fromASM(leafScriptAsm);
+
+  const scriptTree: Taptree = {
+    output: leafScript,
+  };
+
+  const redeem = {
+    output: leafScript,
+  };
+  const revealP2tr = bitcoin.payments.p2tr({
+    internalPubkey: internalPubKey,
+    scriptTree,
+    redeem,
+    network,
+  });
+
+  //Calculate fees
+  const dustThreshold = 546;
+  const commitInputs = 1;
+  const commitOutputs = 3; // One for the inscription, one for change
+  const commitSize = Math.ceil(
+    TX_EMPTY_SIZE +
+      TX_INPUT_P2TR * commitInputs +
+      TX_OUTPUT_P2TR * commitOutputs
+  );
+  const commitFee = commitSize * feeRate;
+
+  const revealInputs = 1;
+  const revealOutputs = 1;
+  const inscriptionSize = Math.ceil(leafScript.length / WITNESS_SCALE_FACTOR);
+  const revealSize = Math.ceil(
+    TX_EMPTY_SIZE * 2 +
+      TX_INPUT_P2TR * revealInputs +
+      TX_OUTPUT_P2TR * revealOutputs +
+      inscriptionSize
+  );
+  const revealFee = revealSize * feeRate;
+
+  const requiredAmount = commitFee + revealFee + params.price + dustThreshold;
+
+  const utxos: unisatUtxo[] = await getUtxosWithAddress(address, network);
+  if (!utxos || utxos.length === 0)
+    throw new CustomError("Not funded. Utxos not found.", 400);
+
+  const selectedUtxos = selectUtxos(utxos, requiredAmount);
+
+  //Commit transaction
+  const commitPsbt = new bitcoin.Psbt({ network: network });
+  let totalAmount = 0;
+  for (let i = 0; i < selectedUtxos.length; i++) {
+    const utxo = selectedUtxos[i];
+    const commitP2tr = bitcoin.payments.p2tr({
+      internalPubkey: internalPubKey,
+      network: network,
+    });
+    commitPsbt.addInput({
+      hash: utxo.txid,
+      index: utxo.vout,
+      witnessUtxo: {
+        script: commitP2tr.output!,
+        value: utxo.satoshi,
+      },
+      tapInternalKey: internalPubKey,
+      sequence: 0xfffffffd,
+    });
+    totalAmount += utxo.satoshi;
+  }
+
+  const revealAmount = requiredAmount - commitFee - params.price;
+
+  commitPsbt.addOutput({
+    address: revealP2tr.address!,
+    value: revealAmount,
+  });
+  commitPsbt.addOutput({
+    address: params.toAddress,
+    value: params.price,
+  });
+
+  // Change output
+  if (totalAmount - requiredAmount > dustThreshold) {
+    commitPsbt.addOutput({
+      address: params.data.address,
+      value: totalAmount - requiredAmount,
+    });
+  }
+
+  const tweakedSigner = node.tweak(
+    bitcoin.crypto.taggedHash("TapTweak", toXOnly(node.publicKey))
+  );
+
+  for (let i = 0; i < commitPsbt.data.inputs.length; i++) {
+    commitPsbt.signInput(i, tweakedSigner);
+  }
+
+  const tx = commitPsbt.finalizeAllInputs().extractTransaction(false);
+  const commitTxHex = tx.toHex();
+  const commitTxId = calculateUnsignedSegwitTxid(commitPsbt);
+
+  //Reveal transaction
+  const LEAF_VERSION_TAPSCRIPT = 192;
+  const revealPsbt = new bitcoin.Psbt({ network });
+
+  revealPsbt.addInput({
+    hash: commitTxId,
+    index: 0,
+    witnessUtxo: {
+      value: revealAmount,
+      script: revealP2tr.output!,
+    },
+    tapLeafScript: [
+      {
+        leafVersion: LEAF_VERSION_TAPSCRIPT,
+        script: redeem.output,
+        controlBlock: revealP2tr.witness![revealP2tr.witness!.length - 1],
+      },
+    ],
+  });
+
+  //dunno what to put
+  revealPsbt.addOutput({
+    address: params.data.address,
+    value: dustThreshold,
+  });
+
+  revealPsbt.signAllInputs(node);
+  const revealTxHex = revealPsbt
+    .finalizeAllInputs()
+    .extractTransaction(false)
+    .toHex();
+  const revealTxId = calculateUnsignedSegwitTxid(revealPsbt);
+
+  console.log({
+    calculated_fee: {
+      commitSize,
+      commitFee,
+      revealSize,
+      revealFee,
+      requiredAmount,
+      price: params.price,
+    },
+  });
+
+  console.log({
+    actual_fee: {
+      commitTxSize: tx.virtualSize(),
+      commitTxFee: tx.virtualSize() * feeRate,
+      revealTxSize: revealPsbt.extractTransaction().virtualSize(),
+      revealTxFee: revealPsbt.extractTransaction().virtualSize() * feeRate,
+      requiredAmount:
+        tx.virtualSize() * feeRate +
+        revealPsbt.extractTransaction().virtualSize() * feeRate +
+        params.price +
+        dustThreshold,
+      price: params.price,
+    },
+  });
+
+  return {
+    commitTxId,
+    commitTxHex,
+    revealTxId,
+    revealTxHex,
+  };
+}

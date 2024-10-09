@@ -12,5 +12,6 @@ collectionRouter.post(
   collectionController.create
 );
 collectionRouter.get("/:id", collectionController.getById);
+collectionRouter.get("/", collectionController.getByLayerType);
 
 export = collectionRouter;

@@ -17,7 +17,7 @@ datasource db {
 model User {
   id          String   @unique @default(dbgenerated("gen_random_uuid()"))
   address     String   @unique
-  xpub        String   @unique
+  xpub        String?   @unique
   nickname    String?
   createdAt   DateTime @default(now())
   profileLink String?
@@ -25,25 +25,29 @@ model User {
   Collection  Collection[]
   Purchase    Purchase[]
   Collectible Collectible[]
+  Order       Order[]
 }
 
 model Collection {
   id          String   @unique @default(dbgenerated("gen_random_uuid()"))
   name        String
-  ticker      String
+  creator     String?
   description String
-  supply      Int
   price       Float
   createdAt   DateTime @default(now())
-  walletLimit Int
+  walletLimit Int     @default(1000)
   logoKey     String
   totalCount  Int      @default(0)
   mintedCount Int      @default(0)
+  feeRate     Float    @default(0)
+
+  layer_type LAYER_TYPE @default(BITCOIN_TESTNET)
 
   POStartDate BigInt
 
-  userId      String
-  User        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  ownerAddress String
+  User        User          @relation(fields: [ownerAddress], references: [address], onDelete: Cascade)
   Collectible Collectible[]
 }
 
@@ -81,6 +85,31 @@ model Purchase {
   Transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 }
 
+model Order {
+  order_id   String   @unique @default(dbgenerated("gen_random_uuid()"))
+  status     ORDER_STATUS @default(PENDING)
+  created_at  DateTime @default(dbgenerated("now()"))
+  updated_at  DateTime @default(dbgenerated("now()"))
+  amount     Float   @default(0)
+  quantity   Int     @default(0)
+  feeRate   Float   @default(0)
+  network_fee Float @default(0)
+  service_fee Float @default(0)
+  total_amount Float @default(0)
+  txid String?
+  layer_type LAYER_TYPE @default(BITCOIN_TESTNET)
+
+  collection_id String? @default("-")
+  collectible_id String? @default("-")
+
+
+  funding_address String
+  funding_private_key String
+
+  user_address     String
+  User       User    @relation(fields: [user_address], references: [address], onDelete: Cascade)
+}
+
 model Transaction {
   id          String             @unique @default(dbgenerated("gen_random_uuid()"))
   txid        String             @unique
@@ -96,8 +125,27 @@ enum COLLECTIBLE_STATUS {
   SOLD
 }
 
+enum ORDER_STATUS {
+  PENDING
+  IN_QUEUE
+  INSCRIBING
+  INSCRIBED
+  CLOSED
+}
+
 enum TRANSACTION_STATUS {
   TRANSACTION_UNCONFIRMED
   TRANSACION_CONFIRMED
   TRANSACTION_FAILED
+}
+
+enum LAYER_TYPE {
+  FRACTAL
+  BITCOIN
+  ETHEREUM
+  COORDINATE
+  FRACTAL_TESTNET
+  BITCOIN_TESTNET
+  ETHEREUM_TESTNET
+  COORDINATE_TESTNET
 }

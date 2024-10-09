@@ -11,6 +11,8 @@ import { transactionRepository } from "../repositories/transactionRepository";
 import { userRepository } from "../repositories/userRepository";
 import { mintForAnduroWallet } from "../libs/coordinate/mint";
 import { checkTransactionStatus, getUtxos } from "../libs/coordinate/libs";
+import { mintHelper } from "../libs/mintHelper";
+import { LAYER_TYPE } from "../types/db/enums";
 
 export const purchaseServices = {
   generateHex: async (collectionId: string, userId: string) => {
@@ -44,7 +46,7 @@ export const purchaseServices = {
     const file = await getObjectFromS3(pickedCollectible.fileKey);
 
     const data: tokenData = {
-      address: null,
+      address: user.address,
       xpub: user.xpub,
       opReturnValues: [
         {
@@ -54,19 +56,24 @@ export const purchaseServices = {
       ],
       assetType: ASSETTYPE.NFTONCHAIN,
       headline: pickedCollectible.name,
-      ticker: collection.ticker,
+      ticker: collection.name,
       supply: 1,
     };
 
-    const owner = await userRepository.getById(collection.userId);
+    const owner = await userRepository.getById(collection.ownerAddress);
     if (!owner) throw new CustomError("Owner not found.", 400);
 
-    const result = await mintForAnduroWallet(
-      data,
-      owner.address,
-      collection.price,
-      1
-    );
+    const result = await mintHelper({
+      layerType: LAYER_TYPE.COORDINATE_TESTNET,
+      feeRate: 1,
+      mintingParams: {
+        data: data,
+        toAddress: owner.address,
+        price: collection.price,
+        fundingAddress: "",
+        fundingPrivateKey: "",
+      },
+    });
 
     collection.mintedCount++;
     await collectionRepository.update(collection.id, collection);

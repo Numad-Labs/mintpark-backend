@@ -16,7 +16,7 @@ export const userServices = {
 
     return message;
   },
-  login: async (address: string, xpub: string, signedMessage: string) => {
+  login: async (address: string, signedMessage: string, xpub?: string) => {
     const nonce = await redis.get(`nonce:${address}`);
     if (!nonce) throw new CustomError("No recorded nonce found.", 400);
     const message = await generateMessage(address, nonce);
@@ -25,8 +25,8 @@ export const userServices = {
     if (!isValid) throw new CustomError("Invalid signature.", 400);
 
     let user = await userRepository.getByAddress(address);
-    if (!user) {
-      user = await userRepository.create({ address: address, xpub: xpub });
+    if (!user ) {
+      user = await userRepository.create({ address: address });
     }
 
     const tokens = generateTokens(user);

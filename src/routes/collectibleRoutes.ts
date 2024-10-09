@@ -11,6 +11,17 @@ collectibleRouter.post(
   collectibleController.create
 );
 
+collectibleRouter.post(
+  "/:collectibleId/create-order",
+  authenticateToken,
+  collectibleController.createOrder
+);
+collectibleRouter.post(
+  "/create-order",
+  authenticateToken,
+  parseFiles("file", true),
+  collectibleController.createOrder
+);
 collectibleRouter.post("/mint", authenticateToken, collectibleController.mint);
 
 collectibleRouter.get("/:id", collectibleController.getById);

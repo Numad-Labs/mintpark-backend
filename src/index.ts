@@ -12,7 +12,13 @@ import { notFound } from "./middlewares/notFound";
 import collectionRouter from "./routes/collectionRoutes";
 import collectibleRouter from "./routes/collectibleRoutes";
 import purchaseRouter from "./routes/purchaseRoutes";
-import { checkAndUpdateCollectibleStatus } from "./cron";
+import {
+  checkAndUpdateCollectibleStatus,
+  checkAndUpdateOrderStatus,
+} from "./cron";
+import testRouter from "./routes/testRoutes";
+import brc20Router from "./routes/fungibleTokenRoutes";
+import orderRouter from "./routes/orderRoutes";
 
 export const redis = new Redis(config.REDIS_CONNECTION_STRING);
 
@@ -33,11 +39,15 @@ app.use("/api/v1/users", userRouter);
 app.use("/api/v1/collections", collectionRouter);
 app.use("/api/v1/collectibles", collectibleRouter);
 app.use("/api/v1/purchase", purchaseRouter);
+app.use("/api/v1/brc-20", brc20Router);
+app.use("/api/v1/test", testRouter);
+app.use("/api/v1/orders", orderRouter);
 
 app.use(errorHandler);
 app.use(notFound);
 
 checkAndUpdateCollectibleStatus();
+checkAndUpdateOrderStatus();
 
 app.listen(config.PORT, () => {
   console.log(`Server has started on port ${config.PORT}`);

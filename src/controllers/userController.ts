@@ -30,16 +30,16 @@ export const userController = {
     const { address, signedMessage, xpub } = req.body;
 
     try {
-      if (!address || !signedMessage || !xpub)
+      if (!address || !signedMessage)
         throw new CustomError(
-          "Please provide a wallet address, signed message and xpub.",
+          "Please provide a wallet address and signed message.",
           400
         );
 
       const { user, tokens } = await userServices.login(
         address,
-        xpub,
-        signedMessage
+        signedMessage,
+        xpub
       );
 
       return res.status(200).json({

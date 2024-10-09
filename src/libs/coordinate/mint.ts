@@ -87,36 +87,43 @@ export async function mint(
 }
 
 export async function mintForAnduroWallet(
-  data: tokenData,
-  toAddress: string,
-  price: number,
+  params: {
+    data: tokenData;
+    toAddress: string;
+    price: number;
+    fundingAddress: string;
+    fundingPrivateKey: string;
+  },
+  network: coordinate.Network = coordinate.networks.testnet,
   feeRate: number
 ) {
-  if (!data.xpub) throw new CustomError("Please provide either xpub.", 400);
+  if (!params.data.xpub)
+    throw new CustomError("Please provide either xpub.", 400);
 
-  const node = bip32.fromBase58(data.xpub, coordinate.networks.testnet);
+  const node = bip32.fromBase58(params.data.xpub, coordinate.networks.testnet);
 
-  const opreturnData = JSON.stringify(data.opReturnValues);
+  const opreturnData = JSON.stringify(params.data.opReturnValues);
   const payloadHex = convertDataToSha256Hex(opreturnData);
 
   const psbt = new coordinate.Psbt({
-    network: coordinate.networks.testnet,
+    network: network,
   });
   psbt.setVersion(10);
-  psbt.assettype = data.assetType;
-  psbt.headline = stringToHex(data.headline);
-  psbt.ticker = stringToHex(data.ticker);
+  psbt.assettype = params.data.assetType;
+  psbt.headline = stringToHex(params.data.headline);
+  psbt.ticker = stringToHex(params.data.ticker);
   psbt.payload = payloadHex;
   psbt.payloaddata = stringToHex(opreturnData);
-  if (data.assetType === 0) psbt.setPrecisionType(8);
+  if (params.data.assetType === 0) psbt.setPrecisionType(8);
 
-  const payloadSize = calculateByteSize(data.opReturnValues);
+  const payloadSize = calculateByteSize(params.data.opReturnValues);
   const requiredAmount =
-    (BASE_TX_SIZE + payloadSize + TX_OUTPUT_P2WPKH * 4) * feeRate + price;
+    (BASE_TX_SIZE + payloadSize + TX_OUTPUT_P2WPKH * 4) * feeRate +
+    params.price;
 
   const { inputs, changeAmount } = await prepareInputs(
     null,
-    data.xpub,
+    params.data.xpub,
     requiredAmount,
     TX_INPUT_P2WPKH,
     feeRate
@@ -128,7 +135,7 @@ export async function mintForAnduroWallet(
     const childNode = node.derive(input.derviation_index);
     const payment = coordinate.payments.p2wpkh({
       pubkey: childNode.publicKey,
-      network: coordinate.networks.testnet,
+      network: network,
     });
 
     if (!payment?.output) {
@@ -148,12 +155,12 @@ export async function mintForAnduroWallet(
   const controllerNode = node.derive(0);
   const controllerAddress = coordinate.payments.p2wpkh({
     pubkey: controllerNode.publicKey,
-    network: coordinate.networks.testnet,
+    network: network,
   }).address!;
 
   psbt.addOutput({ address: controllerAddress, value: 10 ** 8 });
-  psbt.addOutput({ address: controllerAddress, value: data.supply });
-  psbt.addOutput({ address: toAddress, value: price });
+  psbt.addOutput({ address: controllerAddress, value: params.data.supply });
+  psbt.addOutput({ address: params.toAddress, value: params.price });
 
   if (changeAmount >= 546)
     psbt.addOutput({ address: controllerAddress, value: changeAmount });

@@ -13,14 +13,12 @@ export const collectionServices = {
     file: Express.Multer.File,
     issuerId: string
   ) => {
-    if (data.ticker.length > 7)
-      throw new CustomError("Invalid ticker length.", 400);
-
     const key = randomUUID();
     await uploadToS3(key, file);
 
     data.logoKey = key;
-    data.userId = issuerId;
+    data.ownerAddress = issuerId;
+    console.log(data);
     const collection = await collectionRepository.create(data, db);
 
     return collection;

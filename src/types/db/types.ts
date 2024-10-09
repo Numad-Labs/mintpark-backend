@@ -4,7 +4,12 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
   : ColumnType<T, T | undefined, T>;
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
-import type { COLLECTIBLE_STATUS, TRANSACTION_STATUS } from "./enums";
+import type {
+  COLLECTIBLE_STATUS,
+  ORDER_STATUS,
+  TRANSACTION_STATUS,
+  LAYER_TYPE,
+} from "./enums";
 
 export type Collectible = {
   id: Generated<string>;
@@ -21,17 +26,37 @@ export type Collectible = {
 export type Collection = {
   id: Generated<string>;
   name: string;
-  ticker: string;
+  creator: string | null;
   description: string;
-  supply: number;
   price: number;
   createdAt: Generated<Timestamp>;
-  walletLimit: number;
+  walletLimit: Generated<number>;
   logoKey: string;
   totalCount: Generated<number>;
   mintedCount: Generated<number>;
+  feeRate: Generated<number>;
+  layer_type: Generated<LAYER_TYPE>;
   POStartDate: string;
-  userId: string;
+  ownerAddress: string;
+};
+export type Order = {
+  order_id: Generated<string>;
+  status: Generated<ORDER_STATUS>;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+  amount: Generated<number>;
+  quantity: Generated<number>;
+  feeRate: Generated<number>;
+  network_fee: Generated<number>;
+  service_fee: Generated<number>;
+  total_amount: Generated<number>;
+  txid: string | null;
+  layer_type: Generated<LAYER_TYPE>;
+  collection_id: Generated<string | null>;
+  collectible_id: Generated<string | null>;
+  funding_address: string;
+  funding_private_key: string;
+  user_address: string;
 };
 export type Purchase = {
   id: Generated<string>;
@@ -49,7 +74,7 @@ export type Transaction = {
 export type User = {
   id: Generated<string>;
   address: string;
-  xpub: string;
+  xpub: string | null;
   nickname: string | null;
   createdAt: Generated<Timestamp>;
   profileLink: string | null;
@@ -57,6 +82,7 @@ export type User = {
 export type DB = {
   Collectible: Collectible;
   Collection: Collection;
+  Order: Order;
   Purchase: Purchase;
   Transaction: Transaction;
   User: User;

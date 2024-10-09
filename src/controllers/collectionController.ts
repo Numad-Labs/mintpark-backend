@@ -5,6 +5,7 @@ import { collectionServices } from "../services/collectionServices";
 import { AuthenticatedRequest } from "../../custom";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { CustomError } from "../exceptions/CustomError";
+import { LAYER_TYPE } from "@prisma/client";
 
 export const collectionController = {
   create: async (
@@ -19,14 +20,12 @@ export const collectionController = {
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
 
-      data.supply = Number(data.supply);
       data.price = Number(data.price);
-      data.userId = req.user.address;
 
       const collection = await collectionServices.create(
         data,
         logo,
-        req.user.id
+        req.user.address
       );
 
       return res.status(200).json({ success: true, data: collection });
@@ -50,6 +49,20 @@ export const collectionController = {
       const collection = await collectionRepository.getById(id);
 
       return res.status(200).json({ success: true, data: collection });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getByLayerType: async (req: Request, res: Response, next: NextFunction) => {
+    const layerType = req.query.layerType;
+    if (!layerType) throw new CustomError("Please provide a layer type.", 400);
+
+    try {
+      const collections = await collectionRepository.getByLayerType(
+        layerType as LAYER_TYPE
+      );
+
+      return res.status(200).json({ success: true, data: collections });
     } catch (e) {
       next(e);
     }
