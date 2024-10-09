@@ -6,13 +6,14 @@ import { calculateInscriptionSize } from "./inscriptionSizeEstimate";
 
 const ECPair = ECPairFactory(ecc);
 
+//TODO: fix requiredAmount calculation wrong amount !!!!!
 export function createP2TRFundingAddress(
   params: {
     inscriptionContentType: string;
     inscriptionData: Buffer;
-    price: number;
-    feeRate: number;
-  },
+  }[],
+  price: number,
+  feeRate: number,
   network: bitcoin.networks.Network = bitcoin.networks.testnet
 ) {
   const keyPair = ECPair.makeRandom({ network });
@@ -25,37 +26,41 @@ export function createP2TRFundingAddress(
   }
 
   // Calculate inscription size
-  const inscriptionSize = calculateInscriptionSize(
-    params.inscriptionContentType,
-    params.inscriptionData
-  );
+  let totalInscriptionSize = 0;
+  let totalCommitFee = 0;
+  let totalRevealFee = 0;
+  for (const param of params) {
+    let inscriptionSize = calculateInscriptionSize(
+      param.inscriptionContentType,
+      param.inscriptionData
+    );
+    const commitSize = calculateTransactionSize(
+      [{ address: address, count: 1 }],
+      [
+        { address: address, count: 1 }, // Reveal output
+        { address: address, count: 1 }, // Change output
+      ],
+      0
+    );
+    let commitFee = commitSize * feeRate;
 
-  // Calculate commit transaction size (1 input, 2 outputs)
-  const commitSize = calculateTransactionSize(
-    [{ address: address, count: 1 }],
-    [
-      { address: address, count: 1 }, // Reveal output
-      { address: address, count: 1 }, // Change output
-    ],
-    0,
-    network
-  );
-  const commitFee = commitSize * params.feeRate;
+    const revealSize = calculateTransactionSize(
+      [{ address: address, count: 1 }],
+      [{ address: address, count: 1 }], // Assuming the final destination is the same address for simplicity
+      inscriptionSize,
+      true
+    );
+    let revealFee = revealSize * feeRate;
 
-  // Calculate reveal transaction size (1 input, 1 output, with inscription)
-  const revealSize = calculateTransactionSize(
-    [{ address: address, count: 1 }],
-    [{ address: address, count: 1 }], // Assuming the final destination is the same address for simplicity
-    inscriptionSize,
-    network,
-    true
-  );
-  const revealFee = revealSize * params.feeRate;
+    totalInscriptionSize += inscriptionSize;
+    totalCommitFee += commitFee;
+    totalRevealFee += revealFee;
+  }
 
   // Calculate total required amount
   const DUST_THRESHOLD = 546; // Minimum amount for an output to be non-dust
   const requiredAmount: number =
-    commitFee + revealFee + params.price + DUST_THRESHOLD;
+    totalCommitFee + totalRevealFee + price * params.length + DUST_THRESHOLD;
 
   return {
     address,

@@ -6,13 +6,13 @@ import { db } from "../utils/db";
 import { CustomError } from "../exceptions/CustomError";
 import { getObjectFromS3, uploadToS3 } from "../utils/aws";
 import { randomUUID } from "crypto";
-import { collectibleServices } from "./collectibleServices";
 import { collectibleRepository } from "../repositories/collectibleRepository";
-import { mintCollection } from "../libs/bitcoinL1/mintCollection";
 import { mintHelper } from "../libs/mintHelper";
 import { LAYER_TYPE } from "../types/db/enums";
 import { ASSETTYPE, SERVICE_FEE, SERVICE_FEE_ADDRESS } from "../libs/constants";
+import { orderServices } from "./orderServices";
 import { orderRepository } from "../repositories/orderRepository";
+import { createP2TRFundingAddress } from "../libs/fundingAddress";
 
 export const collectionServices = {
   create: async (
@@ -59,15 +59,18 @@ export const collectionServices = {
     }
     collection.totalCount += files.length;
 
-    const updatedCollectibes = await collectibleRepository.create(
+    const updatedCollectibles = await collectibleRepository.create(
       collectibles,
       db
     );
     await collectionRepository.update(collection.id, collection);
 
-    return updatedCollectibes;
+    return updatedCollectibles;
   },
-  mintCollection: async (collectionId: string, issuerAddress: string) => {
+  createOrderToMintCollectible: async (
+    collectionId: string,
+    issuerAddress: string
+  ) => {
     const collection = await collectionRepository.getById(collectionId);
     if (!collection) throw new CustomError("Collection does not exist.", 400);
     if (collection.ownerAddress !== issuerAddress)
@@ -77,8 +80,48 @@ export const collectionServices = {
       collection.id
     );
 
-    if (collectibles.length < 1)
-      throw new CustomError("No collectibles found in this collection.", 400);
+    const files = [];
+    for (let i = 0; i < collectibles.length; i++) {
+      const file = await getObjectFromS3(collectibles[i].fileKey);
+      files.push({
+        inscriptionData: file.content,
+        inscriptionContentType: file.contentType!,
+      });
+    }
+    const funder = createP2TRFundingAddress(
+      files,
+      SERVICE_FEE,
+      collection.feeRate
+    );
+    const order = await orderRepository.create({
+      user_address: issuerAddress,
+      funding_address: funder.address,
+      funding_private_key: funder.privateKey,
+      amount: funder.requiredAmount,
+      service_fee: SERVICE_FEE,
+      network_fee: funder.requiredAmount - SERVICE_FEE,
+      feeRate: collection.feeRate,
+      layer_type: collection.layer_type,
+      minting_type: "COLLECTION",
+      quantity: collectibles.length,
+      collection_id: collection.id,
+    });
+
+    return order;
+  },
+  generateHexForCollection: async (orderId: string, issuerAddress: string) => {
+    let order = await orderRepository.getById(orderId);
+    if (!order || !order.collection_id)
+      throw new CustomError("Order for this collection does not exist.", 400);
+    if (order.user_address !== issuerAddress)
+      throw new CustomError("You are not authorized.", 403);
+
+    const collection = await collectionRepository.getById(order.collection_id);
+    if (!collection) throw new CustomError("Collection does not exist.", 400);
+
+    const collectibles = await collectibleRepository.getByCollectionId(
+      collection.id
+    );
 
     let mintedCollectionCount: number = 0;
     let allMintResult = [];
@@ -100,18 +143,17 @@ export const collectionServices = {
         supply: 1,
       };
       let mintResult = await mintHelper({
-        layerType: LAYER_TYPE.BITCOIN_TESTNET,
-        feeRate: 1,
+        layerType: order.layer_type,
+        feeRate: order.feeRate,
         mintingParams: {
           data: data,
           toAddress: SERVICE_FEE_ADDRESS,
           price: SERVICE_FEE,
-          fundingAddress: "tb1qzr9zqc5d7zj7ktxnfdeueqmxwfwdvrme87dtd7",
-          fundingPrivateKey:
-            "9beee8682dd93eb9f757f239271a3b001c6a11dfa7cb7f938e8172ed9db7757d",
+          fundingAddress: order.funding_address,
+          fundingPrivateKey: order.funding_private_key,
         },
       });
-      collectibles[i].status = "ON_HOLD";
+      collectibles[i].status = "SOLD";
       collectibles[i].generatedPsbtTxId = mintResult.revealTxId;
       await collectibleRepository.update(collectibles[i].id, collectibles[i]);
       mintedCollectionCount++;
@@ -119,7 +161,29 @@ export const collectionServices = {
     }
     collection.mintedCount = mintedCollectionCount;
     await collectionRepository.update(collection.id, collection);
+    order = await orderRepository.updateOrderStatus(
+      orderId,
+      allMintResult[0].revealTxId
+    );
 
-    return { mintedCollectionCount, allMintResult };
+    return {
+      mintedCollectionCount,
+      orderId: order.order_id,
+      status: order.status,
+    };
+  },
+  launchCollection: async (collectionId: string, issuerAddress: string) => {
+    const collection = await collectionRepository.getById(collectionId);
+    if (!collection) throw new CustomError("Collection does not exist.", 400);
+    if (collection.ownerAddress !== issuerAddress)
+      throw new CustomError("You are not allowed to do this action.", 403);
+
+    if (collection.isLaunched)
+      throw new CustomError("Collection already launched.", 400);
+    collection.isLaunched = true;
+    collection.status = "LIVE";
+    await collectionRepository.update(collection.id, collection);
+
+    return collection;
   },
 };

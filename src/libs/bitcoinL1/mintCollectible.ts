@@ -129,7 +129,6 @@ export async function mintForBitcoin(
       commitInputs,
       commitOutputs,
       0,
-      network,
       false
     );
     const commitFee = commitSize * feeRate;
@@ -145,7 +144,6 @@ export async function mintForBitcoin(
         revealInputs,
         revealOutputs,
         inscriptionSize,
-        network,
         true
       ) + inscriptionSize;
     const revealFee = revealSize * feeRate;

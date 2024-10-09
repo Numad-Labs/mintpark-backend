@@ -1,6 +1,6 @@
 import express, { NextFunction, Request, Response } from "express";
 import { mintHelper } from "../libs/mintHelper";
-import { FEE_RATE, SERVICE_FEE, SERVICE_FEE_ADDRESS } from "../libs/constants";
+import { SERVICE_FEE, SERVICE_FEE_ADDRESS } from "../libs/constants";
 import { CustomError } from "../exceptions/CustomError";
 import { deployBRC20 } from "../libs/bitcoinL1/mintBRC20";
 import * as bitcoin from "bitcoinjs-lib";
@@ -114,7 +114,7 @@ testRouter.post(
           fundingAddress: fundingAddress,
           fundingPrivateKey: fundingPrivateKey,
         },
-        FEE_RATE,
+        1,
         bitcoin.networks.testnet
       );
       return res.status(200).json({ success: true, data: deploymentResult });

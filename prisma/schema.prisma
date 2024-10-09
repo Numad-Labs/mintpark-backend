@@ -45,7 +45,9 @@ model Collection {
 
   POStartDate BigInt
 
+  status     COLLECTION_STATUS @default(UPCOMING)
   isLaunched Boolean @default(false)
+  
   ownerAddress String
   User        User          @relation(fields: [ownerAddress], references: [address], onDelete: Cascade)
   Collectible Collectible[]
@@ -95,13 +97,12 @@ model Order {
   feeRate   Float   @default(0)
   network_fee Float @default(0)
   service_fee Float @default(0)
-  total_amount Float @default(0)
   txid String?
   layer_type LAYER_TYPE @default(BITCOIN_TESTNET)
-
-  collection_key String?
-  collectible_id String?
   minting_type MINTING_TYPE @default(COLLECTIBLE)
+
+  collection_id String?
+  collectible_key String?
 
   funding_address String
   funding_private_key String
@@ -123,6 +124,12 @@ enum COLLECTIBLE_STATUS {
   ACTIVE
   ON_HOLD
   SOLD
+}
+
+enum COLLECTION_STATUS {
+  LIVE
+  UPCOMING
+  PAST
 }
 
 enum ORDER_STATUS {

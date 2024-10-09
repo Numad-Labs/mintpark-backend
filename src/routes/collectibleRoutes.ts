@@ -10,12 +10,6 @@ collectibleRouter.post(
   parseFiles("images", false),
   collectibleController.create
 );
-
-collectibleRouter.post(
-  "/:collectibleId/create-order",
-  authenticateToken,
-  collectibleController.createOrder
-);
 collectibleRouter.post(
   "/create-order",
   authenticateToken,

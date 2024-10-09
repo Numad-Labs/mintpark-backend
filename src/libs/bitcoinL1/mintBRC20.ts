@@ -58,7 +58,7 @@ export async function deployBRC20(
   const inscriptionSize = calculateInscriptionSize(
     "application/json",
     Buffer.from(inscriptionData, "utf8")
-  )
+  );
 
   const leafScript = bitcoin.script.compile([
     internalPubKey,
@@ -94,7 +94,6 @@ export async function deployBRC20(
     commitInputs,
     commitOutputs,
     0,
-    network,
     false
   );
   const commitFee = commitSize * feeRate;
@@ -102,8 +101,12 @@ export async function deployBRC20(
   const revealInputs = [{ address: revealP2tr.address!, count: 1 }];
   const revealOutputs = [{ address: params.address, count: 1 }];
   const revealSize =
-    calculateTransactionSize(revealInputs, revealOutputs, inscriptionSize, network, true) +
-    inscriptionSize;
+    calculateTransactionSize(
+      revealInputs,
+      revealOutputs,
+      inscriptionSize,
+      true
+    ) + inscriptionSize;
   const revealFee = revealSize * feeRate;
 
   const requiredAmount = commitFee + revealFee + dustThreshold;

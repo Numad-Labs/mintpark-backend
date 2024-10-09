@@ -5,6 +5,13 @@ export const COLLECTIBLE_STATUS = {
 } as const;
 export type COLLECTIBLE_STATUS =
   (typeof COLLECTIBLE_STATUS)[keyof typeof COLLECTIBLE_STATUS];
+export const COLLECTION_STATUS = {
+  LIVE: "LIVE",
+  UPCOMING: "UPCOMING",
+  PAST: "PAST",
+} as const;
+export type COLLECTION_STATUS =
+  (typeof COLLECTION_STATUS)[keyof typeof COLLECTION_STATUS];
 export const ORDER_STATUS = {
   PENDING: "PENDING",
   IN_QUEUE: "IN_QUEUE",

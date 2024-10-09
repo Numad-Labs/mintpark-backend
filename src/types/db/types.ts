@@ -6,6 +6,7 @@ export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 import type {
   COLLECTIBLE_STATUS,
+  COLLECTION_STATUS,
   ORDER_STATUS,
   TRANSACTION_STATUS,
   MINTING_TYPE,
@@ -38,6 +39,7 @@ export type Collection = {
   feeRate: Generated<number>;
   layer_type: Generated<LAYER_TYPE>;
   POStartDate: string;
+  status: Generated<COLLECTION_STATUS>;
   isLaunched: Generated<boolean>;
   ownerAddress: string;
 };
@@ -51,12 +53,11 @@ export type Order = {
   feeRate: Generated<number>;
   network_fee: Generated<number>;
   service_fee: Generated<number>;
-  total_amount: Generated<number>;
   txid: string | null;
   layer_type: Generated<LAYER_TYPE>;
-  collection_key: string | null;
-  collectible_id: string | null;
   minting_type: Generated<MINTING_TYPE>;
+  collection_id: string | null;
+  collectible_key: string | null;
   funding_address: string;
   funding_private_key: string;
   user_address: string;

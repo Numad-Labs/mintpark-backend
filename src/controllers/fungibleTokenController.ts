@@ -28,20 +28,24 @@ export const fungibleTokenController = {
       )
         throw new CustomError("Please provide all required fields", 400);
 
-      const inscriptionData = JSON.stringify({
-        p: "brc-20",
-        op: "deploy",
-        tick: brc20Ticker,
-        ...(brc20Limit && { lim: brc20Limit }),
-        max: brc20Max,
-      });
-      const inscriptionContentType = "application/json";
-      const result = await createP2TRFundingAddress({
-        inscriptionData: Buffer.from(inscriptionData, "utf-8"),
-        inscriptionContentType: inscriptionContentType,
-        price: SERVICE_FEE,
-        feeRate,
-      });
+      const inscription = {
+        inscriptionData: Buffer.from(
+          JSON.stringify({
+            p: "brc-20",
+            op: "deploy",
+            tick: brc20Ticker,
+            ...(brc20Limit && { lim: brc20Limit }),
+            max: brc20Max,
+          }),
+          "utf-8"
+        ),
+        inscriptionContentType: "application/json",
+      };
+      const result = createP2TRFundingAddress(
+        [inscription],
+        SERVICE_FEE,
+        feeRate
+      );
 
       let orders = await orderRepository.getPendingUserOrdersByLayerType(
         req.user.address,
@@ -58,6 +62,7 @@ export const fungibleTokenController = {
         network_fee: result.requiredAmount - SERVICE_FEE,
         feeRate: feeRate,
         layer_type: mintLayerType,
+        minting_type: "BRC20",
         quantity: brc20Max,
       });
 

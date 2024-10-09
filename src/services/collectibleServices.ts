@@ -68,12 +68,16 @@ export const collectibleServices = {
     const key = randomUUID();
     await uploadToS3(key, file);
 
-    const funder = createP2TRFundingAddress({
-      inscriptionData: file.buffer,
-      inscriptionContentType: file.mimetype,
-      price: SERVICE_FEE,
-      feeRate: Number(feeRate),
-    });
+    const funder = createP2TRFundingAddress(
+      [
+        {
+          inscriptionData: file.buffer,
+          inscriptionContentType: file.mimetype,
+        },
+      ],
+      SERVICE_FEE,
+      Number(feeRate)
+    );
 
     const hashedPrivateKey = funder.privateKey;
 
@@ -85,8 +89,9 @@ export const collectibleServices = {
       funding_private_key: hashedPrivateKey,
       service_fee: SERVICE_FEE,
       network_fee: funder.requiredAmount - SERVICE_FEE,
-      collectible_id: key,
+      collectible_key: key,
       layer_type: mintlayerType,
+      minting_type: "COLLECTIBLE",
       quantity: 1,
     });
 
@@ -99,7 +104,7 @@ export const collectibleServices = {
     if (order.user_address !== userAddress)
       throw new CustomError("You are not authorized.", 403);
 
-    const file = await getObjectFromS3(order.collectible_id as string);
+    const file = await getObjectFromS3(order.collectible_key as string);
 
     try {
       const data = {
@@ -112,8 +117,6 @@ export const collectibleServices = {
         ticker: "test",
         supply: 1,
       };
-
-      console.log(data);
 
       const result = await mintHelper({
         layerType: order.layer_type,

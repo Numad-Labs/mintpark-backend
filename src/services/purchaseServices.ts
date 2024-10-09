@@ -9,15 +9,15 @@ import { Purchase } from "../types/db/types";
 import { purchaseRepository } from "../repositories/purchaseRepository";
 import { transactionRepository } from "../repositories/transactionRepository";
 import { userRepository } from "../repositories/userRepository";
-import { mintForAnduroWallet } from "../libs/coordinate/mint";
 import { checkTransactionStatus, getUtxos } from "../libs/coordinate/libs";
 import { mintHelper } from "../libs/mintHelper";
-import { LAYER_TYPE } from "../types/db/enums";
 
 export const purchaseServices = {
   generateHex: async (collectionId: string, userId: string) => {
     const collection = await collectionRepository.getById(collectionId);
     if (!collection) throw new CustomError("Collection not found.", 400);
+    if (!collection.isLaunched)
+      throw new CustomError("Collection is not launched.", 400);
 
     const collectibles =
       await collectibleRepository.getAvailablesByCollectionId(collectionId);
@@ -64,7 +64,7 @@ export const purchaseServices = {
     if (!owner) throw new CustomError("Owner not found.", 400);
 
     const result = await mintHelper({
-      layerType: LAYER_TYPE.COORDINATE_TESTNET,
+      layerType: collection.layer_type,
       feeRate: 1,
       mintingParams: {
         data: data,
@@ -82,7 +82,7 @@ export const purchaseServices = {
     lockReleaseDate.setMinutes(lockReleaseDate.getMinutes() + 5);
 
     pickedCollectible.status = "ON_HOLD";
-    pickedCollectible.transactionId = result.txId;
+    pickedCollectible.transactionId = result.revealTxId;
     pickedCollectible.onHoldUntil = lockReleaseDate;
     const updatedCollectible = await collectibleRepository.update(
       pickedCollectible.id,

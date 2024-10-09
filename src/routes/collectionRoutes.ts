@@ -12,15 +12,25 @@ collectionRouter.post(
   collectionController.create
 );
 collectionRouter.post(
-  "/:collectionId",
+  "/:collectionId/collectibles",
   authenticateToken,
   parseFiles("images", false),
   collectionController.addToCollection
 );
 collectionRouter.post(
+  "/:collectionId/create-order",
+  authenticateToken,
+  collectionController.createOrder
+);
+collectionRouter.post(
   "/:collectionId/mint",
   authenticateToken,
-  collectionController.mintCollection
+  collectionController.mint
+);
+collectionRouter.post(
+  "/launch",
+  authenticateToken,
+  collectionController.launchCollection
 );
 collectionRouter.get("/:id", collectionController.getById);
 collectionRouter.get("/", collectionController.getByLayerType);

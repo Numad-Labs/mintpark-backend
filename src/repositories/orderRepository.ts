@@ -21,6 +21,14 @@ export const orderRepository = {
       .executeTakeFirst();
     return order;
   },
+  getByCollectionId: async (orderId: string) => {
+    const order = await db
+      .selectFrom("Order")
+      .selectAll()
+      .where("Order.collection_id", "=", orderId)
+      .executeTakeFirst();
+    return order;
+  },
   getUserLastOrderByAddress: async (
     address: string,
     layer_type: LAYER_TYPE

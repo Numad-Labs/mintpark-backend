@@ -6,8 +6,6 @@ export const ASSETTYPE = {
   NFTONCHAIN: 2,
 };
 
-export const FEE_RATE = 64;
-
 export const SERVICE_FEE_ADDRESS =
   "tb1pffk5397d7sns6mayud03nf3fxy4p04e3alhslr6epaq3a788tsuqpw7qeu";
 export const SERVICE_FEE = 696;

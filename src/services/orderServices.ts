@@ -1,6 +1,8 @@
 import { LAYER_TYPE } from "@prisma/client";
 import { feeRateHelper, getAllFeeRates } from "../libs/feeRateHelper";
 import { createP2TRFundingAddress } from "../libs/fundingAddress";
+import { Insertable } from "kysely";
+import { Collectible } from "../types/db/types";
 
 export const orderServices = {
   getFeeRates: async (layerType: LAYER_TYPE) => {
@@ -32,13 +34,13 @@ export const orderServices = {
         const baseParams = {
           inscriptionContentType: file.mimetype,
           inscriptionData: file.buffer,
-          price: price,
         };
 
-        const customFunder = createP2TRFundingAddress({
-          ...baseParams,
-          feeRate: customFee,
-        });
+        const customFunder = createP2TRFundingAddress(
+          [baseParams],
+          Number(price),
+          Number(customFee)
+        );
         customAmount += customFunder.requiredAmount;
       }
 

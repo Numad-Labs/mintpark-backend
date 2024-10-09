@@ -14,7 +14,6 @@ const WITNESS_SCALE_FACTOR = 4;
 
 function getAddressType(
   address: string,
-  network: bitcoin.Network = bitcoin.networks.testnet
 ): string {
   try {
     if (address.startsWith("bc1p") || address.startsWith("tb1p")) {
@@ -72,16 +71,15 @@ export function calculateTransactionSize(
   inputs: { address: string; count: number }[],
   outputs: { address: string; count: number }[],
   inscriptionSize: number = 0,
-  network: bitcoin.Network,
   isRevealTx: boolean = false
 ): number {
   const inputSize = inputs.reduce((sum, input) => {
-    const addressType = getAddressType(input.address, network);
+    const addressType = getAddressType(input.address);
     return sum + input.count * inputBytes(addressType);
   }, 0);
 
   const outputSize = outputs.reduce((sum, output) => {
-    const addressType = getAddressType(output.address, network);
+    const addressType = getAddressType(output.address);
     return sum + output.count * outputBytes(addressType);
   }, 0);
 
