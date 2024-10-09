@@ -1,6 +1,7 @@
 import { orderController } from "../controllers/orderController";
 import express from "express";
 import { authenticateToken } from "../middlewares/authenticateToken";
+import { parseFiles } from "../middlewares/fileParser";
 
 const orderRouter = express.Router();
 
@@ -12,4 +13,9 @@ orderRouter.get(
 orderRouter.get("/:orderId", orderController.getByOrderId);
 orderRouter.get("/fee-rates/:layerType", orderController.getFeeRates);
 orderRouter.get("/fee-rates", orderController.getAllFeeRates);
+orderRouter.post(
+  "/estimated-fee/:layerType",
+  parseFiles("files", false),
+  orderController.getEstimatedFee
+);
 export = orderRouter;

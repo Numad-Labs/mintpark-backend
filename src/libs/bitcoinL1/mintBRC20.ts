@@ -10,6 +10,8 @@ import {
   TX_OUTPUT_P2TR,
   WITNESS_SCALE_FACTOR,
 } from "./libs";
+import { calculateTransactionSize } from "../txEstimate";
+import { calculateInscriptionSize } from "../inscriptionSizeEstimate";
 
 bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);
@@ -53,6 +55,11 @@ export async function deployBRC20(
     max: params.max,
   });
 
+  const inscriptionSize = calculateInscriptionSize(
+    "application/json",
+    Buffer.from(inscriptionData, "utf8")
+  )
+
   const leafScript = bitcoin.script.compile([
     internalPubKey,
     bitcoin.opcodes.OP_CHECKSIG,
@@ -78,24 +85,25 @@ export async function deployBRC20(
 
   // Calculate fees
   const dustThreshold = 546;
-  const commitInputs = 1;
-  const commitOutputs = 2;
-  const commitSize = Math.ceil(
-    TX_EMPTY_SIZE +
-      TX_INPUT_P2TR * commitInputs +
-      TX_OUTPUT_P2TR * commitOutputs
+  const commitInputs = [{ address: params.fundingAddress, count: 1 }];
+  const commitOutputs = [
+    { address: revealP2tr.address!, count: 1 },
+    { address: params.fundingAddress, count: 1 }, // Change output
+  ];
+  const commitSize = calculateTransactionSize(
+    commitInputs,
+    commitOutputs,
+    0,
+    network,
+    false
   );
   const commitFee = commitSize * feeRate;
 
-  const revealInputs = 1;
-  const revealOutputs = 1;
-  const inscriptionSize = Math.ceil(leafScript.length / WITNESS_SCALE_FACTOR);
-  const revealSize = Math.ceil(
-    TX_EMPTY_SIZE * 2 +
-      TX_INPUT_P2TR * revealInputs +
-      TX_OUTPUT_P2TR * revealOutputs +
-      inscriptionSize
-  );
+  const revealInputs = [{ address: revealP2tr.address!, count: 1 }];
+  const revealOutputs = [{ address: params.address, count: 1 }];
+  const revealSize =
+    calculateTransactionSize(revealInputs, revealOutputs, inscriptionSize, network, true) +
+    inscriptionSize;
   const revealFee = revealSize * feeRate;
 
   const requiredAmount = commitFee + revealFee + dustThreshold;

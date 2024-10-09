@@ -100,11 +100,11 @@ export const purchaseServices = {
     if (!collectible) throw new CustomError("Collectible not found.", 400);
     if (
       collectible.status !== "ON_HOLD" ||
-      !collectible.ownerId ||
+      !collectible.ownerAddress ||
       !collectible.generatedPsbtTxId
     )
       throw new CustomError("Collectible is not on hold.", 400);
-    if (collectible.ownerId !== issuerId)
+    if (collectible.ownerAddress !== issuerId)
       throw new CustomError(
         "This collectible is temporarily reserved for another user.",
         400

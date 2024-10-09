@@ -33,6 +33,61 @@ export const collectionController = {
       next(e);
     }
   },
+  addToCollection: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const userAddress = req.user?.address;
+      if (!userAddress)
+        throw new CustomError(
+          "Could not retrieve address from the token.",
+          400
+        );
+      const { collectionId } = req.params;
+      const images = req.files as Express.Multer.File[];
+
+      if (images.length === 0 || images.length > 10)
+        throw new CustomError(
+          "Please provide at least one and at most 10 images.",
+          400
+        );
+
+      const collectibles = await collectionServices.addCollectiblesToCollection(
+        images,
+        collectionId,
+        userAddress
+      );
+
+      return res.status(200).json({ success: true, data: collectibles });
+    } catch (e) {
+      next(e);
+    }
+  },
+  mintCollection: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const address = req.user?.address;
+      if (!address)
+        throw new CustomError(
+          "Could not retrieve address from the token.",
+          400
+        );
+      const { collectionId } = req.params;
+      const mintResult = await collectionServices.mintCollection(
+        collectionId,
+        address
+      );
+
+      return res.status(200).json({ success: true, data: mintResult });
+    } catch (e) {
+      next(e);
+    }
+  },
   get: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const collections = await collectionRepository.get();

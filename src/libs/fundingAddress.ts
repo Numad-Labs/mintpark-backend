@@ -1,12 +1,8 @@
 import * as bitcoin from "bitcoinjs-lib";
 import { ECPairFactory } from "ecpair";
 import * as ecc from "tiny-secp256k1";
-
-const TX_EMPTY_SIZE = 10;
-const TX_INPUT_P2TR = 57.5;
-const TX_OUTPUT_P2TR = 43;
-const WITNESS_SCALE_FACTOR = 4;
-const DUST_THRESHOLD = 546;
+import { calculateTransactionSize } from "./txEstimate";
+import { calculateInscriptionSize } from "./inscriptionSizeEstimate";
 
 const ECPair = ECPairFactory(ecc);
 
@@ -27,64 +23,53 @@ export function createP2TRFundingAddress(
   if (!address) {
     throw new Error("Could not derive address from public key.");
   }
-  const requiredAmount = calculateRequiredAmount(params);
 
-  return {
-    address,
-    privateKey: keyPair.privateKey!.toString("hex"),
-    requiredAmount,
-  };
-}
-
-function calculateRequiredAmount(params: {
-  inscriptionContentType: string;
-  inscriptionData: Buffer;
-  price: number;
-  feeRate: number;
-}): number {
   // Calculate inscription size
   const inscriptionSize = calculateInscriptionSize(
     params.inscriptionContentType,
     params.inscriptionData
   );
 
-  // Calculate commit and reveal transaction sizes
-  const commitInputs = 1;
-  const commitOutputs = 2; // One for the inscription, one for change
-  const commitSize = Math.ceil(
-    TX_EMPTY_SIZE +
-      TX_INPUT_P2TR * commitInputs +
-      TX_OUTPUT_P2TR * commitOutputs
+  // Calculate commit transaction size (1 input, 2 outputs)
+  const commitSize = calculateTransactionSize(
+    [{ address: address, count: 1 }],
+    [
+      { address: address, count: 1 }, // Reveal output
+      { address: address, count: 1 }, // Change output
+    ],
+    0,
+    network
   );
+  const commitFee = commitSize * params.feeRate;
 
-  const revealInputs = 1;
-  const revealOutputs = 1;
-  const revealSize = Math.ceil(
-    TX_EMPTY_SIZE * 2 +
-      TX_INPUT_P2TR * revealInputs +
-      TX_OUTPUT_P2TR * revealOutputs +
-      inscriptionSize / WITNESS_SCALE_FACTOR
+  // Calculate reveal transaction size (1 input, 1 output, with inscription)
+  const revealSize = calculateTransactionSize(
+    [{ address: address, count: 1 }],
+    [{ address: address, count: 1 }], // Assuming the final destination is the same address for simplicity
+    inscriptionSize,
+    network,
+    true
   );
+  const revealFee = revealSize * params.feeRate;
 
   // Calculate total required amount
-  const requiredAmount =
-    (commitSize + revealSize + params.price + DUST_THRESHOLD) * params.feeRate;
+  const DUST_THRESHOLD = 546; // Minimum amount for an output to be non-dust
+  const requiredAmount: number =
+    commitFee + revealFee + params.price + DUST_THRESHOLD;
 
-  return requiredAmount;
-}
-
-function calculateInscriptionSize(contentType: string, data: Buffer): number {
-  const mimeTypeSize = contentType.length;
-  const dataSize = data.length;
-  const maxChunkSize = 520;
-
-  let size = 2 + mimeTypeSize + 1; // OP_FALSE OP_IF + mime type + OP_0
-
-  for (let i = 0; i < dataSize; i += maxChunkSize) {
-    size += Math.min(maxChunkSize, dataSize - i) + 1; // Add 1 for the push opcode
-  }
-
-  size += 1; // OP_ENDIF
-
-  return size;
+  return {
+    address,
+    privateKey: keyPair.privateKey!.toString("hex"),
+    requiredAmount,
+    estimatedFees: {
+      commitFee,
+      revealFee,
+      totalFee: commitFee + revealFee,
+    },
+    estimatedSizes: {
+      commitSize,
+      revealSize,
+      inscriptionSize,
+    },
+  };
 }

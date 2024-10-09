@@ -53,4 +53,24 @@ export const orderController = {
       next(e);
     }
   },
+  getEstimatedFee: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const layerType = req.params.layerType;
+      const { price, customFee } = req.body;
+      const files = req.files as Express.Multer.File[];
+      if (!layerType || !price)
+        throw new CustomError("Please provide layerType and price", 400);
+      const estimatedFee = await orderServices.getEstimatedFee(
+        files,
+        layerType as LAYER_TYPE,
+        Number(price),
+        customFee
+      );
+      return res
+        .status(200)
+        .json({ success: true, estimatedFee: estimatedFee });
+    } catch (e) {
+      next(e);
+    }
+  },
 };

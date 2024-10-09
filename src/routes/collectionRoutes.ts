@@ -11,6 +11,17 @@ collectionRouter.post(
   parseFiles("logo", true),
   collectionController.create
 );
+collectionRouter.post(
+  "/:collectionId",
+  authenticateToken,
+  parseFiles("images", false),
+  collectionController.addToCollection
+);
+collectionRouter.post(
+  "/:collectionId/mint",
+  authenticateToken,
+  collectionController.mintCollection
+);
 collectionRouter.get("/:id", collectionController.getById);
 collectionRouter.get("/", collectionController.getByLayerType);
 

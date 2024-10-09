@@ -8,6 +8,7 @@ import type {
   COLLECTIBLE_STATUS,
   ORDER_STATUS,
   TRANSACTION_STATUS,
+  MINTING_TYPE,
   LAYER_TYPE,
 } from "./enums";
 
@@ -19,7 +20,7 @@ export type Collectible = {
   status: Generated<COLLECTIBLE_STATUS>;
   generatedPsbtTxId: string | null;
   onHoldUntil: Timestamp | null;
-  ownerId: string | null;
+  ownerAddress: string | null;
   collectionId: string;
   transactionId: string | null;
 };
@@ -37,6 +38,7 @@ export type Collection = {
   feeRate: Generated<number>;
   layer_type: Generated<LAYER_TYPE>;
   POStartDate: string;
+  isLaunched: Generated<boolean>;
   ownerAddress: string;
 };
 export type Order = {
@@ -52,8 +54,9 @@ export type Order = {
   total_amount: Generated<number>;
   txid: string | null;
   layer_type: Generated<LAYER_TYPE>;
-  collection_id: Generated<string | null>;
-  collectible_id: Generated<string | null>;
+  collection_key: string | null;
+  collectible_id: string | null;
+  minting_type: Generated<MINTING_TYPE>;
   funding_address: string;
   funding_private_key: string;
   user_address: string;

@@ -45,7 +45,7 @@ model Collection {
 
   POStartDate BigInt
 
-
+  isLaunched Boolean @default(false)
   ownerAddress String
   User        User          @relation(fields: [ownerAddress], references: [address], onDelete: Cascade)
   Collectible Collectible[]
@@ -60,8 +60,8 @@ model Collectible {
   generatedPsbtTxId String?
   onHoldUntil DateTime?
 
-  ownerId String?
-  User    User?   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerAddress String?
+  User    User?   @relation(fields: [ownerAddress], references: [address], onDelete: Cascade)
 
   collectionId String
   Collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
@@ -99,9 +99,9 @@ model Order {
   txid String?
   layer_type LAYER_TYPE @default(BITCOIN_TESTNET)
 
-  collection_id String? @default("-")
-  collectible_id String? @default("-")
-
+  collection_key String?
+  collectible_id String?
+  minting_type MINTING_TYPE @default(COLLECTIBLE)
 
   funding_address String
   funding_private_key String
@@ -137,6 +137,12 @@ enum TRANSACTION_STATUS {
   TRANSACTION_UNCONFIRMED
   TRANSACION_CONFIRMED
   TRANSACTION_FAILED
+}
+
+enum MINTING_TYPE {
+  COLLECTIBLE
+  BRC20
+  COLLECTION
 }
 
 enum LAYER_TYPE {

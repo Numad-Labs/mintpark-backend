@@ -1,69 +1,96 @@
-import { type PsbtTxOutput, type Psbt } from "bitcoinjs-lib/src/psbt";
-
-import { isTaprootInput } from "bitcoinjs-lib/src/psbt/bip371";
+import * as bitcoin from "bitcoinjs-lib";
 
 const TX_EMPTY_SIZE = 4 + 1 + 1 + 4;
-const TX_INPUT_BASE = 32 + 4 + 1 + 4; // 41
+const TX_INPUT_BASE = 32 + 4 + 1 + 4;
 const TX_INPUT_PUBKEYHASH = 107;
 const TX_INPUT_SEGWIT = 27;
-const TX_INPUT_TAPROOT = 17; // round up 16.5 bytes
+const TX_INPUT_TAPROOT = 17;
 const TX_OUTPUT_BASE = 8 + 1;
 const TX_OUTPUT_PUBKEYHASH = 25;
 const TX_OUTPUT_SCRIPTHASH = 23;
 const TX_OUTPUT_SEGWIT = 22;
 const TX_OUTPUT_SEGWIT_SCRIPTHASH = 34;
+const WITNESS_SCALE_FACTOR = 4;
 
-type PsbtInput = (typeof Psbt.prototype.data.inputs)[0];
-
-function inputBytes(input: PsbtInput) {
-  // todo: script length
-  if (isTaprootInput(input)) {
-    return TX_INPUT_BASE + TX_INPUT_TAPROOT;
+function getAddressType(
+  address: string,
+  network: bitcoin.Network = bitcoin.networks.testnet
+): string {
+  try {
+    if (address.startsWith("bc1p") || address.startsWith("tb1p")) {
+      return "p2tr";
+    } else if (address.startsWith("bc1") || address.startsWith("tb1")) {
+      return address.length === 42 ? "p2wpkh" : "p2wsh";
+    } else if (
+      address.startsWith("1") ||
+      address.startsWith("m") ||
+      address.startsWith("n")
+    ) {
+      return "p2pkh";
+    } else if (address.startsWith("3") || address.startsWith("2")) {
+      return "p2sh";
+    } else {
+      throw new Error("Unknown address type");
+    }
+  } catch (error) {
+    console.error("Invalid address:", error);
+    return "unknown";
   }
-
-  if (input.witnessUtxo) return TX_INPUT_BASE + TX_INPUT_SEGWIT;
-
-  return TX_INPUT_BASE + TX_INPUT_PUBKEYHASH;
-
-  // return (
-  //   TX_INPUT_BASE +
-  //   (input.script
-  //     ? input.script.length
-  //     : input.isTaproot
-  //     ? TX_INPUT_TAPROOT
-  //     : input.witnessUtxo
-  //     ? TX_INPUT_SEGWIT
-  //     : TX_INPUT_PUBKEYHASH)
-  // )
 }
 
-function outputBytes(output: PsbtTxOutput) {
-  return (
-    TX_OUTPUT_BASE +
-    (output.script
-      ? output.script.length
-      : output.address?.startsWith("bc1") || output.address?.startsWith("tb1")
-      ? output.address?.length === 42
-        ? TX_OUTPUT_SEGWIT
-        : TX_OUTPUT_SEGWIT_SCRIPTHASH
-      : output.address?.startsWith("3") || output.address?.startsWith("2")
-      ? TX_OUTPUT_SCRIPTHASH
-      : TX_OUTPUT_PUBKEYHASH)
-  );
+function inputBytes(addressType: string): number {
+  switch (addressType) {
+    case "p2tr":
+      return TX_INPUT_BASE + TX_INPUT_TAPROOT;
+    case "p2wpkh":
+    case "p2wsh":
+      return TX_INPUT_BASE + TX_INPUT_SEGWIT;
+    case "p2pkh":
+    case "p2sh":
+    default:
+      return TX_INPUT_BASE + TX_INPUT_PUBKEYHASH;
+  }
 }
 
-export function transactionBytes(inputs: PsbtInput[], outputs: PsbtTxOutput[]) {
-  const inputsSize = inputs.reduce(function (a, x) {
-    return a + inputBytes(x);
-  }, 0);
-  const outputsSize = outputs.reduce(function (a, x) {
-    return a + outputBytes(x);
+function outputBytes(addressType: string): number {
+  switch (addressType) {
+    case "p2tr":
+      return TX_OUTPUT_BASE + TX_OUTPUT_SEGWIT_SCRIPTHASH; // Use this for Taproot outputs
+    case "p2wpkh":
+      return TX_OUTPUT_BASE + TX_OUTPUT_SEGWIT;
+    case "p2wsh":
+      return TX_OUTPUT_BASE + TX_OUTPUT_SEGWIT_SCRIPTHASH;
+    case "p2sh":
+      return TX_OUTPUT_BASE + TX_OUTPUT_SCRIPTHASH;
+    case "p2pkh":
+    default:
+      return TX_OUTPUT_BASE + TX_OUTPUT_PUBKEYHASH;
+  }
+}
+
+export function calculateTransactionSize(
+  inputs: { address: string; count: number }[],
+  outputs: { address: string; count: number }[],
+  inscriptionSize: number = 0,
+  network: bitcoin.Network,
+  isRevealTx: boolean = false
+): number {
+  const inputSize = inputs.reduce((sum, input) => {
+    const addressType = getAddressType(input.address, network);
+    return sum + input.count * inputBytes(addressType);
   }, 0);
 
-  console.log({
-    inputsSize,
-    outputsSize,
-    TX_EMPTY_SIZE,
-  });
-  return TX_EMPTY_SIZE + inputsSize + outputsSize;
+  const outputSize = outputs.reduce((sum, output) => {
+    const addressType = getAddressType(output.address, network);
+    return sum + output.count * outputBytes(addressType);
+  }, 0);
+
+  let totalSize = TX_EMPTY_SIZE + inputSize + outputSize;
+
+  // Add extra buffer for reveal transaction
+  if (isRevealTx) {
+    totalSize += Math.ceil(inscriptionSize / WITNESS_SCALE_FACTOR);
+    totalSize += 10; // Extra buffer for reveal transaction
+  }
+  return totalSize;
 }

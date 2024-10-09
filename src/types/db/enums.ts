@@ -20,6 +20,12 @@ export const TRANSACTION_STATUS = {
 } as const;
 export type TRANSACTION_STATUS =
   (typeof TRANSACTION_STATUS)[keyof typeof TRANSACTION_STATUS];
+export const MINTING_TYPE = {
+  COLLECTIBLE: "COLLECTIBLE",
+  BRC20: "BRC20",
+  COLLECTION: "COLLECTION",
+} as const;
+export type MINTING_TYPE = (typeof MINTING_TYPE)[keyof typeof MINTING_TYPE];
 export const LAYER_TYPE = {
   FRACTAL: "FRACTAL",
   BITCOIN: "BITCOIN",
