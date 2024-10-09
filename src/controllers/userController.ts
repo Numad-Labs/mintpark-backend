@@ -114,4 +114,15 @@ export const userController = {
       next(e);
     }
   },
+  getByAddress: async (req: Request, res: Response, next: NextFunction) => {
+    const { address } = req.params;
+    try {
+      const user = await userRepository.getByAddress(address);
+      if (!user) throw new CustomError("No user found.", 404);
+
+      return res.status(200).json({ success: true, data: user });
+    } catch (e) {
+      next(e);
+    }
+  },
 };

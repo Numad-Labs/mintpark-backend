@@ -63,15 +63,17 @@ export const fungibleTokenController = {
 
       return res.status(200).json({
         success: true,
-        order_id: order.order_id,
-        fundingAddress: order.funding_address,
-        requiredAmountToFund: order.amount,
-        serviceFee: order.service_fee,
-        networkFee: order.network_fee,
-        feeRate: order.feeRate,
-        mintLayerType: order.layer_type,
-        status: order.status,
-        quantity: order.quantity,
+        data: {
+          order_id: order.order_id,
+          fundingAddress: order.funding_address,
+          requiredAmountToFund: order.amount,
+          serviceFee: order.service_fee,
+          networkFee: order.network_fee,
+          feeRate: order.feeRate,
+          mintLayerType: order.layer_type,
+          status: order.status,
+          quantity: order.quantity,
+        },
       });
     } catch (e) {
       next(e);
@@ -105,7 +107,9 @@ export const fungibleTokenController = {
 
       return res.status(200).json({
         success: true,
-        data: deploymentResult,
+        data: {
+          ...deploymentResult,
+        },
       });
     } catch (e) {
       next(e);

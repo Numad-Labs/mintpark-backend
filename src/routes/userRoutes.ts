@@ -8,6 +8,6 @@ userRouter.post("/login", userController.login);
 userRouter.post("/refresh-token", userController.refreshToken);
 userRouter.put("/:id", authenticateToken, userController.update);
 userRouter.delete("/:id", authenticateToken, userController.delete);
-userRouter.get("/:id", authenticateToken, userController.getById);
+userRouter.get("/:address", userController.getByAddress);
 
 export = userRouter;
