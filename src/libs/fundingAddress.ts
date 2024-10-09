@@ -61,15 +61,5 @@ export function createP2TRFundingAddress(
     address,
     privateKey: keyPair.privateKey!.toString("hex"),
     requiredAmount,
-    estimatedFees: {
-      commitFee,
-      revealFee,
-      totalFee: commitFee + revealFee,
-    },
-    estimatedSizes: {
-      commitSize,
-      revealSize,
-      inscriptionSize,
-    },
   };
 }

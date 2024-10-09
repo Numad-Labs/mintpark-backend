@@ -4,6 +4,7 @@ import { CustomError } from "../exceptions/CustomError";
 import { orderRepository } from "../repositories/orderRepository";
 import { LAYER_TYPE } from "../types/db/enums";
 import { orderServices } from "../services/orderServices";
+import { SERVICE_FEE } from "../libs/constants";
 
 export const orderController = {
   getUserOrdersByLayerType: async (
@@ -55,16 +56,13 @@ export const orderController = {
   },
   getEstimatedFee: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const layerType = req.params.layerType;
-      const { price, customFee } = req.body;
+      const { fee } = req.body;
       const files = req.files as Express.Multer.File[];
-      if (!layerType || !price)
-        throw new CustomError("Please provide layerType and price", 400);
+      if (!fee) throw new CustomError("Please provide the fee rate", 400);
       const estimatedFee = await orderServices.getEstimatedFee(
         files,
-        layerType as LAYER_TYPE,
-        Number(price),
-        customFee
+        Number(SERVICE_FEE),
+        Number(fee)
       );
       return res
         .status(200)
