@@ -71,14 +71,17 @@ export const userController = {
     res: Response,
     next: NextFunction
   ) => {
-    const { id } = req.params;
+    const { address } = req.params;
     const data: Updateable<User> = { ...req.body };
 
     try {
-      if (!req.user?.id)
-        throw new CustomError("Could not retrieve id from the token.", 400);
+      if (!req.user?.address)
+        throw new CustomError(
+          "Could not retrieve address from the token.",
+          400
+        );
 
-      const user = await userServices.update(id, data, req.user.id);
+      const user = await userServices.update(address, data, req.user.address);
 
       return res.status(200).json({ success: true, data: user });
     } catch (e) {
@@ -90,13 +93,13 @@ export const userController = {
     res: Response,
     next: NextFunction
   ) => {
-    const { id } = req.params;
+    const { address } = req.params;
 
     try {
-      if (!req.user?.id)
+      if (!req.user?.address)
         throw new CustomError("Could not retrieve id from the token.", 400);
 
-      const user = await userServices.delete(id, req.user.id);
+      const user = await userServices.delete(address, req.user.address);
 
       return res.status(200).json({ success: true, data: user });
     } catch (e) {

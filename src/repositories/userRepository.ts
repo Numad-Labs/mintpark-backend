@@ -12,21 +12,21 @@ export const userRepository = {
 
     return user;
   },
-  update: async (id: string, data: Updateable<User>) => {
+  update: async (address: string, data: Updateable<User>) => {
     const user = await db
       .updateTable("User")
       .returningAll()
       .set(data)
-      .where("User.id", "=", id)
+      .where("User.address", "=", address)
       .executeTakeFirstOrThrow(() => new Error("Couldnt update the user."));
 
     return user;
   },
-  delete: async (id: string) => {
+  delete: async (address: string) => {
     const user = await db
       .deleteFrom("User")
       .returningAll()
-      .where("User.id", "=", id)
+      .where("User.address", "=", address)
       .executeTakeFirstOrThrow(() => new Error("Couldnt delete the user."));
 
     return user;

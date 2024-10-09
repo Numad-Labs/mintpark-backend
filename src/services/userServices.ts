@@ -33,27 +33,27 @@ export const userServices = {
 
     return { user, tokens };
   },
-  update: async (id: string, data: Updateable<User>, issuerId: string) => {
-    const existingUser = await userRepository.getById(id);
+  update: async (address: string, data: Updateable<User>, issueraddress: string) => {
+    const existingUser = await userRepository.getByAddress(address);
     if (!existingUser) throw new CustomError("No user found.", 400);
-    if (id !== issuerId)
+    if (existingUser.address !== issueraddress)
       throw new CustomError("You are not allowed to do this action.", 400);
 
     if (data.address || data.createdAt)
       throw new CustomError("Trying to update immutable fields.", 400);
 
-    const user = await userRepository.update(id, data);
+    const user = await userRepository.update(address, data);
 
     return user;
   },
-  delete: async (id: string, issuerId: string) => {
-    if (id !== issuerId)
+  delete: async (address: string, issuerAddress: string) => {
+    if (address !== issuerAddress)
       throw new CustomError("You are not allowed to do this action.", 400);
 
-    const existingUser = await userRepository.getById(id);
+    const existingUser = await userRepository.getByAddress(address);
     if (!existingUser) throw new CustomError("No user found.", 400);
 
-    const user = await userRepository.delete(id);
+    const user = await userRepository.delete(address);
 
     return user;
   },
