@@ -14,9 +14,15 @@ export async function checkAndUpdateCollectibleStatus() {
 
 export async function checkAndUpdateOrderStatus() {
   cron.schedule("*/1 * * * *", async () => {
-    // Update order status
-    const currentDate = new Date();
-    await orderRepository.updateExpiredOrderStatus(currentDate);
-    return;
+    try {
+      console.log("Updating order status...");
+      const cutoffDate = new Date(Date.now() - 5 * 60 * 1000); // 5 minutes ago
+      const updatedOrders = await orderRepository.updateExpiredOrderStatus(
+        cutoffDate
+      );
+      console.log(`Updated ${updatedOrders.length} orders`);
+    } catch (error) {
+      console.error("Error in cron job:", error);
+    }
   });
 }

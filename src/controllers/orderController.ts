@@ -79,12 +79,15 @@ export const orderController = {
     next: NextFunction
   ) => {
     try {
-      const { fileSize, layerType } = req.body;
+      const { fileSize, layerType, fileType } = req.body;
       const feeRate = 1;
-      if (!layerType || !fileSize)
+      if (!layerType || !fileSize || !fileType)
         throw new CustomError("Please provide the fee rate", 400);
+
+      const mimeTypeByteSize = fileType.length;
       const estimatedFee = await orderServices.getEstimatedFee2(
         Number(fileSize),
+        Number(mimeTypeByteSize),
         Number(SERVICE_FEE),
         Number(feeRate),
         layerType.toUpperCase() as LAYER_TYPE

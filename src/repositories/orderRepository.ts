@@ -54,17 +54,19 @@ export const orderRepository = {
       );
     return order;
   },
-  updateExpiredOrderStatus: async (date: Date) => {
-    const currentDate = new Date();
-    if (currentDate.getMinutes() - date.getMinutes() >= 5) {
+  updateExpiredOrderStatus: async (cutoffDate: Date) => {
+    try {
       const orders = await db
         .updateTable("Order")
         .set({ status: "CLOSED", updated_at: sql`NOW()` })
-        .where("created_at", "<", date)
+        .where("created_at", "<", cutoffDate)
         .where("status", "=", "PENDING")
         .returningAll()
         .execute();
       return orders;
+    } catch (error) {
+      console.error("Error updating expired orders:", error);
+      throw error;
     }
   },
   getUserOrdersByLayerType: async (address: string, layerType: LAYER_TYPE) => {

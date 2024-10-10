@@ -60,6 +60,7 @@ export const orderServices = {
   },
   getEstimatedFee2: async (
     fileSize: number,
+    mimeTypeByteSize: number,
     price: number,
     customFee: number = 1,
     layerType: LAYER_TYPE
@@ -67,7 +68,18 @@ export const orderServices = {
     try {
       let customAmount = 0;
       const commitSize = Math.ceil(10 + 58 * 1 + 43 * 3);
-      const inscriptionSize = Math.ceil(fileSize / 4);
+      const inscriptionSize =
+        33 +
+        1 +
+        1 +
+        1 +
+        4 +
+        2 +
+        1 +
+        mimeTypeByteSize +
+        2 +
+        Math.ceil(fileSize / 520) +
+        1;
       const revealSize = Math.ceil(10 + 58 * 1 + 43 * 1 + inscriptionSize);
       const commitFee = commitSize * customFee;
       const revealFee = revealSize * customFee;

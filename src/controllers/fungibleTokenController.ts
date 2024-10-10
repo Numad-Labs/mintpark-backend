@@ -92,10 +92,8 @@ export const fungibleTokenController = {
           max: inscriptionContent.max,
           lim: inscriptionContent.limit,
           address: deployerAddress,
-          fundingAddress:
-            "tb1pffk5397d7sns6mayud03nf3fxy4p04e3alhslr6epaq3a788tsuqpw7qeu",
-          fundingPrivateKey:
-            "8736c95006362c182c82fa937eaab90c1a7dfc6057402fd83a7c89f557fdd770",
+          fundingAddress: order.funding_address,
+          fundingPrivateKey: order.funding_private_key,
         },
         order.feeRate
       );
