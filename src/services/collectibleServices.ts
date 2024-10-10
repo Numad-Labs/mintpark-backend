@@ -102,11 +102,11 @@ export const collectibleServices = {
     let order = await orderRepository.getById(orderId);
     if (!order) throw new CustomError("Order does not exist.", 400);
 
-    // if (order.status !== "PENDING")
-    //   throw new CustomError(
-    //     "Order is not pending. Already inscribed or closed.",
-    //     400
-    //   );
+    if (order.status !== "PENDING")
+      throw new CustomError(
+        "Order is not pending. Already inscribed or closed.",
+        400
+      );
 
     if (order.userAddress !== userAddress)
       throw new CustomError("You are not authorized.", 403);
