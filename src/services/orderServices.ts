@@ -3,6 +3,7 @@ import { feeRateHelper, getAllFeeRates } from "../libs/feeRateHelper";
 import { createFundingAddress } from "../libs/fundingAddress";
 import { Insertable } from "kysely";
 import { Collectible } from "../types/db/types";
+import { WITNESS_SCALE_FACTOR } from "../libs/bitcoinL1/libs";
 
 export const orderServices = {
   getFeeRates: async (layerType: LAYER_TYPE) => {
@@ -69,7 +70,7 @@ export const orderServices = {
       let customAmount = 0;
       const commitSize = Math.ceil(10 + 58 * 1 + 43 * 3);
       const inscriptionSize =
-        33 +
+        (33 +
         1 +
         1 +
         1 +
@@ -79,7 +80,7 @@ export const orderServices = {
         mimeTypeByteSize +
         2 +
         Math.ceil(fileSize / 520) +
-        1;
+        1) / WITNESS_SCALE_FACTOR;
       const revealSize = Math.ceil(10 + 58 * 1 + 43 * 1 + inscriptionSize);
       const commitFee = commitSize * customFee;
       const revealFee = revealSize * customFee;
