@@ -15,8 +15,6 @@ import {
 } from "./libs";
 import { calculateUnsignedSegwitTxid } from "./libs";
 import { parseDataUrl } from "../parseImage";
-import { tweakKey } from "bitcoinjs-lib/src/payments/bip341";
-import * as btcSigner from "@scure/btc-signer";
 
 bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);
@@ -53,6 +51,11 @@ export async function mintForBitcoin(
 
     const pubkey = node.publicKey;
     const internalPubKey = toXOnly(pubkey);
+
+    console.log({
+      nodePubKey: pubkey.toString("hex"),
+      internalPubKey: internalPubKey.toString("hex"),
+    });
 
     // Create the base script ASM
     const payloadData = JSON.stringify(params.data.opReturnValues);
@@ -191,7 +194,6 @@ export async function mintForBitcoin(
     const tweakedSigner = node.tweak(
       bitcoin.crypto.taggedHash("TapTweak", toXOnly(node.publicKey))
     );
-    // const tweakedSigner = btcSigner.
 
     for (let i = 0; i < commitPsbt.data.inputs.length; i++) {
       commitPsbt.signInput(i, tweakedSigner);

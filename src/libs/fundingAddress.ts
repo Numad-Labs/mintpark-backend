@@ -47,11 +47,11 @@ function createBitcoinAddress(
 ): AddressCreationResult {
   const keyPair = ECPair.makeRandom({ network });
   const { address } = bitcoin.payments.p2tr({
-    pubkey: keyPair.publicKey.slice(1, 33),
+    internalPubkey: keyPair.publicKey.slice(1, 33),
     network,
   });
   if (!address) {
-    throw new Error("Could not derive Bitcoin address from public key.");
+    throw new Error("Could not generate funding address and private key.");
   }
   return {
     address,
