@@ -63,6 +63,7 @@ export const collectionRepository = {
       .selectFrom("Collection")
       .selectAll()
       .where("Collection.layer_type", "=", layerType)
+      .where("Collection.isLaunched", "=", true)
       .orderBy("Collection.createdAt desc")
       .execute();
 

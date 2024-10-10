@@ -2,7 +2,7 @@ import { mintForBitcoin } from "./bitcoinL1/mintCollectible";
 import * as bitcoin from "bitcoinjs-lib";
 import * as coordinate from "chromajs-lib";
 import { mintForAnduroWallet } from "./coordinate/mint";
-import { mintingParams } from "../../custom";
+import { MintingParams, mintingParams } from "../../custom";
 import { getRecommendedFeeRateBTCTestnet } from "./bitcoinL1/libs";
 import { number } from "chromajs-lib/src/script";
 import { LAYER_TYPE } from "../types/db/enums";

@@ -23,7 +23,11 @@ export const collectionController = {
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
 
-      data.price = Number(data.price);
+      if (data.POStartDate || data.isLaunched || data.walletLimit || data.price)
+        throw new CustomError(
+          "Launching phase has not been started on this collection.",
+          400
+        );
 
       const collection = await collectionServices.create(
         data,
@@ -142,10 +146,19 @@ export const collectionController = {
           "Could not retrieve address from the token.",
           400
         );
+      const { POStartDate, walletLimit, price } = req.body;
+      if (!POStartDate || !walletLimit || !price)
+        throw new CustomError(
+          "Please provide POStartDate, walletLimit and price.",
+          400
+        );
       const { collectionId } = req.params;
       const launchResult = await collectionServices.launchCollection(
         collectionId,
-        address
+        address,
+        POStartDate,
+        Number(walletLimit),
+        Number(price)
       );
 
       return res.status(200).json({ success: true, collection: launchResult });
@@ -175,7 +188,8 @@ export const collectionController = {
   },
   getByLayerType: async (req: Request, res: Response, next: NextFunction) => {
     const layerType = req.query.layerType;
-    if (!layerType) throw new CustomError("Please provide a layer type.", 400);
+    if (!layerType)
+      throw new CustomError("Please provide a layer type in query.", 400);
 
     try {
       const collections = await collectionRepository.getByLayerType(

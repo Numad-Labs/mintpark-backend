@@ -1,5 +1,6 @@
 import { Insertable } from "kysely";
 import { Collectible, Collection } from "../types/db/types";
+
 import { collectionRepository } from "../repositories/collectionRepository";
 import { db } from "../utils/db";
 import { CustomError } from "../exceptions/CustomError";
@@ -7,10 +8,11 @@ import { getObjectFromS3, uploadToS3 } from "../utils/aws";
 import { randomUUID } from "crypto";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import { mintHelper } from "../libs/mintHelper";
+import { LAYER_TYPE } from "../types/db/enums";
 import { ASSETTYPE, SERVICE_FEE, SERVICE_FEE_ADDRESS } from "../libs/constants";
+import { orderServices } from "./orderServices";
 import { orderRepository } from "../repositories/orderRepository";
 import { createFundingAddress } from "../libs/fundingAddress";
-import { fileRepository } from "../repositories/fileRepository";
 
 export const collectionServices = {
   create: async (
@@ -30,28 +32,41 @@ export const collectionServices = {
   },
   addCollectiblesToCollection: async (
     files: Express.Multer.File[],
+    // totalFileSize: number,
     collectionId: string,
     issuerAddress: string
+    // feeRate: number,
+    // mintLayerType: LAYER_TYPE
   ) => {
     const collection = await collectionRepository.getById(collectionId);
     if (!collection) throw new CustomError("Collection does not exist.", 400);
+
     if (collection.ownerAddress !== issuerAddress)
       throw new CustomError("You are not allowed to do this action.", 403);
+
+    const collectibles: Insertable<Collectible>[] = [];
 
     for (let i = 0; i < files.length; i++) {
       const key = randomUUID();
       await uploadToS3(key, files[i]);
-      const file = await fileRepository.create({
-        collection_id: collection.id,
-        file_key: key,
-      });
+      const collectible = {
+        collectionId: collection.id,
+        fileKey: key,
+        name: `${collection.name} #${collection.totalCount + i}`,
+        ownerAddress: issuerAddress,
+      };
+      collectibles.push(collectible);
     }
     collection.totalCount += files.length;
+
+    const updatedCollectibles = await collectibleRepository.create(
+      collectibles,
+      db
+    );
     await collectionRepository.update(collection.id, collection);
 
-    return collection;
+    return updatedCollectibles;
   },
-
   createOrderToMintCollectible: async (
     collectionId: string,
     issuerAddress: string
@@ -60,16 +75,14 @@ export const collectionServices = {
     if (!collection) throw new CustomError("Collection does not exist.", 400);
     if (collection.ownerAddress !== issuerAddress)
       throw new CustomError("You are not allowed to do this action.", 403);
-    if (collection.isLaunched)
-      throw new CustomError("Collection is already launched.", 400);
 
-    const retrievedFiles = await fileRepository.getByCollectionId(
+    const collectibles = await collectibleRepository.getByCollectionId(
       collection.id
     );
 
     const files = [];
-    for (let i = 0; i < retrievedFiles.length; i++) {
-      const file = await getObjectFromS3(retrievedFiles[i].file_key);
+    for (let i = 0; i < collectibles.length; i++) {
+      const file = await getObjectFromS3(collectibles[i].fileKey);
       files.push({
         inscriptionData: file.content,
         inscriptionContentType: file.contentType!,
@@ -91,7 +104,7 @@ export const collectionServices = {
       feeRate: collection.feeRate,
       layer_type: collection.layer_type,
       minting_type: "COLLECTION",
-      quantity: files.length,
+      quantity: collectibles.length,
       collection_id: collection.id,
     });
 
@@ -103,26 +116,31 @@ export const collectionServices = {
       throw new CustomError("Order for this collection does not exist.", 400);
     if (order.user_address !== issuerAddress)
       throw new CustomError("You are not authorized.", 403);
-    if (order.status !== "PENDING")
-      throw new CustomError("Order is not pending.", 400);
 
-    const files = await fileRepository.getByCollectionId(order.collection_id);
-    if (files.length !== order.quantity)
-      throw new CustomError("Number of files does not match the order.", 400);
     const collection = await collectionRepository.getById(order.collection_id);
     if (!collection) throw new CustomError("Collection does not exist.", 400);
+
+    const collectibles = await collectibleRepository.getByCollectionId(
+      collection.id
+    );
+
     let mintedCollectionCount: number = 0;
     let allMintResult = [];
-    for (let i = 0; i < files.length; i++) {
-      const file = await getObjectFromS3(files[i].file_key);
+    for (let i = 0; i < collectibles.length; i++) {
+      if (collectibles[i].status !== "ACTIVE")
+        throw new CustomError(
+          "Some collectibles are not available to mint.",
+          400
+        );
+      const file = await getObjectFromS3(collectibles[i].fileKey);
       const data = {
         address: issuerAddress,
         xpub: null,
         opReturnValues: (`data:${file.contentType};base64,` +
           file.content.toString("base64")) as any,
         assetType: ASSETTYPE.NFTONCHAIN,
-        headline: collection?.name,
-        ticker: "nft",
+        headline: collectibles[i].name,
+        ticker: collection.name,
         supply: 1,
       };
       let mintResult = await mintHelper({
@@ -136,14 +154,13 @@ export const collectionServices = {
           fundingPrivateKey: order.funding_private_key,
         },
       });
-      files[i].status = "MINTED";
-      files[i].generatedTxPsbt = mintResult.revealTxId;
-      await fileRepository.update(files[i].id, files[i]);
+      collectibles[i].status = "SOLD";
+      collectibles[i].generatedPsbtTxId = mintResult.revealTxId;
+      await collectibleRepository.update(collectibles[i].id, collectibles[i]);
       mintedCollectionCount++;
       allMintResult.push(mintResult);
     }
     collection.mintedCount = mintedCollectionCount;
-    collection.totalCount = collection.totalCount - mintedCollectionCount;
     await collectionRepository.update(collection.id, collection);
     order = await orderRepository.updateOrderStatus(
       orderId,
@@ -156,13 +173,7 @@ export const collectionServices = {
       status: order.status,
     };
   },
-  launchCollection: async (
-    collectionId: string,
-    issuerAddress: string,
-    POStartDate: string,
-    walletLimit: number,
-    price: number
-  ) => {
+  launchCollection: async (collectionId: string, issuerAddress: string) => {
     const collection = await collectionRepository.getById(collectionId);
     if (!collection) throw new CustomError("Collection does not exist.", 400);
     if (collection.ownerAddress !== issuerAddress)
@@ -170,31 +181,8 @@ export const collectionServices = {
 
     if (collection.isLaunched)
       throw new CustomError("Collection already launched.", 400);
-
-    const files = await fileRepository.getPendingFilesByCollectionId(
-      collection.id
-    );
-    if (files.length !== collection.totalCount)
-      throw new CustomError("No files available for launch.", 400);
-
-    const collectibles: Insertable<Collectible>[] = [];
-    for (let i = 0; i < files.length; i++) {
-      const collectible = {
-        collectionId: collection.id,
-        fileKey: files[i].file_key,
-        name: `${collection.name} #${i + 1}`,
-        ownerAddress: issuerAddress,
-      };
-      collectibles.push(collectible);
-    }
-
-    await collectibleRepository.create(collectibles, db);
-
     collection.isLaunched = true;
     collection.status = "LIVE";
-    collection.POStartDate = POStartDate;
-    collection.walletLimit = walletLimit;
-    collection.price = price;
     await collectionRepository.update(collection.id, collection);
 
     return collection;

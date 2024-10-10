@@ -6,6 +6,7 @@ export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 import type {
   COLLECTIBLE_STATUS,
+  FILE_STATUS,
   COLLECTION_STATUS,
   ORDER_STATUS,
   TRANSACTION_STATUS,
@@ -30,18 +31,26 @@ export type Collection = {
   name: string;
   creator: string | null;
   description: string;
-  price: number;
+  price: Generated<number>;
   createdAt: Generated<Timestamp>;
+  logoKey: string | null;
   walletLimit: Generated<number>;
-  logoKey: string;
   totalCount: Generated<number>;
   mintedCount: Generated<number>;
   feeRate: Generated<number>;
+  POStartDate: Generated<string>;
   layer_type: Generated<LAYER_TYPE>;
-  POStartDate: string;
   status: Generated<COLLECTION_STATUS>;
   isLaunched: Generated<boolean>;
   ownerAddress: string;
+};
+export type File = {
+  id: Generated<string>;
+  createdAt: Generated<Timestamp>;
+  file_key: string;
+  generatedTxPsbt: string | null;
+  status: Generated<FILE_STATUS>;
+  collection_id: string;
 };
 export type Order = {
   order_id: Generated<string>;
@@ -86,6 +95,7 @@ export type User = {
 export type DB = {
   Collectible: Collectible;
   Collection: Collection;
+  File: File;
   Order: Order;
   Purchase: Purchase;
   Transaction: Transaction;

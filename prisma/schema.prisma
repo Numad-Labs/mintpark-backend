@@ -33,17 +33,16 @@ model Collection {
   name        String
   creator     String?
   description String
-  price       Float
+  price       Int  @default(0)
   createdAt   DateTime @default(now())
-  walletLimit Int     @default(1000)
-  logoKey     String
+  logoKey     String?
+  walletLimit Int     @default(0)
   totalCount  Int      @default(0)
   mintedCount Int      @default(0)
-  feeRate     Float    @default(0)
+  feeRate     Float    @default(1)
+  POStartDate BigInt    @default(0)
 
   layer_type LAYER_TYPE @default(BITCOIN_TESTNET)
-
-  POStartDate BigInt
 
   status     COLLECTION_STATUS @default(UPCOMING)
   isLaunched Boolean @default(false)
@@ -51,7 +50,19 @@ model Collection {
   ownerAddress String
   User        User          @relation(fields: [ownerAddress], references: [address], onDelete: Cascade)
   Collectible Collectible[]
+  File       File[]
 }
+
+model File {
+  id        String   @unique @default(dbgenerated("gen_random_uuid()"))
+  createdAt DateTime @default(dbgenerated("now()"))
+  file_key       String
+  generatedTxPsbt String?
+  status FILE_STATUS @default(PENDING)
+  collection_id  String
+  Collection   Collection @relation(fields: [collection_id], references: [id], onDelete: Cascade)
+}
+
 
 model Collectible {
   id                String             @unique @default(dbgenerated("gen_random_uuid()"))
@@ -124,6 +135,13 @@ enum COLLECTIBLE_STATUS {
   ACTIVE
   ON_HOLD
   SOLD
+}
+
+enum FILE_STATUS {
+  MINTED
+  PENDING
+  LAUNCHED
+  FAILED
 }
 
 enum COLLECTION_STATUS {

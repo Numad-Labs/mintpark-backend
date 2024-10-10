@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../exceptions/CustomError";
-import { createP2TRFundingAddress } from "../libs/fundingAddress";
+import { createFundingAddress } from "../libs/fundingAddress";
 import { SERVICE_FEE } from "../libs/constants";
 import { orderRepository } from "../repositories/orderRepository";
 import { deployBRC20 } from "../libs/bitcoinL1/mintBRC20";
@@ -41,11 +41,12 @@ export const fungibleTokenController = {
         ),
         inscriptionContentType: "application/json",
       };
-      const result = createP2TRFundingAddress(
-        [inscription],
-        SERVICE_FEE,
-        feeRate
-      );
+      const result = createFundingAddress({
+        layerType: mintLayerType,
+        inscriptions: [inscription],
+        price: SERVICE_FEE,
+        feeRate: feeRate,
+      });
 
       let orders = await orderRepository.getPendingUserOrdersByLayerType(
         req.user.address,

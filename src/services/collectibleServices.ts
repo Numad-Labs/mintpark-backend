@@ -7,7 +7,7 @@ import { hash, randomUUID } from "crypto";
 import { db } from "../utils/db";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import { orderRepository } from "../repositories/orderRepository";
-import { createP2TRFundingAddress } from "../libs/fundingAddress";
+import { createFundingAddress } from "../libs/fundingAddress";
 import { encryptionHelper } from "../libs/encryptionHelper";
 import { ASSETTYPE, SERVICE_FEE, SERVICE_FEE_ADDRESS } from "../libs/constants";
 import { getObjectFromS3 } from "../utils/aws";
@@ -68,16 +68,17 @@ export const collectibleServices = {
     const key = randomUUID();
     await uploadToS3(key, file);
 
-    const funder = createP2TRFundingAddress(
-      [
+    const funder = createFundingAddress({
+      inscriptions: [
         {
-          inscriptionData: file.buffer,
           inscriptionContentType: file.mimetype,
+          inscriptionData: file.buffer,
         },
       ],
-      SERVICE_FEE,
-      Number(feeRate)
-    );
+      price: SERVICE_FEE,
+      feeRate: Number(feeRate),
+      layerType: mintlayerType,
+    });
 
     const hashedPrivateKey = funder.privateKey;
 

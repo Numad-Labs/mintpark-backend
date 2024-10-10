@@ -117,37 +117,58 @@ export async function mintForBitcoin(
     }
 
     // Calculate fees
-    const dustThreshold = 546;
+    // const dustThreshold = 546;
 
-    const commitInputs = [{ address: params.fundingAddress, count: 1 }];
-    const commitOutputs = [
-      { address: revealP2tr.address!, count: 1 },
-      { address: params.toAddress, count: 1 },
-      { address: params.data.address, count: 1 }, // Change output
-    ];
-    const commitSize = calculateTransactionSize(
-      commitInputs,
-      commitOutputs,
-      0,
-      false
+    // const commitInputs = [{ address: params.fundingAddress, count: 1 }];
+    // const commitOutputs = [
+    //   { address: revealP2tr.address!, count: 1 },
+    //   { address: params.toAddress, count: 1 },
+    //   { address: params.data.address, count: 1 }, // Change output
+    // ];
+    // const commitSize = calculateTransactionSize(
+    //   commitInputs,
+    //   commitOutputs,
+    //   0,
+    //   false
+    // );
+    // const commitFee = commitSize * feeRate;
+
+    // const revealInputs = [{ address: revealP2tr.address!, count: 1 }];
+    // const revealOutputs = [{ address: params.data.address, count: 1 }];
+    // const inscriptionSize = calculateInscriptionSize(
+    //   inscriptionData.contentType,
+    //   Buffer.from(inscriptionData.imageBuffer)
+    // );
+    // const revealSize =
+    //   calculateTransactionSize(
+    //     revealInputs,
+    //     revealOutputs,
+    //     inscriptionSize,
+    //     true
+    //   ) + inscriptionSize;
+    // const revealFee = revealSize * feeRate;
+
+    // const requiredAmount = commitFee + revealFee + params.price + dustThreshold;
+
+    const dustThreshold = 546;
+    const commitInputs = 1;
+    const commitOutputs = 3;
+    const commitSize = Math.ceil(
+      TX_EMPTY_SIZE +
+        TX_INPUT_P2TR * commitInputs +
+        TX_OUTPUT_P2TR * commitOutputs
     );
     const commitFee = commitSize * feeRate;
-
-    const revealInputs = [{ address: revealP2tr.address!, count: 1 }];
-    const revealOutputs = [{ address: params.data.address, count: 1 }];
-    const inscriptionSize = calculateInscriptionSize(
-      inscriptionData.contentType,
-      Buffer.from(inscriptionData.imageBuffer)
+    const revealInputs = 1;
+    const revealOutputs = 1;
+    const inscriptionSize = Math.ceil(leafScript.length / WITNESS_SCALE_FACTOR);
+    const revealSize = Math.ceil(
+      TX_EMPTY_SIZE + 10 +
+        TX_INPUT_P2TR * revealInputs +
+        TX_OUTPUT_P2TR * revealOutputs +
+        inscriptionSize
     );
-    const revealSize =
-      calculateTransactionSize(
-        revealInputs,
-        revealOutputs,
-        inscriptionSize,
-        true
-      ) + inscriptionSize;
     const revealFee = revealSize * feeRate;
-
     const requiredAmount = commitFee + revealFee + params.price + dustThreshold;
 
     const utxos: unisatUtxo[] = await getUtxosWithAddress(address, network);

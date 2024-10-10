@@ -75,3 +75,45 @@ export type mintingParams = {
     fundingPrivateKey: string;
   };
 };
+
+export interface MintingParams {
+  layerType: LAYER_TYPE;
+  feeRate: number;
+  mintingParams:
+    | BRC20MintingParams
+    | CollectibleMintingParams
+    | CollectionMintingParams;
+}
+
+export interface BRC20MintingParams {
+  type: "BRC20";
+  operation: "DEPLOY" | "MINT" | "TRANSFER";
+  ticker: string;
+  amount?: string;
+  decimals?: number;
+  supply?: string;
+  limit?: string;
+  to?: string;
+}
+
+export interface CollectibleMintingParams {
+  type: "COLLECTIBLE";
+  metadata: {
+    name?: string;
+    creator?: string;
+    description?: string;
+    image: string | Buffer;
+    attributes: ?Array<{ trait_type: string; value: string }>;
+  };
+}
+
+export interface CollectionMintingParams {
+  type: "COLLECTION";
+  collectionMetadata: {
+    name: string;
+    description: string;
+    creator?: string;
+    collection_logo: string | Buffer;
+  };
+  items: Array<NFTMintingParams>;
+}

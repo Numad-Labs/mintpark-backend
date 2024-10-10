@@ -56,13 +56,14 @@ export const orderController = {
   },
   getEstimatedFee: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { fee } = req.body;
+      const { fee, layerType } = req.body;
       const files = req.files as Express.Multer.File[];
       if (!fee) throw new CustomError("Please provide the fee rate", 400);
       const estimatedFee = await orderServices.getEstimatedFee(
         files,
         Number(SERVICE_FEE),
-        Number(fee)
+        Number(fee),
+        layerType.toUpperCase() as LAYER_TYPE
       );
       return res
         .status(200)

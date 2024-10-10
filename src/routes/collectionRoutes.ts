@@ -4,7 +4,6 @@ import { authenticateToken } from "../middlewares/authenticateToken";
 import { parseFiles } from "../middlewares/fileParser";
 const collectionRouter = express.Router();
 
-collectionRouter.get("/", collectionController.get);
 collectionRouter.post(
   "/",
   authenticateToken,
@@ -28,7 +27,7 @@ collectionRouter.post(
   collectionController.mint
 );
 collectionRouter.post(
-  "/launch",
+  "/:collectionId/launch",
   authenticateToken,
   collectionController.launchCollection
 );

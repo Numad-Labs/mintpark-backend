@@ -5,6 +5,13 @@ export const COLLECTIBLE_STATUS = {
 } as const;
 export type COLLECTIBLE_STATUS =
   (typeof COLLECTIBLE_STATUS)[keyof typeof COLLECTIBLE_STATUS];
+export const FILE_STATUS = {
+  MINTED: "MINTED",
+  PENDING: "PENDING",
+  LAUNCHED: "LAUNCHED",
+  FAILED: "FAILED",
+} as const;
+export type FILE_STATUS = (typeof FILE_STATUS)[keyof typeof FILE_STATUS];
 export const COLLECTION_STATUS = {
   LIVE: "LIVE",
   UPCOMING: "UPCOMING",
