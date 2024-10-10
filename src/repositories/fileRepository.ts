@@ -34,7 +34,7 @@ export const fileRepository = {
     const files = await db
       .selectFrom("File")
       .selectAll()
-      .where("File.collection_id", "=", collectionId)
+      .where("File.collectionId", "=", collectionId)
       .execute();
 
     return files;
@@ -43,7 +43,7 @@ export const fileRepository = {
     const files = await db
       .selectFrom("File")
       .selectAll()
-      .where("File.collection_id", "=", collectionId)
+      .where("File.collectionId", "=", collectionId)
       .where("File.status", "=", "PENDING")
       .execute();
 
@@ -61,7 +61,7 @@ export const fileRepository = {
   deleteByCollectionId: async (collectionId: string) => {
     const files = await db
       .deleteFrom("File")
-      .where("File.collection_id", "=", collectionId)
+      .where("File.collectionId", "=", collectionId)
       .returningAll()
       .execute();
 

@@ -62,7 +62,7 @@ export const collectionRepository = {
     const collections = await db
       .selectFrom("Collection")
       .selectAll()
-      .where("Collection.layer_type", "=", layerType)
+      .where("Collection.layerType", "=", layerType)
       .where("Collection.isLaunched", "=", true)
       .orderBy("Collection.createdAt desc")
       .execute();

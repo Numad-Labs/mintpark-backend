@@ -17,7 +17,7 @@ export const orderRepository = {
     const order = await db
       .selectFrom("Order")
       .selectAll()
-      .where("Order.order_id", "=", orderId)
+      .where("Order.orderId", "=", orderId)
       .executeTakeFirst();
     return order;
   },
@@ -25,7 +25,7 @@ export const orderRepository = {
     const order = await db
       .selectFrom("Order")
       .selectAll()
-      .where("Order.collection_id", "=", orderId)
+      .where("Order.collectionId", "=", orderId)
       .executeTakeFirst();
     return order;
   },
@@ -36,18 +36,18 @@ export const orderRepository = {
     const order = await db
       .selectFrom("Order")
       .selectAll()
-      .where("Order.user_address", "=", address)
+      .where("Order.userAddress", "=", address)
       .where("Order.status", "=", "PENDING")
-      .where("Order.layer_type", "=", layer_type)
-      .orderBy("Order.created_at desc")
+      .where("Order.layerType", "=", layer_type)
+      .orderBy("Order.createdAt desc")
       .executeTakeFirst();
     return order;
   },
   updateOrderStatus: async (orderId: string, txId: string) => {
     const order = await db
       .updateTable("Order")
-      .set({ status: "INSCRIBED", txid: txId })
-      .where("order_id", "=", orderId)
+      .set({ status: "INSCRIBED", generatedPsbtTxId: txId })
+      .where("orderId", "=", orderId)
       .returningAll()
       .executeTakeFirstOrThrow(
         () => new Error("Could not update the order status.")
@@ -58,8 +58,8 @@ export const orderRepository = {
     try {
       const orders = await db
         .updateTable("Order")
-        .set({ status: "CLOSED", updated_at: sql`NOW()` })
-        .where("created_at", "<", cutoffDate)
+        .set({ status: "CLOSED", updatedAt: sql`NOW()` })
+        .where("createdAt", "<", cutoffDate)
         .where("status", "=", "PENDING")
         .returningAll()
         .execute();
@@ -73,18 +73,18 @@ export const orderRepository = {
     const orders = await db
       .selectFrom("Order")
       .select([
-        "Order.order_id",
+        "Order.orderId",
         "Order.status",
-        "Order.created_at",
-        "Order.layer_type",
+        "Order.createdAt",
+        "Order.layerType",
         "Order.quantity",
-        "Order.created_at",
+        "Order.createdAt",
         // sql<number>`EXTRACT(DAY FROM (CURRENT_DATE - Order.created_at))`.as(
         //   "days_ago"
         // ),
       ])
-      .where("Order.user_address", "=", address)
-      .where("Order.layer_type", "=", layerType)
+      .where("Order.userAddress", "=", address)
+      .where("Order.layerType", "=", layerType)
       .execute();
     return orders;
   },
@@ -95,8 +95,8 @@ export const orderRepository = {
     const orders = await db
       .selectFrom("Order")
       .selectAll()
-      .where("Order.user_address", "=", address)
-      .where("Order.layer_type", "=", layerType)
+      .where("Order.userAddress", "=", address)
+      .where("Order.layerType", "=", layerType)
       .where("Order.status", "=", "PENDING")
       .execute();
     return orders;

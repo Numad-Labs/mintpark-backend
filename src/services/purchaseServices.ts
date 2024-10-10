@@ -64,7 +64,7 @@ export const purchaseServices = {
     if (!owner) throw new CustomError("Owner not found.", 400);
 
     const result = await mintHelper({
-      layerType: collection.layer_type,
+      layerType: collection.layerType,
       feeRate: 1,
       mintingParams: {
         data: data,
@@ -138,7 +138,7 @@ export const purchaseServices = {
     await collectionRepository.update(collection.id, collection);
 
     const transanction = await transactionRepository.create({
-      txid: data.transactionId,
+      txId: data.transactionId,
     });
 
     const purchase = await purchaseRepository.create(data);

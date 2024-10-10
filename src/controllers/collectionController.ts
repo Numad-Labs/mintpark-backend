@@ -93,13 +93,13 @@ export const collectionController = {
       return res.status(200).json({
         success: true,
         data: {
-          orderId: order.order_id,
-          fundingAddress: order.funding_address,
+          orderId: order.orderId,
+          fundingAddress: order.fundingAddress,
           requiredAmountToFund: order.amount,
-          serviceFee: order.service_fee,
-          networkFee: order.network_fee,
+          serviceFee: order.serviceFee,
+          networkFee: order.networkFee,
           feeRate: order.feeRate,
-          mintLayerType: order.layer_type,
+          mintLayerType: order.layerType,
           status: order.status,
           quantity: order.quantity,
         },
@@ -122,14 +122,19 @@ export const collectionController = {
         );
       const { collectionId } = req.params;
       const order = await orderRepository.getByCollectionId(collectionId);
-      if (!order || !order.collection_id)
+      if (!order || !order.collectionId)
         throw new CustomError("No order created for this collection.", 400);
       const mintResult = await collectionServices.generateHexForCollection(
-        order.order_id,
+        order.orderId,
         address
       );
 
-      return res.status(200).json({ success: true, data: mintResult });
+      return res.status(200).json({
+        success: true,
+        data: {
+          ...mintResult,
+        },
+      });
     } catch (e) {
       next(e);
     }
@@ -161,7 +166,7 @@ export const collectionController = {
         Number(price)
       );
 
-      return res.status(200).json({ success: true, collection: launchResult });
+      return res.status(200).json({ success: true, data: launchResult });
     } catch (e) {
       next(e);
     }

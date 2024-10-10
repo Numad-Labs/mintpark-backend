@@ -42,7 +42,7 @@ model Collection {
   feeRate     Float    @default(1)
   POStartDate BigInt    @default(0)
 
-  layer_type LAYER_TYPE @default(BITCOIN_TESTNET)
+  layerType LAYER_TYPE @default(BITCOIN_TESTNET)
 
   status     COLLECTION_STATUS @default(UPCOMING)
   isLaunched Boolean @default(false)
@@ -56,11 +56,11 @@ model Collection {
 model File {
   id        String   @unique @default(dbgenerated("gen_random_uuid()"))
   createdAt DateTime @default(dbgenerated("now()"))
-  file_key       String
-  generatedTxPsbt String?
+  fileKey       String
+  generatedPsbtTxId String?
   status FILE_STATUS @default(PENDING)
-  collection_id  String
-  Collection   Collection @relation(fields: [collection_id], references: [id], onDelete: Cascade)
+  collectionId  String
+  Collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
 }
 
 
@@ -99,32 +99,32 @@ model Purchase {
 }
 
 model Order {
-  order_id   String   @unique @default(dbgenerated("gen_random_uuid()"))
+  orderId   String   @unique @default(dbgenerated("gen_random_uuid()"))
   status     ORDER_STATUS @default(PENDING)
-  created_at  DateTime @default(dbgenerated("now()"))
-  updated_at  DateTime @default(dbgenerated("now()"))
+  createdAt  DateTime @default(dbgenerated("now()"))
+  updatedAt  DateTime @default(dbgenerated("now()"))
   amount     Float   @default(0)
   quantity   Int     @default(0)
   feeRate   Float   @default(0)
-  network_fee Float @default(0)
-  service_fee Float @default(0)
-  txid String?
-  layer_type LAYER_TYPE @default(BITCOIN_TESTNET)
-  minting_type MINTING_TYPE @default(COLLECTIBLE)
+  networkFee Float @default(0)
+  serviceFee Float @default(0)
+  generatedPsbtTxId String?
+  layerType LAYER_TYPE @default(BITCOIN_TESTNET)
+  mintingType MINTING_TYPE @default(COLLECTIBLE)
 
-  collection_id String?
-  collectible_key String?
+  collectionId String?
+  collectibleKey String?
 
-  funding_address String
-  funding_private_key String
+  fundingAddress String
+  fundingPrivateKey String
 
-  user_address     String
-  User       User    @relation(fields: [user_address], references: [address], onDelete: Cascade)
+  userAddress     String
+  User       User    @relation(fields: [userAddress], references: [address], onDelete: Cascade)
 }
 
 model Transaction {
   id          String             @unique @default(dbgenerated("gen_random_uuid()"))
-  txid        String             @unique
+  txId        String             @unique
   createdAt   DateTime           @default(dbgenerated("now()"))
   status      TRANSACTION_STATUS @default(TRANSACTION_UNCONFIRMED)
   Purchase    Purchase[]

@@ -3,7 +3,7 @@ import { orderRepository } from "../repositories/orderRepository";
 const cron = require("node-cron");
 
 export async function checkAndUpdateCollectibleStatus() {
-  cron.schedule("*/5 * * * *", async () => {
+  cron.schedule("0 * * * *", async () => {
     const currentDate = new Date();
 
     await collectibleRepository.updateExpiredOnHoldCollectibles(currentDate);
@@ -13,7 +13,7 @@ export async function checkAndUpdateCollectibleStatus() {
 }
 
 export async function checkAndUpdateOrderStatus() {
-  cron.schedule("*/1 * * * *", async () => {
+  cron.schedule("0 * * * *", async () => {
     try {
       console.log("Updating order status...");
       const cutoffDate = new Date(Date.now() - 5 * 60 * 1000); // 5 minutes ago

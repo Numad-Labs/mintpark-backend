@@ -61,6 +61,7 @@ export function selectUtxos(
       break;
     }
   }
+  console.log({ totalAmount, requiredAmountInSatoshi });
   if (totalAmount < requiredAmountInSatoshi) {
     throw new CustomError("Insufficient balance", 400);
   }

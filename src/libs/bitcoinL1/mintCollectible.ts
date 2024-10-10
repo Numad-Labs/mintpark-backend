@@ -15,8 +15,8 @@ import {
 } from "./libs";
 import { calculateUnsignedSegwitTxid } from "./libs";
 import { parseDataUrl } from "../parseImage";
-import { calculateTransactionSize } from "../txEstimate";
-import { calculateInscriptionSize } from "../inscriptionSizeEstimate";
+import { tweakKey } from "bitcoinjs-lib/src/payments/bip341";
+import * as btcSigner from "@scure/btc-signer";
 
 bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);
@@ -116,40 +116,6 @@ export async function mintForBitcoin(
       throw new CustomError("Failed to generate reveal address", 500);
     }
 
-    // Calculate fees
-    // const dustThreshold = 546;
-
-    // const commitInputs = [{ address: params.fundingAddress, count: 1 }];
-    // const commitOutputs = [
-    //   { address: revealP2tr.address!, count: 1 },
-    //   { address: params.toAddress, count: 1 },
-    //   { address: params.data.address, count: 1 }, // Change output
-    // ];
-    // const commitSize = calculateTransactionSize(
-    //   commitInputs,
-    //   commitOutputs,
-    //   0,
-    //   false
-    // );
-    // const commitFee = commitSize * feeRate;
-
-    // const revealInputs = [{ address: revealP2tr.address!, count: 1 }];
-    // const revealOutputs = [{ address: params.data.address, count: 1 }];
-    // const inscriptionSize = calculateInscriptionSize(
-    //   inscriptionData.contentType,
-    //   Buffer.from(inscriptionData.imageBuffer)
-    // );
-    // const revealSize =
-    //   calculateTransactionSize(
-    //     revealInputs,
-    //     revealOutputs,
-    //     inscriptionSize,
-    //     true
-    //   ) + inscriptionSize;
-    // const revealFee = revealSize * feeRate;
-
-    // const requiredAmount = commitFee + revealFee + params.price + dustThreshold;
-
     const dustThreshold = 546;
     const commitInputs = 1;
     const commitOutputs = 3;
@@ -163,7 +129,8 @@ export async function mintForBitcoin(
     const revealOutputs = 1;
     const inscriptionSize = Math.ceil(leafScript.length / WITNESS_SCALE_FACTOR);
     const revealSize = Math.ceil(
-      TX_EMPTY_SIZE + 10 +
+      TX_EMPTY_SIZE +
+        10 +
         TX_INPUT_P2TR * revealInputs +
         TX_OUTPUT_P2TR * revealOutputs +
         inscriptionSize
@@ -224,6 +191,7 @@ export async function mintForBitcoin(
     const tweakedSigner = node.tweak(
       bitcoin.crypto.taggedHash("TapTweak", toXOnly(node.publicKey))
     );
+    // const tweakedSigner = btcSigner.
 
     for (let i = 0; i < commitPsbt.data.inputs.length; i++) {
       commitPsbt.signInput(i, tweakedSigner);

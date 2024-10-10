@@ -4,6 +4,7 @@ import * as ecc from "tiny-secp256k1";
 import { calculateTransactionSize } from "./txEstimate";
 import { calculateInscriptionSize } from "./inscriptionSizeEstimate";
 import { LAYER_TYPE } from "../types/db/enums";
+import { WITNESS_SCALE_FACTOR } from "./bitcoinL1/libs";
 
 const ECPair = ECPairFactory(ecc);
 
@@ -90,8 +91,21 @@ function calculateBitcoinRequiredAmount(params: FeeCalculationParams): number {
     let bodySize = body.length;
 
     const commitSize = Math.ceil(10 + 58 * 1 + 43 * 3);
-    const inscriptionSize = Math.ceil(bodySize / 4);
-    const revealSize = Math.ceil(10 + 58 * 1 + 43 * 1 + inscriptionSize);
+    const inscriptionSize = Math.ceil(
+      (33 +
+        1 +
+        1 +
+        1 +
+        4 +
+        2 +
+        1 +
+        inscription.inscriptionContentType.length +
+        2 +
+        Math.ceil(bodySize / 520) +
+        bodySize) /
+        WITNESS_SCALE_FACTOR
+    );
+    const revealSize = Math.ceil(10 + 58 * 1 + 43 * 1 + inscriptionSize + 10);
 
     const commitFee = commitSize * params.feeRate;
     const revealFee = revealSize * params.feeRate;
@@ -99,47 +113,9 @@ function calculateBitcoinRequiredAmount(params: FeeCalculationParams): number {
     totalInscriptionSize += inscriptionSize;
     totalCommitFee += commitFee;
     totalRevealFee += revealFee;
-    // const inscriptionSize = calculateInscriptionSize(
-    //   inscription.inscriptionContentType,
-    //   inscription.inscriptionData
-    // );
-
-    // const commitSize = calculateTransactionSize(
-    //   [{ address: "tb1p", count: 1 }],
-    //   [
-    //     { address: "tb1p", count: 1 }, // Reveal output
-    //     { address: "tb1p", count: 1 }, // Change output
-    //   ],
-    //   0
-    // );
-    // const commitFee = commitSize * params.feeRate;
-
-    // const revealSize = calculateTransactionSize(
-    //   [{ address: "tb1p", count: 1 }],
-    //   [{ address: "tb1p", count: 1 }],
-    //   inscriptionSize,
-    //   true
-    // );
-    // const revealFee = revealSize * params.feeRate;
-
-    // totalInscriptionSize += inscriptionSize;
-    // totalCommitFee += commitFee;
-    // totalRevealFee += revealFee;
   }
 
   const DUST_THRESHOLD = 546;
-  console.log({
-    totalInscriptionSize,
-    totalCommitFee,
-    totalRevealFee,
-    price: params.price,
-    requiredAmount:
-      totalCommitFee +
-      totalRevealFee +
-      params.price * params.inscriptions.length +
-      DUST_THRESHOLD,
-      
-  });
   return (
     totalCommitFee +
     totalRevealFee +

@@ -39,7 +39,7 @@ export type Collection = {
   mintedCount: Generated<number>;
   feeRate: Generated<number>;
   POStartDate: Generated<string>;
-  layer_type: Generated<LAYER_TYPE>;
+  layerType: Generated<LAYER_TYPE>;
   status: Generated<COLLECTION_STATUS>;
   isLaunched: Generated<boolean>;
   ownerAddress: string;
@@ -47,29 +47,29 @@ export type Collection = {
 export type File = {
   id: Generated<string>;
   createdAt: Generated<Timestamp>;
-  file_key: string;
-  generatedTxPsbt: string | null;
+  fileKey: string;
+  generatedPsbtTxId: string | null;
   status: Generated<FILE_STATUS>;
-  collection_id: string;
+  collectionId: string;
 };
 export type Order = {
-  order_id: Generated<string>;
+  orderId: Generated<string>;
   status: Generated<ORDER_STATUS>;
-  created_at: Generated<Timestamp>;
-  updated_at: Generated<Timestamp>;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
   amount: Generated<number>;
   quantity: Generated<number>;
   feeRate: Generated<number>;
-  network_fee: Generated<number>;
-  service_fee: Generated<number>;
-  txid: string | null;
-  layer_type: Generated<LAYER_TYPE>;
-  minting_type: Generated<MINTING_TYPE>;
-  collection_id: string | null;
-  collectible_key: string | null;
-  funding_address: string;
-  funding_private_key: string;
-  user_address: string;
+  networkFee: Generated<number>;
+  serviceFee: Generated<number>;
+  generatedPsbtTxId: string | null;
+  layerType: Generated<LAYER_TYPE>;
+  mintingType: Generated<MINTING_TYPE>;
+  collectionId: string | null;
+  collectibleKey: string | null;
+  fundingAddress: string;
+  fundingPrivateKey: string;
+  userAddress: string;
 };
 export type Purchase = {
   id: Generated<string>;
@@ -80,7 +80,7 @@ export type Purchase = {
 };
 export type Transaction = {
   id: Generated<string>;
-  txid: string;
+  txId: string;
   createdAt: Generated<Timestamp>;
   status: Generated<TRANSACTION_STATUS>;
 };

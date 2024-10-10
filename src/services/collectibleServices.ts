@@ -85,14 +85,14 @@ export const collectibleServices = {
     const order = await orderRepository.create({
       amount: funder.requiredAmount,
       feeRate: Number(feeRate),
-      user_address: userAddress,
-      funding_address: funder.address,
-      funding_private_key: hashedPrivateKey,
-      service_fee: SERVICE_FEE,
-      network_fee: funder.requiredAmount - SERVICE_FEE,
-      collectible_key: key,
-      layer_type: mintlayerType,
-      minting_type: "COLLECTIBLE",
+      userAddress: userAddress,
+      fundingAddress: funder.address,
+      fundingPrivateKey: hashedPrivateKey,
+      serviceFee: SERVICE_FEE,
+      networkFee: funder.requiredAmount - SERVICE_FEE,
+      collectibleKey: key,
+      layerType: mintlayerType,
+      mintingType: "COLLECTIBLE",
       quantity: 1,
     });
 
@@ -102,16 +102,16 @@ export const collectibleServices = {
     let order = await orderRepository.getById(orderId);
     if (!order) throw new CustomError("Order does not exist.", 400);
 
-    if (order.status !== "PENDING")
-      throw new CustomError(
-        "Order is not pending. Already inscribed or closed.",
-        400
-      );
+    // if (order.status !== "PENDING")
+    //   throw new CustomError(
+    //     "Order is not pending. Already inscribed or closed.",
+    //     400
+    //   );
 
-    if (order.user_address !== userAddress)
+    if (order.userAddress !== userAddress)
       throw new CustomError("You are not authorized.", 403);
 
-    const file = await getObjectFromS3(order.collectible_key as string);
+    const file = await getObjectFromS3(order.collectibleKey as string);
 
     try {
       const data = {
@@ -126,14 +126,14 @@ export const collectibleServices = {
       };
 
       const result = await mintHelper({
-        layerType: order.layer_type,
+        layerType: order.layerType,
         feeRate: order.feeRate,
         mintingParams: {
           data: data,
           toAddress: SERVICE_FEE_ADDRESS,
           price: SERVICE_FEE,
-          fundingAddress: order.funding_address,
-          fundingPrivateKey: order.funding_private_key,
+          fundingAddress: order.fundingAddress,
+          fundingPrivateKey: order.fundingPrivateKey,
         },
       });
 
@@ -143,11 +143,9 @@ export const collectibleServices = {
       );
 
       return {
-        ...result,
-        order: {
-          orderId: order.order_id,
-          status: order.status,
-        },
+        orderId: order.orderId,
+        orderStatus: order.status,
+        result,
       };
     } catch (error) {
       throw error;

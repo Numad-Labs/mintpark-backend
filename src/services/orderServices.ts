@@ -67,24 +67,28 @@ export const orderServices = {
     layerType: LAYER_TYPE
   ) => {
     try {
+      const dustLimit = 546;
       let customAmount = 0;
       const commitSize = Math.ceil(10 + 58 * 1 + 43 * 3);
       const inscriptionSize =
         (33 +
-        1 +
-        1 +
-        1 +
-        4 +
-        2 +
-        1 +
-        mimeTypeByteSize +
-        2 +
-        Math.ceil(fileSize / 520) +
-        1) / WITNESS_SCALE_FACTOR;
+          1 +
+          1 +
+          1 +
+          4 +
+          2 +
+          1 +
+          mimeTypeByteSize +
+          2 +
+          Math.ceil(fileSize / 520) +
+          fileSize +
+          1 +
+          10) /
+        WITNESS_SCALE_FACTOR;
       const revealSize = Math.ceil(10 + 58 * 1 + 43 * 1 + inscriptionSize);
       const commitFee = commitSize * customFee;
       const revealFee = revealSize * customFee;
-      customAmount = commitFee + revealFee + price + 546;
+      customAmount = commitFee + revealFee + price + dustLimit;
 
       return {
         estimatedFee: {

@@ -21,7 +21,7 @@ export const orderController = {
         address,
         layerType.toUpperCase() as LAYER_TYPE
       );
-      return res.status(200).json({ success: true, orders: orders });
+      return res.status(200).json({ success: true, data: orders });
     } catch (e) {
       next(e);
     }
@@ -30,7 +30,7 @@ export const orderController = {
     try {
       const orderId = req.params.orderId;
       const order = await orderRepository.getById(orderId);
-      return res.status(200).json({ success: true, order: order });
+      return res.status(200).json({ success: true, data: order });
     } catch (e) {
       next(e);
     }
@@ -41,7 +41,7 @@ export const orderController = {
       const feeRates = await orderServices.getFeeRates(
         layerType.toUpperCase() as LAYER_TYPE
       );
-      return res.status(200).json({ success: true, feeRates: feeRates });
+      return res.status(200).json({ success: true, data: feeRates });
     } catch (e) {
       next(e);
     }
@@ -49,7 +49,7 @@ export const orderController = {
   getAllFeeRates: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const feeRates = await orderServices.getAllFeeRates();
-      return res.status(200).json({ success: true, feeRates: feeRates });
+      return res.status(200).json({ success: true, data: feeRates });
     } catch (e) {
       next(e);
     }
@@ -68,7 +68,7 @@ export const orderController = {
       );
       return res
         .status(200)
-        .json({ success: true, estimatedFee: estimatedFee });
+        .json({ success: true, data: estimatedFee });
     } catch (e) {
       next(e);
     }
@@ -92,7 +92,7 @@ export const orderController = {
         Number(feeRate),
         layerType.toUpperCase() as LAYER_TYPE
       );
-      return res.status(200).json({ success: true, ...estimatedFee });
+      return res.status(200).json({ success: true, data: estimatedFee });
     } catch (e) {
       next(e);
     }

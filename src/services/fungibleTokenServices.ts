@@ -69,14 +69,14 @@ export const fungibleTokenServices = {
     const order = await orderRepository.create({
       amount: funder.requiredAmount,
       feeRate: feeRate,
-      user_address: issuerAddress,
-      funding_address: funder.address,
-      funding_private_key: hashedPrivateKey,
-      service_fee: price,
-      network_fee: funder.requiredAmount - price,
-      collectible_key: key,
-      layer_type: mintLayerType,
-      minting_type: "BRC20",
+      userAddress: issuerAddress,
+      fundingAddress: funder.address,
+      fundingPrivateKey: hashedPrivateKey,
+      serviceFee: price,
+      networkFee: funder.requiredAmount - price,
+      collectibleKey: key,
+      layerType: mintLayerType,
+      mintingType: "BRC20",
       quantity: Number(brc20Max),
     });
 

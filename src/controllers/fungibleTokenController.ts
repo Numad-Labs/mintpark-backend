@@ -45,14 +45,14 @@ export const fungibleTokenController = {
       return res.status(200).json({
         success: true,
         data: {
-          orderId: order.order_id,
-          fundingAddress: order.funding_address,
-          serviceFee: order.service_fee,
-          networkFee: order.network_fee,
+          orderId: order.orderId,
+          fundingAddress: order.fundingAddress,
+          serviceFee: order.serviceFee,
+          networkFee: order.networkFee,
           requiredAmountToFund: order.amount,
           feeRate: order.feeRate,
-          mintLayerType: order.layer_type,
-          mintingType: order.minting_type,
+          mintLayerType: order.layerType,
+          mintingType: order.mintingType,
           status: order.status,
           quantity: order.quantity,
         },
@@ -73,16 +73,16 @@ export const fungibleTokenController = {
       const { orderId } = req.body;
       const order = await orderRepository.getById(orderId);
       if (!order) throw new CustomError("Order not found", 404);
-      if (order.user_address !== deployerAddress)
+      if (order.userAddress !== deployerAddress)
         throw new CustomError("You are not allowed to do this action.", 403);
 
       if (order.status !== "PENDING")
         throw new CustomError("Order is not pending.", 400);
 
-      if (order.minting_type !== "BRC20" || !order.collectible_key)
+      if (order.mintingType !== "BRC20" || !order.collectibleKey)
         throw new CustomError("Order is not for BRC20 deploy.", 400);
 
-      const file = await getObjectFromS3(order.collectible_key);
+      const file = await getObjectFromS3(order.collectibleKey);
 
       const inscriptionContent = JSON.parse(file.content.toString());
       console.log(inscriptionContent);
@@ -92,22 +92,22 @@ export const fungibleTokenController = {
           max: inscriptionContent.max,
           lim: inscriptionContent.limit,
           address: deployerAddress,
-          fundingAddress: order.funding_address,
-          fundingPrivateKey: order.funding_private_key,
+          fundingAddress: order.fundingAddress,
+          fundingPrivateKey: order.fundingPrivateKey,
         },
         order.feeRate
       );
       order.status = "INSCRIBED";
       await orderRepository.updateOrderStatus(
-        order.order_id,
+        order.orderId,
         deployResult.revealTxId
       );
 
       return res.status(200).json({
         success: true,
         data: {
-          orderId: order.order_id,
-          status: order.status,
+          orderId: order.orderId,
+          orderStatus: "INSCRIBED",
           deployResult,
         },
       });

@@ -42,8 +42,8 @@ export const collectionServices = {
       const key = randomUUID();
       await uploadToS3(key, files[i]);
       const file = await fileRepository.create({
-        collection_id: collection.id,
-        file_key: key,
+        collectionId: collection.id,
+        fileKey: key,
       });
     }
     collection.totalCount += files.length;
@@ -69,7 +69,7 @@ export const collectionServices = {
 
     const files = [];
     for (let i = 0; i < retrievedFiles.length; i++) {
-      const file = await getObjectFromS3(retrievedFiles[i].file_key);
+      const file = await getObjectFromS3(retrievedFiles[i].fileKey);
       files.push({
         inscriptionData: file.content,
         inscriptionContentType: file.contentType!,
@@ -79,42 +79,42 @@ export const collectionServices = {
       inscriptions: files,
       price: SERVICE_FEE,
       feeRate: collection.feeRate,
-      layerType: collection.layer_type,
+      layerType: collection.layerType,
     });
     const order = await orderRepository.create({
-      user_address: issuerAddress,
-      funding_address: funder.address,
-      funding_private_key: funder.privateKey,
+      userAddress: issuerAddress,
+      fundingAddress: funder.address,
+      fundingPrivateKey: funder.privateKey,
       amount: funder.requiredAmount,
-      service_fee: SERVICE_FEE,
-      network_fee: funder.requiredAmount - SERVICE_FEE,
+      serviceFee: SERVICE_FEE,
+      networkFee: funder.requiredAmount - SERVICE_FEE,
       feeRate: collection.feeRate,
-      layer_type: collection.layer_type,
-      minting_type: "COLLECTION",
+      layerType: collection.layerType,
+      mintingType: "COLLECTION",
       quantity: files.length,
-      collection_id: collection.id,
+      collectionId: collection.id,
     });
 
     return order;
   },
   generateHexForCollection: async (orderId: string, issuerAddress: string) => {
     let order = await orderRepository.getById(orderId);
-    if (!order || !order.collection_id)
+    if (!order || !order.collectionId)
       throw new CustomError("Order for this collection does not exist.", 400);
-    if (order.user_address !== issuerAddress)
+    if (order.userAddress !== issuerAddress)
       throw new CustomError("You are not authorized.", 403);
     if (order.status !== "PENDING")
       throw new CustomError("Order is not pending.", 400);
 
-    const files = await fileRepository.getByCollectionId(order.collection_id);
+    const files = await fileRepository.getByCollectionId(order.collectionId);
     if (files.length !== order.quantity)
       throw new CustomError("Number of files does not match the order.", 400);
-    const collection = await collectionRepository.getById(order.collection_id);
+    const collection = await collectionRepository.getById(order.collectionId);
     if (!collection) throw new CustomError("Collection does not exist.", 400);
     let mintedCollectionCount: number = 0;
     let allMintResult = [];
     for (let i = 0; i < files.length; i++) {
-      const file = await getObjectFromS3(files[i].file_key);
+      const file = await getObjectFromS3(files[i].fileKey);
       const data = {
         address: issuerAddress,
         xpub: null,
@@ -126,18 +126,18 @@ export const collectionServices = {
         supply: 1,
       };
       let mintResult = await mintHelper({
-        layerType: order.layer_type,
+        layerType: order.layerType,
         feeRate: order.feeRate,
         mintingParams: {
           data: data,
           toAddress: SERVICE_FEE_ADDRESS,
           price: SERVICE_FEE,
-          fundingAddress: order.funding_address,
-          fundingPrivateKey: order.funding_private_key,
+          fundingAddress: order.fundingAddress,
+          fundingPrivateKey: order.fundingPrivateKey,
         },
       });
       files[i].status = "MINTED";
-      files[i].generatedTxPsbt = mintResult.revealTxId;
+      files[i].generatedPsbtTxId = mintResult.revealTxId;
       await fileRepository.update(files[i].id, files[i]);
       mintedCollectionCount++;
       allMintResult.push(mintResult);
@@ -151,9 +151,10 @@ export const collectionServices = {
     );
 
     return {
+      orderId: order.orderId,
+      orderStatus: order.status,
       mintedCollectionCount,
-      orderId: order.order_id,
-      status: order.status,
+      allMintResult,
     };
   },
   launchCollection: async (
@@ -181,7 +182,7 @@ export const collectionServices = {
     for (let i = 0; i < files.length; i++) {
       const collectible = {
         collectionId: collection.id,
-        fileKey: files[i].file_key,
+        fileKey: files[i].fileKey,
         name: `${collection.name} #${i + 1}`,
         ownerAddress: issuerAddress,
       };

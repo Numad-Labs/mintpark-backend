@@ -35,13 +35,13 @@ export const collectibleController = {
       return res.status(200).json({
         success: true,
         data: {
-          orderId: order.order_id,
-          fundingAddress: order.funding_address,
-          serviceFee: order.service_fee,
-          networkFee: order.network_fee,
+          orderId: order.orderId,
+          fundingAddress: order.fundingAddress,
+          serviceFee: order.serviceFee,
+          networkFee: order.networkFee,
           requiredAmountToFund: order.amount,
           feeRate: order.feeRate,
-          mintLayerType: order.layer_type,
+          mintLayerType: order.layerType,
           status: order.status,
           quantity: order.quantity,
         },
@@ -62,17 +62,19 @@ export const collectibleController = {
       const { orderId } = req.body;
       const order = await orderRepository.getById(orderId);
       if (!order) throw new CustomError("Order not found", 404);
-      if (order.user_address !== req.user.address)
+      if (order.userAddress !== req.user.address)
         throw new CustomError("You are not allowed to do this action.", 403);
 
-      const result = await collectibleServices.generateHexForCollectible(
+      const mintResult = await collectibleServices.generateHexForCollectible(
         orderId,
         req.user.address
       );
 
       return res.status(200).json({
         success: true,
-        data: result,
+        data: {
+          ...mintResult,
+        },
       });
     } catch (e) {
       next(e);
