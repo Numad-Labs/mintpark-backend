@@ -79,6 +79,7 @@ export const collectionController = {
   ) => {
     try {
       const userAddress = req.user?.address;
+      const { feeRate } = req.body;
       if (!userAddress)
         throw new CustomError(
           "Could not retrieve address from the token.",
@@ -87,7 +88,8 @@ export const collectionController = {
       const { collectionId } = req.params;
       const order = await collectionServices.createOrderToMintCollectible(
         collectionId,
-        userAddress
+        userAddress,
+        Number(feeRate)
       );
 
       return res.status(200).json({

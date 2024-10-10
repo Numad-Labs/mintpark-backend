@@ -54,7 +54,8 @@ export const collectionServices = {
 
   createOrderToMintCollectible: async (
     collectionId: string,
-    issuerAddress: string
+    issuerAddress: string,
+    feeRate: number
   ) => {
     const collection = await collectionRepository.getById(collectionId);
     if (!collection) throw new CustomError("Collection does not exist.", 400);
@@ -62,6 +63,8 @@ export const collectionServices = {
       throw new CustomError("You are not allowed to do this action.", 403);
     if (collection.isLaunched)
       throw new CustomError("Collection is already launched.", 400);
+
+    collection.feeRate = feeRate;
 
     const retrievedFiles = await fileRepository.getByCollectionId(
       collection.id
@@ -75,13 +78,38 @@ export const collectionServices = {
         inscriptionContentType: file.contentType!,
       });
     }
+
+    await collectionRepository.update(collection.id, collection);
+
     const funder = createFundingAddress({
       inscriptions: files,
       price: SERVICE_FEE,
       feeRate: collection.feeRate,
       layerType: collection.layerType,
     });
-    const order = await orderRepository.create({
+    let order = await orderRepository.getByCollectionId(collection.id);
+
+    if (order) {
+      if (order.status === "INSCRIBED")
+        throw new CustomError("Order is already inscribed.", 400);
+      order = await orderRepository.update(order.orderId, {
+        status: "PENDING",
+        fundingAddress: funder.address,
+        fundingPrivateKey: funder.privateKey,
+        amount: funder.requiredAmount,
+        serviceFee: SERVICE_FEE,
+        networkFee: funder.requiredAmount - SERVICE_FEE,
+        feeRate: collection.feeRate,
+        layerType: collection.layerType,
+        mintingType: "COLLECTION",
+        quantity: files.length,
+        collectionId: collection.id,
+        updatedAt: new Date(),
+      });
+      return order;
+    }
+
+    order = await orderRepository.create({
       userAddress: issuerAddress,
       fundingAddress: funder.address,
       fundingPrivateKey: funder.privateKey,
@@ -141,6 +169,8 @@ export const collectionServices = {
       await fileRepository.update(files[i].id, files[i]);
       mintedCollectionCount++;
       allMintResult.push(mintResult);
+
+      console.log(`Collection item #${mintedCollectionCount} minted.`);
     }
     collection.mintedCount = mintedCollectionCount;
     collection.totalCount = collection.totalCount - mintedCollectionCount;
@@ -149,6 +179,8 @@ export const collectionServices = {
       orderId,
       allMintResult[0].revealTxId
     );
+
+    console.log("All collections minted successfully.");
 
     return {
       orderId: order.orderId,

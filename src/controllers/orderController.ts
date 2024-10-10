@@ -86,8 +86,8 @@ export const orderController = {
 
       const mimeTypeByteSize = fileType.length;
       const estimatedFee = await orderServices.getEstimatedFee2(
-        Number(fileSize),
-        Number(mimeTypeByteSize),
+        [Number(fileSize)],
+        [Number(mimeTypeByteSize)],
         Number(SERVICE_FEE),
         Number(feeRate),
         layerType.toUpperCase() as LAYER_TYPE

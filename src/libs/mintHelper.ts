@@ -6,6 +6,7 @@ import { MintingParams, mintingParams } from "../../custom";
 import { getRecommendedFeeRateBTCTestnet } from "./bitcoinL1/libs";
 import { number } from "chromajs-lib/src/script";
 import { LAYER_TYPE } from "../types/db/enums";
+import { mintForFractal } from "./fractal/mint";
 
 interface LayerConfig {
   network: any;
@@ -43,22 +44,22 @@ const layerConfigs = new Map<LAYER_TYPE, LayerConfig>([
     {
       network: coordinate.networks.testnet,
       mintFunction: mintForAnduroWallet,
-      getFeeRate: async () => 1, // Replace with actual Coordinate testnet fee rate function
+      getFeeRate: async () => 1,
     },
   ],
   [
     LAYER_TYPE.FRACTAL,
     {
-      network: null, // Replace with actual Fractal network
-      mintFunction: async () => ({ message: "minting fractal" }),
-      getFeeRate: async () => 1, // Replace with actual Fractal mainnet fee rate function
+      network: null,
+      mintFunction: mintForFractal,
+      getFeeRate: async () => 1,
     },
   ],
   [
     LAYER_TYPE.FRACTAL_TESTNET,
     {
-      network: null, // Replace with actual Fractal testnet network
-      mintFunction: async () => ({ message: "minting fractal testnet" }),
+      network: null,
+      mintFunction: mintForFractal,
       getFeeRate: async () => 1, // Replace with actual Fractal testnet fee rate function
     },
   ],

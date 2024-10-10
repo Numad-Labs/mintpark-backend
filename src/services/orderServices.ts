@@ -60,8 +60,8 @@ export const orderServices = {
     }
   },
   getEstimatedFee2: async (
-    fileSize: number,
-    mimeTypeByteSize: number,
+    fileSize: number[],
+    mimeTypeByteSize: number[],
     price: number,
     customFee: number = 1,
     layerType: LAYER_TYPE
@@ -69,26 +69,31 @@ export const orderServices = {
     try {
       const dustLimit = 546;
       let customAmount = 0;
-      const commitSize = Math.ceil(10 + 58 * 1 + 43 * 3);
-      const inscriptionSize =
-        (33 +
-          1 +
-          1 +
-          1 +
-          4 +
-          2 +
-          1 +
-          mimeTypeByteSize +
-          2 +
-          Math.ceil(fileSize / 520) +
-          fileSize +
-          1 +
-          10) /
-        WITNESS_SCALE_FACTOR;
-      const revealSize = Math.ceil(10 + 58 * 1 + 43 * 1 + inscriptionSize);
-      const commitFee = commitSize * customFee;
-      const revealFee = revealSize * customFee;
-      customAmount = commitFee + revealFee + price + dustLimit;
+      if (fileSize.length !== mimeTypeByteSize.length) {
+        throw new Error("File size and mime type byte length do not match.");
+      }
+      for (let i = 0; i < fileSize.length; i++) {
+        const commitSize = Math.ceil(10 + 58 * 1 + 43 * 3);
+        const inscriptionSize =
+          (33 +
+            1 +
+            1 +
+            1 +
+            4 +
+            2 +
+            1 +
+            mimeTypeByteSize[i] +
+            2 +
+            Math.ceil(fileSize[i] / 520) +
+            fileSize[i] +
+            1 +
+            10) /
+          WITNESS_SCALE_FACTOR;
+        const revealSize = Math.ceil(10 + 58 * 1 + 43 * 1 + inscriptionSize);
+        const commitFee = commitSize * customFee;
+        const revealFee = revealSize * customFee;
+        customAmount += commitFee + revealFee + price + dustLimit;
+      }
 
       return {
         estimatedFee: {

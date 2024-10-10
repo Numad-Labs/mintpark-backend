@@ -13,6 +13,17 @@ export const orderRepository = {
       .executeTakeFirstOrThrow(() => new Error("Could not create the order."));
     return order;
   },
+  update: async (orderId: string, data: Updateable<Order>) => {
+    const order = await db
+      .updateTable("Order")
+      .set(data)
+      .where("orderId", "=", orderId)
+      .returningAll()
+      .executeTakeFirstOrThrow(
+        () => new Error("Could not update the order status.")
+      );
+    return order;
+  },
   getById: async (orderId: string) => {
     const order = await db
       .selectFrom("Order")
@@ -26,6 +37,7 @@ export const orderRepository = {
       .selectFrom("Order")
       .selectAll()
       .where("Order.collectionId", "=", orderId)
+      .orderBy("Order.createdAt desc")
       .executeTakeFirst();
     return order;
   },
