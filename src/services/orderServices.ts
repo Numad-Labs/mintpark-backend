@@ -58,4 +58,31 @@ export const orderServices = {
       throw new Error("Could not get estimated fee ");
     }
   },
+  getEstimatedFee2: async (
+    fileSize: number,
+    price: number,
+    customFee: number = 1,
+    layerType: LAYER_TYPE
+  ) => {
+    try {
+      let customAmount = 0;
+      const commitSize = Math.ceil(10 + 58 * 1 + 43 * 3);
+      const inscriptionSize = Math.ceil(fileSize / 4);
+      const revealSize = Math.ceil(10 + 58 * 1 + 43 * 1 + inscriptionSize);
+      const commitFee = commitSize * customFee;
+      const revealFee = revealSize * customFee;
+      customAmount = commitFee + revealFee + price + 546;
+
+      return {
+        estimatedFee: {
+          feeRate: customFee,
+          networkFee: customAmount - price,
+          serviceFee: price,
+          totalFee: customAmount,
+        },
+      };
+    } catch (e) {
+      throw new Error("Could not get estimated fee ");
+    }
+  },
 };

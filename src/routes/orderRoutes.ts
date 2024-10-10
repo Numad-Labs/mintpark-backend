@@ -13,9 +13,5 @@ orderRouter.get(
 orderRouter.get("/:orderId", orderController.getByOrderId);
 orderRouter.get("/fee-rates/:layerType", orderController.getFeeRates);
 orderRouter.get("/fee-rates", orderController.getAllFeeRates);
-orderRouter.post(
-  "/estimated-fee",
-  parseFiles("files", false),
-  orderController.getEstimatedFee
-);
+orderRouter.post("/estimated-fee", orderController.getEstimatedFeeWithFileSize);
 export = orderRouter;

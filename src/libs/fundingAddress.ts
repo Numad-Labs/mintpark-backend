@@ -128,6 +128,18 @@ function calculateBitcoinRequiredAmount(params: FeeCalculationParams): number {
   }
 
   const DUST_THRESHOLD = 546;
+  console.log({
+    totalInscriptionSize,
+    totalCommitFee,
+    totalRevealFee,
+    price: params.price,
+    requiredAmount:
+      totalCommitFee +
+      totalRevealFee +
+      params.price * params.inscriptions.length +
+      DUST_THRESHOLD,
+      
+  });
   return (
     totalCommitFee +
     totalRevealFee +

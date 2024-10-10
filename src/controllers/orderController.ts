@@ -58,7 +58,8 @@ export const orderController = {
     try {
       const { fee, layerType } = req.body;
       const files = req.files as Express.Multer.File[];
-      if (!fee) throw new CustomError("Please provide the fee rate", 400);
+      if (!fee || !layerType)
+        throw new CustomError("Please provide the fee rate", 400);
       const estimatedFee = await orderServices.getEstimatedFee(
         files,
         Number(SERVICE_FEE),
@@ -68,6 +69,27 @@ export const orderController = {
       return res
         .status(200)
         .json({ success: true, estimatedFee: estimatedFee });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getEstimatedFeeWithFileSize: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { fileSize, layerType } = req.body;
+      const feeRate = 1;
+      if (!layerType || !fileSize)
+        throw new CustomError("Please provide the fee rate", 400);
+      const estimatedFee = await orderServices.getEstimatedFee2(
+        Number(fileSize),
+        Number(SERVICE_FEE),
+        Number(feeRate),
+        layerType.toUpperCase() as LAYER_TYPE
+      );
+      return res.status(200).json({ success: true, ...estimatedFee });
     } catch (e) {
       next(e);
     }
