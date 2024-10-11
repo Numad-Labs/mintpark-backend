@@ -15,6 +15,8 @@ import {
 } from "./libs";
 import { calculateUnsignedSegwitTxid } from "./libs";
 import { parseDataUrl } from "../parseImage";
+import axios from "axios";
+import { rpcPassword, rpcUser } from "../constants";
 
 bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);
@@ -274,5 +276,34 @@ export async function mintForBitcoin(
     } else {
       throw new CustomError("An unexpected error occurred during minting", 500);
     }
+  }
+}
+
+export async function sendTransaction(
+  txHex: string,
+  network: bitcoin.networks.Network = bitcoin.networks.testnet
+) {
+  try {
+    const auth = Buffer.from(`${rpcUser}:${rpcPassword}`).toString("base64");
+    const baseUrl =
+      network === bitcoin.networks.testnet
+        ? "http://localhost:18332"
+        : "http://localhost:8332";
+    const body = {
+      jsonrpc: "1.0",
+      method: "sendrawtransaction",
+      id: "curltest",
+      params: [txHex],
+    };
+    const result = axios.post(baseUrl, body, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${auth}`,
+      },
+    });
+    return result;
+  } catch (error) {
+    console.error("Error in sendTransaction:", error);
+    throw new CustomError("An unexpected error occurred during sending", 500);
   }
 }

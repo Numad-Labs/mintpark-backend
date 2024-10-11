@@ -6,13 +6,25 @@ export const ASSETTYPE = {
   NFTONCHAIN: 2,
 };
 
-export const SERVICE_FEE_ADDRESS =
-  "tb1pffk5397d7sns6mayud03nf3fxy4p04e3alhslr6epaq3a788tsuqpw7qeu";
+export const SERVICE_FEE_ADDRESS = {
+  BITCOIN_TESTNET:
+    "tb1pffk5397d7sns6mayud03nf3fxy4p04e3alhslr6epaq3a788tsuqpw7qeu",
+  FRACTAL_TESTNET: "bc1qzr9zqc5d7zj7ktxnfdeueqmxwfwdvrmedckckd",
+  BITCOIN: "",
+  FRACTAL: "",
+  ETHEREUM: "",
+  ETHEREUM_TESTNET: "",
+  COORDINATE: "",
+  COORDINATE_TESTNET: "",
+};
 export const SERVICE_FEE = 696;
 
 //adjust
 export const rpcUrl = "http://127.0.0.1",
   rpcPort = 18332;
+
+export const rpcUser = "gombochir",
+  rpcPassword = "123";
 
 export const unisatFractalUrlTestNet =
   "https://open-api-fractal-testnet.unisat.io/v1";
@@ -24,4 +36,3 @@ export const unisatBitcoinTestnetApi =
 //native segwit
 export const outputSize = 31,
   inputSize = 68;
-

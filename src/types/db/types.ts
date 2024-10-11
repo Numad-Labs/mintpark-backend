@@ -42,6 +42,7 @@ export type Collection = {
   layerType: Generated<LAYER_TYPE>;
   status: Generated<COLLECTION_STATUS>;
   isLaunched: Generated<boolean>;
+  isActive: Generated<boolean>;
   ownerAddress: string;
 };
 export type File = {

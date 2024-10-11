@@ -46,6 +46,8 @@ model Collection {
 
   status     COLLECTION_STATUS @default(UPCOMING)
   isLaunched Boolean @default(false)
+
+  isActive Boolean @default(false)
   
   ownerAddress String
   User        User          @relation(fields: [ownerAddress], references: [address], onDelete: Cascade)

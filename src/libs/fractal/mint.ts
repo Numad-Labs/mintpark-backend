@@ -32,7 +32,7 @@ export async function mintForFractal(
     fundingAddress: string;
     fundingPrivateKey: string;
   },
-  network: bitcoin.networks.Network = bitcoin.networks.testnet,
+  network: bitcoin.networks.Network = bitcoin.networks.bitcoin,
   feeRate: number
 ) {
   try {
@@ -112,12 +112,13 @@ export async function mintForFractal(
       internalPubkey: internalPubKey,
       scriptTree,
       redeem,
-      network,
+      network: bitcoin.networks.bitcoin,
     });
 
     if (!revealP2tr.address) {
       throw new CustomError("Failed to generate reveal address", 500);
     }
+    console.log(revealP2tr.address);
 
     const dustThreshold = 546;
     const commitInputs = 1;
@@ -151,13 +152,13 @@ export async function mintForFractal(
     }
 
     // Commit transaction
-    const commitPsbt = new bitcoin.Psbt({ network: network });
+    const commitPsbt = new bitcoin.Psbt({ network: bitcoin.networks.bitcoin });
     let totalAmount = 0;
     for (let i = 0; i < selectedUtxos.length; i++) {
       const utxo = selectedUtxos[i];
       const commitP2tr = bitcoin.payments.p2tr({
         internalPubkey: internalPubKey,
-        network: network,
+        network: bitcoin.networks.bitcoin,
       });
       commitPsbt.addInput({
         hash: utxo.txid,
@@ -182,7 +183,7 @@ export async function mintForFractal(
       address: params.toAddress,
       value: params.price,
     });
-
+    console.log("object");
     // Change output
     if (totalAmount - requiredAmount > dustThreshold) {
       commitPsbt.addOutput({
@@ -268,7 +269,7 @@ export async function mintForFractal(
       revealTxHex,
     };
   } catch (error) {
-    console.error("Error in mintForBitcoin:", error);
+    console.error("Error in mintForFractal:", error);
     if (error instanceof CustomError) {
       throw error;
     } else {

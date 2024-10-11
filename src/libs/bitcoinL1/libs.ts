@@ -179,3 +179,23 @@ export async function getRecommendedFeeRateBTCTestnet() {
     return 10; // satoshis per vbyte
   }
 }
+
+export async function getRecommendedFeeRateBTC() {
+  try {
+    // Using mempool.space API for testnet
+    const response = await axios.get(
+      "https://mempool.space/api/v1/fees/recommended"
+    );
+
+    // The API returns fee estimates for different priorities
+    const fee: number = response.data.hourFee;
+
+    // You can choose which fee rate to use based on your priority
+    // For this example, we'll use the halfHourFee
+    return fee;
+  } catch (error) {
+    console.error("Error fetching fee estimates:", error);
+    // Return a default fee rate if the API call fails
+    return 10; // satoshis per vbyte
+  }
+}

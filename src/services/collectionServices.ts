@@ -79,6 +79,8 @@ export const collectionServices = {
       });
     }
 
+    collection.isActive = true;
+
     await collectionRepository.update(collection.id, collection);
 
     const funder = createFundingAddress({
@@ -158,12 +160,16 @@ export const collectionServices = {
         feeRate: order.feeRate,
         mintingParams: {
           data: data,
-          toAddress: SERVICE_FEE_ADDRESS,
+          toAddress: SERVICE_FEE_ADDRESS[order.layerType] as string,
           price: SERVICE_FEE,
           fundingAddress: order.fundingAddress,
           fundingPrivateKey: order.fundingPrivateKey,
         },
       });
+
+      //One minute promise between each minting
+      new Promise((resolve) => setTimeout(resolve, 60000));
+
       files[i].status = "MINTED";
       files[i].generatedPsbtTxId = mintResult.revealTxId;
       await fileRepository.update(files[i].id, files[i]);
@@ -224,10 +230,12 @@ export const collectionServices = {
     await collectibleRepository.create(collectibles, db);
 
     collection.isLaunched = true;
+    collection.isActive = true;
     collection.status = "LIVE";
     collection.POStartDate = POStartDate;
     collection.walletLimit = walletLimit;
     collection.price = price;
+
     await collectionRepository.update(collection.id, collection);
 
     return collection;

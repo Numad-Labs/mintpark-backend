@@ -65,9 +65,6 @@ export const collectibleServices = {
     mintlayerType: LAYER_TYPE,
     feeRate: string
   ) => {
-    const key = randomUUID();
-    await uploadToS3(key, file);
-
     const funder = createFundingAddress({
       inscriptions: [
         {
@@ -81,6 +78,9 @@ export const collectibleServices = {
     });
 
     const hashedPrivateKey = funder.privateKey;
+
+    const key = randomUUID();
+    await uploadToS3(key, file);
 
     const order = await orderRepository.create({
       amount: funder.requiredAmount,
@@ -130,7 +130,7 @@ export const collectibleServices = {
         feeRate: order.feeRate,
         mintingParams: {
           data: data,
-          toAddress: SERVICE_FEE_ADDRESS,
+          toAddress: SERVICE_FEE_ADDRESS[order.layerType],
           price: SERVICE_FEE,
           fundingAddress: order.fundingAddress,
           fundingPrivateKey: order.fundingPrivateKey,

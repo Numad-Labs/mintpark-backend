@@ -2,11 +2,17 @@ import { mintForBitcoin } from "./bitcoinL1/mintCollectible";
 import * as bitcoin from "bitcoinjs-lib";
 import * as coordinate from "chromajs-lib";
 import { mintForAnduroWallet } from "./coordinate/mint";
-import { MintingParams, mintingParams } from "../../custom";
-import { getRecommendedFeeRateBTCTestnet } from "./bitcoinL1/libs";
-import { number } from "chromajs-lib/src/script";
+import { mintingParams } from "../../custom";
+import {
+  getRecommendedFeeRateBTC,
+  getRecommendedFeeRateBTCTestnet,
+} from "./bitcoinL1/libs";
 import { LAYER_TYPE } from "../types/db/enums";
 import { mintForFractal } from "./fractal/mint";
+import {
+  getRecommendedFeeRateFractal,
+  getRecommendedFeeRateFractalTestnet,
+} from "./fractal/libs";
 
 interface LayerConfig {
   network: any;
@@ -20,7 +26,7 @@ const layerConfigs = new Map<LAYER_TYPE, LayerConfig>([
     {
       network: bitcoin.networks.bitcoin,
       mintFunction: mintForBitcoin,
-      getFeeRate: async () => 1, // Replace with actual mainnet fee rate function
+      getFeeRate: getRecommendedFeeRateBTC, // Replace with actual mainnet fee rate function
     },
   ],
   [
@@ -50,17 +56,17 @@ const layerConfigs = new Map<LAYER_TYPE, LayerConfig>([
   [
     LAYER_TYPE.FRACTAL,
     {
-      network: null,
+      network: bitcoin.networks.testnet,
       mintFunction: mintForFractal,
-      getFeeRate: async () => 1,
+      getFeeRate: getRecommendedFeeRateFractal,
     },
   ],
   [
     LAYER_TYPE.FRACTAL_TESTNET,
     {
-      network: null,
+      network: bitcoin.networks.testnet,
       mintFunction: mintForFractal,
-      getFeeRate: async () => 1, // Replace with actual Fractal testnet fee rate function
+      getFeeRate: getRecommendedFeeRateFractalTestnet, // Replace with actual Fractal testnet fee rate function
     },
   ],
 ]);
@@ -89,7 +95,8 @@ export async function mintHelper(params: mintingParams): Promise<any> {
     const result = await config.mintFunction(
       params.mintingParams,
       config.network,
-      feeRate
+      // feeRate
+      1
     );
 
     return result;

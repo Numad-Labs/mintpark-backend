@@ -1,5 +1,5 @@
 import axios, { AxiosError } from "axios";
-import { unisatBitcoinTestnetApi } from "../constants";
+import { unisatBitcoinTestnetApi, unisatFractalTestnetApi } from "../constants";
 import { unisatUtxo } from "../../../custom";
 import * as bitcoin from "bitcoinjs-lib";
 import { CustomError } from "../../exceptions/CustomError";
@@ -23,14 +23,14 @@ export async function getUtxosWithAddress(
 ) {
   const baseUrl =
     network === bitcoin.networks.testnet
-      ? "https://open-api-testnet.unisat.io/v1"
-      : "https://open-api-s1.unisat.io/v1";
+      ? "https://open-api-fractal-testnet.unisat.io/v1"
+      : "https://open-api-fractal.unisat.io/v1";
   const response = await axios.get(
     `${baseUrl}/indexer/address/${address}/utxo-data`,
     {
       headers: {
         accept: "application/json",
-        Authorization: `Bearer ${unisatBitcoinTestnetApi}`,
+        Authorization: `Bearer ${unisatFractalTestnetApi}`,
       },
     }
   );
@@ -169,4 +169,42 @@ export function getAddressType(address: string) {
   }
 }
 
-export const getRecommendedFeeRateBTCTestnet = async () => {};
+export const getRecommendedFeeRateFractalTestnet = async () => {
+  try {
+    // Using mempool.space API for testnet
+    const response = await axios.get(
+      "https://mempool-testnet.fractalbitcoin.io//api/v1/fees/recommended"
+    );
+
+    // The API returns fee estimates for different priorities
+    const fee: number = response.data.hourFee;
+
+    // You can choose which fee rate to use based on your priority
+    // For this example, we'll use the halfHourFee
+    return fee;
+  } catch (error) {
+    console.error("Error fetching fee estimates:", error);
+    // Return a default fee rate if the API call fails
+    return 10; // satoshis per vbyte
+  }
+};
+
+export const getRecommendedFeeRateFractal = async () => {
+  try {
+    // Using mempool.space API for testnet
+    const response = await axios.get(
+      "https://mempool.fractalbitcoin.io//api/v1/fees/recommended"
+    );
+
+    // The API returns fee estimates for different priorities
+    const fee: number = response.data.hourFee;
+
+    // You can choose which fee rate to use based on your priority
+    // For this example, we'll use the halfHourFee
+    return fee;
+  } catch (error) {
+    console.error("Error fetching fee estimates:", error);
+    // Return a default fee rate if the API call fails
+    return 10; // satoshis per vbyte
+  }
+};

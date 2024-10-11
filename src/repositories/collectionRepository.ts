@@ -43,6 +43,7 @@ export const collectionRepository = {
     const collections = await db
       .selectFrom("Collection")
       .selectAll()
+      .where("Collection.isActive", "=", true)
       .orderBy("Collection.createdAt desc")
       .execute();
 
@@ -64,6 +65,19 @@ export const collectionRepository = {
       .selectAll()
       .where("Collection.layerType", "=", layerType)
       .where("Collection.isLaunched", "=", true)
+      .where("isActive", "=", true)
+      .orderBy("Collection.createdAt desc")
+      .execute();
+
+    return collections;
+  },
+  getByLaunchedStatus: async (layerType: LAYER_TYPE, isLaunched: boolean) => {
+    const collections = await db
+      .selectFrom("Collection")
+      .selectAll()
+      .where("Collection.layerType", "=", layerType)
+      .where("Collection.isLaunched", "=", isLaunched)
+      .where("isActive", "=", true)
       .orderBy("Collection.createdAt desc")
       .execute();
 

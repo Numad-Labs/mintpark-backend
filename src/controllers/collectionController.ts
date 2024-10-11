@@ -203,7 +203,9 @@ export const collectionController = {
         layerType as LAYER_TYPE
       );
 
-      return res.status(200).json({ success: true, data: collections });
+      return res
+        .status(200)
+        .json({ success: true, data: { layerType, collections } });
     } catch (e) {
       next(e);
     }

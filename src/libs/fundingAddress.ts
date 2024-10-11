@@ -27,32 +27,52 @@ export function createAddressForLayer(
   layerType: LAYER_TYPE,
   network?: any
 ): AddressCreationResult {
+  let selectedNetwork;
+
   switch (layerType) {
     case LAYER_TYPE.BITCOIN:
+      selectedNetwork = network || bitcoin.networks.bitcoin;
+      break;
     case LAYER_TYPE.BITCOIN_TESTNET:
-      return createBitcoinAddress(
-        network ||
-          (layerType === LAYER_TYPE.BITCOIN
-            ? bitcoin.networks.bitcoin
-            : bitcoin.networks.testnet)
-      );
-    // Add more cases for other layer types as needed
+      selectedNetwork = network || bitcoin.networks.testnet;
+      break;
+    case LAYER_TYPE.FRACTAL_TESTNET:
+      // Use Bitcoin mainnet network parameters for Fractal testnet
+      selectedNetwork = network || bitcoin.networks.bitcoin;
+      break;
+    case LAYER_TYPE.FRACTAL:
+      selectedNetwork = network || bitcoin.networks.testnet;
     default:
-      throw new Error(`Unsupported layer type: ${layerType}`);
+      throw new Error(`Not supported for this ${layerType} layer type yet.`);
   }
+
+  return createBitcoinAddress(selectedNetwork, layerType);
 }
 
 function createBitcoinAddress(
-  network: bitcoin.networks.Network
+  network: bitcoin.networks.Network,
+  layerType: LAYER_TYPE
 ): AddressCreationResult {
   const keyPair = ECPair.makeRandom({ network });
-  const { address } = bitcoin.payments.p2tr({
-    internalPubkey: keyPair.publicKey.slice(1, 33),
-    network,
-  });
+
+  let address;
+  if (layerType === LAYER_TYPE.FRACTAL_TESTNET) {
+    address = bitcoin.payments.p2tr({
+      internalPubkey: keyPair.publicKey.slice(1, 33),
+      network: bitcoin.networks.bitcoin,
+    }).address;
+  } else {
+    // For other networks, use P2TR as before
+    address = bitcoin.payments.p2tr({
+      internalPubkey: keyPair.publicKey.slice(1, 33),
+      network,
+    }).address;
+  }
+
   if (!address) {
     throw new Error("Could not generate funding address and private key.");
   }
+
   return {
     address,
     privateKey: keyPair.privateKey!.toString("hex"),
@@ -76,8 +96,16 @@ export function calculateRequiredAmount(params: FeeCalculationParams): number {
     case LAYER_TYPE.ETHEREUM_TESTNET:
       return calculateEthereumRequiredAmount(params);
     // Add more cases for other layer types as needed
+    case LAYER_TYPE.FRACTAL:
+    case LAYER_TYPE.FRACTAL_TESTNET:
+      return calculateBitcoinRequiredAmount(params);
+    case LAYER_TYPE.COORDINATE:
+    case LAYER_TYPE.COORDINATE_TESTNET:
+      return calculateBitcoinRequiredAmount(params);
     default:
-      throw new Error(`Unsupported layer type: ${params.layerType}`);
+      throw new Error(
+        `Not supported for this ${params.layerType} layer type yet.`
+      );
   }
 }
 
@@ -125,8 +153,6 @@ function calculateBitcoinRequiredAmount(params: FeeCalculationParams): number {
 }
 
 function calculateEthereumRequiredAmount(params: FeeCalculationParams): number {
-  // Implement Ethereum-specific fee calculation
-  // This is a placeholder and should be replaced with actual Ethereum fee estimation logic
   const BASE_GAS = 21000;
   const DATA_GAS = params.inscriptions.reduce(
     (total, inscription) => total + inscription.inscriptionData.length * 16,
