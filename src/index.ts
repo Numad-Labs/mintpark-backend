@@ -9,10 +9,9 @@ require("dotenv").config();
 import userRouter from "./routes/userRoutes";
 import { errorHandler } from "./middlewares/errorHandler";
 import { notFound } from "./middlewares/notFound";
-import collectionRouter from "./routes/collectionRoutes";
-import collectibleRouter from "./routes/collectibleRoutes";
-import purchaseRouter from "./routes/purchaseRoutes";
 import { checkAndUpdateCollectibleStatus } from "./cron";
+import layerRouter from "./routes/layerRoutes";
+import orderRouter from "./routes/orderRoutes";
 
 export const redis = new Redis(config.REDIS_CONNECTION_STRING);
 
@@ -30,14 +29,11 @@ app.use(helmet());
 app.use(bodyParser.json());
 
 app.use("/api/v1/users", userRouter);
-app.use("/api/v1/collections", collectionRouter);
-app.use("/api/v1/collectibles", collectibleRouter);
-app.use("/api/v1/purchase", purchaseRouter);
+app.use("/api/v1/layers", layerRouter);
+app.use("/api/v1/orders", orderRouter);
 
 app.use(errorHandler);
 app.use(notFound);
-
-checkAndUpdateCollectibleStatus();
 
 app.listen(config.PORT, () => {
   console.log(`Server has started on port ${config.PORT}`);
