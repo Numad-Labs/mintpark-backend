@@ -27,19 +27,19 @@ export const userController = {
     }
   },
   login: async (req: Request, res: Response, next: NextFunction) => {
-    const { address, signedMessage, xpub } = req.body;
+    const { address, signedMessage, xpub, layerId } = req.body;
 
     try {
-      if (!address || !signedMessage || !xpub)
+      if (!address || !signedMessage || !layerId)
         throw new CustomError(
-          "Please provide a wallet address, signed message and xpub.",
+          "Please provide a wallet address, signedMessage and layerId.",
           400
         );
 
       const { user, tokens } = await userServices.login(
         address,
-        xpub,
-        signedMessage
+        signedMessage,
+        layerId
       );
 
       return res.status(200).json({

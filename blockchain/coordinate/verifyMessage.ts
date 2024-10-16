@@ -1,7 +1,7 @@
 import * as coordinate from "chromajs-lib";
 import * as bitcoinMessage from "bitcoinjs-message";
 
-export function verifySignedMessage(
+export function verifySignedMessageCoordinate(
   originalMessage: string,
   signedMessage: string,
   address: string

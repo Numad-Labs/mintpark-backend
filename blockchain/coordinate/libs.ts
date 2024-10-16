@@ -1,19 +1,18 @@
 import * as coordinate from "chromajs-lib";
 import axios, { AxiosError } from "axios";
-import { utxo } from "../../../custom";
-import { config } from "../../config/config";
-import { CustomError } from "../../exceptions/CustomError";
-
-type AddressType = "p2pkh" | "p2sh" | "p2wpkh" | "p2tr";
-
-export const TX_INPUT_P2PKH = 148;
-export const TX_INPUT_P2SH = 91;
-export const TX_INPUT_P2WPKH = 68;
-export const TX_INPUT_P2TR = 58;
-export const TX_OUTPUT_P2PKH = 34;
-export const TX_OUTPUT_P2SH = 32;
-export const TX_OUTPUT_P2WPKH = 31;
-export const TX_OUTPUT_P2TR = 43;
+import { utxo } from "../../custom";
+import { config } from "../../src/config/config";
+import { CustomError } from "../../src/exceptions/CustomError";
+import {
+  TX_INPUT_P2PKH,
+  TX_INPUT_P2SH,
+  TX_INPUT_P2TR,
+  TX_INPUT_P2WPKH,
+  TX_OUTPUT_P2PKH,
+  TX_OUTPUT_P2SH,
+  TX_OUTPUT_P2TR,
+  TX_OUTPUT_P2WPKH,
+} from "../constants";
 
 export async function getUtxos(address: string | null, xpub: string | null) {
   let response;

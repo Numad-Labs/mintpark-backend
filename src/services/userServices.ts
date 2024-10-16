@@ -6,7 +6,7 @@ import { generateMessage } from "../libs/generateMessage";
 import { generateNonce } from "../libs/generateNonce";
 import { redis } from "..";
 import { generateTokens } from "../utils/jwt";
-import { verifySignedMessage } from "../libs/coordinate/verifyMessage";
+import { verifySignedMessage } from "../libs/verifyMessageHelper";
 
 export const userServices = {
   generateMessageToSign: async (address: string) => {
@@ -16,17 +16,25 @@ export const userServices = {
 
     return message;
   },
-  login: async (address: string, xpub: string, signedMessage: string) => {
+  login: async (address: string, signedMessage: string, layerId: string) => {
     const nonce = await redis.get(`nonce:${address}`);
     if (!nonce) throw new CustomError("No recorded nonce found.", 400);
     const message = await generateMessage(address, nonce);
 
-    const isValid = verifySignedMessage(message, signedMessage, address);
+    const isValid = verifySignedMessage(
+      message,
+      signedMessage,
+      address,
+      layerId // fix this
+    );
     if (!isValid) throw new CustomError("Invalid signature.", 400);
 
     let user = await userRepository.getByAddress(address);
     if (!user) {
-      user = await userRepository.create({ address: address, xpub: xpub });
+      user = await userRepository.create({
+        address: address,
+        layerId: layerId,
+      });
     }
 
     const tokens = generateTokens(user);
@@ -39,7 +47,7 @@ export const userServices = {
     if (id !== issuerId)
       throw new CustomError("You are not allowed to do this action.", 400);
 
-    if (data.address || data.createdAt)
+    if (data.address)
       throw new CustomError("Trying to update immutable fields.", 400);
 
     const user = await userRepository.update(id, data);
