@@ -50,7 +50,7 @@ model Order {
   createdAt       DateTime     @default(now())
   paidAt          DateTime?
   mintedAt        DateTime?
-  orderType       ORDER_TYPE
+  orderType       ORDER_TYPE @default(COLLECTIBLE)
   orderStatus     ORDER_STATUS @default(PENDING)
   orderItems      OrderItem[]
   purchase        Purchase?

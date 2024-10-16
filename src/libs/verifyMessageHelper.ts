@@ -10,6 +10,8 @@ export async function verifySignedMessage(
 ) {
   const layer = await layerRepository.getById(layerId);
 
+  console.log(layer);
+
   if (!layer) throw new Error("Layer not found.");
   switch (layer.layer) {
     case LAYER.FRACTAL:

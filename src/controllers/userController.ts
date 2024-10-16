@@ -6,6 +6,7 @@ import { verifyRefreshToken } from "../utils/jwt";
 import { userServices } from "../services/userServices";
 import { CustomError } from "../exceptions/CustomError";
 import { AuthenticatedRequest } from "../../custom";
+import { get } from "http";
 
 export const userController = {
   generateMessageToSign: async (
@@ -108,6 +109,17 @@ export const userController = {
 
     try {
       const user = await userRepository.getById(id);
+
+      return res.status(200).json({ success: true, data: user });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getByAddress: async (req: Request, res: Response, next: NextFunction) => {
+    const { address } = req.body;
+
+    try {
+      const user = await userRepository.getByAddress(address);
 
       return res.status(200).json({ success: true, data: user });
     } catch (e) {
