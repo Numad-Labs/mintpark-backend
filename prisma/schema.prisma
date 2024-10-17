@@ -97,8 +97,8 @@ model LaunchItem {
   launchId  String
   launch    Launch             @relation(fields: [launchId], references: [id])
   fileKey   String
-  metadata  Json
-  status    LAUNCH_ITEM_STATUS
+  metadata  Json?
+  status    LAUNCH_ITEM_STATUS @default(ACTIVE)
   purchases Purchase[]
 }
 
@@ -147,7 +147,7 @@ model Collectible {
   id           String             @id @default(dbgenerated("gen_random_uuid()"))
   collectionId String
   collection   Collection         @relation(fields: [collectionId], references: [id])
-  uniqueIdx    Int
+  uniqueIdx    String
   createdAt    DateTime           @default(now())
   traits       CollectibleTrait[]
   list         List?
