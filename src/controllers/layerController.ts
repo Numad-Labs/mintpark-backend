@@ -3,6 +3,9 @@ import { AuthenticatedRequest } from "../../custom";
 import { layerServices } from "../services/layerServices";
 import { LAYER } from "@prisma/client";
 import { NETWORK } from "../types/db/enums";
+import { getEstimatedFee } from "../../blockchain/utxo/calculateRequiredAmount";
+import { SERVICE_FEE } from "../../blockchain/utxo/constants";
+import { feeRateHelper } from "../../blockchain/utxo/feeRateHelper";
 
 export const layerController = {
   create: async (req: Request, res: Response, next: NextFunction) => {
@@ -81,5 +84,36 @@ export const layerController = {
     } catch (e) {
       next(e);
     }
+  },
+  getFeeRates: async (req: Request, res: Response, next: NextFunction) => {
+    const { layerId } = req.params;
+    try {
+      if (!layerId) throw new Error("Please provide a layerId as param.");
+      const layer = await layerServices.getById(layerId);
+      if (!layer) throw new Error("Layer not found.");
+      let feeRates;
+      if (layer.network === "MAINNET")
+        feeRates = await feeRateHelper(layer.layer, false);
+      else feeRates = await feeRateHelper(layer.layer, true);
+
+      return res.status(200).json({ success: true, data: feeRates });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getEstimatedFee: async (req: Request, res: Response, next: NextFunction) => {
+    const { fileSize, fileType, feeRate } = req.body;
+    if (!fileSize || !fileType || !feeRate)
+      throw new Error("Please provide a fileSize, fileType and feeRate.");
+
+    const mimeTypeByteSize = fileType.length;
+    const estimatedFee = getEstimatedFee(
+      [Number(fileSize)],
+      [Number(mimeTypeByteSize)],
+      SERVICE_FEE,
+      feeRate
+    );
+
+    return res.status(200).json({ success: true, data: estimatedFee });
   },
 };
