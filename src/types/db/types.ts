@@ -32,10 +32,11 @@ export type CollectibleTrait = {
 export type Collection = {
   id: Generated<string>;
   name: string;
-  creator: string;
+  creator: string | null;
   description: string;
-  logoKey: string;
+  logoKey: string | null;
   supply: number;
+  type: Generated<COLLECTION_TYPE>;
 };
 export type Launch = {
   id: Generated<string>;
@@ -89,7 +90,7 @@ export type Order = {
   createdAt: Generated<Timestamp>;
   paidAt: Timestamp | null;
   mintedAt: Timestamp | null;
-  orderType: ORDER_TYPE;
+  orderType: Generated<ORDER_TYPE>;
   orderStatus: Generated<ORDER_STATUS>;
 };
 export type OrderItem = {

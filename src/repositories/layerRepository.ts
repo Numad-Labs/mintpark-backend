@@ -1,7 +1,6 @@
 import { Insertable, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { Layer } from "../types/db/types";
-import { get } from "http";
 
 export const layerRepository = {
   create: async (data: Insertable<Layer>) => {

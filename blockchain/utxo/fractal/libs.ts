@@ -1,7 +1,7 @@
 import axios, { AxiosError } from "axios";
-import { CustomError } from "../../src/exceptions/CustomError";
-import { unisatUtxo } from "../../custom";
-import { config } from "../../src/config/config";
+import { CustomError } from "../../../src/exceptions/CustomError";
+import { unisatUtxo } from "../../../custom";
+import { config } from "../../../src/config/config";
 import {
   TX_INPUT_P2PKH,
   TX_INPUT_P2SH,
@@ -36,6 +36,48 @@ export async function getUtxos(address: string, isTestNet: boolean = true) {
   utxos.sort((a, b) => b.satoshi - a.satoshi);
 
   return utxos;
+}
+
+export async function getRawTransaction(
+  txid: string,
+  isTestNet: boolean = true
+) {
+  const baseUrl = isTestNet
+    ? "https://open-api-fractal-testnet.unisat.io/v1"
+    : "https://open-api-fractal.unisat.io/v1";
+  const response = await axios.get(`${baseUrl}/indexer/rawtx/${txid}`, {
+    headers: {
+      accept: "application/json",
+      Authorization: `Bearer ${config.UNISAT_FRACTAL_TESTNET_API_KEY}`,
+    },
+  });
+  return response.data.data;
+}
+
+export function prepareInputs(
+  utxos: unisatUtxo[],
+  requiredAmount: number,
+  inputSize: number,
+  feeRate: number
+) {
+  let totalAmount = 0;
+  let index = 0;
+  const inputs: unisatUtxo[] = [];
+
+  while (totalAmount < requiredAmount) {
+    if (index > utxos.length - 1) throw new Error("Insufficient balance.");
+
+    inputs.push(utxos[index]);
+    totalAmount += utxos[index].satoshi;
+
+    index++;
+    requiredAmount += inputSize * feeRate;
+  }
+
+  return {
+    inputs: inputs,
+    changeAmount: totalAmount - requiredAmount,
+  };
 }
 
 export async function checkTransactionStatus(txid: string) {

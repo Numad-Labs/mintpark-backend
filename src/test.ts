@@ -5,9 +5,9 @@ import {
   DEFAULT_FEE_RATE,
   SERVICE_FEE,
   SERVICE_FEE_ADDRESS,
-} from "../blockchain/constants";
-import { getUtxos } from "../blockchain/fractal/libs";
-import { mint } from "../blockchain/fractal/mint";
+} from "../blockchain/utxo/constants";
+import { getUtxos } from "../blockchain/utxo/fractal/libs";
+import { mint } from "../blockchain/utxo/fractal/mint";
 
 function testRun() {
   console.log("Test run");

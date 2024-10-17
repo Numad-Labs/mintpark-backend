@@ -1,6 +1,6 @@
 import { getUtxos } from "./libs";
-import { utxo } from "../../custom";
-import { CustomError } from "../../src/exceptions/CustomError";
+import { utxo } from "../../../custom";
+import { CustomError } from "../../../src/exceptions/CustomError";
 
 export async function prepareInputs(
   address: string | null,

@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import multer from "multer";
-import { fileSizeLimit } from "../../blockchain/constants";
+import { fileSizeLimit } from "../../blockchain/utxo/constants";
 
 const storage = multer.memoryStorage();
 

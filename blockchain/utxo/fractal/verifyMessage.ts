@@ -1,7 +1,7 @@
 import * as bitcoin from "bitcoinjs-lib";
 import bitcoinMessage from "bitcoinjs-message";
 import { getAddressType } from "./libs";
-import { CustomError } from "../../src/exceptions/CustomError";
+import { CustomError } from "../../../src/exceptions/CustomError";
 
 const secp256k1 = require("noble-secp256k1");
 const { bech32m } = require("bech32");

@@ -1,5 +1,5 @@
 import * as coordinate from "chromajs-lib";
-import { tokenData } from "../../custom";
+import { tokenData } from "../../../custom";
 
 const schnorr = require("bip-schnorr");
 const convert = schnorr.convert;
@@ -8,7 +8,7 @@ import * as bip39 from "bip39";
 import { BIP32Factory } from "bip32";
 import { createPayment, getAddressType, getUtxos } from "./libs";
 import { prepareInputs } from "./prepareInputs";
-import { CustomError } from "../../src/exceptions/CustomError";
+import { CustomError } from "../../../src/exceptions/CustomError";
 import { TX_INPUT_P2WPKH, TX_OUTPUT_P2WPKH } from "../constants";
 const bip32 = BIP32Factory(ecc);
 

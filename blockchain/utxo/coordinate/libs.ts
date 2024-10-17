@@ -1,8 +1,8 @@
 import * as coordinate from "chromajs-lib";
 import axios, { AxiosError } from "axios";
-import { utxo } from "../../custom";
-import { config } from "../../src/config/config";
-import { CustomError } from "../../src/exceptions/CustomError";
+import { utxo } from "../../../custom";
+import { config } from "../../../src/config/config";
+import { CustomError } from "../../../src/exceptions/CustomError";
 import {
   TX_INPUT_P2PKH,
   TX_INPUT_P2SH,
