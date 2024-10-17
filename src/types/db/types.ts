@@ -37,6 +37,7 @@ export type Collection = {
   logoKey: string | null;
   supply: number;
   type: Generated<COLLECTION_TYPE>;
+  layerId: string | null;
 };
 export type Launch = {
   id: Generated<string>;
