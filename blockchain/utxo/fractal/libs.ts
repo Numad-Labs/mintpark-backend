@@ -144,21 +144,13 @@ export function getAddressType(address: string) {
       inputSize: TX_INPUT_P2SH,
       outputSize: TX_OUTPUT_P2SH,
     };
-  } else if (
-    address.startsWith("tc1q") ||
-    address.startsWith("cc1q") ||
-    address.startsWith("bc1q")
-  ) {
+  } else if (address.startsWith("tb1q") || address.startsWith("bc1q")) {
     return {
       script: "p2wpkh",
       inputSize: TX_INPUT_P2WPKH,
       outputSize: TX_OUTPUT_P2WPKH,
     };
-  } else if (
-    address.startsWith("tc1p") ||
-    address.startsWith("cc1p") ||
-    address.startsWith("bc1p")
-  ) {
+  } else if (address.startsWith("tb1p") || address.startsWith("bc1p")) {
     return {
       script: "p2tr",
       inputSize: TX_INPUT_P2TR,
