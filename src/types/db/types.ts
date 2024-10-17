@@ -18,7 +18,7 @@ import type {
 export type Collectible = {
   id: Generated<string>;
   collectionId: string;
-  uniqueIdx: number;
+  uniqueIdx: string;
   createdAt: Generated<Timestamp>;
 };
 export type CollectibleTrait = {
@@ -56,8 +56,8 @@ export type LaunchItem = {
   id: Generated<string>;
   launchId: string;
   fileKey: string;
-  metadata: unknown;
-  status: LAUNCH_ITEM_STATUS;
+  metadata: unknown | null;
+  status: Generated<LAUNCH_ITEM_STATUS>;
 };
 export type Layer = {
   id: Generated<string>;
