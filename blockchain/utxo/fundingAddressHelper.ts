@@ -1,7 +1,7 @@
 import * as bitcoin from "bitcoinjs-lib";
 import { ECPairFactory } from "ecpair";
 import * as ecc from "tiny-secp256k1";
-import { LAYER } from "../types/db/enums";
+import { LAYER } from "../../src/types/db/enums";
 
 bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);

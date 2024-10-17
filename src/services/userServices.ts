@@ -6,7 +6,7 @@ import { generateMessage } from "../libs/generateMessage";
 import { generateNonce } from "../libs/generateNonce";
 import { redis } from "..";
 import { generateTokens } from "../utils/jwt";
-import { verifySignedMessage } from "../libs/verifyMessageHelper";
+import { verifySignedMessage } from "../../blockchain/utxo/verifyMessageHelper";
 
 export const userServices = {
   generateMessageToSign: async (address: string) => {

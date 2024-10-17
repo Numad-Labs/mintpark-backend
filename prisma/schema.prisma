@@ -68,10 +68,11 @@ model OrderItem {
 model Collection {
   id          String        @id @default(dbgenerated("gen_random_uuid()"))
   name        String
-  creator     String
+  creator     String?
   description String
-  logoKey     String
+  logoKey     String?
   supply      Int
+  type        COLLECTION_TYPE @default(UNCONFIRMED)
   launches    Launch[]
   orders      Order[]
   collectibles Collectible[]
@@ -162,6 +163,7 @@ model List {
   soldAt        DateTime?
   status        LIST_STATUS
 }
+
 
 enum ORDER_TYPE {
   TOKEN

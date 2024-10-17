@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Collection" ALTER COLUMN "creator" DROP NOT NULL,
+ALTER COLUMN "logoKey" DROP NOT NULL;

@@ -12,4 +12,7 @@ orderRouter.post(
   orderController.create
 );
 
+orderRouter.get("/user/:userId", orderController.getByUserId);
+orderRouter.get("/:orderId", orderController.getById);
+
 export = orderRouter;

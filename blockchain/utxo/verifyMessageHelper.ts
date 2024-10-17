@@ -1,6 +1,6 @@
-import { LAYER } from "../types/db/enums";
-import { verifySignedMessageFractal } from "../../blockchain/fractal/verifyMessage";
-import { layerRepository } from "../repositories/layerRepository";
+import { LAYER } from "../../src/types/db/enums";
+import { verifySignedMessageFractal } from "../../blockchain/utxo/fractal/verifyMessage";
+import { layerRepository } from "../../src/repositories/layerRepository";
 
 export async function verifySignedMessage(
   originalMessage: string,
