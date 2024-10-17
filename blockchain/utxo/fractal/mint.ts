@@ -7,6 +7,10 @@ import { ECPairFactory } from "ecpair";
 import BIP32Factory from "bip32";
 import { CustomError } from "../../../src/exceptions/CustomError";
 import { DUST_THRESHOLD } from "../constants";
+import {
+  calculateInscriptionSize,
+  getEstimatedFee,
+} from "../calculateRequiredAmount";
 
 bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);
@@ -30,6 +34,7 @@ export async function mint(
 
   let network = bitcoin.networks.bitcoin;
   if (!isTestNet) network = bitcoin.networks.testnet;
+
 
   const keyPair = ECPair.fromPrivateKey(Buffer.from(fundingPrivateKey, "hex"), {
     network,
@@ -96,7 +101,16 @@ export async function mint(
   }
 
   //Calculate Required Amount
-  const requiredAmount = 10000;
+  const fees = getEstimatedFee(
+    [inscriptionData.imageBuffer.length],
+    [inscriptionData.contentType.length],
+    devFee,
+    feeRate,
+    price
+  );
+  const commitFee = fees.estimatedFee.commitFee;
+  const revealFee = fees.estimatedFee.revealFee;
+  const requiredAmount = fees.estimatedFee.totalAmount;
 
   //Select Utxos
   const utxos: unisatUtxo[] = await getUtxos(address, isTestNet);
@@ -129,7 +143,7 @@ export async function mint(
     totalAmount += utxo.satoshi;
   }
 
-  const revealAmount = requiredAmount - price - 1000; // 200 is commitFee for now
+  const revealAmount = requiredAmount - price - commitFee; //
   commitPsbt.addOutput({
     address: revealP2tr.address,
     value: BigInt(revealAmount),
@@ -186,10 +200,29 @@ export async function mint(
   });
 
   revealPsbt.signAllInputs(node);
-  const revealTxHex = revealPsbt
-    .finalizeAllInputs()
-    .extractTransaction(false)
-    .toHex();
+  const revealTx = revealPsbt.finalizeAllInputs().extractTransaction(false);
+  const revealTxHex = revealTx.toHex();
+
+  console.log({
+    calculated_fees: {
+      commitFee,
+      revealFee,
+      requiredAmount,
+    },
+  });
+
+  console.log({
+    actual_fees: {
+      commitFee: tx.virtualSize() * feeRate,
+      revealFee: revealTx.virtualSize() * feeRate,
+      requiredAmount:
+        tx.virtualSize() * feeRate +
+        revealTx.virtualSize() * feeRate +
+        DUST_THRESHOLD +
+        devFee +
+        price,
+    },
+  });
 
   return {
     commitTxHex,

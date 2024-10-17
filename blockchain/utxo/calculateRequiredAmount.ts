@@ -30,6 +30,8 @@ export function getEstimatedFee(
   if (fileSize.length !== mimeTypeByteSize.length) {
     throw new Error("File size and mime type size must be the same length.");
   }
+  let totalCommitFee = 0;
+  let totalRevealFee = 0;
   for (let i = 0; i < fileSize.length; i++) {
     let commitSize = 0;
     if (price > 0) {
@@ -56,6 +58,8 @@ export function getEstimatedFee(
     const revealSize = Math.ceil(10 + 58 * 1 + 43 * 1 + inscriptionSize);
     const commitFee = commitSize * feeRate;
     const revealFee = revealSize * feeRate;
+    totalCommitFee += commitFee;
+    totalRevealFee += revealFee;
     amount += commitFee + revealFee + dustLimit + serviceFee;
   }
   amount += price;
@@ -65,6 +69,8 @@ export function getEstimatedFee(
       price: price,
       networkFee: amount - price - serviceFee * fileSize.length,
       serviceFee: serviceFee * fileSize.length,
+      commitFee: totalCommitFee,
+      revealFee: totalRevealFee,
       totalAmount: amount,
     },
   };
