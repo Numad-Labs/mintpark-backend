@@ -54,6 +54,34 @@ export async function getRawTransaction(
   return response.data.data;
 }
 
+export async function getInscriptionUtxosByAddress(
+  address: string,
+  isTestNet: boolean = true
+) {
+  const baseUrl = isTestNet
+    ? "https://open-api-fractal-testnet.unisat.io/v1"
+    : "https://open-api-fractal.unisat.io/v1";
+  const response = await axios.get(
+    `${baseUrl}/indexer/address/${address}/inscription-utxo-data`,
+    {
+      headers: {
+        accept: "application/json",
+        Authorization: `Bearer ${config.UNISAT_FRACTAL_TESTNET_API_KEY}`,
+      },
+    }
+  );
+
+  const utxos: unisatUtxo[] = response.data.data.utxo;
+
+  utxos.forEach((utxo) => {
+    utxo.satoshi = Number(utxo.satoshi);
+    utxo.height = Number(utxo.height);
+  });
+  utxos.sort((a, b) => b.satoshi - a.satoshi);
+
+  return utxos;
+}
+
 export function prepareInputs(
   utxos: unisatUtxo[],
   requiredAmount: number,
