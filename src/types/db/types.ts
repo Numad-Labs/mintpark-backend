@@ -17,8 +17,10 @@ import type {
 
 export type Collectible = {
   id: Generated<string>;
+  name: string | null;
   collectionId: string;
   uniqueIdx: string;
+  fileKey: string | null;
   createdAt: Generated<Timestamp>;
 };
 export type CollectibleTrait = {
@@ -27,7 +29,6 @@ export type CollectibleTrait = {
   traitId: string;
   value: string;
   rarity: number;
-  xpub: string | null;
 };
 export type Collection = {
   id: Generated<string>;
