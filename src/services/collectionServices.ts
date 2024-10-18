@@ -3,6 +3,7 @@ import { uploadToS3 } from "../utils/aws";
 import { randomUUID } from "crypto";
 import { Collection } from "../types/db/types";
 import { userRepository } from "../repositories/userRepository";
+import { QueryParams } from "../controllers/collectionController";
 
 export const collectionServices = {
   create: async (data: any, issuerId: string, file?: Express.Multer.File) => {
@@ -41,10 +42,14 @@ export const collectionServices = {
     return collections;
   },
   getAllLaunchedCollectionsByLayerId: async (layerId: string) => {
-    const collections = await collectionRepository.getAllLaunchedCollectionsByLayerId(
-      layerId
-    );
+    const collections =
+      await collectionRepository.getAllLaunchedCollectionsByLayerId(layerId);
 
     return collections;
-  }
+  },
+  getListedCollections: async (params: QueryParams) => {
+    const result = await collectionRepository.getListedCollections(params);
+
+    return result;
+  },
 };

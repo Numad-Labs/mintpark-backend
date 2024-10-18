@@ -1,16 +1,16 @@
 import { Request, Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../custom";
 import { collectionServices } from "../services/collectionServices";
-import { Collection } from "../types/db/types";
 import { CustomError } from "../exceptions/CustomError";
 import { launchServices } from "../services/launchServices";
-import { get } from "http";
 
 export interface QueryParams {
   layerId: string;
-  interval?: "1h" | "24h" | "7d" | "30d" | "All";
-  orderBy?: "volume" | "floorPrice";
+  interval?: "1h" | "24h" | "7d" | "30d" | "all";
+  orderBy?: "volume" | "floor";
   orderDirection?: "highest" | "lowest";
+  // page?: string;
+  // pageSize?: string;
 }
 
 export const collectionController = {
@@ -138,6 +138,31 @@ export const collectionController = {
       const collections =
         await collectionServices.getAllLaunchedCollectionsByLayerId(layerId);
       return res.status(200).json({ success: true, data: collections });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getListedCollections: async (
+    req: Request<{}, {}, {}, QueryParams>,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { layerId, interval, orderBy, orderDirection } = req.query;
+      // const page = parseInt(req.query.page || "1", 10);
+      // const pageSize = parseInt(req.query.pageSize || "10", 10);
+      // const offset = (page - 1) * pageSize;
+
+      if (!layerId) throw new CustomError("You must specify the layer.", 400);
+
+      const result = await collectionServices.getListedCollections({
+        layerId,
+        interval,
+        orderBy,
+        orderDirection,
+      });
+
+      return res.status(200).json({ success: true, data: result });
     } catch (e) {
       next(e);
     }

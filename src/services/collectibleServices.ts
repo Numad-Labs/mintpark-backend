@@ -16,7 +16,9 @@ export const collectibleServices = {
       (inscriptionUtxo) => inscriptionUtxo.inscriptions[0].inscriptionId
     );
     const listableCollectibles =
-      await collectibleRepository.getListableCollectibles(inscriptionIds);
+      await collectibleRepository.getListableCollectiblesByInscriptionIds(
+        inscriptionIds
+      );
 
     return listableCollectibles;
   },

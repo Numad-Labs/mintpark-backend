@@ -14,6 +14,7 @@ import layerRouter from "./routes/layerRoutes";
 import orderRouter from "./routes/orderRoutes";
 import collectionRouter from "./routes/collectionRoutes";
 import collectibleRouter from "./routes/collectibleRoutes";
+import collectibleTraitRouter from "./routes/collectibleTraitRoutes";
 
 export const redis = new Redis(config.REDIS_CONNECTION_STRING);
 
@@ -35,6 +36,7 @@ app.use("/api/v1/layers", layerRouter);
 app.use("/api/v1/orders", orderRouter);
 app.use("/api/v1/collections", collectionRouter);
 app.use("/api/v1/collectibles", collectibleRouter);
+app.use("/api/v1/collectible-traits", collectibleTraitRouter);
 
 app.use(errorHandler);
 app.use(notFound);

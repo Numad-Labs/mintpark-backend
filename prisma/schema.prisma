@@ -75,7 +75,7 @@ model Collection {
   supply       Int
   type         COLLECTION_TYPE @default(UNCONFIRMED)
   layerId      String?
-  layer        Layer?           @relation(fields: [layerId], references: [id], onDelete: SetNull)
+  layer        Layer?          @relation(fields: [layerId], references: [id], onDelete: SetNull)
   launches     Launch[]
   orders       Order[]
   collectibles Collectible[]
@@ -140,14 +140,15 @@ model CollectibleTrait {
   trait         Trait       @relation(fields: [traitId], references: [id])
   value         String
   rarity        Float
-  xpub          String?
 }
 
 model Collectible {
   id           String             @id @default(dbgenerated("gen_random_uuid()"))
+  name         String?
   collectionId String
   collection   Collection         @relation(fields: [collectionId], references: [id])
   uniqueIdx    String
+  fileKey      String?
   createdAt    DateTime           @default(now())
   traits       CollectibleTrait[]
   list         List?
