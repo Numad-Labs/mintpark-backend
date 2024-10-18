@@ -2,9 +2,15 @@ import { collectionRepository } from "../repositories/collectionRepository";
 import { uploadToS3 } from "../utils/aws";
 import { randomUUID } from "crypto";
 import { Collection } from "../types/db/types";
+import { userRepository } from "../repositories/userRepository";
 
 export const collectionServices = {
-  create: async (data: any, file?: Express.Multer.File) => {
+  create: async (data: any, issuerId: string, file?: Express.Multer.File) => {
+    const user = await userRepository.getById(issuerId);
+    if (!user) throw new Error("User not found.");
+
+    data.layerId = user.layerId;
+
     if (file) {
       const key = randomUUID();
       await uploadToS3(key, file);
@@ -31,6 +37,13 @@ export const collectionServices = {
   },
   getAllLaunchedCollections: async () => {
     const collections = await collectionRepository.getAllLaunchedCollections();
+
+    return collections;
+  },
+  getAllLaunchedCollectionsByLayerId: async (layerId: string) => {
+    const collections = await collectionRepository.getAllLaunchedCollectionsByLayerId(
+      layerId
+    );
 
     return collections;
   }

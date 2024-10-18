@@ -12,8 +12,19 @@ collectionRouter.post(
   collectionController.create
 );
 
+collectionRouter.post(
+  "/:collectionId/launch",
+  authenticateToken,
+  parseFiles("files", false),
+  collectionController.launchCollection
+);
+
 collectionRouter.get("/:collectionId", collectionController.getById);
 
 collectionRouter.get("/", collectionController.getAllLaunchedCollections);
+collectionRouter.get(
+  "/layer/:layerId",
+  collectionController.getAllLaunchedCollectionsByLayerId
+);
 
 export = collectionRouter;

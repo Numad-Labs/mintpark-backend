@@ -48,7 +48,7 @@ export const orderServices = {
       case ORDER_TYPE.COLLECTION:
         if (files.length < 1)
           throw new Error(
-            "Collection order must have at least one logo and one collectible file."
+            "Collection order must have at least one collectible file."
           );
         if (!collectionId) throw new Error("Collection id is required.");
         const collection = await collectionServices.getById(collectionId);
@@ -72,11 +72,11 @@ export const orderServices = {
           supply: collection.supply,
         });
         break;
-
-      case ORDER_TYPE.TOKEN:
-        throw new Error("Token order is not supported yet.");
       case ORDER_TYPE.LAUNCH:
         throw new Error("Launch order is not supported yet.");
+        break;
+      case ORDER_TYPE.TOKEN:
+        throw new Error("Token order is not supported yet.");
       default:
         throw new Error("Invalid order type.");
     }

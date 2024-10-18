@@ -63,7 +63,17 @@ export const collectionRepository = {
       .where("Collection.type", "=", "LAUNCHED")
       .execute();
 
-    return;
+    return collections;
+  },
+  getAllLaunchedCollectionsByLayerId: async (layerId: string) => {
+    const collections = await db
+      .selectFrom("Collection")
+      .selectAll()
+      .where("Collection.layerId", "=", layerId)
+      .where("Collection.type", "=", "LAUNCHED")
+      .execute();
+
+    return collections;
   },
   getListedCollections: async (params: QueryParams) => {
     let query = db

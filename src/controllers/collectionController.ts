@@ -3,6 +3,8 @@ import { AuthenticatedRequest } from "../../custom";
 import { collectionServices } from "../services/collectionServices";
 import { Collection } from "../types/db/types";
 import { CustomError } from "../exceptions/CustomError";
+import { launchServices } from "../services/launchServices";
+import { get } from "http";
 
 export interface QueryParams {
   layerId: string;
@@ -17,6 +19,8 @@ export const collectionController = {
     res: Response,
     next: NextFunction
   ) => {
+    const userId = req.user?.id;
+    if (!userId) throw new CustomError("Cannot parse user from token", 401);
     const { name, creator, description } = req.body;
     if (!name || !description)
       throw new CustomError("Name and description are required.", 400);
@@ -27,10 +31,75 @@ export const collectionController = {
       description,
       supply: 0,
       logoKey: null,
+      layerId: null,
     };
     try {
-      const collection = await collectionServices.create(data, logo);
+      const collection = await collectionServices.create(data, userId, logo);
       return res.status(200).json({ success: true, data: collection });
+    } catch (e) {
+      next(e);
+    }
+  },
+  launchCollection: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const {
+      POStartsAt,
+      POEndsAt,
+      POMintPrice,
+      POMaxMintPerWallet,
+      isWhiteListed,
+      WLStartsAt,
+      WLEndsAt,
+      WLMintPrice,
+      WLMaxMintPerWallet,
+    } = req.body;
+    const { collectionId } = req.params;
+    try {
+      const files = req.files as Express.Multer.File[];
+      if (
+        !POStartsAt ||
+        !POEndsAt ||
+        !POMintPrice ||
+        !POMaxMintPerWallet ||
+        !isWhiteListed
+      )
+        throw new CustomError(
+          "Please provide all required fields. (POStartsAt, POEndsAt, POMintPrice, POMaxMintPerWallet, isWhiteListed)",
+          400
+        );
+      if (
+        isWhiteListed === "true" &&
+        (!WLStartsAt || !WLEndsAt || !WLMintPrice || !WLMaxMintPerWallet)
+      )
+        throw new CustomError(
+          "Please provide all required fields for white listed collection. (WLStartsAt, WLEndsAt, WLMintPrice, WLMaxMintPerWallet)",
+          400
+        );
+      const currentTime = new Date();
+      const POStartsAtTime = new Date(
+        currentTime.getTime() + Number(POStartsAt)
+      );
+      const POEndsAtTime = new Date(currentTime.getTime() + Number(POEndsAt));
+
+      const launch = await launchServices.create(
+        {
+          collectionId,
+          poStartsAt: POStartsAtTime,
+          poEndsAt: POEndsAtTime,
+          poMintPrice: POMintPrice,
+          poMaxMintPerWallet: POMaxMintPerWallet,
+          isWhitelisted: isWhiteListed as boolean,
+          wlStartsAt: new Date(currentTime.getTime() + Number(WLStartsAt)),
+          wlEndsAt: new Date(currentTime.getTime() + Number(WLEndsAt)),
+          wlMaxMintPerWallet: WLMaxMintPerWallet,
+          wlMintPrice: WLMintPrice,
+        },
+        files
+      );
+      return res.status(200).json({ success: true, data: launch });
     } catch (e) {
       next(e);
     }
@@ -45,41 +114,32 @@ export const collectionController = {
       next(e);
     }
   },
-  getAllLaunchedCollections: async () => {
-    const collections = await collectionServices.getAllLaunchedCollections();
-    return collections;
-  },
-  /*
-    register collection with list json & metadata(ONLY FOR UTXO CHAINS)
-  */
-  /*
-    getListedCollections by layerId   GET /listed?layerId=layer1&interval=24h&orderBy=volume&orderDirection=Highest
-    filterable by layerId
-    filterable by date interval(1h, 24h, 7d, 30d, All)
-    orderable by (Highest/Lowest volume, Highest/Lowest floor price)
-    fields: floor, volume, owners?, items -> marketCap, salesCount, listedCount, owners
-  */
-  getListedCollections: async (
-    req: Request<{}, {}, {}, QueryParams>,
+  getAllLaunchedCollections: async (
+    req: Request,
     res: Response,
     next: NextFunction
   ) => {
-    const { layerId, interval, orderBy, orderDirection } = req.query;
-
-    if (!layerId) throw new CustomError("You must specify the layer.", 400);
+    try {
+      const collections = await collectionServices.getAllLaunchedCollections();
+      return res.status(200).json({ success: true, data: collections });
+    } catch (e) {
+      next(e);
+    }
   },
-  /*
-    get collectibles(minted) by collectionId
-    filterable by traits
-    orderable by (Highest/Lowest price, Recently listed)
-    searchable by uniqueId
-    fields: name, price, status(listed or not), floorDiff, listedTime
-  */
-  /*
-    get collectible by id
-    filterable by traits
-    orderable by (Highest/Lowest price, Recently listed)
-    searchable by uniqueId
-    fields: total price + fee estimation, name, collection-detail, attributes, ownedBy, floorDiff, listedTime, activity???
-  */
+  getAllLaunchedCollectionsByLayerId: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const { layerId } = req.params;
+    try {
+      if (!layerId)
+        throw new CustomError("Please provide a layerId as param.", 400);
+      const collections =
+        await collectionServices.getAllLaunchedCollectionsByLayerId(layerId);
+      return res.status(200).json({ success: true, data: collections });
+    } catch (e) {
+      next(e);
+    }
+  },
 };

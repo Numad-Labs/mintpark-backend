@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon src/index.ts",
+    "dev": "nodemon --exec ts-node -P tsconfig.json src/index.ts",
     "test": "npx ts-node src/test.ts"
   },
   "author": "",
