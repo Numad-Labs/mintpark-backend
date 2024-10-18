@@ -46,6 +46,8 @@ export const collectibleRepository = {
         sql<number>`"price" / "FloorPrices"."floor"`
           .$castTo<number>()
           .as("floorDifference"),
+        "List.address as ownedBy",
+        "List.listedAt",
       ])
       .where("Collectible.collectionId", "=", collectionId)
       .execute();
@@ -88,6 +90,8 @@ export const collectibleRepository = {
         sql<number>`"price" / "FloorPrices"."floor"`
           .$castTo<number>()
           .as("floorDifference"),
+        "List.address as ownedBy",
+        "List.listedAt",
       ])
       .where("Collectible.id", "=", id)
       .execute();
