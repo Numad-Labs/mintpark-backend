@@ -51,6 +51,7 @@ model Order {
   createdAt      DateTime     @default(now())
   paidAt         DateTime?
   mintedAt       DateTime?
+  expiredAt      DateTime?
   orderType      ORDER_TYPE   @default(COLLECTIBLE)
   orderStatus    ORDER_STATUS @default(PENDING)
   orderItems     OrderItem[]
@@ -151,21 +152,25 @@ model Collectible {
   fileKey      String?
   createdAt    DateTime           @default(now())
   traits       CollectibleTrait[]
-  list         List?
+  list         List[]
 }
 
 model List {
-  id            String      @id @default(dbgenerated("gen_random_uuid()"))
-  collectibleId String      @unique
-  collectible   Collectible @relation(fields: [collectibleId], references: [id])
-  sellerId      String
-  buyerId       String?
-  address       String
-  privateKey    String
-  price         Float
-  listedAt      DateTime    @default(now())
-  soldAt        DateTime?
-  status        LIST_STATUS
+  id              String      @id @default(dbgenerated("gen_random_uuid()"))
+  collectibleId   String
+  collectible     Collectible @relation(fields: [collectibleId], references: [id])
+  sellerId        String
+  buyerId         String?
+  address         String
+  privateKey      String
+  vaultTxid       String?
+  vaultVout       Int?
+  inscribedAmount Int?        @default(546)
+  price           Float
+  listedAt        DateTime    @default(now())
+  soldTxid        String?
+  soldAt          DateTime?
+  status          LIST_STATUS @default(PENDING)
 }
 
 enum ORDER_TYPE {
@@ -197,6 +202,7 @@ enum COLLECTION_TYPE {
 }
 
 enum LIST_STATUS {
+  PENDING
   ACTIVE
   SOLD
   CANCELLED

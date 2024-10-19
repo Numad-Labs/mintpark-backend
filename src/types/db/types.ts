@@ -73,10 +73,14 @@ export type List = {
   buyerId: string | null;
   address: string;
   privateKey: string;
+  vaultTxid: string | null;
+  vaultVout: number | null;
+  inscribedAmount: Generated<number | null>;
   price: number;
   listedAt: Generated<Timestamp>;
+  soldTxid: string | null;
   soldAt: Timestamp | null;
-  status: LIST_STATUS;
+  status: Generated<LIST_STATUS>;
 };
 export type Order = {
   id: Generated<string>;
@@ -92,6 +96,7 @@ export type Order = {
   createdAt: Generated<Timestamp>;
   paidAt: Timestamp | null;
   mintedAt: Timestamp | null;
+  expiredAt: Timestamp | null;
   orderType: Generated<ORDER_TYPE>;
   orderStatus: Generated<ORDER_STATUS>;
 };

@@ -16,7 +16,12 @@ export const userServices = {
 
     return message;
   },
-  login: async (address: string, signedMessage: string, layerId: string) => {
+  login: async (
+    address: string,
+    pubkey: string,
+    signedMessage: string,
+    layerId: string
+  ) => {
     const nonce = await redis.get(`nonce:${address}`);
     if (!nonce) throw new CustomError("No recorded nonce found.", 400);
     const message = await generateMessage(address, nonce);
@@ -33,6 +38,7 @@ export const userServices = {
     if (!user) {
       user = await userRepository.create({
         address: address,
+        pubkey,
         layerId: layerId,
       });
     }

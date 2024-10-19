@@ -82,6 +82,26 @@ export async function getInscriptionUtxosByAddress(
   return utxos;
 }
 
+export async function getInscriptionInfo(
+  inscriptionId: string,
+  isTestNet: boolean = true
+) {
+  const baseUrl = isTestNet
+    ? "https://open-api-fractal-testnet.unisat.io/v1"
+    : "https://open-api-fractal.unisat.io/v1";
+  const response = await axios.get(
+    `${baseUrl}/indexer/inscription/info/${inscriptionId}`,
+    {
+      headers: {
+        accept: "application/json",
+        Authorization: `Bearer ${config.UNISAT_FRACTAL_TESTNET_API_KEY}`,
+      },
+    }
+  );
+
+  return response.data.data;
+}
+
 export function prepareInputs(
   utxos: unisatUtxo[],
   requiredAmount: number,

@@ -2,6 +2,26 @@ import { sql } from "kysely";
 import { db } from "../utils/db";
 
 export const collectibleRepository = {
+  getById: async (id: string) => {
+    const collectible = await db
+      .selectFrom("Collectible")
+      .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
+      .innerJoin("Layer", "Layer.id", "Collection.layerId")
+      .select([
+        "Collectible.id",
+        "Collectible.name",
+        "Collectible.uniqueIdx",
+        "Collectible.createdAt",
+        "Collectible.fileKey",
+        "Collectible.collectionId",
+        "Layer.layer",
+        "Layer.network",
+      ])
+      .where("Collectible.id", "=", id)
+      .executeTakeFirst();
+
+    return collectible;
+  },
   getListableCollectiblesByInscriptionIds: async (inscriptionIds: string[]) => {
     const collectibles = await db
       .selectFrom("Collectible")

@@ -28,7 +28,7 @@ export const userController = {
     }
   },
   login: async (req: Request, res: Response, next: NextFunction) => {
-    const { address, signedMessage, xpub, layerId } = req.body;
+    const { address, signedMessage, pubkey, layerId } = req.body;
 
     try {
       if (!address || !signedMessage || !layerId)
@@ -39,6 +39,7 @@ export const userController = {
 
       const { user, tokens } = await userServices.login(
         address,
+        pubkey,
         signedMessage,
         layerId
       );
