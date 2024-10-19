@@ -41,3 +41,5 @@ export type LAYER_TYPE = (typeof LAYER_TYPE)[keyof typeof LAYER_TYPE];
 export const SERVICE_FEE = 696;
 
 export const DEFAULT_FEE_RATE = 1;
+
+export const MAX_SATOSHI_AMOUNT = 2_100_000_000_000_000;

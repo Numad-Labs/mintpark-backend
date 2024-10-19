@@ -29,6 +29,7 @@ export const COLLECTION_TYPE = {
 export type COLLECTION_TYPE =
   (typeof COLLECTION_TYPE)[keyof typeof COLLECTION_TYPE];
 export const LIST_STATUS = {
+  PENDING: "PENDING",
   ACTIVE: "ACTIVE",
   SOLD: "SOLD",
   CANCELLED: "CANCELLED",

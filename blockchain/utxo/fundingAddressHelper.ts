@@ -22,7 +22,7 @@ export function createFundingAddress(layerType: LAYER, network: string) {
       if (network === "TESTNET") {
         selectedNetwork = bitcoin.networks.bitcoin;
       } else {
-        selectedNetwork = bitcoin.networks.testnet;
+        selectedNetwork = bitcoin.networks.bitcoin;
       }
       break;
     default:
