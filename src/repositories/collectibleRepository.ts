@@ -1,6 +1,10 @@
 import { Insertable, sql } from "kysely";
 import { db } from "../utils/db";
 import { Collectible } from "../types/db/types";
+import {
+  CollectibleQueryParams,
+  traitFilter,
+} from "../controllers/collectibleController";
 
 export const collectibleRepository = {
   create: async (data: Insertable<Collectible>) => {
@@ -8,7 +12,9 @@ export const collectibleRepository = {
       .insertInto("Collectible")
       .values(data)
       .returningAll()
-      .executeTakeFirstOrThrow(() => new Error("Couldnt create the collectible."));
+      .executeTakeFirstOrThrow(
+        () => new Error("Couldnt create the collectible.")
+      );
 
     return collectible;
   },
@@ -32,17 +38,97 @@ export const collectibleRepository = {
 
     return collectible;
   },
-  getListableCollectiblesByInscriptionIds: async (inscriptionIds: string[]) => {
-    const collectibles = await db
+  getListableCollectiblesByInscriptionIds: async (
+    inscriptionIds: string[],
+    params: CollectibleQueryParams
+  ) => {
+    let query = db
       .selectFrom("Collectible")
-      .selectAll()
-      .where("Collectible.uniqueIdx", "in", inscriptionIds)
-      .execute();
+      .leftJoin("List", "List.collectibleId", "Collectible.id")
+      .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
+      .select(({ eb }) => [
+        "Collectible.id",
+        "Collectible.name",
+        "Collectible.uniqueIdx",
+        "Collectible.createdAt",
+        "Collectible.fileKey",
+        "Collectible.createdAt",
+        "Collectible.collectionId",
+        "Collection.name",
+        "List.listedAt",
+        "List.id as listId",
+        "List.price",
+        eb.fn
+          .coalesce(
+            eb
+              .selectFrom("List")
+              .innerJoin("Collectible", "Collectible.id", "List.collectibleId")
+              .select("price")
+              .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
+              .orderBy("price", "asc")
+              .limit(1),
+            eb.val(0)
+          )
+          .as("floor"),
+      ])
+      .where((eb) =>
+        eb("Collectible.uniqueIdx", "in", inscriptionIds).or(
+          "List.price",
+          ">",
+          0
+        )
+      );
+
+    if (params.isListed) query = query.where("List.status", "=", "ACTIVE");
+
+    const collectionIds = params.collectionId as string[];
+    if (collectionIds && collectionIds.length > 0) {
+      query = query.where((eb) =>
+        eb.or(
+          collectionIds.map((collectionId) =>
+            eb("Collectible.collectionId", "=", collectionId)
+          )
+        )
+      );
+    }
+
+    switch (params.orderBy) {
+      case "price":
+        query = query.orderBy(
+          "List.price",
+          params.orderDirection === "desc" ? "desc" : "asc"
+        );
+        break;
+      case "recent":
+        query = query.orderBy("List.listedAt", "asc");
+        break;
+      default:
+        query = query.orderBy("id", "asc");
+    }
+
+    const collectibles = await query.execute();
 
     return collectibles;
   },
-  getListableCollectiblesByCollectionId: async (collectionId: string) => {
-    const collectibles = await db
+  getListableCollectiblesCountByInscriptionIds: async (
+    inscriptionIds: string[]
+  ) => {
+    const result = await db
+      .selectFrom("Collectible")
+      .select((eb) => [
+        eb.fn.count<number>("Collectible.id").$castTo<number>().as("count"),
+      ])
+      .where("Collectible.uniqueIdx", "in", inscriptionIds)
+      .executeTakeFirst();
+
+    return result;
+  },
+  getListableCollectiblesByCollectionId: async (
+    collectionId: string,
+    isListed: boolean,
+    traitsFilters: traitFilter[]
+  ) => {
+    let query = db
       .with("FloorPrices", (db) =>
         db
           .selectFrom("List")
@@ -57,6 +143,12 @@ export const collectibleRepository = {
       )
       .selectFrom("Collectible")
       .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
+      .innerJoin(
+        "CollectibleTrait",
+        "CollectibleTrait.collectibleId",
+        "Collectible.id"
+      )
+      .innerJoin("Trait", "Trait.id", "CollectibleTrait.traitId")
       .leftJoin("List", "List.collectibleId", "Collectible.id")
       .leftJoin(
         "FloorPrices",
@@ -79,8 +171,28 @@ export const collectibleRepository = {
         "List.address as ownedBy",
         "List.listedAt",
       ])
-      .where("Collectible.collectionId", "=", collectionId)
-      .execute();
+      .where("Collectible.collectionId", "=", collectionId);
+
+    if (isListed) query = query.where("List.status", "=", "ACTIVE");
+
+    if (traitsFilters.length > 0) {
+      query = query.where((eb) =>
+        eb.or(
+          traitsFilters.map((traitFilter) =>
+            eb.and([
+              sql`lower(${eb.ref("Trait.name")}) = lower(${
+                traitFilter.name
+              })`.$castTo<boolean>(),
+              sql`lower(${eb.ref("CollectibleTrait.value")}) = lower(${
+                traitFilter.value
+              })`.$castTo<boolean>(),
+            ])
+          )
+        )
+      );
+    }
+
+    const collectibles = await query.execute();
 
     return collectibles;
   },
@@ -127,5 +239,22 @@ export const collectibleRepository = {
       .execute();
 
     return collectibles;
+  },
+  getListableCollectiblesCountByCollectionId: async (collectionId: string) => {
+    const countResult = await db
+      .selectFrom("Collectible")
+      .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
+      .select(({ eb }) => [
+        eb.fn
+          .coalesce(
+            eb.fn.count("Collectible.id").$castTo<number>(),
+            sql<number>`0`
+          )
+          .as("collectibleCount"),
+      ])
+      .where("Collectible.collectionId", "=", collectionId)
+      .execute();
+
+    return countResult;
   },
 };

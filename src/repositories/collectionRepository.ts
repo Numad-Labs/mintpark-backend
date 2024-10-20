@@ -7,8 +7,27 @@ import {
 } from "kysely";
 import { db } from "../utils/db";
 import { Collection, DB } from "../types/db/types";
-import { QueryParams } from "../controllers/collectionController";
+import { CollectionQueryParams } from "../controllers/collectionController";
 import { intervalMap } from "../libs/constants";
+
+type Interval = "1h" | "24h" | "7d" | "30d" | "all";
+
+function getIntervalCondition(interval: Interval, dateColumn: string) {
+  switch (interval) {
+    case "1h":
+      return sql`"${sql.raw(dateColumn)}" >= NOW() - INTERVAL '1 hour'`;
+    case "24h":
+      return sql`"${sql.raw(dateColumn)}" >= NOW() - INTERVAL '24 hours'`;
+    case "7d":
+      return sql`"${sql.raw(dateColumn)}" >= NOW() - INTERVAL '7 days'`;
+    case "30d":
+      return sql`"${sql.raw(dateColumn)}" >= NOW() - INTERVAL '30 days'`;
+    case "all":
+      return sql`1=1`;
+    default:
+      throw new Error(`Invalid interval: ${interval}`);
+  }
+}
 
 export const collectionRepository = {
   create: async (data: Insertable<Collection>) => {
@@ -82,7 +101,7 @@ export const collectionRepository = {
 
     return collections;
   },
-  getListedCollections: async (params: QueryParams) => {
+  getListedCollections: async (params: CollectionQueryParams) => {
     let query = db
       .with("CollectionStats", (db) =>
         db.selectFrom("Collection").select(({ eb, selectFrom }) => [
@@ -264,23 +283,28 @@ export const collectionRepository = {
 
     return collection;
   },
+  getListedCollectionsWithCollectibleCountByInscriptionIds: async (
+    inscriptionIds: string[]
+  ) => {
+    const collections = await db
+      .selectFrom("Collection")
+      .innerJoin("Collectible", "Collectible.collectionId", "Collection.id")
+      .select((eb) => [
+        "Collection.id",
+        "Collection.name",
+        "Collection.logoKey",
+        "Collection.inscriptionIcon",
+        "Collection.iconUrl",
+        eb.fn
+          .count<number>("Collectible.id")
+          .filterWhere("Collectible.collectionId", "=", eb.ref("Collection.id"))
+          .filterWhere("Collectible.uniqueIdx", "in", inscriptionIds)
+          .as("collectibleCount"),
+      ])
+      .where("Collectible.uniqueIdx", "in", inscriptionIds)
+      .groupBy("Collection.id")
+      .execute();
+
+    return collections;
+  },
 };
-
-type Interval = "1h" | "24h" | "7d" | "30d" | "all";
-
-function getIntervalCondition(interval: Interval, dateColumn: string) {
-  switch (interval) {
-    case "1h":
-      return sql`"${sql.raw(dateColumn)}" >= NOW() - INTERVAL '1 hour'`;
-    case "24h":
-      return sql`"${sql.raw(dateColumn)}" >= NOW() - INTERVAL '24 hours'`;
-    case "7d":
-      return sql`"${sql.raw(dateColumn)}" >= NOW() - INTERVAL '7 days'`;
-    case "30d":
-      return sql`"${sql.raw(dateColumn)}" >= NOW() - INTERVAL '30 days'`;
-    case "all":
-      return sql`1=1`;
-    default:
-      throw new Error(`Invalid interval: ${interval}`);
-  }
-}

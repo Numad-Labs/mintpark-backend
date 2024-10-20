@@ -5,7 +5,7 @@ import { CustomError } from "../exceptions/CustomError";
 import { launchServices } from "../services/launchServices";
 import { collectionRepository } from "../repositories/collectionRepository";
 
-export interface QueryParams {
+export interface CollectionQueryParams {
   layerId: string;
   interval: "1h" | "24h" | "7d" | "30d" | "all";
   orderBy?: "volume" | "floor";
@@ -146,7 +146,7 @@ export const collectionController = {
     }
   },
   getListedCollections: async (
-    req: Request<{}, {}, {}, QueryParams>,
+    req: Request<{}, {}, {}, CollectionQueryParams>,
     res: Response,
     next: NextFunction
   ) => {

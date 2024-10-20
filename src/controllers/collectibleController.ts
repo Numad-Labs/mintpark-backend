@@ -4,32 +4,49 @@ import { CustomError } from "../exceptions/CustomError";
 import { collectibleServices } from "../services/collectibleServices";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 
+export interface traitFilter {
+  name: string;
+  value: string;
+}
+
+type OrderByOption = "price" | "recent";
+type OrderDirectionOption = "asc" | "desc";
+
+export interface CollectibleQueryParams {
+  orderBy?: OrderByOption;
+  orderDirection?: OrderDirectionOption;
+  isListed: boolean;
+  collectionId?: string[];
+}
+
 export const collectibleControllers = {
   getListableCollectibles: async (
-    req: Request,
+    req: Request<{ userId: string }, {}, {}, CollectibleQueryParams>,
     res: Response,
     next: NextFunction
   ) => {
     try {
+      const { isListed = false, orderBy, orderDirection } = req.query;
+      const collectionIds = req.query.collectionId as string[];
       const { userId } = req.params;
 
       if (!userId) throw new CustomError("userId not found.", 400);
 
-      const listableCollectibles =
-        await collectibleServices.getListableCollectibles(userId);
+      const result = await collectibleServices.getListableCollectibles(userId, {
+        collectionId: req.query.collectionId,
+        isListed,
+        orderBy,
+        orderDirection,
+      });
 
-      return res
-        .status(200)
-        .json({ success: true, data: listableCollectibles });
-    } catch (e) {}
+      return res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (e) {
+      next(e);
+    }
   },
-  /*
-    get collectibles(minted) by collectionId
-    filterable by traits(can be multiple)
-    orderable by (Highest/Lowest price, Recently listed)
-    searchable by uniqueId?
-    fields: name, price, status(listed or not), floorDiff, listedTime
-  */
   getListableCollectiblesByCollectionId: async (
     req: Request,
     res: Response,
@@ -37,17 +54,32 @@ export const collectibleControllers = {
   ) => {
     try {
       const { collectionId } = req.params;
-      const { traits, orderBy, search, page = 1, limit = 20 } = req.query;
+      const {
+        orderBy,
+        search,
+        page = 1,
+        limit = 20,
+        isListed = false,
+      } = req.query;
+      const traits: string[] = req.query.traits as string[];
 
-      const listableCollectibles =
-        await collectibleRepository.getListableCollectiblesByCollectionId(
-          collectionId
+      const result =
+        await collectibleServices.getListableCollectiblesByCollectionId(
+          collectionId,
+          Boolean(isListed),
+          traits
         );
 
-      return res
-        .status(200)
-        .json({ success: true, data: listableCollectibles });
-    } catch (e) {}
+      return res.status(200).json({
+        success: true,
+        data: {
+          collectibles: result.listableCollectibles,
+          listedCollectibleCount: result.activeListCount,
+        },
+      });
+    } catch (e) {
+      next(e);
+    }
   },
   getCollectibleById: async (
     req: Request,
