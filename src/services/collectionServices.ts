@@ -1,7 +1,9 @@
-import { collectionRepository } from "../repositories/collectionRepository";
+import {
+  collectionRepository,
+  LaunchQueryParams,
+} from "../repositories/collectionRepository";
 import { uploadToS3 } from "../utils/aws";
 import { randomUUID } from "crypto";
-import { Collection } from "../types/db/types";
 import { userRepository } from "../repositories/userRepository";
 import { CollectionQueryParams } from "../controllers/collectionController";
 
@@ -36,16 +38,16 @@ export const collectionServices = {
 
     return collection;
   },
-  getAllLaunchedCollections: async () => {
-    const collections = await collectionRepository.getAllLaunchedCollections();
+  getAllLaunchedCollectionsByLayerId: async (params: LaunchQueryParams) => {
+    const collections =
+      await collectionRepository.getAllLaunchedCollectionsByLayerId(params);
 
     return collections;
   },
-  getAllLaunchedCollectionsByLayerId: async (layerId: string) => {
-    const collections =
-      await collectionRepository.getAllLaunchedCollectionsByLayerId(layerId);
+  getLaunchedCollectionById: async (id: string) => {
+    const collection = await collectionRepository.getLaunchedCollectionById(id);
 
-    return collections;
+    return collection;
   },
   getListedCollections: async (params: CollectionQueryParams) => {
     const result = await collectionRepository.getListedCollections(params);

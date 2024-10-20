@@ -92,11 +92,15 @@ export const collectionController = {
           poEndsAt: POEndsAtTime,
           poMintPrice: POMintPrice,
           poMaxMintPerWallet: POMaxMintPerWallet,
-          isWhitelisted: isWhiteListed as boolean,
-          wlStartsAt: new Date(currentTime.getTime() + Number(WLStartsAt)),
-          wlEndsAt: new Date(currentTime.getTime() + Number(WLEndsAt)),
-          wlMaxMintPerWallet: WLMaxMintPerWallet,
-          wlMintPrice: WLMintPrice,
+          isWhitelisted: isWhiteListed,
+          wlStartsAt: WLStartsAt
+            ? new Date(currentTime.getTime() + Number(WLStartsAt))
+            : null,
+          wlEndsAt: WLEndsAt
+            ? new Date(currentTime.getTime() + Number(WLEndsAt))
+            : null,
+          wlMaxMintPerWallet: WLMaxMintPerWallet || null,
+          wlMintPrice: WLMintPrice || null,
         },
         files
       );
@@ -113,34 +117,6 @@ export const collectionController = {
       if (!collection) throw new CustomError("Collection not found", 404);
 
       return res.status(200).json({ success: true, data: collection });
-    } catch (e) {
-      next(e);
-    }
-  },
-  getAllLaunchedCollections: async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      const collections = await collectionServices.getAllLaunchedCollections();
-      return res.status(200).json({ success: true, data: collections });
-    } catch (e) {
-      next(e);
-    }
-  },
-  getAllLaunchedCollectionsByLayerId: async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ) => {
-    const { layerId } = req.params;
-    try {
-      if (!layerId)
-        throw new CustomError("Please provide a layerId as param.", 400);
-      const collections =
-        await collectionServices.getAllLaunchedCollectionsByLayerId(layerId);
-      return res.status(200).json({ success: true, data: collections });
     } catch (e) {
       next(e);
     }

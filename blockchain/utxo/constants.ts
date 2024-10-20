@@ -9,7 +9,7 @@ export const TX_OUTPUT_P2SH = 32;
 export const TX_OUTPUT_P2WPKH = 31;
 export const TX_OUTPUT_P2TR = 43;
 export const TX_EMPTY_SIZE = 10;
-export const WITNESS_SCALE_FACTOR = 4 / 3;
+export const WITNESS_SCALE_FACTOR = 3;
 export const DUST_THRESHOLD = 546;
 
 export const ASSETTYPE = {

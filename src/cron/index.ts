@@ -21,6 +21,7 @@ import { PromisePool } from "@supercharge/promise-pool";
 import { sleep } from "../utils/timer";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { collectibleRepository } from "../repositories/collectibleRepository";
+import { LaunchItem } from "../types/db/types";
 
 const cron = require("node-cron");
 
@@ -102,9 +103,10 @@ export function mintingQueue() {
 
           await orderRepository.update(order.id, { orderStatus: "DONE" });
           console.log(`Order ${order.id} processed successfully`);
-          await collectionRepository.update(order.collectionId!, {
-            type: "MINTED",
-          });
+          if (order.collectionId)
+            await collectionRepository.update(order.collectionId, {
+              type: "MINTED",
+            });
         });
 
       console.log(
@@ -146,7 +148,7 @@ async function waitForTransactionConfirmation(
 }
 
 async function mintOrderItem(orderItem: OrderItemDetails, order: any) {
-  if (orderItem.status === "MINTED") return;
+  if (orderItem.status === "MINTED" || orderItem.layer !== "FRACTAL") return; // TODO. Only for fractal for now. Adjust it later.
   const file = await getObjectFromS3(orderItem.fileKey);
   const user = await userRepository.getById(orderItem.userId);
   if (!user) throw new Error("User not found.");
@@ -190,8 +192,23 @@ async function mintOrderItem(orderItem: OrderItemDetails, order: any) {
     console.log(`Reveal transaction ${revealTxId} confirmed.`);
 
     await orderItemRepository.update(orderItem.id, { status: "MINTED" });
-    collectibleRepository
-    
+
+    if (order.collectionId) {
+      const collection = await collectionRepository.getById(order.collectionId);
+      if (!collection) throw new Error("Collection not found.");
+
+      await collectibleRepository.create({
+        fileKey: orderItem.fileKey,
+        name: `${collection.name} #${collection.supply}`,
+        collectionId: collection.id,
+        uniqueIdx: `${revealTxId.slice(0, -2)}`,
+      });
+
+      collection.supply++;
+      await collectionRepository.update(collection.id, {
+        supply: collection.supply,
+      });
+    }
   } else {
     throw new Error(`Unsupported layer: ${orderItem.layer}`);
   }

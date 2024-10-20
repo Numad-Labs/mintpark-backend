@@ -1,14 +1,13 @@
-import {
-  ExpressionBuilder,
-  Insertable,
-  SelectQueryBuilder,
-  sql,
-  Updateable,
-} from "kysely";
+import { ExpressionBuilder, Insertable, sql, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { Collection, DB } from "../types/db/types";
 import { CollectionQueryParams } from "../controllers/collectionController";
 import { intervalMap } from "../libs/constants";
+
+export interface LaunchQueryParams {
+  layerId: string;
+  interval: "all" | "live" | "past";
+}
 
 type Interval = "1h" | "24h" | "7d" | "30d" | "all";
 
@@ -82,24 +81,117 @@ export const collectionRepository = {
 
     return collections;
   },
-  getAllLaunchedCollections: async () => {
-    const collections = await db
-      .selectFrom("Collection")
-      .selectAll()
-      .where("Collection.type", "=", "LAUNCHED")
-      .execute();
+  getAllLaunchedCollectionsByLayerId: async ({
+    layerId,
+    interval,
+  }: LaunchQueryParams) => {
+    const now = new Date();
 
-    return collections;
-  },
-  getAllLaunchedCollectionsByLayerId: async (layerId: string) => {
-    const collections = await db
+    let query = db
       .selectFrom("Collection")
-      .selectAll()
+      .innerJoin("Launch", "Collection.id", "Launch.collectionId")
+      .select([
+        "Collection.id",
+        "Collection.name",
+        "Collection.creator",
+        "Collection.description",
+        "Collection.supply",
+        "Collection.type",
+        "Collection.logoKey",
+        "Collection.layerId",
+        "Launch.id as launchId",
+        "Launch.wlStartsAt",
+        "Launch.wlEndsAt",
+        "Launch.wlMintPrice",
+        "Launch.wlMaxMintPerWallet",
+        "Launch.poStartsAt",
+        "Launch.poEndsAt",
+        "Launch.poMintPrice",
+        "Launch.poMaxMintPerWallet",
+        "Launch.isWhitelisted",
+        sql<number>`COALESCE((
+        SELECT COUNT(*)::integer
+        FROM "LaunchItem"
+        WHERE "LaunchItem"."launchId" = "Launch"."id"
+        AND "LaunchItem"."status" = 'SOLD'
+      ), 0)`.as("mintedAmount"),
+      ])
       .where("Collection.layerId", "=", layerId)
-      .where("Collection.type", "=", "LAUNCHED")
-      .execute();
+      .where("Launch.id", "is not", null);
 
-    return collections;
+    if (interval !== "all") {
+      query = query.where((eb) => {
+        if (interval === "live") {
+          return eb.or([
+            eb.and([
+              eb("Launch.wlStartsAt", "<=", now),
+              eb("Launch.wlEndsAt", ">=", now),
+            ]),
+            eb.and([
+              eb("Launch.poStartsAt", "<=", now),
+              eb("Launch.poEndsAt", ">=", now),
+            ]),
+          ]);
+        } else {
+          // 'past' interval
+          return eb.and([
+            eb.or([
+              eb("Launch.wlEndsAt", "<", now),
+              eb("Launch.wlEndsAt", "is", null),
+            ]),
+            eb("Launch.poEndsAt", "<", now),
+          ]);
+        }
+      });
+    }
+
+    const collections = await query.execute();
+
+    return collections.map((collection) => ({
+      ...collection,
+      wlStartsAt: collection.wlStartsAt
+        ? new Date(collection.wlStartsAt)
+        : null,
+      wlEndsAt: collection.wlEndsAt ? new Date(collection.wlEndsAt) : null,
+      poStartsAt: new Date(collection.poStartsAt),
+      poEndsAt: new Date(collection.poEndsAt),
+    }));
+  },
+  getLaunchedCollectionById: async (id: string) => {
+    const collection = await db
+      .selectFrom("Collection")
+      .innerJoin("Launch", "Collection.id", "Launch.collectionId")
+      .select([
+        "Collection.id",
+        "Collection.name",
+        "Collection.creator",
+        "Collection.description",
+        "Collection.supply",
+        "Collection.type",
+        "Collection.logoKey",
+        "Collection.layerId",
+        "Launch.id as launchId",
+        "Launch.wlStartsAt",
+        "Launch.wlEndsAt",
+        "Launch.wlMintPrice",
+        "Launch.wlMaxMintPerWallet",
+        "Launch.poStartsAt",
+        "Launch.poEndsAt",
+        "Launch.poMintPrice",
+        "Launch.poMaxMintPerWallet",
+        "Launch.isWhitelisted",
+        sql<number>`COALESCE((
+          SELECT COUNT(*)::integer
+          FROM "LaunchItem"
+          WHERE "LaunchItem"."launchId" = "Launch"."id"
+          AND "LaunchItem"."status" = 'SOLD'
+        ), 0)`.as("mintedAmount"),
+      ])
+      .where("Collection.id", "=", id)
+      .where("Launch.id", "is not", null)
+      .executeTakeFirst();
+
+    return collection;
   },
   getListedCollections: async (params: CollectionQueryParams) => {
     let query = db
