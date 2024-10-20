@@ -110,7 +110,7 @@ export const layerController = {
     const estimatedFee = getEstimatedFee(
       [Number(fileSize)],
       [Number(mimeTypeByteSize)],
-      SERVICE_FEE,
+      SERVICE_FEE["FRACTAL"]["TESTNET"],
       feeRate
     );
 

@@ -1,23 +1,28 @@
-import { WITNESS_SCALE_FACTOR } from "./constants";
+import { WITNESS_SCALE_FACTOR, DUST_THRESHOLD } from "./constants";
 
-export function calculateInscriptionSize(
-  data: Buffer,
-  contentType: string
+function calculateInscriptionSize(
+  fileSize: number,
+  mimeTypeByteSize: number
 ): number {
-  const mimeTypeSize = contentType.length;
-  const dataSize = data.length;
-  const maxChunkSize = 520;
-
-  let size = 2 + mimeTypeSize + 1; // OP_FALSE OP_IF + mime type + OP_0
-
-  for (let i = 0; i < dataSize; i += maxChunkSize) {
-    size += Math.min(maxChunkSize, dataSize - i) + 1; // Add 1 for the push opcode
-  }
-
-  size += 1; // OP_ENDIF
-  return Math.ceil(size / 4);
+  return Math.ceil(
+    (33 + // Internal pubkey
+      1 + // OP_CHECKSIG
+      1 + // OP_FALSE
+      1 + // OP_IF
+      4 + // OP_PUSH(3) + "ord"
+      2 + // OP_PUSH(1) + version
+      1 + // OP_PUSH(mime type length)
+      mimeTypeByteSize +
+      2 + // OP_PUSH(file size)
+      Math.ceil(fileSize / 520) + // Number of 520-byte chunks
+      fileSize +
+      1 + // OP_ENDIF
+      10) / // Tapscript overhead
+      WITNESS_SCALE_FACTOR
+  );
 }
 
+//TODO: adjutst
 export function getEstimatedFee(
   fileSize: number[],
   mimeTypeByteSize: number[],
@@ -25,53 +30,43 @@ export function getEstimatedFee(
   feeRate: number,
   price: number = 0
 ) {
-  const dustLimit = 546;
-  let amount = 0;
+  const dustLimit = DUST_THRESHOLD;
   if (fileSize.length !== mimeTypeByteSize.length) {
     throw new Error("File size and mime type size must be the same length.");
   }
+
+  let totalAmount = 0;
   let totalCommitFee = 0;
   let totalRevealFee = 0;
-  for (let i = 0; i < fileSize.length; i++) {
-    let commitSize = 0;
-    if (price > 0) {
-      commitSize = Math.ceil(10 + 58 * 2 + 43 * 3);
-    } else {
-      commitSize = Math.ceil(10 + 58 * 1 + 43 * 3);
-    }
+  let totalServiceFee = serviceFee * fileSize.length;
 
-    const inscriptionSize =
-      (33 +
-        1 +
-        1 +
-        1 +
-        4 +
-        2 +
-        1 +
-        mimeTypeByteSize[i] +
-        2 +
-        Math.ceil(fileSize[i] / 520) +
-        fileSize[i] +
-        1 +
-        10) /
-      WITNESS_SCALE_FACTOR;
-    const revealSize = Math.ceil(10 + 58 * 1 + 43 * 1 + inscriptionSize);
+  for (let i = 0; i < fileSize.length; i++) {
+    const commitInputSize = 58; // Assuming 1 input
+    const commitOutputSize = price > 0 ? 43 * 3 : 43 * 2; // Reveal output + change (+ price output if applicable)
+    const commitOverhead = 10; // tx version, locktime, etc.
+    const commitSize = commitInputSize + commitOutputSize + commitOverhead;
+
+    const inscriptionSize = calculateInscriptionSize(
+      fileSize[i],
+      mimeTypeByteSize[i]
+    );
+    const revealSize = Math.ceil(10 + 58 * 1 + 43 * 1 + 10 + inscriptionSize);
     const commitFee = commitSize * feeRate;
     const revealFee = revealSize * feeRate;
     totalCommitFee += commitFee;
     totalRevealFee += revealFee;
-    amount += commitFee + revealFee + dustLimit + serviceFee;
+    totalAmount += commitFee + revealFee + dustLimit;
   }
-  amount += price;
+  totalAmount += price + totalServiceFee; // dustlimit for last change output
   return {
     estimatedFee: {
       feeRate: feeRate,
       price: price,
-      networkFee: amount - price - serviceFee * fileSize.length,
-      serviceFee: serviceFee * fileSize.length,
+      networkFee: totalAmount - price - totalServiceFee,
+      serviceFee: totalServiceFee,
       commitFee: totalCommitFee,
       revealFee: totalRevealFee,
-      totalAmount: amount,
+      totalAmount: totalAmount,
     },
   };
 }

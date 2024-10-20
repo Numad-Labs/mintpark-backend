@@ -2,6 +2,20 @@ import { Insertable, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { OrderItem } from "../types/db/types";
 import { create } from "domain";
+import { LAYER, NETWORK } from "../types/db/enums";
+
+export interface OrderItemDetails {
+  id: string;
+  orderId: string;
+  userId: string;
+  userAddress: string;
+  fileKey: string;
+  metadata: unknown;
+  status: "PENDING" | "IN_QUEUE" | "MINTING" | "MINTED" | "FAILED";
+  layerId: string;
+  network: "MAINNET" | "TESTNET";
+  layer: "BITCOIN" | "FRACTAL" | "CITREA";
+}
 
 export const orderItemRepository = {
   create: async (data: Insertable<OrderItem>) => {
@@ -38,22 +52,49 @@ export const orderItemRepository = {
 
     return orderItem;
   },
-  getById: async (id: string) => {
-    const orderItem = await db
-      .selectFrom("OrderItem")
-      .selectAll()
+  getById: async (id: string): Promise<OrderItemDetails | null> => {
+    const result = await db
+      .selectFrom("Order")
+      .innerJoin("OrderItem", "Order.id", "OrderItem.orderId")
+      .innerJoin("User", "Order.userId", "User.id")
+      .innerJoin("Layer", "User.layerId", "Layer.id")
+      .select([
+        "OrderItem.id as id",
+        "OrderItem.orderId as orderId",
+        "User.id as userId",
+        "User.address as userAddress",
+        "OrderItem.fileKey",
+        "OrderItem.metadata",
+        "OrderItem.metadata",
+        "OrderItem.status",
+        "Layer.id as layerId",
+        "Layer.network",
+        "Layer.layer",
+      ])
       .where("OrderItem.id", "=", id)
       .executeTakeFirst();
 
-    return orderItem;
+    return result || null;
   },
-  getByOrderId: async (orderId: string) => {
-    const orderItems = await db
-      .selectFrom("OrderItem")
-      .selectAll()
-      .where("OrderItem.orderId", "=", orderId)
+  getByOrderId: async (orderId: string): Promise<OrderItemDetails[]> => {
+    return await db
+      .selectFrom("Order")
+      .innerJoin("OrderItem", "Order.id", "OrderItem.orderId")
+      .innerJoin("User", "Order.userId", "User.id")
+      .innerJoin("Layer", "User.layerId", "Layer.id")
+      .select([
+        "OrderItem.id as id",
+        "OrderItem.orderId as orderId",
+        "User.id as userId",
+        "User.address as userAddress",
+        "OrderItem.fileKey",
+        "OrderItem.metadata",
+        "OrderItem.status",
+        "Layer.id as layerId",
+        "Layer.network",
+        "Layer.layer",
+      ])
+      .where("Order.id", "=", orderId)
       .execute();
-
-    return orderItems;
   },
 };

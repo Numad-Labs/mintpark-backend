@@ -42,6 +42,7 @@ model Order {
   collectionId   String?
   collection     Collection?  @relation(fields: [collectionId], references: [id])
   quantity       Int
+  feeRate        Float       @default(1)
   fundingAddress String
   networkFee     Float
   serviceFee     Float

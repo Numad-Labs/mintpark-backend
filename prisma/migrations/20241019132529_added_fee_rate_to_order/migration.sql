@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Order" ADD COLUMN     "feeRate" DOUBLE PRECISION NOT NULL DEFAULT 1;

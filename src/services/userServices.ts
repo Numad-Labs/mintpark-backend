@@ -7,6 +7,7 @@ import { generateNonce } from "../libs/generateNonce";
 import { redis } from "..";
 import { generateTokens } from "../utils/jwt";
 import { verifySignedMessage } from "../../blockchain/utxo/verifyMessageHelper";
+import { layerRepository } from "../repositories/layerRepository";
 
 export const userServices = {
   generateMessageToSign: async (address: string) => {
@@ -24,6 +25,10 @@ export const userServices = {
   ) => {
     const nonce = await redis.get(`nonce:${address}`);
     if (!nonce) throw new CustomError("No recorded nonce found.", 400);
+
+    const layer = await layerRepository.getById(layerId);
+    if (!layer) throw new CustomError("Layer not found.", 400);
+
     const message = await generateMessage(address, nonce);
 
     // const isValid = verifySignedMessage(

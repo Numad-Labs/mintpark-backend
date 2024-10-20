@@ -4,43 +4,59 @@ import { ORDER_TYPE } from "../types/db/enums";
 import { createFundingAddress } from "../../blockchain/utxo/fundingAddressHelper";
 import { userRepository } from "../repositories/userRepository";
 import { layerRepository } from "../repositories/layerRepository";
-import { SERVICE_FEE } from "../../blockchain/utxo/constants";
+import { DEFAULT_FEE_RATE, SERVICE_FEE } from "../../blockchain/utxo/constants";
 import { uploadToS3 } from "../utils/aws";
 import { randomUUID } from "crypto";
 import { orderItemRepository } from "../repositories/orderItemRepository";
 import { collectionServices } from "./collectionServices";
+import { getUtxosHelper } from "../../blockchain/utxo/getUtxosHelper";
+import { getEstimatedFee } from "../../blockchain/utxo/calculateRequiredAmount";
 
 export const orderServices = {
   create: async (
     userId: string,
     orderType: ORDER_TYPE,
+    feeRate: number,
     files: Express.Multer.File[],
     collectionId?: string
   ): Promise<{ order: Order; orderItems: any[] }> => {
     const user = await userRepository.getById(userId);
     if (!user) throw new Error("User not found.");
-
     const layerType = await layerRepository.getById(user.layerId!);
     if (!layerType) throw new Error("Layer not found.");
 
     let order: Order;
     let orderItems: any[];
-    let fundingAmount = 2000; //Calculate fee
+    let serviceFee = SERVICE_FEE[layerType.layer][layerType.network];
     const funder = createFundingAddress(layerType.layer, layerType.network);
+
+    //Calculate fee
+    const fileSizes = files.map((file) => file.buffer.length);
+    const mimeTypeSizes = files.map((file) => file.mimetype.length);
+    const { estimatedFee } = getEstimatedFee(
+      fileSizes,
+      mimeTypeSizes,
+      serviceFee,
+      feeRate
+    );
+
+    console.log(estimatedFee);
 
     switch (orderType) {
       case ORDER_TYPE.COLLECTIBLE:
         if (files.length !== 1)
           throw new Error("Collectible order must have one file.");
+
         order = await orderRepository.create({
           userId: userId,
           quantity: files.length,
           fundingAddress: funder.address,
-          fundingAmount: fundingAmount,
-          networkFee: fundingAmount - SERVICE_FEE,
-          serviceFee: SERVICE_FEE,
+          fundingAmount: estimatedFee.totalAmount,
+          networkFee: estimatedFee.networkFee,
+          serviceFee: estimatedFee.serviceFee,
           privateKey: funder.privateKey,
           orderType: orderType,
+          feeRate: feeRate,
         });
         orderItems = await createOrderItems(order.id, files);
         break;
@@ -58,12 +74,13 @@ export const orderServices = {
           userId: userId,
           quantity: files.length,
           fundingAddress: funder.address,
-          fundingAmount: fundingAmount * files.length,
-          networkFee: fundingAmount * files.length - SERVICE_FEE * files.length,
-          serviceFee: SERVICE_FEE * files.length,
+          fundingAmount: estimatedFee.totalAmount,
+          networkFee: estimatedFee.networkFee,
+          serviceFee: estimatedFee.serviceFee,
           privateKey: funder.privateKey,
           orderType: orderType,
           collectionId: collection.id,
+          feeRate: feeRate,
         });
         orderItems = await createOrderItems(order.id, files);
 
@@ -90,6 +107,36 @@ export const orderServices = {
   getById: async (orderId: string) => {
     const order = await orderRepository.getById(orderId);
     return order;
+  },
+  checkOrderisPaid: async (orderId: string) => {
+    const order = await orderRepository.getById(orderId);
+    if (!order) throw new Error("Order not found.");
+
+    const user = await userRepository.getById(order.userId);
+    if (!user) throw new Error("User not found.");
+
+    const layer = await layerRepository.getById(user.layerId!);
+    if (!layer) throw new Error("Layer not found.");
+
+    // Check payment status
+    // If payment is confirmed, return true else false
+    try {
+      let isTestNet = true;
+      if (layer.network === "MAINNET") isTestNet = false;
+      const utxos = await getUtxosHelper(
+        order.fundingAddress,
+        isTestNet,
+        layer.layer
+      );
+      const totalAmount = utxos.reduce((a, b) => a + b.satoshi, 0);
+
+      if (totalAmount >= order.fundingAmount) {
+        return true;
+      }
+      return false;
+    } catch (error) {
+      throw error;
+    }
   },
 };
 

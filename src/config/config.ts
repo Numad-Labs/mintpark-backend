@@ -24,6 +24,7 @@ const envSchema = z.object({
   COORDINATE_USER: z.string(),
   COORDINATE_PASSWORD: z.string(),
   FRACTAL_TESTNET_URL: z.string(),
+  FRACTAL_MAINNET_URL: z.string(),
   FRACTAL_TESTNET_USER: z.string(),
   FRACTAL_TESTNET_PASSWORD: z.string(),
   UNISAT_BITCOIN_TESTNET_API_KEY: z.string(),

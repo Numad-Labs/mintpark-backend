@@ -11,8 +11,12 @@ export const orderController = {
     next: NextFunction
   ) => {
     if (!req.user) throw new CustomError("Cannot parse user from token", 401);
-    const { orderType, collectionId } = req.body;
+    const { orderType, collectionId, feeRate } = req.body;
+    if (!orderType || !feeRate)
+      throw new CustomError("Order type and fee rate are required.", 400);
     const files = req.files as Express.Multer.File[];
+    if (!files || files.length < 1)
+      throw new CustomError("Please provide at least one file.", 400);
 
     try {
       if (orderType === "COLLECTION" && !collectionId)
@@ -23,6 +27,7 @@ export const orderController = {
       const { order, orderItems } = await orderServices.create(
         req.user.id,
         orderType,
+        Number(feeRate),
         files,
         collectionId
       );
@@ -57,6 +62,22 @@ export const orderController = {
       const sanitazedOrder = hideSensitiveData(order, ["privateKey"]);
 
       return res.status(200).json({ success: true, data: sanitazedOrder });
+    } catch (e) {
+      next(e);
+    }
+  },
+  checkOrderIsPaid: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { orderId } = req.params;
+      const order = await orderServices.getById(orderId);
+      if (!order) throw new CustomError("Order not found", 404);
+      const isPaid = await orderServices.checkOrderisPaid(order.id);
+      return res.status(200).json({
+        success: true,
+        data: {
+          isPaid: isPaid,
+        },
+      });
     } catch (e) {
       next(e);
     }

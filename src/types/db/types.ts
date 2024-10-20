@@ -87,6 +87,7 @@ export type Order = {
   userId: string;
   collectionId: string | null;
   quantity: number;
+  feeRate: Generated<number>;
   fundingAddress: string;
   networkFee: number;
   serviceFee: number;
