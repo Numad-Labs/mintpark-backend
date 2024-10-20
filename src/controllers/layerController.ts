@@ -102,18 +102,23 @@ export const layerController = {
     }
   },
   getEstimatedFee: async (req: Request, res: Response, next: NextFunction) => {
-    const { fileSize, fileType, feeRate } = req.body;
-    if (!fileSize || !fileType || !feeRate)
-      throw new Error("Please provide a fileSize, fileType and feeRate.");
+    try {
+      const { fileSizes, fileTypeSizes, feeRate } = req.body;
+      if (!fileSizes || !fileTypeSizes || !feeRate)
+        throw new Error("Please provide a fileSize, fileType and feeRate.");
 
-    const mimeTypeByteSize = fileType.length;
-    const estimatedFee = getEstimatedFee(
-      [Number(fileSize)],
-      [Number(mimeTypeByteSize)],
-      SERVICE_FEE["FRACTAL"]["TESTNET"],
-      feeRate
-    );
+      const fileSizesArray = fileSizes as number[];
+      const fileTypeSizesArray = fileTypeSizes as number[];
+      const estimatedFee = getEstimatedFee(
+        fileSizesArray,
+        fileTypeSizesArray,
+        SERVICE_FEE["FRACTAL"]["TESTNET"],
+        feeRate
+      );
 
-    return res.status(200).json({ success: true, data: estimatedFee });
+      return res.status(200).json({ success: true, data: estimatedFee });
+    } catch (e) {
+      next(e);
+    }
   },
 };

@@ -66,6 +66,7 @@ export const orderController = {
       next(e);
     }
   },
+  //TODO: Adjust
   checkOrderIsPaid: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { orderId } = req.params;

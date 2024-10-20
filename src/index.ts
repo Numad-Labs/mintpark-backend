@@ -48,7 +48,7 @@ app.use(errorHandler);
 app.use(notFound);
 
 checkPaymentAndUpdateOrderStatus();
-mintingQueue();
+// mintingQueue();
 
 app.listen(config.PORT, () => {
   console.log(`Server has started on port ${config.PORT}`);

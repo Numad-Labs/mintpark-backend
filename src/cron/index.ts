@@ -20,6 +20,7 @@ import { getObjectFromS3 } from "../utils/aws";
 import { PromisePool } from "@supercharge/promise-pool";
 import { sleep } from "../utils/timer";
 import { collectionRepository } from "../repositories/collectionRepository";
+import { collectibleRepository } from "../repositories/collectibleRepository";
 
 const cron = require("node-cron");
 
@@ -189,6 +190,8 @@ async function mintOrderItem(orderItem: OrderItemDetails, order: any) {
     console.log(`Reveal transaction ${revealTxId} confirmed.`);
 
     await orderItemRepository.update(orderItem.id, { status: "MINTED" });
+    collectibleRepository
+    
   } else {
     throw new Error(`Unsupported layer: ${orderItem.layer}`);
   }
