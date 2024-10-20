@@ -16,7 +16,8 @@ export interface CollectibleQueryParams {
   orderBy?: OrderByOption;
   orderDirection?: OrderDirectionOption;
   isListed: boolean;
-  collectionId?: string[];
+  collectionIds?: string[];
+  traits?: string[];
 }
 
 export const collectibleControllers = {
@@ -27,16 +28,16 @@ export const collectibleControllers = {
   ) => {
     try {
       const { isListed = false, orderBy, orderDirection } = req.query;
-      const collectionIds = req.query.collectionId as string[];
+      const collectionIds = req.query.collectionIds as string[];
       const { userId } = req.params;
 
       if (!userId) throw new CustomError("userId not found.", 400);
 
       const result = await collectibleServices.getListableCollectibles(userId, {
-        collectionId: req.query.collectionId,
         isListed,
         orderBy,
         orderDirection,
+        collectionIds,
       });
 
       return res.status(200).json({
@@ -48,26 +49,24 @@ export const collectibleControllers = {
     }
   },
   getListableCollectiblesByCollectionId: async (
-    req: Request,
+    req: Request<{ collectionId: string }, {}, {}, CollectibleQueryParams>,
     res: Response,
     next: NextFunction
   ) => {
     try {
       const { collectionId } = req.params;
-      const {
-        orderBy,
-        search,
-        page = 1,
-        limit = 20,
-        isListed = false,
-      } = req.query;
+      const { orderBy, orderDirection, isListed = false } = req.query;
       const traits: string[] = req.query.traits as string[];
 
       const result =
         await collectibleServices.getListableCollectiblesByCollectionId(
           collectionId,
-          Boolean(isListed),
-          traits
+          {
+            orderBy,
+            orderDirection,
+            isListed,
+            traits,
+          }
         );
 
       return res.status(200).json({
