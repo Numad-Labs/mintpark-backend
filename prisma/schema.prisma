@@ -83,6 +83,7 @@ model Collection {
   inscriptionIcon String?
   slug            String?
   layerId         String?
+  createdAt       DateTime        @default(now())
   layer           Layer?          @relation(fields: [layerId], references: [id], onDelete: SetNull)
   launches        Launch[]
   orders          Order[]

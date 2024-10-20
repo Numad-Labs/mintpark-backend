@@ -1,4 +1,4 @@
-import { Insertable, Updateable } from "kysely";
+import { Insertable, sql, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { List } from "../types/db/types";
 
@@ -84,5 +84,34 @@ export const listRepository = {
       .executeTakeFirstOrThrow(() => new Error("Could not update the list."));
 
     return list;
+  },
+  getActiveListCountByCollectionid: async (collectionId: string) => {
+    const result = await db
+      .selectFrom("List")
+      .innerJoin("Collectible", "Collectible.id", "List.collectibleId")
+      .select((eb) => [
+        eb.fn
+          .coalesce(eb.fn.count("List.id").$castTo<number>(), sql<number>`0`)
+          .as("activeListCount"),
+      ])
+      .where("Collectible.collectionId", "=", collectionId)
+      .where("List.status", "=", "ACTIVE")
+      .executeTakeFirst();
+
+    return result;
+  },
+  getActiveListCountByUserId: async (userId: string) => {
+    const result = await db
+      .selectFrom("List")
+      .select((eb) => [
+        eb.fn
+          .coalesce(eb.fn.count("List.id").$castTo<number>(), sql<number>`0`)
+          .as("activeListCount"),
+      ])
+      .where("List.sellerId", "=", userId)
+      .where("List.status", "=", "ACTIVE")
+      .executeTakeFirst();
+
+    return result;
   },
 };
