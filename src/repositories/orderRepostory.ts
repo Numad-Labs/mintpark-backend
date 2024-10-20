@@ -82,7 +82,7 @@ export const orderRepository = {
       .selectFrom("Order")
       .selectAll()
       .where("Order.orderStatus", "=", ORDER_STATUS.IN_QUEUE)
-      .where("Order.orderType", "is not", ORDER_TYPE.LAUNCH) //TODO. Make it for launch too
+      .where("Order.orderType", "!=", ORDER_TYPE.LAUNCH) //TODO. Make it for launch too
       .execute();
 
     return orders;
