@@ -19,6 +19,7 @@ import { getEstimatedFee } from "../../blockchain/utxo/calculateRequiredAmount";
 import { purchaseRepository } from "../repositories/purchaseRepository";
 import { mint } from "../../blockchain/utxo/fractal/mint";
 import { sendRawTransactionWithNode } from "../../blockchain/utxo/fractal/libs";
+import { collectibleRepository } from "../repositories/collectibleRepository";
 
 export const launchServices = {
   create: async (data: any, files: Express.Multer.File[]) => {
@@ -175,6 +176,13 @@ export const launchServices = {
     });
 
     await launchItemRepository.update(launchItem.id, { status: "SOLD" });
+
+    await collectibleRepository.create({
+      fileKey: launchItem.fileKey,
+      name: `${collection.name} #${collection.mintedAmount}`,
+      collectionId: collection.id,
+      uniqueIdx: `${revealTxId.slice(0, -2)}`,
+    });
 
     return { commitTxId, revealTxId };
   },
