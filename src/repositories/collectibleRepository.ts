@@ -81,7 +81,7 @@ export const collectibleRepository = {
 
     if (params.isListed) query = query.where("List.status", "=", "ACTIVE");
 
-    const collectionIds = params.collectionId as string[];
+    const collectionIds = params.collectionIds as string[];
     if (collectionIds && collectionIds.length > 0) {
       query = query.where((eb) =>
         eb.or(
@@ -103,7 +103,7 @@ export const collectibleRepository = {
         query = query.orderBy("List.listedAt", "asc");
         break;
       default:
-        query = query.orderBy("id", "asc");
+        query = query.orderBy("Collectible.createdAt", "asc");
     }
 
     const collectibles = await query.execute();
@@ -125,7 +125,7 @@ export const collectibleRepository = {
   },
   getListableCollectiblesByCollectionId: async (
     collectionId: string,
-    isListed: boolean,
+    params: CollectibleQueryParams,
     traitsFilters: traitFilter[]
   ) => {
     let query = db
@@ -143,12 +143,6 @@ export const collectibleRepository = {
       )
       .selectFrom("Collectible")
       .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
-      .innerJoin(
-        "CollectibleTrait",
-        "CollectibleTrait.collectibleId",
-        "Collectible.id"
-      )
-      .innerJoin("Trait", "Trait.id", "CollectibleTrait.traitId")
       .leftJoin("List", "List.collectibleId", "Collectible.id")
       .leftJoin(
         "FloorPrices",
@@ -173,23 +167,45 @@ export const collectibleRepository = {
       ])
       .where("Collectible.collectionId", "=", collectionId);
 
-    if (isListed) query = query.where("List.status", "=", "ACTIVE");
+    if (params.isListed) query = query.where("List.status", "=", "ACTIVE");
 
     if (traitsFilters.length > 0) {
       query = query.where((eb) =>
-        eb.or(
-          traitsFilters.map((traitFilter) =>
-            eb.and([
-              sql`lower(${eb.ref("Trait.name")}) = lower(${
-                traitFilter.name
-              })`.$castTo<boolean>(),
-              sql`lower(${eb.ref("CollectibleTrait.value")}) = lower(${
-                traitFilter.value
-              })`.$castTo<boolean>(),
-            ])
-          )
+        eb.exists(
+          eb
+            .selectFrom("CollectibleTrait")
+            .innerJoin("Trait", "Trait.id", "CollectibleTrait.traitId")
+            .whereRef("CollectibleTrait.collectibleId", "=", "Collectible.id")
+            .where((eb) =>
+              eb.or(
+                traitsFilters.map((traitFilter) =>
+                  eb.and([
+                    sql`lower(${eb.ref("Trait.name")}) = lower(${
+                      traitFilter.name
+                    })`.$castTo<boolean>(),
+                    sql`lower(${eb.ref("CollectibleTrait.value")}) = lower(${
+                      traitFilter.value
+                    })`.$castTo<boolean>(),
+                  ])
+                )
+              )
+            )
         )
       );
+    }
+
+    switch (params.orderBy) {
+      case "price":
+        query = query.orderBy(
+          "List.price",
+          params.orderDirection === "desc" ? "desc" : "asc"
+        );
+        break;
+      case "recent":
+        query = query.orderBy("List.listedAt", "asc");
+        break;
+      default:
+        query = query.orderBy("Collectible.createdAt", "asc");
     }
 
     const collectibles = await query.execute();

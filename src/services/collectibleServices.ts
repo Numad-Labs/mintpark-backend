@@ -56,12 +56,11 @@ export const collectibleServices = {
   },
   getListableCollectiblesByCollectionId: async (
     collectionId: string,
-    isListed: boolean,
-    traits?: string[]
+    params: CollectibleQueryParams
   ) => {
     let traitFilters: traitFilter[] = [];
-    if (traits)
-      traitFilters = traits.map((trait) => {
+    if (params.traits)
+      traitFilters = params.traits.map((trait) => {
         const [name, value] = trait.split(":");
         return { name, value };
       });
@@ -69,7 +68,7 @@ export const collectibleServices = {
     const [listableCollectibles, countResult] = await Promise.all([
       collectibleRepository.getListableCollectiblesByCollectionId(
         collectionId,
-        isListed,
+        params,
         traitFilters
       ),
       listRepository.getActiveListCountByCollectionid(collectionId),
