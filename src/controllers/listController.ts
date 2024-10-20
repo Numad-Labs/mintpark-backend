@@ -114,7 +114,12 @@ export const listController = {
 
       const estimation = await listServices.estimateFee(id, feeRate);
 
-      return res.status(200).json(estimation);
+      return res.status(200).json({
+        success: true,
+        data: {
+          estimation,
+        },
+      });
     } catch (e) {
       next(e);
     }
