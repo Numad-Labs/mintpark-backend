@@ -1,4 +1,10 @@
-import { WITNESS_SCALE_FACTOR, DUST_THRESHOLD } from "./constants";
+import {
+  WITNESS_SCALE_FACTOR,
+  DUST_THRESHOLD,
+  TX_INPUT_P2TR,
+  TX_OUTPUT_P2TR,
+  TX_EMPTY_SIZE,
+} from "./constants";
 
 function calculateInscriptionSize(
   fileSize: number,
@@ -32,7 +38,9 @@ export function getEstimatedFee(
 ) {
   const dustLimit = DUST_THRESHOLD;
   if (fileSize.length !== mimeTypeByteSize.length) {
-    throw new Error("File size and mime type size must be the same length.");
+    throw new Error(
+      "File size array and file type size array must have same length."
+    );
   }
 
   let totalAmount = 0;
@@ -41,16 +49,22 @@ export function getEstimatedFee(
   let totalServiceFee = serviceFee * fileSize.length;
 
   for (let i = 0; i < fileSize.length; i++) {
-    const commitInputSize = 58; // Assuming 1 input
-    const commitOutputSize = price > 0 ? 43 * 3 : 43 * 2; // Reveal output + change (+ price output if applicable)
-    const commitOverhead = 10; // tx version, locktime, etc.
+    const commitInputSize = TX_INPUT_P2TR; // Assuming 1 input
+    const commitOutputSize =
+      price > 0 ? TX_OUTPUT_P2TR * 3 : TX_OUTPUT_P2TR * 2; // Reveal output + change (+ price output if applicable)
+    const commitOverhead = TX_EMPTY_SIZE; // tx version, locktime, etc.
     const commitSize = commitInputSize + commitOutputSize + commitOverhead;
 
     const inscriptionSize = calculateInscriptionSize(
       fileSize[i],
       mimeTypeByteSize[i]
     );
-    const revealSize = Math.ceil(10 + 58 * 1 + 43 * 1 + 10 + inscriptionSize);
+    const revealSize = Math.ceil(
+      TX_EMPTY_SIZE * 2 +
+        TX_INPUT_P2TR * 1 +
+        TX_OUTPUT_P2TR * 1 +
+        inscriptionSize
+    );
     const commitFee = commitSize * feeRate;
     const revealFee = revealSize * feeRate;
     totalCommitFee += commitFee;

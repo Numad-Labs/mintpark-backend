@@ -1,7 +1,17 @@
-import { sql } from "kysely";
+import { Insertable, sql } from "kysely";
 import { db } from "../utils/db";
+import { Collectible } from "../types/db/types";
 
 export const collectibleRepository = {
+  create: async (data: Insertable<Collectible>) => {
+    const collectible = await db
+      .insertInto("Collectible")
+      .values(data)
+      .returningAll()
+      .executeTakeFirstOrThrow(() => new Error("Couldnt create the collectible."));
+
+    return collectible;
+  },
   getById: async (id: string) => {
     const collectible = await db
       .selectFrom("Collectible")

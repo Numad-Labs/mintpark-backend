@@ -4,7 +4,7 @@ import { ORDER_TYPE } from "../types/db/enums";
 import { createFundingAddress } from "../../blockchain/utxo/fundingAddressHelper";
 import { userRepository } from "../repositories/userRepository";
 import { layerRepository } from "../repositories/layerRepository";
-import { DEFAULT_FEE_RATE, SERVICE_FEE } from "../../blockchain/utxo/constants";
+import {  SERVICE_FEE } from "../../blockchain/utxo/constants";
 import { uploadToS3 } from "../utils/aws";
 import { randomUUID } from "crypto";
 import { orderItemRepository } from "../repositories/orderItemRepository";
