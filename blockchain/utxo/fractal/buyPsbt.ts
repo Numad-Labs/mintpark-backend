@@ -8,7 +8,7 @@ import {
   getUtxos,
   prepareInputs,
 } from "./libs";
-import { TX_EMPTY_SIZE } from "../constants";
+import { SERVICE_FEE_ADDRESS, TX_EMPTY_SIZE } from "../constants";
 
 bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);
@@ -25,6 +25,7 @@ export interface buyPsbtHexInput {
   vaultTxid: string;
   vaultVout: number;
   inscribedAmount: number;
+  serviceFee: number;
 }
 
 export async function generateBuyPsbtHex(
@@ -32,9 +33,16 @@ export async function generateBuyPsbtHex(
   feeRate: number,
   isTestnet: boolean
 ) {
+  let serviceFeeReceivingAddress = SERVICE_FEE_ADDRESS.FRACTAL.TESTNET;
+  if (!isTestnet)
+    serviceFeeReceivingAddress = SERVICE_FEE_ADDRESS.FRACTAL.MAINNET;
+
   const buyerAddressType = getAddressType(data.buyerAddress);
   const vaultAddressType = getAddressType(data.vaultAddress);
   const sellerAddressType = getAddressType(data.sellerAddress);
+  const serviceFeeReceiverAddressType = getAddressType(
+    serviceFeeReceivingAddress
+  );
 
   const privateKeyBuffer = Buffer.from(data.vaultPrivateKey, "hex");
   const node = bip32.fromPrivateKey(
@@ -48,12 +56,14 @@ export async function generateBuyPsbtHex(
   const requiredAmount =
     data.listedPrice +
     data.inscribedAmount +
+    data.serviceFee +
     (TX_EMPTY_SIZE +
       vaultAddressType.inputSize +
-      buyerAddressType.outputSize +
-      buyerAddressType.outputSize +
-      sellerAddressType.outputSize) *
+      buyerAddressType.outputSize * 2 +
+      sellerAddressType.outputSize +
+      serviceFeeReceiverAddressType.outputSize) *
       feeRate;
+
   const utxos = await getUtxos(data.buyerAddress, true);
   const selectedUtxos = await prepareInputs(
     utxos,
@@ -143,6 +153,10 @@ export async function generateBuyPsbtHex(
   psbt.addOutput({
     address: data.sellerAddress,
     value: BigInt(data.listedPrice),
+  });
+  psbt.addOutput({
+    address: serviceFeeReceivingAddress,
+    value: BigInt(data.serviceFee),
   });
   if (selectedUtxos.changeAmount >= 546) {
     psbt.addOutput({

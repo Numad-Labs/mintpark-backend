@@ -25,6 +25,6 @@ collectionRouter.get(
   "/layer/:layerId",
   collectionController.getAllLaunchedCollectionsByLayerId
 );
-collectionRouter.get("/:collectionId", collectionController.getById);
+collectionRouter.get("/:id", collectionController.getById);
 
 export = collectionRouter;

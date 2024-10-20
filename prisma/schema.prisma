@@ -42,7 +42,7 @@ model Order {
   collectionId   String?
   collection     Collection?  @relation(fields: [collectionId], references: [id])
   quantity       Int
-  feeRate        Float       @default(1)
+  feeRate        Float        @default(1)
   fundingAddress String
   networkFee     Float
   serviceFee     Float
@@ -69,18 +69,24 @@ model OrderItem {
 }
 
 model Collection {
-  id           String          @id @default(dbgenerated("gen_random_uuid()"))
-  name         String
-  creator      String?
-  description  String
-  logoKey      String?
-  supply       Int
-  type         COLLECTION_TYPE @default(UNCONFIRMED)
-  layerId      String?
-  layer        Layer?          @relation(fields: [layerId], references: [id], onDelete: SetNull)
-  launches     Launch[]
-  orders       Order[]
-  collectibles Collectible[]
+  id              String          @id @default(dbgenerated("gen_random_uuid()"))
+  name            String
+  creator         String?
+  description     String
+  logoKey         String?
+  supply          Int
+  type            COLLECTION_TYPE @default(UNCONFIRMED)
+  discordUrl      String?
+  twitterUrl      String?
+  websiteUrl      String?
+  iconUrl         String?
+  inscriptionIcon String?
+  slug            String?
+  layerId         String?
+  layer           Layer?          @relation(fields: [layerId], references: [id], onDelete: SetNull)
+  launches        Launch[]
+  orders          Order[]
+  collectibles    Collectible[]
 }
 
 model Purchase {

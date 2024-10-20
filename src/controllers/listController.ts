@@ -45,7 +45,8 @@ export const listController = {
         id,
         txid,
         vout,
-        inscribedAmount
+        inscribedAmount,
+        req.user.id
       );
 
       return res.status(200).json({ success: true, data: { list } });
@@ -60,10 +61,17 @@ export const listController = {
   ) => {
     try {
       const { id } = req.params;
+      let { feeRate } = req.body;
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
+      if (feeRate < 1) throw new CustomError("Invalid fee rate.", 400);
+      if (!feeRate) feeRate = 1;
 
-      const txHex = await listServices.generateBuyPsbtHex(id, req.user.id);
+      const txHex = await listServices.generateBuyPsbtHex(
+        id,
+        feeRate,
+        req.user.id
+      );
 
       return res.status(200).json({ success: true, data: { hex: txHex } });
     } catch (e) {
@@ -89,6 +97,24 @@ export const listController = {
       );
 
       return res.status(200).json({ success: true, data: { txid } });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getEstimatedFee: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { id } = req.params;
+      let { feeRate } = req.body;
+      if (feeRate < 1) throw new CustomError("Invalid fee rate.", 400);
+      if (!feeRate) feeRate = 1;
+
+      const estimation = await listServices.estimateFee(id, feeRate);
+
+      return res.status(200).json(estimation);
     } catch (e) {
       next(e);
     }

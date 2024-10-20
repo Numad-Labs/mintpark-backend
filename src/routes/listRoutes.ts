@@ -19,5 +19,10 @@ listRouter.post(
   authenticateToken,
   listController.buyListedCollectible
 );
+listRouter.get(
+  "/:id/estimate-fee",
+  authenticateToken,
+  listController.getEstimatedFee
+);
 
 export = listRouter;

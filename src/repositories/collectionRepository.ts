@@ -1,4 +1,10 @@
-import { ExpressionBuilder, Insertable, sql, Updateable } from "kysely";
+import {
+  ExpressionBuilder,
+  Insertable,
+  SelectQueryBuilder,
+  sql,
+  Updateable,
+} from "kysely";
 import { db } from "../utils/db";
 import { Collection, DB } from "../types/db/types";
 import { QueryParams } from "../controllers/collectionController";
@@ -87,6 +93,116 @@ export const collectionRepository = {
               sql<number>`COALESCE(MIN("List"."price"), 0)`.as("floor"),
             ])
             .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
+            .where("List.status", "in", ["ACTIVE", "SOLD"])
+            .where(
+              getIntervalCondition(
+                params.interval,
+                "listedAt"
+              ).$castTo<boolean>()
+            )
+            .as("floor"),
+          selectFrom("List")
+            .rightJoin("Collectible", "Collectible.id", "List.collectibleId")
+            .select((eb) => [
+              sql<number>`COALESCE(SUM("List"."price"), 0)`.as("volume"),
+            ])
+            .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
+            .where("List.status", "=", "SOLD")
+            .where(
+              getIntervalCondition(
+                params.interval,
+                "listedAt"
+              ).$castTo<boolean>()
+            )
+            .as("volume"),
+          selectFrom("List")
+            .rightJoin("Collectible", "Collectible.id", "List.collectibleId")
+            .select((eb) => [
+              sql<number>`COALESCE(COUNT("List"."price"), 0)`
+                .$castTo<number>()
+                .as("listedCount"),
+            ])
+            .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
+            .where(
+              getIntervalCondition(
+                params.interval,
+                "listedAt"
+              ).$castTo<boolean>()
+            )
+            .as("listedCount"),
+          selectFrom("List")
+            .rightJoin("Collectible", "Collectible.id", "List.collectibleId")
+            .select((eb) => [
+              sql<number>`COALESCE(COUNT("List"."price"), 0)`
+                .$castTo<number>()
+                .as("soldCount"),
+            ])
+            .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
+            .where("List.status", "=", "SOLD")
+            .where(
+              getIntervalCondition(
+                params.interval,
+                "listedAt"
+              ).$castTo<boolean>()
+            )
+            .as("soldCount"),
+        ])
+      )
+      .selectFrom("Collection")
+      .leftJoin("CollectionStats", "CollectionStats.id", "Collection.id")
+      .select(({ eb }) => [
+        "Collection.id",
+        "Collection.name",
+        "Collection.creator",
+        "Collection.description",
+        "Collection.supply",
+        "Collection.type",
+        "Collection.logoKey",
+        "Collection.layerId",
+        "CollectionStats.floor",
+        "CollectionStats.volume",
+        "CollectionStats.listedCount",
+        "CollectionStats.soldCount",
+        sql<number>`"CollectionStats"."floor" * "Collection"."supply"`.as(
+          "marketCap"
+        ),
+        "Collection.discordUrl",
+        "Collection.twitterUrl",
+        "Collection.websiteUrl",
+        "Collection.iconUrl",
+        "Collection.inscriptionIcon",
+        "Collection.slug",
+      ])
+      .where("Collection.layerId", "=", params.layerId)
+      .where("Collection.type", "=", "MINTED");
+
+    const direction = params.orderDirection === "lowest" ? "asc" : "desc";
+    if (params.orderBy && params.orderDirection) {
+      if (params.orderBy === "volume") {
+        query = query.orderBy("volume", direction);
+      } else if (params.orderBy === "floor") {
+        query = query.orderBy("floor", direction);
+      } else {
+        query = query.orderBy("marketCap", direction);
+      }
+    } else query = query.orderBy("marketCap", direction);
+
+    const results = await query.execute();
+
+    return results;
+  },
+  getByIdWithDetails: async (id: string) => {
+    const collection = await db
+      .with("CollectionStats", (db) =>
+        db.selectFrom("Collection").select(({ eb, selectFrom }) => [
+          "Collection.id",
+          selectFrom("List")
+            .rightJoin("Collectible", "Collectible.id", "List.collectibleId")
+            .select((eb) => [
+              sql<number>`COALESCE(MIN("List"."price"), 0)`.as("floor"),
+            ])
+            .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
+            .where("List.status", "in", ["ACTIVE", "SOLD"])
             .as("floor"),
           selectFrom("List")
             .rightJoin("Collectible", "Collectible.id", "List.collectibleId")
@@ -135,28 +251,36 @@ export const collectionRepository = {
         sql<number>`"CollectionStats"."floor" * "Collection"."supply"`.as(
           "marketCap"
         ),
+        "Collection.discordUrl",
+        "Collection.twitterUrl",
+        "Collection.websiteUrl",
+        "Collection.iconUrl",
+        "Collection.inscriptionIcon",
+        "Collection.slug",
       ])
-      .where("Collection.layerId", "=", params.layerId)
-      .where("Collection.type", "=", "MINTED");
+      .where("Collection.type", "=", "MINTED")
+      .where("Collection.id", "=", id)
+      .executeTakeFirst();
 
-    // if (params.interval && params.interval !== "All") {
-    //   const intervalSeconds = intervalMap[params.interval];
-    //   query = query.where(
-    //     sql`"listedAt" > NOW() - INTERVAL '${intervalSeconds} seconds'`.$castTo<boolean>()
-    //   );
-    // }
-
-    if (params.orderBy && params.orderDirection) {
-      const direction = params.orderDirection === "highest" ? "desc" : "asc";
-      if (params.orderBy === "volume") {
-        query = query.orderBy("volume", direction);
-      } else if (params.orderBy === "floor") {
-        query = query.orderBy("floor", direction);
-      }
-    }
-
-    const results = await query.execute();
-
-    return results;
+    return collection;
   },
 };
+
+type Interval = "1h" | "24h" | "7d" | "30d" | "all";
+
+function getIntervalCondition(interval: Interval, dateColumn: string) {
+  switch (interval) {
+    case "1h":
+      return sql`"${sql.raw(dateColumn)}" >= NOW() - INTERVAL '1 hour'`;
+    case "24h":
+      return sql`"${sql.raw(dateColumn)}" >= NOW() - INTERVAL '24 hours'`;
+    case "7d":
+      return sql`"${sql.raw(dateColumn)}" >= NOW() - INTERVAL '7 days'`;
+    case "30d":
+      return sql`"${sql.raw(dateColumn)}" >= NOW() - INTERVAL '30 days'`;
+    case "all":
+      return sql`1=1`;
+    default:
+      throw new Error(`Invalid interval: ${interval}`);
+  }
+}

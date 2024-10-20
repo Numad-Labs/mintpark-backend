@@ -3,10 +3,11 @@ import { AuthenticatedRequest } from "../../custom";
 import { collectionServices } from "../services/collectionServices";
 import { CustomError } from "../exceptions/CustomError";
 import { launchServices } from "../services/launchServices";
+import { collectionRepository } from "../repositories/collectionRepository";
 
 export interface QueryParams {
   layerId: string;
-  interval?: "1h" | "24h" | "7d" | "30d" | "all";
+  interval: "1h" | "24h" | "7d" | "30d" | "all";
   orderBy?: "volume" | "floor";
   orderDirection?: "highest" | "lowest";
   // page?: string;
@@ -105,10 +106,12 @@ export const collectionController = {
     }
   },
   getById: async (req: Request, res: Response, next: NextFunction) => {
-    const { collectionId } = req.params;
     try {
-      const collection = await collectionServices.getById(collectionId);
+      const { id } = req.params;
+
+      const collection = await collectionRepository.getByIdWithDetails(id);
       if (!collection) throw new CustomError("Collection not found", 404);
+
       return res.status(200).json({ success: true, data: collection });
     } catch (e) {
       next(e);
