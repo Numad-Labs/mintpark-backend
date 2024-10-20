@@ -1,6 +1,7 @@
 import { Insertable, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { Order } from "../types/db/types";
+import { ORDER_STATUS } from "../types/db/enums";
 
 export const orderRepository = {
   create: async (data: Insertable<Order>) => {
@@ -55,6 +56,32 @@ export const orderRepository = {
       .selectAll()
       .innerJoin("User", "Order.userId", "User.id")
       .where("User.address", "=", userAddress)
+      .execute();
+
+    return orders;
+  },
+  updateOrderStatus: async (id: string, status: ORDER_STATUS) => {
+    const order = await db
+      .updateTable("Order")
+      .returningAll()
+      .set({ orderStatus: status })
+      .where("Order.id", "=", id)
+      .executeTakeFirstOrThrow(
+        () => new Error("Couldnt update the order status.")
+      );
+
+    return order;
+  },
+  getAll: async () => {
+    const orders = await db.selectFrom("Order").selectAll().execute();
+
+    return orders;
+  },
+  getInQueueOrders: async () => {
+    const orders = await db
+      .selectFrom("Order")
+      .selectAll()
+      .where("Order.orderStatus", "=", ORDER_STATUS.IN_QUEUE)
       .execute();
 
     return orders;

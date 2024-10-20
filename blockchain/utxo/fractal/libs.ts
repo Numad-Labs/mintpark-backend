@@ -232,3 +232,34 @@ export function selectUtxos(
   }
   return selectedUtxos;
 }
+
+export async function sendRawTransactionWithNode(
+  rawTx: string,
+  isTestNet: boolean = true
+) {
+  const baseUrl = isTestNet
+    ? `http://${config.FRACTAL_TESTNET_URL}`
+    : `http://${config.FRACTAL_MAINNET_URL}`;
+
+  const body = {
+    jsonrpc: "1.0",
+    method: "sendrawtransaction",
+    id: "sendrawtransaction",
+    params: [rawTx],
+  };
+
+  try {
+    const response = await axios.post(baseUrl, body, {
+      auth: {
+        username: config.FRACTAL_TESTNET_USER,
+        password: config.FRACTAL_TESTNET_PASSWORD,
+      },
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    return response.data.result;
+  } catch (error) {
+    throw error;
+  }
+}

@@ -19,26 +19,38 @@ export const ASSETTYPE = {
 };
 
 export const SERVICE_FEE_ADDRESS = {
-  BITCOIN_TESTNET:
-    "tb1pffk5397d7sns6mayud03nf3fxy4p04e3alhslr6epaq3a788tsuqpw7qeu",
-  FRACTAL_TESTNET: "bc1qzr9zqc5d7zj7ktxnfdeueqmxwfwdvrmedckckd",
-  BITCOIN: "",
-  FRACTAL: "",
-  ETHEREUM: "",
-  ETHEREUM_TESTNET: "",
-  COORDINATE: "",
-  COORDINATE_TESTNET: "",
+  BITCOIN: {
+    MAINNET: "",
+    TESTNET: "tb1pffk5397d7sns6mayud03nf3fxy4p04e3alhslr6epaq3a788tsuqpw7qeu",
+  },
+
+  FRACTAL: {
+    MAINNET: "",
+    TESTNET: "bc1qzr9zqc5d7zj7ktxnfdeueqmxwfwdvrmedckckd",
+  },
+
+  CITREA: {
+    MAINNET: "",
+    TESTNET: "",
+  },
 };
 
-export const LAYER_TYPE = {
-  BITCOIN: "BITCOIN",
-  BITCOIN_TESTNET: "BITCOIN_TESTNET",
-  FRACTAL_TESTNET: "FRACTAL_TESTNET",
-  FRACTAL: "FRACTAL",
-};
-export type LAYER_TYPE = (typeof LAYER_TYPE)[keyof typeof LAYER_TYPE];
+export const SERVICE_FEE = {
+  BITCOIN: {
+    MAINNET: 500,
+    TESTNET: 696,
+  },
 
-export const SERVICE_FEE = 696;
+  FRACTAL: {
+    MAINNET: 500,
+    TESTNET: 696,
+  },
+
+  CITREA: {
+    MAINNET: 0,
+    TESTNET: 696,
+  },
+}
 
 export const DEFAULT_FEE_RATE = 1;
 

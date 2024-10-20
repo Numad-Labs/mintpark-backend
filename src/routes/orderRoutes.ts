@@ -15,4 +15,6 @@ orderRouter.post(
 orderRouter.get("/user/:userId", orderController.getByUserId);
 orderRouter.get("/:orderId", orderController.getById);
 
+orderRouter.get("/:orderId/payment-status", orderController.checkOrderIsPaid);
+
 export = orderRouter;

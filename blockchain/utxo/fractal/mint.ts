@@ -7,10 +7,7 @@ import { ECPairFactory } from "ecpair";
 import BIP32Factory from "bip32";
 import { CustomError } from "../../../src/exceptions/CustomError";
 import { DUST_THRESHOLD } from "../constants";
-import {
-  calculateInscriptionSize,
-  getEstimatedFee,
-} from "../calculateRequiredAmount";
+import { getEstimatedFee } from "../calculateRequiredAmount";
 
 bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);
@@ -34,7 +31,6 @@ export async function mint(
 
   let network = bitcoin.networks.bitcoin;
   if (!isTestNet) network = bitcoin.networks.testnet;
-
 
   const keyPair = ECPair.fromPrivateKey(Buffer.from(fundingPrivateKey, "hex"), {
     network,
@@ -114,6 +110,7 @@ export async function mint(
 
   //Select Utxos
   const utxos: unisatUtxo[] = await getUtxos(address, isTestNet);
+
   if (!utxos || utxos.length === 0)
     throw new CustomError("Not funded. Utxos not found.", 400);
 
@@ -155,11 +152,12 @@ export async function mint(
       value: BigInt(price),
     });
 
-  // Change output
-  if (totalAmount - requiredAmount > DUST_THRESHOLD) {
+  //Change output
+  const changeAmount = totalAmount - requiredAmount;
+  if (changeAmount > DUST_THRESHOLD) {
     commitPsbt.addOutput({
-      address: data.address,
-      value: BigInt(totalAmount - requiredAmount),
+      address: address,
+      value: BigInt(changeAmount),
     });
   }
 

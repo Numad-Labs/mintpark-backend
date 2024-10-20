@@ -9,7 +9,11 @@ require("dotenv").config();
 import userRouter from "./routes/userRoutes";
 import { errorHandler } from "./middlewares/errorHandler";
 import { notFound } from "./middlewares/notFound";
-import { checkAndUpdateCollectibleStatus } from "./cron";
+import {
+  checkAndUpdateCollectibleStatus,
+  checkPaymentAndUpdateOrderStatus,
+  mintingQueue,
+} from "./cron";
 import layerRouter from "./routes/layerRoutes";
 import orderRouter from "./routes/orderRoutes";
 import collectionRouter from "./routes/collectionRoutes";
@@ -42,6 +46,9 @@ app.use("/api/v1/lists", listRouter);
 
 app.use(errorHandler);
 app.use(notFound);
+
+checkPaymentAndUpdateOrderStatus();
+mintingQueue();
 
 app.listen(config.PORT, () => {
   console.log(`Server has started on port ${config.PORT}`);
