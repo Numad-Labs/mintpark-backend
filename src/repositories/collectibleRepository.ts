@@ -54,7 +54,7 @@ export const collectibleRepository = {
         "Collectible.fileKey",
         "Collectible.createdAt",
         "Collectible.collectionId",
-        "Collection.name",
+        "Collection.name as collectionName",
         "List.listedAt",
         "List.id as listId",
         "List.price",
