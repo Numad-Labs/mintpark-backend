@@ -19,12 +19,7 @@ collectionRouter.post(
   collectionController.launchCollection
 );
 
-collectionRouter.get("/", collectionController.getAllLaunchedCollections);
 collectionRouter.get("/listed", collectionController.getListedCollections);
-collectionRouter.get(
-  "/layer/:layerId",
-  collectionController.getAllLaunchedCollectionsByLayerId
-);
-collectionRouter.get("/:id", collectionController.getById);
+collectionRouter.get("/:collectionId", collectionController.getById);
 
 export = collectionRouter;

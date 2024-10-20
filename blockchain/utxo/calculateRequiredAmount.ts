@@ -54,18 +54,17 @@ export function getEstimatedFee(
   let totalServiceFee = serviceFee * fileSize.length;
 
   for (let i = 0; i < fileSize.length; i++) {
-    const commitInputSize = TX_INPUT_P2TR; // Assuming 1 input
+    const commitInputSize = TX_INPUT_P2TR * 1; // Assuming 1 input
     const commitOutputSize =
       price > 0 ? TX_OUTPUT_P2TR * 3 : TX_OUTPUT_P2TR * 2; // Reveal output + change (+ price output if applicable)
-    const commitOverhead = TX_EMPTY_SIZE; // tx version, locktime, etc.
-    const commitSize = commitInputSize + commitOutputSize + commitOverhead;
+    const commitSize = commitInputSize + commitOutputSize + TX_EMPTY_SIZE;
 
     const inscriptionSize = calculateInscriptionSize(
       fileSize[i],
       mimeTypeByteSize[i]
     );
     const revealSize = Math.ceil(
-      TX_EMPTY_SIZE * 2 +
+      TX_EMPTY_SIZE * 1 +
         TX_INPUT_P2TR * 1 +
         TX_OUTPUT_P2TR * 1 +
         inscriptionSize
@@ -74,9 +73,9 @@ export function getEstimatedFee(
     const revealFee = revealSize * feeRate;
     totalCommitFee += commitFee;
     totalRevealFee += revealFee;
-    totalAmount += commitFee + revealFee + dustLimit;
+    totalAmount += commitFee + revealFee;
   }
-  totalAmount += price + totalServiceFee; // dustlimit for last change output
+  totalAmount += price + totalServiceFee + dustLimit * fileSize.length;
   return {
     estimatedFee: {
       feeRate: feeRate,

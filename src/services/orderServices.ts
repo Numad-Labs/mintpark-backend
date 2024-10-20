@@ -4,7 +4,7 @@ import { ORDER_TYPE } from "../types/db/enums";
 import { createFundingAddress } from "../../blockchain/utxo/fundingAddressHelper";
 import { userRepository } from "../repositories/userRepository";
 import { layerRepository } from "../repositories/layerRepository";
-import {  SERVICE_FEE } from "../../blockchain/utxo/constants";
+import { SERVICE_FEE } from "../../blockchain/utxo/constants";
 import { uploadToS3 } from "../utils/aws";
 import { randomUUID } from "crypto";
 import { orderItemRepository } from "../repositories/orderItemRepository";
@@ -83,11 +83,6 @@ export const orderServices = {
           feeRate: feeRate,
         });
         orderItems = await createOrderItems(order.id, files);
-
-        collection.supply += files.length;
-        await collectionServices.update(collection.id, {
-          supply: collection.supply,
-        });
         break;
       case ORDER_TYPE.LAUNCH:
         throw new Error("Launch order is not supported yet.");
@@ -109,18 +104,19 @@ export const orderServices = {
     return order;
   },
   checkOrderisPaid: async (orderId: string) => {
-    const order = await orderRepository.getById(orderId);
-    if (!order) throw new Error("Order not found.");
-
-    const user = await userRepository.getById(order.userId);
-    if (!user) throw new Error("User not found.");
-
-    const layer = await layerRepository.getById(user.layerId!);
-    if (!layer) throw new Error("Layer not found.");
-
     // Check payment status
     // If payment is confirmed, return true else false
     try {
+      const order = await orderRepository.getById(orderId);
+      if (!order) throw new Error("Order not found.");
+
+      if (order.paidAt) return true;
+
+      const user = await userRepository.getById(order.userId);
+      if (!user) throw new Error("User not found.");
+
+      const layer = await layerRepository.getById(user.layerId!);
+      if (!layer) throw new Error("Layer not found.");
       let isTestNet = true;
       if (layer.network === "MAINNET") isTestNet = false;
       const utxos = await getUtxosHelper(
@@ -131,6 +127,8 @@ export const orderServices = {
       const totalAmount = utxos.reduce((a, b) => a + b.satoshi, 0);
 
       if (totalAmount >= order.fundingAmount) {
+        order.paidAt = new Date();
+        await orderRepository.update(order.id, { paidAt: order.paidAt });
         return true;
       }
       return false;

@@ -20,6 +20,7 @@ import collectionRouter from "./routes/collectionRoutes";
 import collectibleRouter from "./routes/collectibleRoutes";
 import collectibleTraitRouter from "./routes/collectibleTraitRoutes";
 import listRouter from "./routes/listRoutes";
+import launchRouter from "./routes/launchRoutes";
 
 export const redis = new Redis(config.REDIS_CONNECTION_STRING);
 
@@ -43,12 +44,13 @@ app.use("/api/v1/collections", collectionRouter);
 app.use("/api/v1/collectibles", collectibleRouter);
 app.use("/api/v1/collectible-traits", collectibleTraitRouter);
 app.use("/api/v1/lists", listRouter);
+app.use("/api/v1/launchpad", launchRouter);
 
 app.use(errorHandler);
 app.use(notFound);
 
 checkPaymentAndUpdateOrderStatus();
-// mintingQueue();
+mintingQueue(); //
 
 app.listen(config.PORT, () => {
   console.log(`Server has started on port ${config.PORT}`);

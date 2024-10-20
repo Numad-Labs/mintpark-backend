@@ -15,13 +15,14 @@ export const orderController = {
     if (!orderType || !feeRate)
       throw new CustomError("Order type and fee rate are required.", 400);
     const files = req.files as Express.Multer.File[];
-    if (!files || files.length < 1)
-      throw new CustomError("Please provide at least one file.", 400);
 
     try {
-      if (orderType === "COLLECTION" && !collectionId)
+      if (
+        (orderType === "COLLECTION" && !collectionId) ||
+        (orderType === "LAUNCH" && !collectionId)
+      )
         throw new CustomError(
-          "CollectionId is required when creating order for collection.",
+          "CollectionId is required when creating order for collection or launch.",
           400
         );
       const { order, orderItems } = await orderServices.create(

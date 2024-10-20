@@ -1,7 +1,7 @@
 import { Insertable, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { Order } from "../types/db/types";
-import { ORDER_STATUS } from "../types/db/enums";
+import { ORDER_STATUS, ORDER_TYPE } from "../types/db/enums";
 
 export const orderRepository = {
   create: async (data: Insertable<Order>) => {
@@ -82,6 +82,7 @@ export const orderRepository = {
       .selectFrom("Order")
       .selectAll()
       .where("Order.orderStatus", "=", ORDER_STATUS.IN_QUEUE)
+      .where("Order.orderType", "is not", ORDER_TYPE.LAUNCH) //TODO. Make it for launch too
       .execute();
 
     return orders;
