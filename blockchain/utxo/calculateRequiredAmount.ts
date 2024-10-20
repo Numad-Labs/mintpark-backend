@@ -1,9 +1,14 @@
 import {
-  WITNESS_SCALE_FACTOR,
+  LISTING_SERVICE_FEE_PERCENTAGE,
+  MINIMUM_LISTING_SERVICE_FEE,
+} from "../../src/libs/constants";
+import {
   DUST_THRESHOLD,
+  TX_EMPTY_SIZE,
+  TX_INPUT_P2PKH,
   TX_INPUT_P2TR,
   TX_OUTPUT_P2TR,
-  TX_EMPTY_SIZE,
+  WITNESS_SCALE_FACTOR,
 } from "./constants";
 
 function calculateInscriptionSize(
@@ -82,5 +87,27 @@ export function getEstimatedFee(
       revealFee: totalRevealFee,
       totalAmount: totalAmount,
     },
+  };
+}
+
+export function estimateBuyPsbtRequiredAmount(
+  listedPrice: number,
+  inscribedAmount: number,
+  feeRate: number
+) {
+  const serviceFee = Math.min(
+    listedPrice * LISTING_SERVICE_FEE_PERCENTAGE,
+    MINIMUM_LISTING_SERVICE_FEE
+  );
+  const networkFee =
+    (TX_EMPTY_SIZE + TX_INPUT_P2PKH + TX_OUTPUT_P2TR * 4) * feeRate;
+  const requiredAmount =
+    listedPrice + inscribedAmount + serviceFee + networkFee;
+
+  return {
+    price: listedPrice,
+    total: requiredAmount,
+    networkFee: networkFee + inscribedAmount,
+    serviceFee,
   };
 }

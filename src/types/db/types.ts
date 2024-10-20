@@ -38,6 +38,12 @@ export type Collection = {
   logoKey: string | null;
   supply: number;
   type: Generated<COLLECTION_TYPE>;
+  discordUrl: string | null;
+  twitterUrl: string | null;
+  websiteUrl: string | null;
+  iconUrl: string | null;
+  inscriptionIcon: string | null;
+  slug: string | null;
   layerId: string | null;
 };
 export type Launch = {

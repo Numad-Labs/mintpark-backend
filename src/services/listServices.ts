@@ -1,3 +1,4 @@
+import { estimateBuyPsbtRequiredAmount } from "../../blockchain/utxo/calculateRequiredAmount";
 import {
   generateBuyPsbtHex,
   validateSignAndBroadcastBuyPsbtHex,
@@ -9,6 +10,10 @@ import {
 } from "../../blockchain/utxo/fractal/libs";
 import { createFundingAddress } from "../../blockchain/utxo/fundingAddressHelper";
 import { CustomError } from "../exceptions/CustomError";
+import {
+  LISTING_SERVICE_FEE_PERCENTAGE,
+  MINIMUM_LISTING_SERVICE_FEE,
+} from "../libs/constants";
 import { hideSensitiveData } from "../libs/hideDataHelper";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import { listRepository } from "../repositories/listRepository";
@@ -69,12 +74,18 @@ export const listServices = {
     id: string,
     txid: string,
     vout: number,
-    inscribedAmount: number
+    inscribedAmount: number,
+    issuerId: string
   ) => {
     const list = await listRepository.getById(id);
     if (!list) throw new CustomError("No list found.", 400);
     if (list.status !== "PENDING")
       throw new CustomError("This list is could not be confirmed.", 400);
+    if (list.sellerId !== issuerId)
+      throw new CustomError(
+        "You are not allowed to confirm this listing.",
+        400
+      );
 
     if (list.layer !== "FRACTAL" && list.network !== "TESTNET")
       throw new CustomError(
@@ -110,7 +121,7 @@ export const listServices = {
 
     return sanitizedList;
   },
-  generateBuyPsbtHex: async (id: string, issuerId: string) => {
+  generateBuyPsbtHex: async (id: string, feeRate: number, issuerId: string) => {
     const list = await listRepository.getById(id);
     if (!list) throw new CustomError("No list found.", 400);
     if (list.status !== "ACTIVE")
@@ -135,6 +146,11 @@ export const listServices = {
     if (!buyer.pubkey || !list.vaultTxid || list.vaultVout === null)
       throw new CustomError("Invalid fields.", 400);
 
+    const serviceFee = Math.min(
+      list.price * LISTING_SERVICE_FEE_PERCENTAGE,
+      MINIMUM_LISTING_SERVICE_FEE
+    );
+
     const txHex = await generateBuyPsbtHex(
       {
         buyerAddress: buyer.address,
@@ -146,8 +162,9 @@ export const listServices = {
         vaultPrivateKey: list.privateKey,
         inscribedAmount: list.inscribedAmount,
         listedPrice: list.price,
+        serviceFee: serviceFee,
       },
-      1,
+      feeRate,
       true
     );
 
@@ -173,5 +190,19 @@ export const listServices = {
     );
 
     return txid;
+  },
+  estimateFee: async (id: string, feeRate: number) => {
+    const list = await listRepository.getById(id);
+    if (!list) throw new CustomError("Listing not found.", 400);
+
+    const inscribedAmount = list.inscribedAmount || 546;
+
+    const estimation = await estimateBuyPsbtRequiredAmount(
+      list.price,
+      inscribedAmount,
+      feeRate
+    );
+
+    return estimation;
   },
 };
