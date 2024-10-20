@@ -22,6 +22,7 @@ import { sleep } from "../utils/timer";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import { LaunchItem } from "../types/db/types";
+import { redis } from "..";
 
 const cron = require("node-cron");
 
@@ -67,12 +68,32 @@ export function checkPaymentAndUpdateOrderStatus() {
 
 const MAX_CONCURRENT_MINTS = 5;
 const MAX_RETRIES = 60;
-const RETRY_INTERVAL = 10000; // 10 seconds
+const RETRY_INTERVAL = 10000;
+const LOCK_KEY = "minting_queue_lock";
+const LOCK_EXPIRY = 60 * 60;
 
 export function mintingQueue() {
   cron.schedule("*/1 * * * *", async () => {
-    console.log("Starting minting queue process...");
+    console.log("Attempting to start minting queue process...");
+
+    // Try to acquire a lock
+    const acquired = await redis.set(
+      LOCK_KEY,
+      "locked",
+      "EX",
+      LOCK_EXPIRY,
+      "NX"
+    );
+
+    if (!acquired) {
+      console.log(
+        "Another minting queue process is already running. Skipping this run."
+      );
+      return;
+    }
+
     try {
+      console.log("Lock acquired. Starting minting queue process...");
       const orders = await orderRepository.getInQueueOrders();
       if (orders.length === 0) {
         console.log("No orders in queue. Skipping this run.");
@@ -117,6 +138,10 @@ export function mintingQueue() {
       }
     } catch (error) {
       console.error("Error in minting queue process:", error);
+    } finally {
+      // Release the lock
+      await redis.del(LOCK_KEY);
+      console.log("Minting queue lock released.");
     }
   });
 }
@@ -178,12 +203,12 @@ async function mintOrderItem(orderItem: OrderItemDetails, order: any) {
     );
 
     const commitTxId = await sendRawTransactionWithNode(mintHexes!.commitTxHex);
-    console.log(`Commit transaction sent: ${commitTxId}`);
+    // console.log(`Commit transaction sent: ${commitTxId}`);
 
-    await waitForTransactionConfirmation(commitTxId, isTestNet);
-    console.log(
-      `Commit transaction ${commitTxId} confirmed. Proceeding with reveal transaction.`
-    );
+    // await waitForTransactionConfirmation(commitTxId, isTestNet);
+    // console.log(
+    //   `Commit transaction ${commitTxId} confirmed. Proceeding with reveal transaction.`
+    // );
 
     const revealTxId = await sendRawTransactionWithNode(mintHexes!.revealTxHex);
     console.log(`Reveal transaction sent: ${revealTxId}`);
@@ -197,17 +222,22 @@ async function mintOrderItem(orderItem: OrderItemDetails, order: any) {
       const collection = await collectionRepository.getById(order.collectionId);
       if (!collection) throw new Error("Collection not found.");
 
-      await collectibleRepository.create({
-        fileKey: orderItem.fileKey,
-        name: `${collection.name} #${collection.supply}`,
-        collectionId: collection.id,
-        uniqueIdx: `${revealTxId.slice(0, -2)}`,
-      });
+      const collectible = await collectibleRepository.getByUniqueIdx(
+        `${collection.name} #${collection.supply}`
+      );
+      if (!collectible) {
+        await collectibleRepository.create({
+          fileKey: orderItem.fileKey,
+          name: `${collection.name} #${collection.supply}`,
+          collectionId: collection.id,
+          uniqueIdx: `${revealTxId.slice(0, -2)}`,
+        });
 
-      collection.supply++;
-      await collectionRepository.update(collection.id, {
-        supply: collection.supply,
-      });
+        collection.supply++;
+        await collectionRepository.update(collection.id, {
+          supply: collection.supply,
+        });
+      }
     }
   } else {
     throw new Error(`Unsupported layer: ${orderItem.layer}`);

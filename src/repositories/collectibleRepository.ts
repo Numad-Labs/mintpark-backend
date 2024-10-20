@@ -273,4 +273,24 @@ export const collectibleRepository = {
 
     return countResult;
   },
+  getByUniqueIdx: async (uniqueIdx: string) => {
+    const collectible = await db
+      .selectFrom("Collectible")
+      .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
+      .innerJoin("Layer", "Layer.id", "Collection.layerId")
+      .select([
+        "Collectible.id",
+        "Collectible.name",
+        "Collectible.uniqueIdx",
+        "Collectible.createdAt",
+        "Collectible.fileKey",
+        "Collectible.collectionId",
+        "Layer.layer",
+        "Layer.network",
+      ])
+      .where("Collectible.uniqueIdx", "=", uniqueIdx)
+      .executeTakeFirst();
+
+    return collectible;
+  },
 };
