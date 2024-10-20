@@ -128,7 +128,10 @@ export const orderServices = {
 
       if (totalAmount >= order.fundingAmount) {
         order.paidAt = new Date();
-        await orderRepository.update(order.id, { paidAt: order.paidAt });
+        await orderRepository.update(order.id, {
+          paidAt: order.paidAt,
+          orderStatus: "IN_QUEUE",
+        });
         return true;
       }
       return false;
