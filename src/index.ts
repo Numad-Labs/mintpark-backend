@@ -21,6 +21,7 @@ import collectibleRouter from "./routes/collectibleRoutes";
 import collectibleTraitRouter from "./routes/collectibleTraitRoutes";
 import listRouter from "./routes/listRoutes";
 import launchRouter from "./routes/launchRoutes";
+import nftRouter from "../blockchain/evm/routes/nftRoutes";
 
 export const redis = new Redis(config.REDIS_CONNECTION_STRING);
 
@@ -45,6 +46,7 @@ app.use("/api/v1/collectibles", collectibleRouter);
 app.use("/api/v1/collectible-traits", collectibleTraitRouter);
 app.use("/api/v1/lists", listRouter);
 app.use("/api/v1/launchpad", launchRouter);
+app.use("/api/v1/evm", nftRouter);
 
 app.use(errorHandler);
 app.use(notFound);
