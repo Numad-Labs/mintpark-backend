@@ -62,6 +62,7 @@ export const collectionController = {
       WLEndsAt,
       WLMintPrice,
       WLMaxMintPerWallet,
+      txid,
     } = req.body;
     const { collectionId } = req.params;
     try {
@@ -108,7 +109,8 @@ export const collectionController = {
           wlMaxMintPerWallet: WLMaxMintPerWallet || null,
           wlMintPrice: WLMintPrice || null,
         },
-        files
+        files,
+        txid
       );
       return res.status(200).json({ success: true, data: launch });
     } catch (e) {

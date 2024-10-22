@@ -31,6 +31,8 @@ export interface MPMNFTInterface extends Interface {
       | "batchMint"
       | "getApproved"
       | "isApprovedForAll"
+      | "mint"
+      | "mintFee"
       | "name"
       | "owner"
       | "ownerOf"
@@ -39,11 +41,13 @@ export interface MPMNFTInterface extends Interface {
       | "safeTransferFrom(address,address,uint256)"
       | "safeTransferFrom(address,address,uint256,bytes)"
       | "setApprovalForAll"
+      | "setMintFee"
       | "supportsInterface"
       | "symbol"
       | "tokenURI"
       | "transferFrom"
       | "transferOwnership"
+      | "withdraw"
   ): FunctionFragment;
 
   getEvent(
@@ -76,6 +80,11 @@ export interface MPMNFTInterface extends Interface {
     functionFragment: "isApprovedForAll",
     values: [AddressLike, AddressLike]
   ): string;
+  encodeFunctionData(
+    functionFragment: "mint",
+    values: [BigNumberish, string]
+  ): string;
+  encodeFunctionData(functionFragment: "mintFee", values?: undefined): string;
   encodeFunctionData(functionFragment: "name", values?: undefined): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
@@ -88,7 +97,7 @@ export interface MPMNFTInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "safeMint",
-    values: [AddressLike, string]
+    values: [AddressLike, BigNumberish, string]
   ): string;
   encodeFunctionData(
     functionFragment: "safeTransferFrom(address,address,uint256)",
@@ -101,6 +110,10 @@ export interface MPMNFTInterface extends Interface {
   encodeFunctionData(
     functionFragment: "setApprovalForAll",
     values: [AddressLike, boolean]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setMintFee",
+    values: [BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "supportsInterface",
@@ -119,6 +132,7 @@ export interface MPMNFTInterface extends Interface {
     functionFragment: "transferOwnership",
     values: [AddressLike]
   ): string;
+  encodeFunctionData(functionFragment: "withdraw", values?: undefined): string;
 
   decodeFunctionResult(functionFragment: "approve", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "balanceOf", data: BytesLike): Result;
@@ -131,6 +145,8 @@ export interface MPMNFTInterface extends Interface {
     functionFragment: "isApprovedForAll",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "mint", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "mintFee", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "name", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "ownerOf", data: BytesLike): Result;
@@ -151,6 +167,7 @@ export interface MPMNFTInterface extends Interface {
     functionFragment: "setApprovalForAll",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "setMintFee", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "supportsInterface",
     data: BytesLike
@@ -165,6 +182,7 @@ export interface MPMNFTInterface extends Interface {
     functionFragment: "transferOwnership",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "withdraw", data: BytesLike): Result;
 }
 
 export namespace ApprovalEvent {
@@ -318,7 +336,7 @@ export interface MPMNFT extends BaseContract {
   balanceOf: TypedContractMethod<[owner: AddressLike], [bigint], "view">;
 
   batchMint: TypedContractMethod<
-    [to: AddressLike, quantity: BigNumberish, tokenURIs: string[]],
+    [to: AddressLike, quantity: BigNumberish, uris: string[]],
     [void],
     "nonpayable"
   >;
@@ -331,6 +349,14 @@ export interface MPMNFT extends BaseContract {
     "view"
   >;
 
+  mint: TypedContractMethod<
+    [tokenId: BigNumberish, uri: string],
+    [void],
+    "payable"
+  >;
+
+  mintFee: TypedContractMethod<[], [bigint], "view">;
+
   name: TypedContractMethod<[], [string], "view">;
 
   owner: TypedContractMethod<[], [string], "view">;
@@ -340,7 +366,7 @@ export interface MPMNFT extends BaseContract {
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
   safeMint: TypedContractMethod<
-    [to: AddressLike, uri: string],
+    [to: AddressLike, tokenId: BigNumberish, uri: string],
     [void],
     "nonpayable"
   >;
@@ -368,6 +394,12 @@ export interface MPMNFT extends BaseContract {
     "nonpayable"
   >;
 
+  setMintFee: TypedContractMethod<
+    [_mintFee: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
   supportsInterface: TypedContractMethod<
     [interfaceId: BytesLike],
     [boolean],
@@ -390,6 +422,8 @@ export interface MPMNFT extends BaseContract {
     "nonpayable"
   >;
 
+  withdraw: TypedContractMethod<[], [void], "nonpayable">;
+
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
@@ -407,7 +441,7 @@ export interface MPMNFT extends BaseContract {
   getFunction(
     nameOrSignature: "batchMint"
   ): TypedContractMethod<
-    [to: AddressLike, quantity: BigNumberish, tokenURIs: string[]],
+    [to: AddressLike, quantity: BigNumberish, uris: string[]],
     [void],
     "nonpayable"
   >;
@@ -422,6 +456,16 @@ export interface MPMNFT extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "mint"
+  ): TypedContractMethod<
+    [tokenId: BigNumberish, uri: string],
+    [void],
+    "payable"
+  >;
+  getFunction(
+    nameOrSignature: "mintFee"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
     nameOrSignature: "name"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
@@ -435,7 +479,11 @@ export interface MPMNFT extends BaseContract {
   ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "safeMint"
-  ): TypedContractMethod<[to: AddressLike, uri: string], [void], "nonpayable">;
+  ): TypedContractMethod<
+    [to: AddressLike, tokenId: BigNumberish, uri: string],
+    [void],
+    "nonpayable"
+  >;
   getFunction(
     nameOrSignature: "safeTransferFrom(address,address,uint256)"
   ): TypedContractMethod<
@@ -463,6 +511,9 @@ export interface MPMNFT extends BaseContract {
     "nonpayable"
   >;
   getFunction(
+    nameOrSignature: "setMintFee"
+  ): TypedContractMethod<[_mintFee: BigNumberish], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "supportsInterface"
   ): TypedContractMethod<[interfaceId: BytesLike], [boolean], "view">;
   getFunction(
@@ -481,6 +532,9 @@ export interface MPMNFT extends BaseContract {
   getFunction(
     nameOrSignature: "transferOwnership"
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "withdraw"
+  ): TypedContractMethod<[], [void], "nonpayable">;
 
   getEvent(
     key: "Approval"

@@ -3,7 +3,7 @@ import { abi as NFT_CONTRACT_ABI } from "../evm/artifacts/contracts/MPMNFT.sol/M
 import { bytecode as NFT_CONTRACT_BYTECODE } from "../evm/artifacts/contracts/MPMNFT.sol/MPMNFT.json";
 
 // const MARKETPLACE_ABI = "";
-const MARKETPLACE_ADDRESS = "0xD5A9e7fA1596FDae0dCe9B65aBb5DADb494fe3e1";
+const MARKETPLACE_ADDRESS = "0xbAe65119d70e675bedc2430920B99bFb729F9138";
 const COLLECTION_FACTORY_ABI = "";
 const COLLECTION_FACTORY_ADDRESS = "";
 const LAUNCHPAD_FACTORY_ABI = "";

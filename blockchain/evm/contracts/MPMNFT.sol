@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-// Compatible with OpenZeppelin Contracts ^5.0.0
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
@@ -8,36 +7,67 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract MPMNFT is ERC721, ERC721URIStorage, Ownable {
   uint256 private _nextTokenId;
+  uint256 public mintFee;
+  mapping(uint256 => bool) private _tokenMinted;
+  mapping(uint256 => string) private _tokenURIs;
 
   constructor(
     address initialOwner,
     string memory contractName,
-    string memory symbol
-  ) ERC721(contractName, symbol) Ownable(initialOwner) {}
+    string memory symbol,
+    uint256 _mintFee
+  ) ERC721(contractName, symbol) Ownable(initialOwner) {
+    mintFee = _mintFee;
+  }
 
-  function safeMint(address to, string memory uri) public onlyOwner {
-    uint256 tokenId = _nextTokenId++;
+  function safeMint(
+    address to,
+    uint256 tokenId,
+    string memory uri
+  ) public onlyOwner {
+    require(!_tokenMinted[tokenId], "Token ID already minted");
+    _tokenMinted[tokenId] = true;
     _safeMint(to, tokenId);
+    _setTokenURI(tokenId, uri);
+  }
+
+  function mint(uint256 tokenId, string memory uri) public payable {
+    require(msg.value >= mintFee, "Insufficient payment");
+    require(!_tokenMinted[tokenId], "Token already minted");
+
+    _tokenMinted[tokenId] = true;
+    _safeMint(msg.sender, tokenId);
     _setTokenURI(tokenId, uri);
   }
 
   function batchMint(
     address to,
     uint256 quantity,
-    string[] memory tokenURIs
+    string[] memory uris
   ) external onlyOwner {
-    require(quantity == tokenURIs.length, "Mismatch between quantity and URIs");
-    uint256 startTokenId = _nextTokenId;
+    require(quantity == uris.length, "Mismatch between quantity and URIs");
+
     for (uint256 i = 0; i < quantity; i++) {
-      uint256 tokenId = startTokenId + i;
+      uint256 tokenId = _nextTokenId;
+      _nextTokenId++;
+
+      require(!_tokenMinted[tokenId], "Token ID already minted");
+      _tokenMinted[tokenId] = true;
       _safeMint(to, tokenId);
-      _setTokenURI(tokenId, tokenURIs[i]);
+      _setTokenURI(tokenId, uris[i]);
     }
-    _nextTokenId = startTokenId + quantity;
   }
 
-  // The following functions are overrides required by Solidity.
+  function setMintFee(uint256 _mintFee) public onlyOwner {
+    mintFee = _mintFee;
+  }
 
+  function withdraw() public onlyOwner {
+    (bool success, ) = owner().call{value: address(this).balance}("");
+    require(success, "Transfer failed");
+  }
+
+  // Override required functions
   function tokenURI(
     uint256 tokenId
   ) public view override(ERC721, ERC721URIStorage) returns (string memory) {

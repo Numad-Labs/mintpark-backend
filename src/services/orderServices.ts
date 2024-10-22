@@ -18,7 +18,7 @@ import { Collectible } from "../types/db/types";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
-import NFTService from "../../blockchain/evm/services/newNftService";
+import NFTService from "../../blockchain/evm/services/nftService";
 import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
 import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
 
@@ -44,7 +44,7 @@ export const orderServices = {
     orderType: ORDER_TYPE,
     feeRate: number,
     files: Express.Multer.File[],
-    txid: string,
+    txid?: string,
     collectionId?: string
   ): Promise<{
     order: Order;
@@ -56,24 +56,6 @@ export const orderServices = {
     const layerType = await layerRepository.getById(user.layerId!);
     if (!layerType) throw new Error("Layer not found.");
 
-    const transactionDetail = await confirmationService.getTransactionDetails(
-      txid
-    );
-
-    if (transactionDetail.status !== 1) {
-      throw new CustomError(
-        "Transaction not confirmed. Please try again.",
-        500
-      );
-    }
-
-    if (!transactionDetail.deployedContractAddress) {
-      throw new CustomError(
-        "Transaction does not contain deployed contract address.",
-        500
-      );
-    }
-
     let order: Order;
     let orderItems: any[];
 
@@ -84,15 +66,13 @@ export const orderServices = {
       generate batch mint tx hex
       return that hex with the order & orderItems
     */
-
     let collection;
     if (orderType === "COLLECTION") {
       if (!collectionId) throw new Error("Collection id is required.");
       collection = await collectionServices.getById(collectionId);
-      if (!collection) throw new Error("Collection not found.");
+      if (!collection || !collection.id)
+        throw new Error("Collection not found.");
     }
-
-    // collectionServices.update(collectionId);
 
     const nftMetadatas: nftMetaData[] = [];
     let index = 0;
@@ -111,6 +91,41 @@ export const orderServices = {
     console.log(nftMetadatas);
 
     if (layerType.layer === "CITREA" && layerType.network === "TESTNET") {
+      if (!txid) throw new Error("txid not found.");
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
+
+      if (transactionDetail.status !== 1) {
+        throw new CustomError(
+          "Transaction not confirmed. Please try again.",
+          500
+        );
+      }
+
+      if (!transactionDetail.deployedContractAddress) {
+        throw new CustomError(
+          "Transaction does not contain deployed contract address.",
+          500
+        );
+      }
+
+      if (collection && collection.id) {
+        await collectionRepository.update(collection.id, {
+          contractAddress: transactionDetail.deployedContractAddress,
+        });
+      }
+
+      if (orderType === "COLLECTION") {
+        if (!collectionId) throw new Error("Collection id is required.");
+        collection = await collectionServices.getById(collectionId);
+        if (!collection || !collection.id)
+          throw new Error("Collection not found.");
+        await collectionRepository.update(collection.id, {
+          contractAddress: transactionDetail.deployedContractAddress,
+        });
+      }
+
       let networkFee = 0,
         serviceFee = 0;
       let totalAmount = networkFee + serviceFee;
@@ -300,10 +315,17 @@ export const orderServices = {
           inserts the orderItems into collectibles
           return true
         */
+        if (!txid) throw new CustomError("txid is missing", 500);
 
-        const isValidTx = txid ? true : false;
-        if (!isValidTx) throw new CustomError("Invalid tx.", 400);
-        console.log(isValidTx);
+        const transactionDetail =
+          await confirmationService.getTransactionDetails(txid);
+
+        if (transactionDetail.status !== 1) {
+          throw new CustomError(
+            "Transaction not confirmed. Please try again.",
+            500
+          );
+        }
 
         order.paidAt = new Date();
         await orderRepository.update(order.id, {

@@ -9,7 +9,7 @@ import { CollectionQueryParams } from "../controllers/collectionController";
 import { layerRepository } from "../repositories/layerRepository";
 import { CustomError } from "../exceptions/CustomError";
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
-import NFTService from "../../blockchain/evm/services/newNftService";
+import NFTService from "../../blockchain/evm/services/nftService";
 import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
 
 const nftService = new NFTService(
@@ -48,11 +48,12 @@ export const collectionServices = {
     let deployContractTxHex = null;
     if (layer.layer === "CITREA" && layer.network === "TESTNET") {
       //todo symbol yahu tur name eer ni oruullaa
-
+      const price = 0.1;
       const unsignedTx = await nftService.getUnsignedDeploymentTransaction(
         user.address,
         name,
-        name
+        name,
+        price
       );
       deployContractTxHex = unsignedTx;
     }
