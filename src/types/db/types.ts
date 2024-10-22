@@ -45,6 +45,7 @@ export type Collection = {
   inscriptionIcon: string | null;
   slug: string | null;
   layerId: string | null;
+  contractAddress: string | null;
   createdAt: Generated<Timestamp>;
 };
 export type Launch = {

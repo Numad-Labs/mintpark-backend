@@ -29,6 +29,7 @@ const envSchema = z.object({
   FRACTAL_TESTNET_PASSWORD: z.string(),
   UNISAT_BITCOIN_TESTNET_API_KEY: z.string(),
   UNISAT_FRACTAL_TESTNET_API_KEY: z.string(),
+  THIRDWEB_SECRET_KEY: z.string(),
 });
 
 let env = envSchema.safeParse(process.env);

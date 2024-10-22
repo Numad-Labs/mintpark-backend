@@ -8,9 +8,23 @@ import { userRepository } from "../repositories/userRepository";
 import { CollectionQueryParams } from "../controllers/collectionController";
 import { layerRepository } from "../repositories/layerRepository";
 import { CustomError } from "../exceptions/CustomError";
+import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
+import NFTService from "../../blockchain/evm/services/newNftService";
+import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
+
+const nftService = new NFTService(
+  EVM_CONFIG.RPC_URL,
+  EVM_CONFIG.MARKETPLACE_ADDRESS,
+  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
+);
 
 export const collectionServices = {
-  create: async (data: any, issuerId: string, file?: Express.Multer.File) => {
+  create: async (
+    data: any,
+    issuerId: string,
+    name: string,
+    file?: Express.Multer.File
+  ) => {
     const user = await userRepository.getById(issuerId);
     if (!user || !user.layerId) throw new Error("User not found.");
 
@@ -32,8 +46,16 @@ export const collectionServices = {
       throw new CustomError("This layer is unsupported for now.", 400);
 
     let deployContractTxHex = null;
-    if (layer.layer === "CITREA" && layer.network === "TESTNET")
-      deployContractTxHex = "DULGUUN";
+    if (layer.layer === "CITREA" && layer.network === "TESTNET") {
+      //todo symbol yahu tur name eer ni oruullaa
+
+      const unsignedTx = await nftService.getUnsignedDeploymentTransaction(
+        user.address,
+        name,
+        name
+      );
+      deployContractTxHex = unsignedTx;
+    }
 
     if (file) {
       const key = randomUUID();

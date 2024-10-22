@@ -78,11 +78,14 @@ export const launchController = {
         offerType: launchOfferType as "public" | "whitelist",
       };
 
+      //todo transaction ID ogoh
+      const txid = "123";
       const order = await launchServices.generateOrderForLaunchedCollection(
         collectionId,
         user.id,
         feeRate,
-        offerType
+        offerType,
+        txid
       );
 
       return res.status(200).json({ success: true, data: order });

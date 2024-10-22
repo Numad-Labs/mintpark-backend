@@ -98,7 +98,8 @@ export const launchServices = {
     collectionId: string,
     issuerId: string,
     feeRate: number,
-    launchOfferType: LaunchOfferType
+    launchOfferType: LaunchOfferType,
+    txid: string
   ) => {
     //TODO
     const user = await userRepository.getById(issuerId);
@@ -128,7 +129,7 @@ export const launchServices = {
     if (layer.layer === "CITREA" && layer.network === "TESTNET") {
       /*
           IF LAYER IS CITREA, validate funding TXID
-          RETURNs single mint tx hex 
+          RETURNs single mint tx hex
       */
       const serviceFee = 0;
       const networkFee = 0;
@@ -252,7 +253,7 @@ export const launchServices = {
 
       /*
         IF LAYER IS CITREA, validate mint TXID
-        sets the collection(if its first mint of that transaction) & launchItem status to CONFIRMED  
+        sets the collection(if its first mint of that transaction) & launchItem status to CONFIRMED
         creates collectible
         returns {collectible?, commitTxId, revealTxId}
       */
