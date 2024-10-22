@@ -73,9 +73,9 @@ class NFTService {
   async getUnsignedBatchMintNFTTransaction(
     collectionAddress: string,
     to: string,
-    startTokenId: number,
+    name: string,
     quantity: number,
-    req: Request
+    files: Express.Multer.File[]
   ) {
     const signer = await this.provider.getSigner();
 
@@ -86,7 +86,11 @@ class NFTService {
     );
 
     // Handle file uploads and metadata creation
-    const metadataURIs = await this.createAndUploadBatchMetadata(req, quantity);
+    const metadataURIs = await this.createAndUploadBatchMetadata(
+      files,
+      quantity,
+      name
+    );
 
     // Assuming the contract has a batchMintWithURI function
     const unsignedTx = await contract.batchMint.populateTransaction(
@@ -197,12 +201,10 @@ class NFTService {
   }
 
   private async createAndUploadBatchMetadata(
-    req: Request,
-    quantity: number
+    files: Express.Multer.File[],
+    quantity: number,
+    name: string
   ): Promise<string[]> {
-    // Check if files exist in the request
-    const files = req.files as Express.Multer.File[] | undefined;
-
     console.log("Files received:", files ? files.length : 0);
     console.log("Expected quantity:", quantity);
 
@@ -225,10 +227,10 @@ class NFTService {
 
         // Create metadata object
         const metadata = {
-          name: `${req.body.name || "Unnamed NFT"} #${index + 1}`,
-          description: req.body.description || "No description provided",
+          name: `${name || "Unnamed NFT"} #${index + 1}`,
+          // description: req.body.description || "No description provided",
           image: imageURI,
-          attributes: JSON.parse(req.body.attributes || "[]"),
+          // attributes: JSON.parse(req.body.attributes || "[]"),
         };
 
         // Upload metadata to IPFS
@@ -297,9 +299,7 @@ class NFTService {
         await this.marketplaceService.getEthersMarketplaceContract();
       // Create listing transaction
       const unsignedTx =
-        await marketplaceContract.createListing.populateTransaction(
-          listing
-        );
+        await marketplaceContract.createListing.populateTransaction(listing);
 
       const launchItems = [
         {

@@ -29,6 +29,10 @@ export class TransactionConfirmationService {
 
       // Get transaction receipt
       const receipt = await this.provider.getTransactionReceipt(txHash);
+      console.log(
+        "🚀 ~ TransactionConfirmationService ~ confirmTransaction ~ receipt:",
+        receipt
+      );
 
       if (!receipt) {
         const status: TransactionStatus = { status: "pending" };
@@ -81,22 +85,32 @@ export class TransactionConfirmationService {
       }
 
       const receipt = await this.provider.getTransactionReceipt(txHash);
+      console.log(
+        "🚀 ~ TransactionConfirmationService ~ getTransactionDetails ~ receipt:",
+        receipt
+      );
 
       return {
         from: tx.from,
         to: tx.to,
         value: tx.value.toString(),
+
         gasPrice: tx.gasPrice?.toString(),
         gasLimit: tx.gasLimit.toString(),
         nonce: tx.nonce,
+        deployedContractAddress: receipt
+          ? receipt.contractAddress
+            ? receipt.contractAddress.toString()
+            : null
+          : null,
         data: tx.data,
         blockNumber: receipt?.blockNumber,
-        status:
-          receipt?.status === 1
-            ? "success"
-            : receipt?.status === 0
-            ? "failed"
-            : "pending",
+        status: receipt?.status,
+        //  === 1
+        //   ? "success"
+        //   : receipt?.status === 0
+        //   ? "failed"
+        //   : "pending",
         gasUsed: receipt?.gasUsed?.toString(),
         // effectiveGasPrice: receipt?.effectiveGasPrice?.toString(),
         confirmations: receipt

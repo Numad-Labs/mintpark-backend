@@ -17,6 +17,20 @@ import { Insertable } from "kysely";
 import { Collectible } from "../types/db/types";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 
+import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
+import NFTService from "../../blockchain/evm/services/newNftService";
+import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
+import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
+
+const nftService = new NFTService(
+  EVM_CONFIG.RPC_URL,
+  EVM_CONFIG.MARKETPLACE_ADDRESS,
+  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
+);
+const confirmationService = new TransactionConfirmationService(
+  EVM_CONFIG.RPC_URL!
+);
+
 export interface nftMetaData {
   nftId: string | null;
   name: string | null;
@@ -30,16 +44,35 @@ export const orderServices = {
     orderType: ORDER_TYPE,
     feeRate: number,
     files: Express.Multer.File[],
+    txid: string,
     collectionId?: string
   ): Promise<{
     order: Order;
     orderItems: any[];
-    batchMintTxHex: string | null;
+    batchMintTxHex: any;
   }> => {
     const user = await userRepository.getById(userId);
     if (!user) throw new Error("User not found.");
     const layerType = await layerRepository.getById(user.layerId!);
     if (!layerType) throw new Error("Layer not found.");
+
+    const transactionDetail = await confirmationService.getTransactionDetails(
+      txid
+    );
+
+    if (transactionDetail.status !== 1) {
+      throw new CustomError(
+        "Transaction not confirmed. Please try again.",
+        500
+      );
+    }
+
+    if (!transactionDetail.deployedContractAddress) {
+      throw new CustomError(
+        "Transaction does not contain deployed contract address.",
+        500
+      );
+    }
 
     let order: Order;
     let orderItems: any[];
@@ -58,6 +91,8 @@ export const orderServices = {
       collection = await collectionServices.getById(collectionId);
       if (!collection) throw new Error("Collection not found.");
     }
+
+    // collectionServices.update(collectionId);
 
     const nftMetadatas: nftMetaData[] = [];
     let index = 0;
@@ -136,12 +171,18 @@ export const orderServices = {
           throw new Error("Invalid order type.");
       }
 
-      for (const nftMetadata of nftMetadatas) {
-        const ipfsUri = "DULGUUN";
-        nftMetadata.ipfsUri = ipfsUri;
-      }
+      // await collectionServices.update()
+      //todo deployed contract address yaj hadgalhii contract address ruu?
 
-      const batchMintTxHex = "DULGUUN";
+      const unsignedTx = await nftService.getUnsignedBatchMintNFTTransaction(
+        transactionDetail.deployedContractAddress,
+        user.address,
+        collection?.name ?? "NFT",
+        files.length,
+        files
+      );
+
+      const batchMintTxHex = unsignedTx;
 
       return { order, orderItems, batchMintTxHex };
     } else if (

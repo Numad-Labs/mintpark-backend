@@ -78,14 +78,19 @@ export const getMintBatchNFTTransaction = async (
   res: Response
 ) => {
   try {
-    const { collectionAddress, to, startTokenId, quantity } = req.body;
+    const { collectionAddress, to, quantity } = req.body;
+    if (!req.files) {
+      throw new Error("no files");
+    }
 
+    const files = req.files as Express.Multer.File[];
+    const name = "bbb";
     const unsignedTx = await nftService.getUnsignedBatchMintNFTTransaction(
       collectionAddress,
       to,
-      startTokenId,
+      name,
       quantity,
-      req
+      files
     );
     const serializedTx = serializeBigInt(unsignedTx);
 

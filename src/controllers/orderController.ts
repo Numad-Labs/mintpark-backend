@@ -11,7 +11,8 @@ export const orderController = {
     next: NextFunction
   ) => {
     if (!req.user) throw new CustomError("Cannot parse user from token", 401);
-    const { orderType, collectionId, feeRate } = req.body;
+    //todo txid nemsen example oorchloh
+    const { orderType, collectionId, feeRate, txid } = req.body;
     if (!orderType || !feeRate)
       throw new CustomError("Order type and fee rate are required.", 400);
     const files = req.files as Express.Multer.File[];
@@ -30,7 +31,8 @@ export const orderController = {
         orderType,
         Number(feeRate),
         files,
-        collectionId
+        collectionId,
+        txid
       );
       const sanitazedOrder = hideSensitiveData(order, ["privateKey"]);
 
