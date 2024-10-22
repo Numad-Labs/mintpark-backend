@@ -234,7 +234,7 @@ async function mintOrderItem(orderItem: OrderItemDetails, order: any) {
           fileKey: orderItem.fileKey,
           name: `${collection.name} #${collection.supply}`,
           collectionId: collection.id,
-          uniqueIdx: `${revealTxId.slice(0, -2)}`,
+          uniqueIdx: `${revealTxId}i0`,
         });
 
         collection.supply++;
