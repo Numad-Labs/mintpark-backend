@@ -45,7 +45,11 @@ export const collectibleRepository = {
   ) => {
     let query = db
       .selectFrom("Collectible")
-      .leftJoin("List", "List.collectibleId", "Collectible.id")
+      .leftJoin("List as CurrentList", (join) =>
+        join
+          .onRef("CurrentList.collectibleId", "=", "Collectible.id")
+          .on("CurrentList.status", "=", "ACTIVE")
+      )
       .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
       .select(({ eb }) => [
         "Collectible.id",
@@ -56,9 +60,9 @@ export const collectibleRepository = {
         "Collectible.createdAt",
         "Collectible.collectionId",
         "Collection.name as collectionName",
-        "List.listedAt",
-        "List.id as listId",
-        "List.price",
+        "CurrentList.listedAt",
+        "CurrentList.id as listId",
+        "CurrentList.price",
         eb.fn
           .coalesce(
             eb
@@ -74,11 +78,16 @@ export const collectibleRepository = {
       ])
       .where((eb) =>
         eb("Collectible.uniqueIdx", "in", inscriptionIds).or(
-          eb("List.price", ">", 0).and("List.sellerId", "=", userId)
+          eb("CurrentList.price", ">", 0).and(
+            "CurrentList.sellerId",
+            "=",
+            userId
+          )
         )
       );
 
-    if (params.isListed) query = query.where("List.status", "=", "ACTIVE");
+    if (params.isListed)
+      query = query.where("CurrentList.status", "=", "ACTIVE");
 
     const collectionIds = params.collectionIds as string[];
     if (collectionIds && collectionIds.length > 0) {
@@ -94,12 +103,12 @@ export const collectibleRepository = {
     switch (params.orderBy) {
       case "price":
         query = query.orderBy(
-          "List.price",
+          "CurrentList.price",
           params.orderDirection === "desc" ? "desc" : "asc"
         );
         break;
       case "recent":
-        query = query.orderBy("List.listedAt", "asc");
+        query = query.orderBy("CurrentList.listedAt", "asc");
         break;
       default:
         query = query.orderBy("Collectible.createdAt", "asc");
@@ -138,11 +147,16 @@ export const collectibleRepository = {
               .coalesce(sql<number>`MIN("List"."price")`, sql<number>`0`)
               .as("floor"),
           ])
+          .where("List.price", ">", 0)
           .groupBy("Collectible.collectionId")
       )
       .selectFrom("Collectible")
       .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
-      .leftJoin("List", "List.collectibleId", "Collectible.id")
+      .leftJoin("List as CurrentList", (join) =>
+        join
+          .onRef("CurrentList.collectibleId", "=", "Collectible.id")
+          .on("CurrentList.status", "=", "ACTIVE")
+      )
       .leftJoin(
         "FloorPrices",
         "FloorPrices.collectionId",
@@ -156,18 +170,24 @@ export const collectibleRepository = {
         "Collectible.fileKey",
         "Collectible.collectionId",
         "Collection.name as collectionName",
-        eb.fn.coalesce("List.price", sql<number>`0`).as("price"),
+        eb.fn.coalesce("CurrentList.price", sql<number>`0`).as("price"),
         "FloorPrices.floor",
-        sql<number>`"price" / "FloorPrices"."floor"`
+        sql`
+          CASE 
+            WHEN ${eb.ref("FloorPrices.floor")} > 0 
+            THEN ${eb.ref("CurrentList.price")} / ${eb.ref("FloorPrices.floor")}
+            ELSE 0 
+          END`
           .$castTo<number>()
           .as("floorDifference"),
-        "List.address as ownedBy",
-        "List.listedAt",
-        'List.id as listId',
+        "CurrentList.address as ownedBy",
+        "CurrentList.listedAt",
+        "CurrentList.id as listId",
       ])
       .where("Collectible.collectionId", "=", collectionId);
 
-    if (params.isListed) query = query.where("List.status", "=", "ACTIVE");
+    if (params.isListed)
+      query = query.where("CurrentList.status", "=", "ACTIVE");
 
     if (traitsFilters.length > 0) {
       query = query.where((eb) =>
@@ -197,12 +217,12 @@ export const collectibleRepository = {
     switch (params.orderBy) {
       case "price":
         query = query.orderBy(
-          "List.price",
+          "CurrentList.price",
           params.orderDirection === "desc" ? "desc" : "asc"
         );
         break;
       case "recent":
-        query = query.orderBy("List.listedAt", "asc");
+        query = query.orderBy("CurrentList.listedAt", "asc");
         break;
       default:
         query = query.orderBy("Collectible.createdAt", "asc");
@@ -224,11 +244,16 @@ export const collectibleRepository = {
               .coalesce(sql<number>`MIN("List"."price")`, sql<number>`0`)
               .as("floor"),
           ])
+          .where("List.price", ">", 0)
           .groupBy("Collectible.collectionId")
       )
       .selectFrom("Collectible")
       .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
-      .leftJoin("List", "List.collectibleId", "Collectible.id")
+      .leftJoin("List as CurrentList", (join) =>
+        join
+          .onRef("CurrentList.collectibleId", "=", "Collectible.id")
+          .on("CurrentList.status", "=", "ACTIVE")
+      )
       .leftJoin(
         "FloorPrices",
         "FloorPrices.collectionId",
@@ -243,14 +268,18 @@ export const collectibleRepository = {
         "Collectible.collectionId",
         "Collection.description",
         "Collection.name as collectionName",
-        eb.fn.coalesce("List.price", sql<number>`0`).as("price"),
+        eb.fn.coalesce("CurrentList.price", sql<number>`0`).as("price"),
         "FloorPrices.floor",
-        sql<number>`"price" / "FloorPrices"."floor"`
+        sql`
+          CASE 
+            WHEN ${eb.ref("FloorPrices.floor")} > 0 
+            THEN ${eb.ref("CurrentList.price")} / ${eb.ref("FloorPrices.floor")}
+            ELSE 0 
+          END`
           .$castTo<number>()
           .as("floorDifference"),
-        "List.address as ownedBy",
-        "List.listedAt",
-        'List.id as listId',
+        "CurrentList.address as ownedBy",
+        "CurrentList.listedAt",
       ])
       .where("Collectible.id", "=", id)
       .execute();

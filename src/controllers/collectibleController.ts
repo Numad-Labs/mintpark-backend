@@ -88,12 +88,9 @@ export const collectibleControllers = {
     try {
       const { id } = req.params;
 
-      const listableCollectibles =
-        await collectibleRepository.getByIdWithDetails(id);
+      const collectible = await collectibleRepository.getByIdWithDetails(id);
 
-      return res
-        .status(200)
-        .json({ success: true, data: listableCollectibles });
+      return res.status(200).json({ success: true, data: collectible });
     } catch (e) {}
   },
 };
