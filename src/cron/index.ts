@@ -73,7 +73,7 @@ const MAX_CONCURRENT_MINTS = 5;
 const MAX_RETRIES = 60;
 const RETRY_INTERVAL = 10000;
 const LOCK_KEY = "minting_queue_lock";
-const LOCK_EXPIRY = 60 * 60;
+const LOCK_EXPIRY = 59;
 
 export function mintingQueue() {
   cron.schedule("*/1 * * * *", async () => {

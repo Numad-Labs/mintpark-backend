@@ -241,12 +241,15 @@ export const launchServices = {
       purchase.launchItemId
     );
     console.log(launchItem);
-    if (!launchItem || !launchItem.evmAssetId)
+    if (!launchItem)
       throw new Error("Launch item not found.");
 
     const file = await getObjectFromS3(launchItem.fileKey);
 
     if (layer?.layer === "CITREA" && layer.network === "TESTNET") {
+      if (!launchItem.evmAssetId)
+        throw new Error("Launch item not found.");
+
       /*
         IF LAYER IS CITREA, validate mint TXID
         sets the collection(if its first mint of that transaction) & launchItem status to CONFIRMED  

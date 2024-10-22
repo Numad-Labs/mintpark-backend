@@ -46,6 +46,7 @@ export const orderRepository = {
       .selectFrom("Order")
       .selectAll()
       .where("Order.userId", "=", userId)
+      .orderBy('Order.createdAt desc')
       .execute();
 
     return orders;
