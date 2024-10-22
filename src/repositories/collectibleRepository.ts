@@ -163,6 +163,7 @@ export const collectibleRepository = {
           .as("floorDifference"),
         "List.address as ownedBy",
         "List.listedAt",
+        'List.id as listId',
       ])
       .where("Collectible.collectionId", "=", collectionId);
 
@@ -249,6 +250,7 @@ export const collectibleRepository = {
           .as("floorDifference"),
         "List.address as ownedBy",
         "List.listedAt",
+        'List.id as listId',
       ])
       .where("Collectible.id", "=", id)
       .execute();
