@@ -25,6 +25,9 @@ export const collectibleServices = {
       (inscriptionUtxo) => inscriptionUtxo.inscriptions[0].inscriptionId
     );
 
+    if (inscriptionIds.length === 0)
+      throw new CustomError("You do not have any listable collectibles.", 400);
+
     const [
       listableCollectibles,
       totalCountResult,
