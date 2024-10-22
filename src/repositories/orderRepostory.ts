@@ -1,7 +1,7 @@
 import { Insertable, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { Order } from "../types/db/types";
-import { ORDER_STATUS, ORDER_TYPE } from "../types/db/enums";
+import { LAYER, ORDER_STATUS, ORDER_TYPE } from "../types/db/enums";
 
 export const orderRepository = {
   create: async (data: Insertable<Order>) => {
@@ -72,12 +72,20 @@ export const orderRepository = {
 
     return order;
   },
-  getAll: async () => {
-    const orders = await db.selectFrom("Order").selectAll().execute();
+  getAll: async (layer: LAYER) => {
+    const orders = await db
+      .selectFrom("Order")
+      .innerJoin("User", "User.id", "Order.userId")
+      .innerJoin("Layer", "Layer.id", "User.layerId")
+      .selectAll(["Order"])
+      .where("Order.orderStatus", "!=", "DONE")
+      .where("Order.orderStatus", "!=", "EXPIRED")
+      .where("Layer.layer", "=", layer)
+      .execute();
 
     return orders;
   },
-  getInQueueOrders: async () => {
+  getInQueueOrders: async (layer: LAYER) => {
     const orders = await db
       .selectFrom("Order")
       .selectAll()

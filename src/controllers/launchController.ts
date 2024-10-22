@@ -84,6 +84,7 @@ export const launchController = {
         feeRate,
         offerType
       );
+
       return res.status(200).json({ success: true, data: order });
     } catch (e) {
       next(e);
@@ -94,7 +95,7 @@ export const launchController = {
     res: Response,
     next: NextFunction
   ) => {
-    const { orderId } = req.body;
+    const { orderId, txid } = req.body;
 
     try {
       const user = await userRepository.getById(req.user?.id!);
@@ -109,11 +110,27 @@ export const launchController = {
 
       const mintHexes = await launchServices.mintPickedCollection(
         orderId,
-        user.id
+        user.id,
+        txid
       );
       return res
         .status(200)
         .json({ success: true, data: { mintHexes: mintHexes } });
+    } catch (e) {
+      next(e);
+    }
+  },
+  generateCitreaBuyHex: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { id } = req.params;
+
+      const result = await launchServices.generateCitreaBuyHex(id);
+
+      return res.status(200).json({ success: true, data: result });
     } catch (e) {
       next(e);
     }

@@ -66,6 +66,8 @@ export type LaunchItem = {
   fileKey: string;
   metadata: unknown | null;
   status: Generated<LAUNCH_ITEM_STATUS>;
+  evmAssetId: string | null;
+  name: string | null;
 };
 export type Layer = {
   id: Generated<string>;
@@ -114,6 +116,8 @@ export type OrderItem = {
   fileKey: string;
   metadata: unknown | null;
   status: Generated<ORDER_ITEM_STATUS>;
+  evmAssetId: string | null;
+  name: string | null;
 };
 export type Purchase = {
   id: Generated<string>;

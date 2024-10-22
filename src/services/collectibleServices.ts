@@ -33,7 +33,8 @@ export const collectibleServices = {
     ] = await Promise.all([
       collectibleRepository.getListableCollectiblesByInscriptionIds(
         inscriptionIds,
-        params
+        params,
+        user.id
       ),
       collectibleRepository.getListableCollectiblesCountByInscriptionIds(
         inscriptionIds

@@ -35,8 +35,16 @@ export const collectionController = {
       layerId: null,
     };
     try {
-      const collection = await collectionServices.create(data, userId, logo);
-      return res.status(200).json({ success: true, data: collection });
+      const result = await collectionServices.create(data, userId, logo);
+      return res
+        .status(200)
+        .json({
+          success: true,
+          data: {
+            collection: result.collection,
+            deployContractTxHex: result.deployContractTxHex,
+          },
+        });
     } catch (e) {
       next(e);
     }

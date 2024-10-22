@@ -31,10 +31,7 @@ export const listServices = {
     const collectible = await collectibleRepository.getById(collectibleId);
     if (!collectible) throw new CustomError("Collectible not found.", 400);
     if (collectible.layer !== "FRACTAL" && collectible.network !== "TESTNET")
-      throw new CustomError(
-        "This layer 2 is not in function at the moment.",
-        400
-      );
+      throw new CustomError("This layer is not supported ATM.", 400);
 
     const inscription = await getInscriptionInfo(collectible.uniqueIdx);
     if (!inscription)
@@ -42,6 +39,8 @@ export const listServices = {
         "Invalid inscriptionId, this inscription cant be sold.",
         400
       );
+    console.log(issuer);
+    console.log(inscription);
     if (inscription.address !== issuer.address)
       throw new CustomError("You are not the owner of this inscription.", 400);
     if (!inscription.utxo.satoshi)
@@ -189,7 +188,12 @@ export const listServices = {
       list.price
     );
 
-    return txid;
+    const confirmedList = await listRepository.update(list.id, {
+      status: "SOLD",
+      soldAt: new Date(),
+    });
+
+    return { txid, confirmedList };
   },
   estimateFee: async (id: string, feeRate: number) => {
     const list = await listRepository.getById(id);

@@ -7,6 +7,7 @@ import {
   getRawTransaction,
   getUtxos,
   prepareInputs,
+  sendRawTransactionWithNode,
 } from "./libs";
 import { SERVICE_FEE_ADDRESS, TX_EMPTY_SIZE } from "../constants";
 
@@ -156,12 +157,12 @@ export async function generateBuyPsbtHex(
   });
   psbt.addOutput({
     address: serviceFeeReceivingAddress,
-    value: BigInt(data.serviceFee),
+    value: BigInt(Math.floor(data.serviceFee)),
   });
   if (selectedUtxos.changeAmount >= 546) {
     psbt.addOutput({
       address: data.buyerAddress,
-      value: BigInt(selectedUtxos.changeAmount),
+      value: BigInt(Math.floor(selectedUtxos.changeAmount)),
     });
   }
 
@@ -204,8 +205,10 @@ export async function validateSignAndBroadcastBuyPsbtHex(
   const txHex = psbt.extractTransaction(false).toHex();
   console.log(txHex);
 
+  const txid = await sendRawTransactionWithNode(txHex, true);
+
   //   const txid = await sendTransaction(txHex);
   //   console.log(txid);
 
-  return txHex;
+  return txid;
 }

@@ -66,6 +66,9 @@ model OrderItem {
   fileKey  String
   metadata Json?
   status   ORDER_ITEM_STATUS @default(PENDING)
+
+  evmAssetId String?
+  name String?
 }
 
 model Collection {
@@ -109,6 +112,9 @@ model LaunchItem {
   metadata  Json?
   status    LAUNCH_ITEM_STATUS @default(ACTIVE)
   purchases Purchase[]
+
+  evmAssetId String?
+  name String?
 }
 
 model Launch {

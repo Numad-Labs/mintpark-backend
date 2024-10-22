@@ -35,7 +35,10 @@ export async function checkAndUpdateCollectibleStatus() {
 export function checkPaymentAndUpdateOrderStatus() {
   cron.schedule("*/5 * * * *", async () => {
     try {
-      const orders = await orderRepository.getAll();
+      /*
+        FETCH ONLY FRACTAL ORDERS ✅
+      */
+      const orders = await orderRepository.getAll("FRACTAL");
       let totalUpdated = 0;
 
       for (const order of orders) {
@@ -94,7 +97,8 @@ export function mintingQueue() {
 
     try {
       console.log("Lock acquired. Starting minting queue process...");
-      const orders = await orderRepository.getInQueueOrders();
+      const orders = await orderRepository.getInQueueOrders("FRACTAL");
+      console.log(`mintingQueue: ${orders}`);
       if (orders.length === 0) {
         console.log("No orders in queue. Skipping this run.");
         return;

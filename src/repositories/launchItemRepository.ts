@@ -87,6 +87,8 @@ export const launchItemRepository = {
       .select([
         "LaunchItem.id",
         "LaunchItem.launchId",
+        "LaunchItem.name",
+        "LaunchItem.evmAssetId",
         "LaunchItem.fileKey",
         "LaunchItem.metadata",
         "LaunchItem.status",

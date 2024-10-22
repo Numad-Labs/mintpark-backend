@@ -90,13 +90,15 @@ export const listController = {
         throw new CustomError("Could not retrieve id from the token.", 400);
       if (!hex) throw new CustomError("Please provide the hex", 400);
 
-      const txid = await listServices.buyListedCollectible(
+      const { confirmedList, txid } = await listServices.buyListedCollectible(
         id,
         hex,
         req.user.id
       );
 
-      return res.status(200).json({ success: true, data: { txid } });
+      return res
+        .status(200)
+        .json({ success: true, data: { confirmedList, txid } });
     } catch (e) {
       next(e);
     }

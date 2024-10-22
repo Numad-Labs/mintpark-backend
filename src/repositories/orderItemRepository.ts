@@ -97,4 +97,14 @@ export const orderItemRepository = {
       .where("Order.id", "=", orderId)
       .execute();
   },
+  updateByOrderId: async (orderId: string, data: Updateable<OrderItem>) => {
+    const orderItems = await db
+      .updateTable("OrderItem")
+      .set(data)
+      .returningAll()
+      .where("OrderItem.orderId", "=", orderId)
+      .execute();
+
+    return orderItems;
+  },
 };

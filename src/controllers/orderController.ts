@@ -25,7 +25,7 @@ export const orderController = {
           "CollectionId is required when creating order for collection or launch.",
           400
         );
-      const { order, orderItems } = await orderServices.create(
+      const { order, orderItems, batchMintTxHex } = await orderServices.create(
         req.user.id,
         orderType,
         Number(feeRate),
@@ -36,7 +36,7 @@ export const orderController = {
 
       return res.status(200).json({
         success: true,
-        data: { order: sanitazedOrder, orderItems: orderItems },
+        data: { order: sanitazedOrder, orderItems: orderItems, batchMintTxHex },
       });
     } catch (e) {
       next(e);
@@ -71,9 +71,14 @@ export const orderController = {
   checkOrderIsPaid: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { orderId } = req.params;
+      const { txid } = req.query;
+
       const order = await orderServices.getById(orderId);
       if (!order) throw new CustomError("Order not found", 404);
-      const isPaid = await orderServices.checkOrderisPaid(order.id);
+      const isPaid = await orderServices.checkOrderisPaid(
+        order.id,
+        txid?.toString()
+      );
       return res.status(200).json({
         success: true,
         data: {

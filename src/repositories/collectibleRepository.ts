@@ -40,7 +40,8 @@ export const collectibleRepository = {
   },
   getListableCollectiblesByInscriptionIds: async (
     inscriptionIds: string[],
-    params: CollectibleQueryParams
+    params: CollectibleQueryParams,
+    userId: string
   ) => {
     let query = db
       .selectFrom("Collectible")
@@ -67,15 +68,13 @@ export const collectibleRepository = {
               .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
               .orderBy("price", "asc")
               .limit(1),
-            eb.val(0)
+            sql<number>`0`
           )
           .as("floor"),
       ])
       .where((eb) =>
         eb("Collectible.uniqueIdx", "in", inscriptionIds).or(
-          "List.price",
-          ">",
-          0
+          eb("List.price", ">", 0).and("List.sellerId", "=", userId)
         )
       );
 
@@ -292,5 +291,14 @@ export const collectibleRepository = {
       .executeTakeFirst();
 
     return collectible;
+  },
+  bulkInsert: async (data: Insertable<Collectible>[]) => {
+    const collectibles = await db
+      .insertInto("Collectible")
+      .values(data)
+      .returningAll()
+      .execute();
+
+    return collectibles;
   },
 };
