@@ -26,7 +26,12 @@ export const collectibleServices = {
     );
 
     if (inscriptionIds.length === 0)
-      throw new CustomError("You do not have any listable collectibles.", 400);
+      return {
+        collectibles: [],
+        totalCount: 0,
+        listCount: 0,
+        collections: [],
+      };
 
     const [
       listableCollectibles,
