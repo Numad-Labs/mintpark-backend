@@ -280,6 +280,7 @@ export const collectibleRepository = {
           .as("floorDifference"),
         "CurrentList.address as ownedBy",
         "CurrentList.listedAt",
+        "CurrentList.id as listId",
       ])
       .where("Collectible.id", "=", id)
       .execute();
