@@ -6,8 +6,9 @@ import { generateMessage } from "../libs/generateMessage";
 import { generateNonce } from "../libs/generateNonce";
 import { redis } from "..";
 import { generateTokens } from "../utils/jwt";
-import { verifySignedMessage } from "../../blockchain/utxo/verifyMessageHelper";
+import { verifySignedMessage as fractalVerifySignedMessage } from "../../blockchain/utxo/verifyMessageHelper";
 import { layerRepository } from "../repositories/layerRepository";
+import { verifySignedMessage as citreaVerifySignedMessage} from "../../blockchain/evm/utils";
 
 export const userServices = {
   generateMessageToSign: async (address: string) => {
@@ -31,13 +32,18 @@ export const userServices = {
 
     const message = await generateMessage(address, nonce);
 
-    // const isValid = verifySignedMessage(
-    //   message,
-    //   signedMessage,
-    //   address,
-    //   layerId // fix this
-    // );
-    // if (!isValid) throw new CustomError("Invalid signature.", 400);
+    if(layer.layer === 'CITREA'){
+      const isValid = await citreaVerifySignedMessage(message, signedMessage, address)
+      if (!isValid) throw new CustomError("Invalid signature.", 400);
+    } else if(layer.layer === 'FRACTAL'){
+      const isValid = await fractalVerifySignedMessage(
+        message,
+        signedMessage,
+        pubkey,
+        layerId
+      );
+      if (!isValid) throw new CustomError("Invalid signature.", 400);
+    }
 
     let user = await userRepository.getByAddress(address);
     if (!user) {

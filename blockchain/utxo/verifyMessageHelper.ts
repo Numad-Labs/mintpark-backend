@@ -5,7 +5,7 @@ import { layerRepository } from "../../src/repositories/layerRepository";
 export async function verifySignedMessage(
   originalMessage: string,
   signedMessage: string,
-  address: string,
+  pubkey: string,
   layerId: string
 ) {
   const layer = await layerRepository.getById(layerId);
@@ -18,7 +18,7 @@ export async function verifySignedMessage(
       return verifySignedMessageFractal(
         originalMessage,
         signedMessage,
-        address
+        pubkey
       );
     default:
       throw new Error("Layer not supported.");

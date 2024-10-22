@@ -2,6 +2,7 @@ import * as bitcoin from "bitcoinjs-lib";
 import bitcoinMessage from "bitcoinjs-message";
 import { getAddressType } from "./libs";
 import { CustomError } from "../../../src/exceptions/CustomError";
+import { verifyMessage } from "@unisat/wallet-utils";
 
 const secp256k1 = require("noble-secp256k1");
 const { bech32m } = require("bech32");
@@ -9,24 +10,29 @@ const { bech32m } = require("bech32");
 export function verifySignedMessageFractal(
   originalMessage: string,
   signedMessage: string,
-  address: string
+  pubkey: string
 ): boolean {
-  const addressType = getAddressType(address);
+  console.log(pubkey)
+  // const addressType = getAddressType(address);
 
-  if (addressType.script === "p2tr") {
-    // return verifyTaprootSignature(originalMessage, signedMessage, address);
-    throw new CustomError("Taproot verification is not supported yet.", 400);
-  }
+  // if (addressType.script === "p2tr") {
+  //   // return verifyTaprootSignature(originalMessage, signedMessage, address);
+  //   throw new CustomError("Taproot verification is not supported yet.", 400);
+  // }
 
-  console.log("Login address type: ", addressType.script);
+  // console.log("Login address type: ", addressType.script);
 
-  return bitcoinMessage.verify(
-    originalMessage,
-    address,
-    signedMessage,
-    bitcoin.networks.bitcoin.messagePrefix,
-    true
-  );
+  console.log(verifyMessage(pubkey, originalMessage, signedMessage))
+
+  return verifyMessage(pubkey, originalMessage, signedMessage)
+
+  // return bitcoinMessage.verify(
+  //   originalMessage,
+  //   address,
+  //   signedMessage,
+  //   bitcoin.networks.bitcoin.messagePrefix,
+  //   true
+  // );
 }
 
 function verifyTaprootSignature(
