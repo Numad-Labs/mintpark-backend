@@ -75,6 +75,8 @@ export const orderController = {
 
       const order = await orderServices.getById(orderId);
       if (!order) throw new CustomError("Order not found", 404);
+      if (order.orderStatus !== 'PENDING') return res.status(200).json({success: true, data: { isPaid: true}});
+
       const isPaid = await orderServices.checkOrderisPaid(
         order.id,
         txid?.toString()
