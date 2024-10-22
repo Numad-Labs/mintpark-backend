@@ -1,11 +1,13 @@
 import { NextFunction, Request, Response } from "express";
 import NFTService from "../services/newNftService";
+import MarketplaceService from "../services/marketplaceService";
 // import NFTService from "../evm/services/nftService";
 import { EVM_CONFIG } from "../evm-config";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
-  EVM_CONFIG.MARKETPLACE_ADDRESS
+  EVM_CONFIG.MARKETPLACE_ADDRESS,
+  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
 );
 
 // Helper function to serialize BigInt values
@@ -56,12 +58,12 @@ export const getMintNFTTransaction = async (
   next: NextFunction
 ) => {
   try {
-    const { collectionAddress, to, tokenId, uri } = req.body;
+    const { collectionAddress, to, tokenId } = req.body;
     const unsignedTx = await nftService.getUnsignedMintNFTTransaction(
       collectionAddress,
       to,
       tokenId,
-      uri
+      req
     );
     console.log("🚀 ~ unsignedTx:", unsignedTx);
     const serializedTx = serializeBigInt(unsignedTx);
@@ -69,6 +71,27 @@ export const getMintNFTTransaction = async (
     res.json({ success: true, unsignedTransaction: serializedTx });
   } catch (e) {
     next(e);
+  }
+};
+export const getMintBatchNFTTransaction = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { collectionAddress, to, startTokenId, quantity } = req.body;
+
+    const unsignedTx = await nftService.getUnsignedBatchMintNFTTransaction(
+      collectionAddress,
+      to,
+      startTokenId,
+      quantity,
+      req
+    );
+    const serializedTx = serializeBigInt(unsignedTx);
+
+    res.json({ success: true, unsignedTransaction: serializedTx });
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
   }
 };
 

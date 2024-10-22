@@ -6,35 +6,79 @@ import { config } from "../../../src/config/config";
 
 class MarketplaceService {
   private marketplaceAddress: string;
-  private ethersMarketplaceContract: ethers.Contract;
+  private ethersMarketplaceContract?: ethers.Contract;
+  private initialized: boolean = false;
 
   constructor(marketplaceAddress: string) {
     this.marketplaceAddress = marketplaceAddress;
   }
 
-  private async getEthersMarketplaceContract(): Promise<ethers.Contract> {
-    if (!this.ethersMarketplaceContract) {
-      const client = createThirdwebClient({
-        secretKey: config.THIRDWEB_SECRET_KEY!,
-      });
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
 
-      const citreaChain = defineChain({
-        id: EVM_CONFIG.CHAIN_ID,
-        rpc: EVM_CONFIG.RPC_URL,
-      });
+    const client = createThirdwebClient({
+      secretKey: config.THIRDWEB_SECRET_KEY!,
+    });
 
-      const marketplaceContract = getContract({
-        address: this.marketplaceAddress,
-        client,
-        chain: citreaChain,
-      });
+    const citreaChain = defineChain({
+      id: EVM_CONFIG.CHAIN_ID,
+      rpc: EVM_CONFIG.RPC_URL,
+    });
 
-      this.ethersMarketplaceContract = await ethers6Adapter.contract.toEthers({
-        thirdwebContract: marketplaceContract,
-      });
-    }
+    const marketplaceContract = getContract({
+      address: this.marketplaceAddress,
+      client,
+      chain: citreaChain,
+    });
 
+    this.ethersMarketplaceContract = await ethers6Adapter.contract.toEthers({
+      thirdwebContract: marketplaceContract,
+    });
+    console.log(
+      "🚀 ~ MarketplaceService ~ initialize ~ ethersMarketplaceContract:",
+      this.ethersMarketplaceContract
+    );
+
+    this.initialized = true;
+  }
+
+  async getContract(): Promise<ethers.Contract | undefined> {
+    this.ensureInitialized();
     return this.ethersMarketplaceContract;
+  }
+
+  async ensureInitialized(): Promise<void> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+  }
+
+  async getEthersMarketplaceContract(): Promise<ethers.Contract> {
+    // if (!this.ethersMarketplaceContract) {
+    const client = createThirdwebClient({
+      secretKey: config.THIRDWEB_SECRET_KEY!,
+    });
+
+    const citreaChain = defineChain({
+      id: EVM_CONFIG.CHAIN_ID,
+      rpc: EVM_CONFIG.RPC_URL,
+    });
+
+    const marketplaceContract = getContract({
+      address: this.marketplaceAddress,
+      client,
+      chain: citreaChain,
+    });
+
+    const ethersMarketplaceContract = await ethers6Adapter.contract.toEthers({
+      thirdwebContract: marketplaceContract,
+    });
+    console.log(
+      "🚀 ~ MarketplaceService ~ getEthersMarketplaceContract ~ ethersMarketplaceContract:",
+      ethersMarketplaceContract
+    );
+    // }
+    return ethersMarketplaceContract;
   }
 
   // Read Functions
@@ -144,7 +188,7 @@ class MarketplaceService {
   async currencyPriceForListing(
     listingId: number,
     currency: string
-  ): Promise<ethers.BigNumber> {
+  ): Promise<ethers.BigNumberish> {
     const contract = await this.getEthersMarketplaceContract();
     return await contract.currencyPriceForListing(listingId, currency);
   }

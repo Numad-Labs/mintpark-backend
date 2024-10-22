@@ -14,12 +14,16 @@ export type { IERC20Errors } from "./@openzeppelin/contracts/interfaces/draft-IE
 export { IERC20Errors__factory } from "./factories/@openzeppelin/contracts/interfaces/draft-IERC6093.sol/IERC20Errors__factory";
 export type { IERC721Errors } from "./@openzeppelin/contracts/interfaces/draft-IERC6093.sol/IERC721Errors";
 export { IERC721Errors__factory } from "./factories/@openzeppelin/contracts/interfaces/draft-IERC6093.sol/IERC721Errors__factory";
+export type { IERC4906 } from "./@openzeppelin/contracts/interfaces/IERC4906";
+export { IERC4906__factory } from "./factories/@openzeppelin/contracts/interfaces/IERC4906__factory";
 export type { ERC721 } from "./@openzeppelin/contracts/token/ERC721/ERC721";
 export { ERC721__factory } from "./factories/@openzeppelin/contracts/token/ERC721/ERC721__factory";
 export type { ERC721Burnable } from "./@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable";
 export { ERC721Burnable__factory } from "./factories/@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable__factory";
 export type { ERC721Pausable } from "./@openzeppelin/contracts/token/ERC721/extensions/ERC721Pausable";
 export { ERC721Pausable__factory } from "./factories/@openzeppelin/contracts/token/ERC721/extensions/ERC721Pausable__factory";
+export type { ERC721URIStorage } from "./@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage";
+export { ERC721URIStorage__factory } from "./factories/@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage__factory";
 export type { IERC721Metadata } from "./@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata";
 export { IERC721Metadata__factory } from "./factories/@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata__factory";
 export type { IERC721 } from "./@openzeppelin/contracts/token/ERC721/IERC721";

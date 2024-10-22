@@ -1,9 +1,9 @@
-import MARKETPLACE_ABI from "../evm/contracts/v1/MPM.sol/MPM.json";
+// import MARKETPLACE_ABI from "../evm/contracts/v1/MPM.sol/MPM.json";
 import { abi as NFT_CONTRACT_ABI } from "../evm/artifacts/contracts/MPMNFT.sol/MPMNFT.json";
 import { bytecode as NFT_CONTRACT_BYTECODE } from "../evm/artifacts/contracts/MPMNFT.sol/MPMNFT.json";
 
 // const MARKETPLACE_ABI = "";
-const MARKETPLACE_ADDRESS = "0x67609e3bb93B1b58D2B75A63dcE224647cf0B9A2";
+const MARKETPLACE_ADDRESS = "0xD5A9e7fA1596FDae0dCe9B65aBb5DADb494fe3e1";
 const COLLECTION_FACTORY_ABI = "";
 const COLLECTION_FACTORY_ADDRESS = "";
 const LAUNCHPAD_FACTORY_ABI = "";
@@ -14,7 +14,7 @@ const RPC_URL = "https://rpc.testnet.citrea.xyz";
 const CHAIN_ID = 5115;
 
 const EVM_CONFIG = {
-  MARKETPLACE_ABI,
+  // MARKETPLACE_ABI,
   MARKETPLACE_ADDRESS,
   COLLECTION_FACTORY_ABI,
   COLLECTION_FACTORY_ADDRESS,

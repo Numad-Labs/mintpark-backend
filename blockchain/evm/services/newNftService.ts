@@ -3,14 +3,28 @@ import { EVM_CONFIG } from "../evm-config";
 import { ethers6Adapter } from "thirdweb/adapters/ethers6";
 import { createThirdwebClient, defineChain, getContract } from "thirdweb";
 import { config } from "../../../src/config/config";
+import { ThirdwebStorage } from "@thirdweb-dev/storage";
+import { NextFunction, Request, Response } from "express";
+import MarketplaceService from "./marketplaceService";
 
 class NFTService {
   private provider: ethers.JsonRpcProvider;
   private marketplaceAddress: string;
+  private storage: ThirdwebStorage;
+  private marketplaceService: MarketplaceService;
 
-  constructor(providerUrl: string, marketplaceAddress: string) {
+  constructor(
+    providerUrl: string,
+    marketplaceAddress: string,
+    marketplaceService: MarketplaceService
+  ) {
     this.provider = new ethers.JsonRpcProvider(providerUrl);
     this.marketplaceAddress = marketplaceAddress;
+    this.marketplaceService = marketplaceService;
+
+    this.storage = new ThirdwebStorage({
+      secretKey: config.THIRDWEB_SECRET_KEY,
+    });
   }
 
   async getUnsignedDeploymentTransaction(
@@ -37,7 +51,7 @@ class NFTService {
     collectionAddress: string,
     to: string,
     tokenId: number,
-    uri: string
+    req: Request
   ) {
     const signer = await this.provider.getSigner();
 
@@ -46,15 +60,45 @@ class NFTService {
       EVM_CONFIG.NFT_CONTRACT_ABI,
       signer
     );
-    console.log(await contract.getAddress());
+    const metadataURI = await this.createAndUploadMetadata(req);
     const unsignedTx = await contract.safeMint.populateTransaction(
       to,
-      tokenId
-      // uri
+      tokenId,
+      metadataURI
     );
 
     return this.prepareUnsignedTransaction(unsignedTx, to);
   }
+
+  async getUnsignedBatchMintNFTTransaction(
+    collectionAddress: string,
+    to: string,
+    startTokenId: number,
+    quantity: number,
+    req: Request
+  ) {
+    const signer = await this.provider.getSigner();
+
+    const contract = new ethers.Contract(
+      collectionAddress,
+      EVM_CONFIG.NFT_CONTRACT_ABI,
+      signer
+    );
+
+    // Handle file uploads and metadata creation
+    const metadataURIs = await this.createAndUploadBatchMetadata(req, quantity);
+
+    // Assuming the contract has a batchMintWithURI function
+    const unsignedTx = await contract.batchMint.populateTransaction(
+      to,
+      // startTokenId,
+      quantity,
+      metadataURIs
+    );
+
+    return this.prepareUnsignedTransaction(unsignedTx, to);
+  }
+
   async getUnsignedListNFTTransaction(
     collectionAddress: string,
     tokenId: string,
@@ -116,37 +160,14 @@ class NFTService {
         reserved: false,
       };
 
-      const client = createThirdwebClient({
-        secretKey: config.THIRDWEB_SECRET_KEY!,
-      });
-
-      const citreaChain = defineChain({
-        id: EVM_CONFIG.CHAIN_ID,
-        rpc: EVM_CONFIG.RPC_URL,
-      });
-
-      console.log("🚀 ~ NFTService ~ citreaChain:", citreaChain);
-      const marketplaceContract = getContract({
-        address: this.marketplaceAddress,
-        client,
-        chain: citreaChain,
-      });
-
-      const ethersMarketplaceContract = await ethers6Adapter.contract.toEthers({
-        thirdwebContract: marketplaceContract,
-      });
-
-      console.log("Marketplace contract methods:", ethersMarketplaceContract);
-
-      // if (!ethersMarketplaceContract.createListing) {
-      //   throw new Error("createListing function not found on the contract");
-      // }
+      const marketplaceContract =
+        await this.marketplaceService.getEthersMarketplaceContract();
+      if (!marketplaceContract) {
+        throw new Error("Could not find marketplace contract");
+      }
 
       const unsignedTx =
-        await ethersMarketplaceContract.createListing.populateTransaction(
-          listing
-        );
-      console.log("🚀 ~ NFTService ~ unsignedTx:", unsignedTx);
+        await marketplaceContract.createListing.populateTransaction(listing);
 
       if (!unsignedTx) {
         throw new Error("Failed to populate transaction for createListing");
@@ -275,10 +296,10 @@ class NFTService {
       const marketplaceContract =
         await this.marketplaceService.getEthersMarketplaceContract();
       // Create listing transaction
-      // const unsignedTx =
-      //   await ethersMarketplaceContract.createListing.populateTransaction(
-      //     listing
-      //   );
+      const unsignedTx =
+        await marketplaceContract.createListing.populateTransaction(
+          listing
+        );
 
       const launchItems = [
         {
@@ -293,17 +314,17 @@ class NFTService {
         },
       ];
 
-      const buyTransactions = launchItems.map((item, index) => {
-        return ethersMarketplaceContract.createListing.populateTransaction(
-          Math.floor(index / 20), // listingId based on batch size of 20
-          buyerAddress,
-          1, // quantity per token
-          ethers.ZeroAddress,
-          launch.isWhitelisted && isInWhitelistPeriod(launch)
-            ? ethers.parseEther(launch.wlMintPrice!.toString())
-            : ethers.parseEther(launch.poMintPrice.toString())
-        );
-      });
+      // const buyTransactions = launchItems.map((item, index) => {
+      //   return ethersMarketplaceContract.createListing.populateTransaction(
+      //     Math.floor(index / 20), // listingId based on batch size of 20
+      //     buyerAddress,
+      //     1, // quantity per token
+      //     ethers.ZeroAddress,
+      //     launch.isWhitelisted && isInWhitelistPeriod(launch)
+      //       ? ethers.parseEther(launch.wlMintPrice!.toString())
+      //       : ethers.parseEther(launch.poMintPrice.toString())
+      //   );
+      // });
 
       return this.prepareUnsignedTransaction(unsignedTx, ownerAddress);
     } catch (error) {

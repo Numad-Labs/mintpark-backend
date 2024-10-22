@@ -21,9 +21,9 @@ import type {
   TypedLogDescription,
   TypedListener,
   TypedContractMethod,
-} from "../common";
+} from "../../common";
 
-export interface MPMNFTInterface extends Interface {
+export interface MyTokenInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "approve"
@@ -266,11 +266,11 @@ export namespace TransferEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export interface MPMNFT extends BaseContract {
-  connect(runner?: ContractRunner | null): MPMNFT;
+export interface MyToken extends BaseContract {
+  connect(runner?: ContractRunner | null): MyToken;
   waitForDeployment(): Promise<this>;
 
-  interface: MPMNFTInterface;
+  interface: MyTokenInterface;
 
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,
