@@ -214,24 +214,18 @@ export const launchServices = {
         launchItemId: pickedItem.id,
       });
 
-      // const ipfsUri = "DULGUUN";
-      // const nftMetadata: nftMetaData = {
-      //   name: pickedItem.name,
-      //   nftId: pickedItem.evmAssetId,
-      //   file: null,
-      //   ipfsUri: ipfsUri,
-      // };
-
       const collection = await collectionRepository.getById(collectionId);
 
       if (!collection || !collection.contractAddress)
         throw new Error("Contract address not found.");
 
+      console.log(collection.contractAddress);
+      console.log(issuerId);
       const unsignedTx =
         await launchPadService.getUnsignedLaunchMintTransaction(
           // launch,
-          launchItems,
-          issuerId,
+          pickedItem,
+          user.address,
           collection.contractAddress
         );
 
