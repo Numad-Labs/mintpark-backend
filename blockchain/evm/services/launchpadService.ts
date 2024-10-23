@@ -204,18 +204,11 @@ class LaunchpadService {
   }
 
   async createLaunchpadContractFeeChange(
-    listingId: string,
-    buyerAddress: string,
-    quantity: number,
     collectionAddress: string,
-    metadata: any
+    ownerAddress: string,
+    mintFee: string
   ) {
     try {
-      // First, upload metadata to IPFS
-      const metadataUri = await this.storage.upload(metadata, {
-        uploadWithGatewayUrl: true,
-      });
-
       // Get the NFT contract
       const nftContract = new ethers.Contract(
         collectionAddress,
@@ -224,34 +217,11 @@ class LaunchpadService {
       );
 
       // Create batch transaction
-      const mintTx = await nftContract.safeMint.populateTransaction(
-        buyerAddress,
-        quantity,
-        metadataUri
+      const mintTx = await nftContract.setMintFee.populateTransaction(
+        ethers.parseEther(mintFee)
       );
 
-      // Get the marketplace contract
-      const marketplaceContract =
-        await this.marketplaceService.getEthersMarketplaceContract();
-
-      // Create buy transaction
-      const buyTx =
-        await marketplaceContract.buyFromListing.populateTransaction(
-          listingId,
-          buyerAddress,
-          quantity,
-          ethers.ZeroAddress, // ETH as currency
-          ethers.parseEther(metadata.price) // Price from metadata
-        );
-
-      // Combine transactions using multicall
-      const multicallTx =
-        await marketplaceContract.multicall.populateTransaction([
-          mintTx.data,
-          buyTx.data,
-        ]);
-
-      return nftService.prepareUnsignedTransaction(multicallTx, buyerAddress);
+      return nftService.prepareUnsignedTransaction(mintTx, ownerAddress);
     } catch (error) {
       console.error("Error minting and buying:", error);
       throw error;

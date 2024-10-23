@@ -28,6 +28,7 @@ import { TransactionConfirmationService } from "../../blockchain/evm/services/tr
 import LaunchpadService from "../../blockchain/evm/services/launchpadService";
 import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
 import { serializeBigInt } from "../../blockchain/evm/utils";
+import { NextFunction } from "express";
 
 const launchPadService = new LaunchpadService(
   EVM_CONFIG.RPC_URL,
@@ -134,12 +135,13 @@ export const launchServices = {
 
   //   return { buyTxHex };
   // },
+
   generateOrderForLaunchedCollection: async (
     collectionId: string,
     issuerId: string,
     feeRate: number,
-    launchOfferType: LaunchOfferType
-    // txid: string
+    launchOfferType: LaunchOfferType,
+    txid?: string
   ) => {
     //TODO
     const user = await userRepository.getById(issuerId);
@@ -152,8 +154,6 @@ export const launchServices = {
       collectionId
     );
     if (!collection) throw new Error("Collection not found.");
-
-    const issueDate = new Date();
 
     const launchItems = await launchItemRepository.getActiveLaunchItems(
       collectionId
@@ -172,24 +172,24 @@ export const launchServices = {
           RETURNs single mint tx hex
       */
 
-      // if (!txid) throw new Error("txid not found.");
-      // const transactionDetail = await confirmationService.getTransactionDetails(
-      //   txid
-      // );
+      if (!txid) throw new Error("txid not found.");
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
 
-      // if (transactionDetail.status !== 1) {
-      //   throw new CustomError(
-      //     "Transaction not confirmed. Please try again.",
-      //     500
-      //   );
-      // }
+      if (transactionDetail.status !== 1) {
+        throw new CustomError(
+          "Transaction not confirmed. Please try again.",
+          500
+        );
+      }
 
-      // if (!transactionDetail.deployedContractAddress) {
-      //   throw new CustomError(
-      //     "Transaction does not contain deployed contract address.",
-      //     500
-      //   );
-      // }
+      if (!transactionDetail.deployedContractAddress) {
+        throw new CustomError(
+          "Transaction does not contain deployed contract address.",
+          500
+        );
+      }
 
       const serviceFee = 0;
       const networkFee = 0;

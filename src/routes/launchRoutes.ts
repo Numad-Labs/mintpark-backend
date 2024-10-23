@@ -19,9 +19,9 @@ launchRouter.post(
   authenticateToken,
   launchController.invokeOrder
 );
-// launchRouter.post(
-//   "/:id/generate-citrea-buy",
-//   authenticateToken,
-//   launchController.generateCitreaBuyHex
-// );
+launchRouter.post(
+  "/change-mintfee-transaction",
+  authenticateToken,
+  launchController.getUnsignedMintPriceChange
+);
 export = launchRouter;

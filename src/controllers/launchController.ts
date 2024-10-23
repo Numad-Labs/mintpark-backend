@@ -6,10 +6,19 @@ import { AuthenticatedRequest } from "../../custom";
 import { launchServices } from "../services/launchServices";
 import { layerServices } from "../services/layerServices";
 import { userRepository } from "../repositories/userRepository";
+import LaunchpadService from "../../blockchain/evm/services/launchpadService";
+import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
+import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
+import { serializeBigInt } from "../../blockchain/evm/utils";
 
 export interface LaunchOfferType {
   offerType: "public" | "whitelist";
 }
+
+const launchPadService = new LaunchpadService(
+  EVM_CONFIG.RPC_URL,
+  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
+);
 
 export const launchController = {
   getAllLaunchedCollectionsByLayerId: async (
@@ -59,7 +68,7 @@ export const launchController = {
     next: NextFunction
   ) => {
     const { collectionId } = req.params;
-    const { feeRate, launchOfferType } = req.body;
+    const { feeRate, launchOfferType, txid } = req.body;
 
     try {
       const user = await userRepository.getById(req.user?.id!);
@@ -84,11 +93,37 @@ export const launchController = {
         collectionId,
         user.id,
         feeRate,
-        offerType
-        // txid
+        offerType,
+        txid
       );
 
       return res.status(200).json({ success: true, data: order });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getUnsignedMintPriceChange: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { ownerAddress, collectionAddress, mintFee } = req.body;
+
+      // Prepare transaction data
+      const unsignedTx =
+        await launchPadService.createLaunchpadContractFeeChange(
+          collectionAddress,
+          ownerAddress,
+          mintFee
+        );
+
+      const serializedTx = serializeBigInt(unsignedTx);
+
+      return res.status(200).json({
+        success: true,
+        data: { singleMintTxHex: serializedTx },
+      });
     } catch (e) {
       next(e);
     }
