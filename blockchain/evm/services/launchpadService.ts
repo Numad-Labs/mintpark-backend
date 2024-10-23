@@ -203,6 +203,61 @@ class LaunchpadService {
     }
   }
 
+  async createLaunchpadContractFeeChange(
+    listingId: string,
+    buyerAddress: string,
+    quantity: number,
+    collectionAddress: string,
+    metadata: any
+  ) {
+    try {
+      // First, upload metadata to IPFS
+      const metadataUri = await this.storage.upload(metadata, {
+        uploadWithGatewayUrl: true,
+      });
+
+      // Get the NFT contract
+      const nftContract = new ethers.Contract(
+        collectionAddress,
+        EVM_CONFIG.NFT_CONTRACT_ABI,
+        this.provider
+      );
+
+      // Create batch transaction
+      const mintTx = await nftContract.safeMint.populateTransaction(
+        buyerAddress,
+        quantity,
+        metadataUri
+      );
+
+      // Get the marketplace contract
+      const marketplaceContract =
+        await this.marketplaceService.getEthersMarketplaceContract();
+
+      // Create buy transaction
+      const buyTx =
+        await marketplaceContract.buyFromListing.populateTransaction(
+          listingId,
+          buyerAddress,
+          quantity,
+          ethers.ZeroAddress, // ETH as currency
+          ethers.parseEther(metadata.price) // Price from metadata
+        );
+
+      // Combine transactions using multicall
+      const multicallTx =
+        await marketplaceContract.multicall.populateTransaction([
+          mintTx.data,
+          buyTx.data,
+        ]);
+
+      return nftService.prepareUnsignedTransaction(multicallTx, buyerAddress);
+    } catch (error) {
+      console.error("Error minting and buying:", error);
+      throw error;
+    }
+  }
+
   async getUnsignedLaunchMintTransaction(
     // launch: Launchtype,
     launchItems: any[],
