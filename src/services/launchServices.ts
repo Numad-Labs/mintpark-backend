@@ -25,6 +25,14 @@ import { Insertable } from "kysely";
 import { Collectible } from "../types/db/types";
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
+import LaunchpadService from "../../blockchain/evm/services/launchpadService";
+import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
+import { serializeBigInt } from "../../blockchain/evm/utils";
+
+const launchPadService = new LaunchpadService(
+  EVM_CONFIG.RPC_URL,
+  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
+);
 
 const confirmationService = new TransactionConfirmationService(
   EVM_CONFIG.RPC_URL!
@@ -101,33 +109,31 @@ export const launchServices = {
     IF LAYER IS CITREA, generate money transfer hex
     RETURN the hex
   */
-  generateCitreaBuyHex: async (id: string) => {
-    const launch = await launchRepository.getById(id);
-    if (!launch) throw new CustomError("Invalid launchId", 400);
+  // generateCitreaBuyHex: async (id: string, userId: string) => {
+  //   const launch = await launchRepository.getById(id);
+  //   if (!launch) throw new CustomError("Invalid launchId", 400);
 
-    const launchItems = await launchItemRepository.getByLaunchId(id);
+  //   const launchItems = await launchItemRepository.getByLaunchId(id);
 
-    //add validations(availibility, mintPerWallet, phases...)
+  //   //add validations(availibility, mintPerWallet, phases...)
 
-    const issueDate = new Date();
-    let mintPrice: number;
+  //   const issueDate = new Date();
+  //   let mintPrice: number;
 
-    if (launch.isWhitelisted && launch.wlStartsAt && launch.wlEndsAt) {
-      if (
-        launch.wlStartsAt < issueDate &&
-        launch.wlEndsAt > issueDate &&
-        launch.wlMintPrice
-      ) {
-        mintPrice = launch.wlMintPrice;
-      }
-    } else if (launch.poStartsAt < issueDate && launch.poEndsAt > issueDate) {
-      mintPrice = launch.poMintPrice;
-    }
+  //   if (launch.isWhitelisted && launch.wlStartsAt && launch.wlEndsAt) {
+  //     if (
+  //       launch.wlStartsAt < issueDate &&
+  //       launch.wlEndsAt > issueDate &&
+  //       launch.wlMintPrice
+  //     ) {
+  //       mintPrice = launch.wlMintPrice;
+  //     }
+  //   } else if (launch.poStartsAt < issueDate && launch.poEndsAt > issueDate) {
+  //     mintPrice = launch.poMintPrice;
+  //   }
 
-    const buyTxHex = "DULGUUN";
-
-    return { buyTxHex };
-  },
+  //   return { buyTxHex };
+  // },
   generateOrderForLaunchedCollection: async (
     collectionId: string,
     issuerId: string,
@@ -165,6 +171,26 @@ export const launchServices = {
           IF LAYER IS CITREA, validate funding TXID
           RETURNs single mint tx hex
       */
+
+      if (!txid) throw new Error("txid not found.");
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
+
+      if (transactionDetail.status !== 1) {
+        throw new CustomError(
+          "Transaction not confirmed. Please try again.",
+          500
+        );
+      }
+
+      if (!transactionDetail.deployedContractAddress) {
+        throw new CustomError(
+          "Transaction does not contain deployed contract address.",
+          500
+        );
+      }
+
       const serviceFee = 0;
       const networkFee = 0;
       const fundingAmount = 0;
@@ -188,15 +214,30 @@ export const launchServices = {
         launchItemId: pickedItem.id,
       });
 
-      const ipfsUri = "DULGUUN";
-      const nftMetadata: nftMetaData = {
-        name: pickedItem.name,
-        nftId: pickedItem.evmAssetId,
-        file: null,
-        ipfsUri: ipfsUri,
-      };
+      // const ipfsUri = "DULGUUN";
+      // const nftMetadata: nftMetaData = {
+      //   name: pickedItem.name,
+      //   nftId: pickedItem.evmAssetId,
+      //   file: null,
+      //   ipfsUri: ipfsUri,
+      // };
 
-      const singleMintTxHex = "DULGUUN";
+      const collection = await collectionRepository.getById(collectionId);
+
+      if (!collection || !collection.contractAddress)
+        throw new Error("Contract address not found.");
+
+      const unsignedTx =
+        await launchPadService.getUnsignedLaunchMintTransaction(
+          // launch,
+          launchItems,
+          issuerId,
+          collection.contractAddress
+        );
+
+      const serializedTx = serializeBigInt(unsignedTx);
+
+      const singleMintTxHex = serializedTx;
 
       return { order: order, launchedItem: pickedItem, singleMintTxHex };
     } else if (layer.layer === "FRACTAL" && layer.network === "TESTNET") {

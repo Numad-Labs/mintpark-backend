@@ -123,19 +123,22 @@ export const launchController = {
       next(e);
     }
   },
-  generateCitreaBuyHex: async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      const { id } = req.params;
+  // generateCitreaBuyHex: async (
+  //   req: AuthenticatedRequest,
+  //   res: Response,
+  //   next: NextFunction
+  // ) => {
+  //   try {
+  //     const { id } = req.params;
 
-      const result = await launchServices.generateCitreaBuyHex(id);
+  //     if (!req.user || !req.user.id)
+  //       throw new CustomError("wallet address not found", 400);
 
-      return res.status(200).json({ success: true, data: result });
-    } catch (e) {
-      next(e);
-    }
-  },
+  //     const result = await launchServices.generateCitreaBuyHex(id, req.user.id);
+
+  //     return res.status(200).json({ success: true, data: result });
+  //   } catch (e) {
+  //     next(e);
+  //   }
+  // },
 };
