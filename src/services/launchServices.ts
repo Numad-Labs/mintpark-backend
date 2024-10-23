@@ -334,6 +334,8 @@ export const launchServices = {
           });
       }
 
+      await launchItemRepository.update(launchItem.id, { status: "SOLD" });
+
       const collectible = await collectibleRepository.create({
         collectionId: collection.id,
         uniqueIdx: launchItem.evmAssetId,
@@ -375,6 +377,13 @@ export const launchServices = {
       );
       console.log(`Reveal transaction sent: ${revealTxId}`);
 
+      if (collection && collection.id) {
+        if (collection?.type === "UNCONFIRMED" && order.collectionId)
+          await collectionRepository.update(order.collectionId, {
+            type: "MINTED",
+          });
+      }
+
       await orderRepository.update(orderId, {
         paidAt: new Date(),
         orderStatus: "DONE",
@@ -382,14 +391,14 @@ export const launchServices = {
 
       await launchItemRepository.update(launchItem.id, { status: "SOLD" });
 
-      await collectibleRepository.create({
+      const collectible = await collectibleRepository.create({
         fileKey: launchItem.fileKey,
         name: `${collection.name} #${collection.mintedAmount}`,
         collectionId: collection.id,
-        uniqueIdx: `${revealTxId.slice(0, -2)}`,
+        uniqueIdx: `${revealTxId}i0`,
       });
 
-      return { commitTxId, revealTxId };
+      return { commitTxId, revealTxId, collectible };
     } else throw new CustomError("This layer is unsupported ATM.", 400);
   },
 };

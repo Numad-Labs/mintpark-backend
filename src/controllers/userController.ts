@@ -55,18 +55,22 @@ export const userController = {
       next(e);
     }
   },
-  refreshToken: async (req: Request, res: Response) => {
-    const refreshToken = req.body.refreshToken;
+  refreshToken: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const refreshToken = req.body.refreshToken;
 
-    if (!refreshToken)
-      throw new CustomError(`Please provide a refresh token.`, 400);
+      if (!refreshToken)
+        throw new CustomError(`Please provide a refresh token.`, 400);
 
-    const tokens = verifyRefreshToken(refreshToken);
+      const tokens = verifyRefreshToken(refreshToken);
 
-    return res.status(200).json({
-      success: true,
-      data: tokens,
-    });
+      return res.status(200).json({
+        success: true,
+        data: tokens,
+      });
+    } catch (e) {
+      next(e);
+    }
   },
   update: async (
     req: AuthenticatedRequest,
