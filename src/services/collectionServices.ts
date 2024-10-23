@@ -54,7 +54,11 @@ export const collectionServices = {
         name,
         priceForLaunchpad
       );
-      deployContractTxHex = unsignedTx;
+      deployContractTxHex = JSON.parse(
+        JSON.stringify(unsignedTx, (_, value) =>
+          typeof value === "bigint" ? value.toString() : value
+        )
+      );
     }
 
     if (file) {
