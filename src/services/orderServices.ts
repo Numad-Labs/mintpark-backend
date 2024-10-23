@@ -197,7 +197,12 @@ export const orderServices = {
         files
       );
 
-      const batchMintTxHex = unsignedTx;
+      const mintContractTxHex = JSON.parse(
+        JSON.stringify(unsignedTx, (_, value) =>
+          typeof value === "bigint" ? value.toString() : value
+        )
+      );
+      const batchMintTxHex = mintContractTxHex;
 
       return { order, orderItems, batchMintTxHex };
     } else if (
