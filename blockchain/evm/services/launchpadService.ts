@@ -260,7 +260,7 @@ class LaunchpadService {
 
   async getUnsignedLaunchMintTransaction(
     // launch: Launchtype,
-    launchItems: any[],
+    winnerItem: any,
     buyer: string,
     collectionAddress: string
   ): Promise<ethers.TransactionRequest> {
@@ -268,19 +268,19 @@ class LaunchpadService {
     // this.validateLaunchStatus(launch);
 
     const signer = await this.provider.getSigner();
-    // Get random available item
-    const selectedItem = this.getRandomAvailableItem(launchItems);
-    if (!selectedItem) {
-      throw new CustomError("No available items to mint", 400);
-    }
+    // // Get random available item
+    // const selectedItem = this.getRandomAvailableItem(launchItems);
+    // if (!selectedItem) {
+    //   throw new CustomError("No available items to mint", 400);
+    // }
 
     // Generate tokenId if not already set
-    const tokenId = selectedItem.evmAssetId
-      ? parseInt(selectedItem.evmAssetId)
-      : this.generateTokenId(launchItems);
+    const tokenId = winnerItem.evmAssetId
+      ? parseInt(winnerItem.evmAssetId)
+      : this.generateTokenId(winnerItem);
 
     // Prepare metadata URI
-    const metadataURI = await this.storage.upload(selectedItem.metadata, {
+    const metadataURI = await this.storage.upload(winnerItem.metadata, {
       uploadWithGatewayUrl: true,
     });
 
