@@ -55,7 +55,7 @@ class NFTService {
     initialOwner: string,
     name: string,
     symbol: string,
-    price: number
+    priceForLaunchpad: number
   ) {
     const signer = await this.provider.getSigner();
     const factory = new ethers.ContractFactory(
@@ -68,7 +68,7 @@ class NFTService {
       initialOwner,
       name,
       symbol,
-      ethers.parseEther(price.toString()) // mintFee
+      ethers.parseEther(priceForLaunchpad.toString()) // mintFee
     );
     return this.prepareUnsignedTransaction(unsignedTx, initialOwner);
   }

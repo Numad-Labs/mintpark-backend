@@ -23,6 +23,7 @@ export const collectionServices = {
     data: any,
     issuerId: string,
     name: string,
+    priceForLaunchpad: number,
     file?: Express.Multer.File
   ) => {
     const user = await userRepository.getById(issuerId);
@@ -47,13 +48,11 @@ export const collectionServices = {
 
     let deployContractTxHex = null;
     if (layer.layer === "CITREA" && layer.network === "TESTNET") {
-      //todo symbol yahu tur name eer ni oruullaa
-      const price = 0.1;
       const unsignedTx = await nftService.getUnsignedDeploymentTransaction(
         user.address,
         name,
         name,
-        price
+        priceForLaunchpad
       );
       deployContractTxHex = unsignedTx;
     }

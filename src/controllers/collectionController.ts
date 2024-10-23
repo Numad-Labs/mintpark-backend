@@ -22,7 +22,7 @@ export const collectionController = {
   ) => {
     const userId = req.user?.id;
     if (!userId) throw new CustomError("Cannot parse user from token", 401);
-    const { name, creator, description } = req.body;
+    const { name, creator, description, priceForLaunchpad } = req.body;
     if (!name || !description)
       throw new CustomError("Name and description are required.", 400);
     const logo = req.file as Express.Multer.File;
@@ -35,7 +35,13 @@ export const collectionController = {
       layerId: null,
     };
     try {
-      const result = await collectionServices.create(data, userId, name, logo);
+      const result = await collectionServices.create(
+        data,
+        userId,
+        name,
+        priceForLaunchpad,
+        logo
+      );
       return res.status(200).json({
         success: true,
         data: {
