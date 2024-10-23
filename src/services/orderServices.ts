@@ -21,6 +21,7 @@ import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import NFTService from "../../blockchain/evm/services/nftService";
 import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
 import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
+import LaunchpadService from "../../blockchain/evm/services/launchpadService";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,

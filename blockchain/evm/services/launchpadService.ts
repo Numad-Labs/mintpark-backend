@@ -10,6 +10,7 @@ import NFTService from "./nftService";
 import { Launch, LaunchItem } from "../../../src/types/db/types";
 import { CustomError } from "../../../src/exceptions/CustomError";
 import { LAUNCH_ITEM_STATUS } from "../../../src/types/db/enums";
+import { LaunchItemTypes, Launchtype } from "../controller/launchpadController";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
@@ -202,24 +203,20 @@ class LaunchpadService {
     }
   }
 
-  async getUnsignedMintTransaction(
-    launch: Launch,
-    launchItems: LaunchItem[],
-    buyer: string
+  async getUnsignedLaunchMintTransaction(
+    // launch: Launchtype,
+    launchItems: any[],
+    buyer: string,
+    collectionAddress: string
   ): Promise<ethers.TransactionRequest> {
     // // Validate launch status
     // this.validateLaunchStatus(launch);
 
+    const signer = await this.provider.getSigner();
     // Get random available item
     const selectedItem = this.getRandomAvailableItem(launchItems);
     if (!selectedItem) {
       throw new CustomError("No available items to mint", 400);
-    }
-
-    // Calculate current price
-    const price = this.calculateCurrentPrice(launch);
-    if (price === undefined) {
-      throw new CustomError("No active sale phase", 400);
     }
 
     // Generate tokenId if not already set
@@ -232,18 +229,23 @@ class LaunchpadService {
       uploadWithGatewayUrl: true,
     });
 
-    // Get contract interface
-    const contract = new ethers.Contract(
-      launch.collectionId,
-      ["function mint(uint256 tokenId, string memory uri) public payable"],
-      this.provider
+    const nftContract = new ethers.Contract(
+      collectionAddress,
+      EVM_CONFIG.NFT_CONTRACT_ABI,
+      signer
     );
 
+    const price = await nftContract.mintFee();
+    if (price === undefined) {
+      throw new CustomError("No active sale phase", 400);
+    }
+    const mintPrice = ethers.formatEther(price);
+
     // Prepare transaction data
-    const unsignedTx = await contract.mint.populateTransaction(
+    const unsignedTx = await nftContract.mint.populateTransaction(
       tokenId,
       metadataURI,
-      { value: ethers.parseEther(price.toString()) }
+      { value: ethers.parseEther(mintPrice) }
     );
 
     // Prepare the full transaction
