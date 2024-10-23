@@ -79,13 +79,13 @@ export const launchController = {
       };
 
       //todo transaction ID ogoh
-      const txid = "123";
+      // const txid = "123";
       const order = await launchServices.generateOrderForLaunchedCollection(
         collectionId,
         user.id,
         feeRate,
-        offerType,
-        txid
+        offerType
+        // txid
       );
 
       return res.status(200).json({ success: true, data: order });

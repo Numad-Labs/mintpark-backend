@@ -146,6 +146,8 @@ export const createLaunchpadListing = async (
   }
 };
 
+export const createLaunchpadContractFeeChange = () => {};
+
 // Get launch by ID
 const getLaunchById = async (id: string): Promise<Launchtype | null> => {
   const launch = mockLaunches.find((launch) => launch.id === id);
