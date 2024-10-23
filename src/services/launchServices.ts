@@ -23,9 +23,15 @@ import { collectibleRepository } from "../repositories/collectibleRepository";
 import { CustomError } from "../exceptions/CustomError";
 import { Insertable } from "kysely";
 import { Collectible } from "../types/db/types";
+import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
+import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
+
+const confirmationService = new TransactionConfirmationService(
+  EVM_CONFIG.RPC_URL!
+);
 
 export const launchServices = {
-  create: async (data: any, files: Express.Multer.File[]) => {
+  create: async (data: any, files: Express.Multer.File[], txid?: string) => {
     const collection = await collectionRepository.getById(data.collectionId);
     if (!collection || !collection.layerId)
       throw new Error("Collection not found.");
@@ -39,6 +45,32 @@ export const launchServices = {
     if (files.length < 1)
       throw new Error("Launch must have at least one file.");
     const launch = await launchRepository.create(data);
+
+    if (layerType.layer === "CITREA" && layerType.network === "TESTNET") {
+      if (!txid) throw new Error("txid not found.");
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
+
+      if (transactionDetail.status !== 1) {
+        throw new CustomError(
+          "Transaction not confirmed. Please try again.",
+          500
+        );
+      }
+
+      if (!transactionDetail.deployedContractAddress) {
+        throw new CustomError(
+          "Transaction does not contain deployed contract address.",
+          500
+        );
+      }
+      if (!collection || !collection.id)
+        throw new Error("Collection not found.");
+      await collectionRepository.update(collection.id, {
+        contractAddress: transactionDetail.deployedContractAddress,
+      });
+    }
 
     const nftMetadatas: nftMetaData[] = [];
     let index = 0;
@@ -72,6 +104,8 @@ export const launchServices = {
   generateCitreaBuyHex: async (id: string) => {
     const launch = await launchRepository.getById(id);
     if (!launch) throw new CustomError("Invalid launchId", 400);
+
+    const launchItems = await launchItemRepository.getByLaunchId(id);
 
     //add validations(availibility, mintPerWallet, phases...)
 
@@ -242,14 +276,12 @@ export const launchServices = {
       purchase.launchItemId
     );
     console.log(launchItem);
-    if (!launchItem)
-      throw new Error("Launch item not found.");
+    if (!launchItem) throw new Error("Launch item not found.");
 
     const file = await getObjectFromS3(launchItem.fileKey);
 
     if (layer?.layer === "CITREA" && layer.network === "TESTNET") {
-      if (!launchItem.evmAssetId)
-        throw new Error("Launch item not found.");
+      if (!launchItem.evmAssetId) throw new Error("Launch item not found.");
 
       /*
         IF LAYER IS CITREA, validate mint TXID

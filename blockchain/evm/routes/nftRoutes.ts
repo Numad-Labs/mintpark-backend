@@ -5,10 +5,18 @@ import {
   getMintNFTTransaction,
   getListNFTTransaction,
   getMintBatchNFTTransaction,
-} from "../controller/newNftController";
+} from "../controller/nftController";
 import { TransactionConfirmationService } from "../services/transactionConfirmationService";
 import { TransactionConfirmationController } from "../controller/transactionConfirmationController";
 import { EVM_CONFIG } from "../evm-config";
+import { createLaunchpadListing } from "../controller/launchpadController";
+
+const confirmationService = new TransactionConfirmationService(
+  EVM_CONFIG.RPC_URL
+);
+const confirmationController = new TransactionConfirmationController(
+  confirmationService
+);
 
 const nftRouter = express.Router();
 
@@ -21,13 +29,7 @@ nftRouter.post(
 );
 nftRouter.post("/list", getListNFTTransaction);
 
-const confirmationService = new TransactionConfirmationService(
-  EVM_CONFIG.RPC_URL
-);
-const confirmationController = new TransactionConfirmationController(
-  confirmationService
-);
-
 nftRouter.post("/confirm", confirmationController.confirmTransaction);
+nftRouter.post("/create-launchpad", createLaunchpadListing);
 
 export = nftRouter;

@@ -13,50 +13,46 @@ class MarketplaceService {
     this.marketplaceAddress = marketplaceAddress;
   }
 
-  async initialize(): Promise<void> {
-    if (this.initialized) return;
+  // async initialize(): Promise<void> {
+  //   if (this.initialized) return;
 
-    const client = createThirdwebClient({
-      secretKey: config.THIRDWEB_SECRET_KEY!,
-    });
+  //   const client = createThirdwebClient({
+  //     secretKey: config.THIRDWEB_SECRET_KEY!,
+  //   });
 
-    const citreaChain = defineChain({
-      id: EVM_CONFIG.CHAIN_ID,
-      rpc: EVM_CONFIG.RPC_URL,
-    });
+  //   const citreaChain = defineChain({
+  //     id: EVM_CONFIG.CHAIN_ID,
+  //     rpc: EVM_CONFIG.RPC_URL,
+  //   });
 
-    const marketplaceContract = getContract({
-      address: this.marketplaceAddress,
-      client,
-      chain: citreaChain,
-    });
+  //   const marketplaceContract = getContract({
+  //     address: this.marketplaceAddress,
+  //     client,
+  //     chain: citreaChain,
+  //   });
 
-    this.ethersMarketplaceContract = await ethers6Adapter.contract.toEthers({
-      thirdwebContract: marketplaceContract,
-    });
-    console.log(
-      "🚀 ~ MarketplaceService ~ initialize ~ ethersMarketplaceContract:",
-      this.ethersMarketplaceContract
-    );
+  //   this.ethersMarketplaceContract = await ethers6Adapter.contract.toEthers({
+  //     thirdwebContract: marketplaceContract,
+  //   });
 
-    this.initialized = true;
-  }
+  //   this.initialized = true;
+  // }
 
-  async getContract(): Promise<ethers.Contract | undefined> {
-    this.ensureInitialized();
-    return this.ethersMarketplaceContract;
-  }
+  // async getContract(): Promise<ethers.Contract | undefined> {
+  //   this.ensureInitialized();
+  //   return this.ethersMarketplaceContract;
+  // }
 
-  async ensureInitialized(): Promise<void> {
-    if (!this.initialized) {
-      await this.initialize();
-    }
-  }
+  // async ensureInitialized(): Promise<void> {
+  //   if (!this.initialized) {
+  //     await this.initialize();
+  //   }
+  // }
 
   async getEthersMarketplaceContract(): Promise<ethers.Contract> {
     // if (!this.ethersMarketplaceContract) {
     const client = createThirdwebClient({
-      secretKey: config.THIRDWEB_SECRET_KEY!,
+      secretKey: config.THIRDWEB_SECRET_KEY,
     });
 
     const citreaChain = defineChain({

@@ -7,6 +7,29 @@ import { ThirdwebStorage } from "@thirdweb-dev/storage";
 import { NextFunction, Request, Response } from "express";
 import MarketplaceService from "./marketplaceService";
 
+interface LaunchAsset {
+  fileKey: string;
+  metadata: {
+    name: string;
+    description: string;
+    attributes: Array<{ trait_type: string; value: string }>;
+  };
+}
+
+interface LaunchConfig {
+  collectionAddress: string;
+  price: string;
+  startTime: number;
+  endTime: number;
+  maxPerWallet: number;
+  assets: LaunchAsset[];
+  isWhitelisted: boolean;
+  wlStartsAt?: number;
+  wlEndsAt?: number;
+  wlPrice?: string;
+  wlMaxPerWallet?: number;
+}
+
 class NFTService {
   private provider: ethers.JsonRpcProvider;
   private marketplaceAddress: string;
@@ -23,6 +46,7 @@ class NFTService {
     this.marketplaceService = marketplaceService;
 
     this.storage = new ThirdwebStorage({
+      clientId: "db5f648449211cd159aa6032e83434cf",
       secretKey: config.THIRDWEB_SECRET_KEY,
     });
   }
@@ -30,7 +54,8 @@ class NFTService {
   async getUnsignedDeploymentTransaction(
     initialOwner: string,
     name: string,
-    symbol: string
+    symbol: string,
+    price: number
   ) {
     const signer = await this.provider.getSigner();
     const factory = new ethers.ContractFactory(
@@ -42,7 +67,8 @@ class NFTService {
     const unsignedTx = await factory.getDeployTransaction(
       initialOwner,
       name,
-      symbol
+      symbol,
+      ethers.parseEther(price.toString()) // mintFee
     );
     return this.prepareUnsignedTransaction(unsignedTx, initialOwner);
   }
@@ -170,6 +196,12 @@ class NFTService {
         throw new Error("Could not find marketplace contract");
       }
 
+      const testing = await marketplaceContract.contractType();
+      console.log("🚀 ~ NFTService ~ testing:", testing);
+      console.log(
+        "🚀 ~ NFTService ~ marketplaceContract:",
+        marketplaceContract
+      );
       const unsignedTx =
         await marketplaceContract.createListing.populateTransaction(listing);
 
@@ -218,6 +250,7 @@ class NFTService {
     //   );
     // }
 
+    console.log("🚀 ~ NFTService ~ files.map ~ this.storage:", this.storage);
     const metadataURIs = await Promise.all(
       files.map(async (file, index) => {
         // Upload the image to IPFS
@@ -272,68 +305,7 @@ class NFTService {
     return metadataURI;
   }
 
-  async createLaunchpadListing(
-    collectionAddress: string,
-    launchData: {
-      price: string;
-      startTime: number;
-      endTime: number;
-      maxPerWallet: number;
-      totalSupply: number;
-    },
-    ownerAddress: string
-  ) {
-    try {
-      const listing = {
-        assetContract: collectionAddress,
-        tokenId: 0, // We'll use tokenId 0 as a placeholder for unminted tokens
-        startTimestamp: launchData.startTime,
-        endTimestamp: launchData.endTime,
-        quantity: launchData.totalSupply,
-        currency: ethers.ZeroAddress, // Using ETH as currency
-        pricePerToken: launchData.price,
-        reserved: true, // Enable whitelist if needed
-      };
-
-      const marketplaceContract =
-        await this.marketplaceService.getEthersMarketplaceContract();
-      // Create listing transaction
-      const unsignedTx =
-        await marketplaceContract.createListing.populateTransaction(listing);
-
-      const launchItems = [
-        {
-          fileKey: "asset1.jpg",
-          metadata: {
-            name: "Asset #1",
-            description: "First asset",
-            // attributes: [
-            //   /*...*/
-            // ],
-          },
-        },
-      ];
-
-      // const buyTransactions = launchItems.map((item, index) => {
-      //   return ethersMarketplaceContract.createListing.populateTransaction(
-      //     Math.floor(index / 20), // listingId based on batch size of 20
-      //     buyerAddress,
-      //     1, // quantity per token
-      //     ethers.ZeroAddress,
-      //     launch.isWhitelisted && isInWhitelistPeriod(launch)
-      //       ? ethers.parseEther(launch.wlMintPrice!.toString())
-      //       : ethers.parseEther(launch.poMintPrice.toString())
-      //   );
-      // });
-
-      return this.prepareUnsignedTransaction(unsignedTx, ownerAddress);
-    } catch (error) {
-      console.error("Error creating launchpad listing:", error);
-      throw error;
-    }
-  }
-
-  private async prepareUnsignedTransaction(
+  async prepareUnsignedTransaction(
     unsignedTx: ethers.ContractTransaction | ethers.ContractDeployTransaction,
     from: string
   ) {
