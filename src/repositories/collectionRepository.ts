@@ -117,6 +117,7 @@ export const collectionRepository = {
       ), 0)`.as("mintedAmount"),
       ])
       .where("Collection.layerId", "=", layerId)
+      .where("Collection.type", "!=", "UNCONFIRMED")
       .where("Launch.id", "is not", null);
 
     if (interval !== "all") {

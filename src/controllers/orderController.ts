@@ -10,14 +10,14 @@ export const orderController = {
     res: Response,
     next: NextFunction
   ) => {
-    if (!req.user) throw new CustomError("Cannot parse user from token", 401);
-    //todo txid nemsen example oorchloh
-    const { orderType, collectionId, feeRate, txid } = req.body;
-    if (!orderType || !feeRate)
-      throw new CustomError("Order type and fee rate are required.", 400);
-    const files = req.files as Express.Multer.File[];
-
     try {
+      if (!req.user) throw new CustomError("Cannot parse user from token", 401);
+      //todo txid nemsen example oorchloh
+      const { orderType, collectionId, feeRate, txid } = req.body;
+      if (!orderType || !feeRate)
+        throw new CustomError("Order type and fee rate are required.", 400);
+      const files = req.files as Express.Multer.File[];
+
       if (
         (orderType === "COLLECTION" && !collectionId) ||
         (orderType === "LAUNCH" && !collectionId)
