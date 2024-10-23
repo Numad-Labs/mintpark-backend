@@ -324,8 +324,24 @@ export const launchServices = {
         creates collectible
         returns {collectible?, commitTxId, revealTxId}
       */
-      const isValidTx = true;
-      if (!isValidTx) throw new CustomError("Invalid tx.", 400);
+      if (!txid) throw new Error("txid not found.");
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
+
+      if (transactionDetail.status !== 1) {
+        throw new CustomError(
+          "Transaction not confirmed. Please try again.",
+          500
+        );
+      }
+
+      if (!transactionDetail.deployedContractAddress) {
+        throw new CustomError(
+          "Transaction does not contain deployed contract address.",
+          500
+        );
+      }
 
       if (collection && collection.id) {
         if (collection?.type === "UNCONFIRMED" && order.collectionId)
