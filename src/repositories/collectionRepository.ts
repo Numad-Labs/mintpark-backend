@@ -165,6 +165,8 @@ export const collectionRepository = {
 
     const collections = await query.execute();
 
+    console.log(new Date().toLocaleString());
+
     return collections.map((collection) => ({
       ...collection,
       wlStartsAt: collection.wlStartsAt ? Number(collection.wlStartsAt) : null,
@@ -196,6 +198,7 @@ export const collectionRepository = {
         "Launch.poMintPrice",
         "Launch.poMaxMintPerWallet",
         "Launch.isWhitelisted",
+        "Launch.createdAt",
         sql<number>`COALESCE((
           SELECT COUNT(*)::integer
           FROM "LaunchItem"
