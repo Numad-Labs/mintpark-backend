@@ -85,10 +85,6 @@ export class TransactionConfirmationService {
       }
 
       const receipt = await this.provider.getTransactionReceipt(txHash);
-      console.log(
-        "🚀 ~ TransactionConfirmationService ~ getTransactionDetails ~ receipt:",
-        receipt
-      );
 
       return {
         from: tx.from,

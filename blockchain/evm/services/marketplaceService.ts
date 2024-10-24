@@ -69,11 +69,7 @@ class MarketplaceService {
     const ethersMarketplaceContract = await ethers6Adapter.contract.toEthers({
       thirdwebContract: marketplaceContract,
     });
-    console.log(
-      "🚀 ~ MarketplaceService ~ getEthersMarketplaceContract ~ ethersMarketplaceContract:",
-      ethersMarketplaceContract
-    );
-    // }
+
     return ethersMarketplaceContract;
   }
 

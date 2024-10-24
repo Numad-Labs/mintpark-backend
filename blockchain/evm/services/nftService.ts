@@ -29,7 +29,7 @@ interface LaunchConfig {
 }
 
 class NFTService {
-  private provider: ethers.JsonRpcProvider;
+  provider: ethers.JsonRpcProvider;
   private marketplaceAddress: string;
   private storage: ThirdwebStorage;
   private marketplaceService: MarketplaceService;

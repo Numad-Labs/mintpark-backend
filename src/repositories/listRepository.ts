@@ -75,6 +75,38 @@ export const listRepository = {
 
     return list;
   },
+
+  getByCollectibleId: async (id: string) => {
+    const list = await db
+      .selectFrom("List")
+      .innerJoin("Collectible", "Collectible.id", "List.collectibleId")
+      // .innerJoin('List', "List.collectibleId")
+      .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
+      .innerJoin("Layer", "Layer.id", "Collection.layerId")
+      .select([
+        "List.id",
+        "List.address",
+        "List.buyerId",
+        "List.collectibleId",
+        "List.inscribedAmount",
+        "List.listedAt",
+        "List.price",
+        "List.privateKey",
+        "List.soldAt",
+        "List.soldTxid",
+        "List.vaultTxid",
+        "List.vaultVout",
+        "List.status",
+        "List.sellerId",
+        "Layer.layer",
+        "Layer.network",
+        "Collectible.uniqueIdx",
+      ])
+      .where("List.id", "=", id)
+      .executeTakeFirst();
+
+    return list;
+  },
   update: async (id: string, data: Updateable<List>) => {
     const list = db
       .updateTable("List")
