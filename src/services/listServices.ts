@@ -97,9 +97,14 @@ export const listServices = {
         EVM_CONFIG.MARKETPLACE_ADDRESS
       );
       console.log("🚀 ~ isApproved:", isApproved);
+      console.log(
+        "🚀 ~ listing.collectible.uniqueIdx.split",
+        collectible.uniqueIdx.split("i")[1]
+      );
+
       const listing = {
         assetContract: collection.contractAddress,
-        tokenId: collectible.uniqueIdx.split("i")[0],
+        tokenId: collectible.uniqueIdx.split("i")[1],
         // startTime: Math.floor(Date.now() / 1000),
         startTimestamp: Math.floor(Date.now() / 1000),
         endTimestamp: Math.floor(Date.now() / 1000) + 86400 * 7, // 1 week
