@@ -52,14 +52,15 @@ export type Launch = {
   id: Generated<string>;
   collectionId: string;
   isWhitelisted: boolean;
-  wlStartsAt: Timestamp | null;
-  wlEndsAt: Timestamp | null;
+  wlStartsAt: string | null;
+  wlEndsAt: string | null;
   wlMintPrice: number | null;
   wlMaxMintPerWallet: number | null;
-  poStartsAt: Timestamp;
-  poEndsAt: Timestamp;
+  poStartsAt: Generated<string>;
+  poEndsAt: Generated<string>;
   poMintPrice: number;
   poMaxMintPerWallet: number;
+  createdAt: Generated<Timestamp>;
 };
 export type LaunchItem = {
   id: Generated<string>;
