@@ -126,23 +126,38 @@ export const collectionRepository = {
       query = query.where((eb) => {
         if (interval === "live") {
           return eb.or([
+            // Include upcoming and live whitelist periods
             eb.and([
-              eb("Launch.wlStartsAt", "<=", now.toString()), // Convert BigInt to string for comparison
-              eb("Launch.wlEndsAt", ">=", now.toString()),
+              eb(
+                sql`"Launch"."createdAt" + ("Launch"."wlEndsAt" || ' seconds')::interval`,
+                ">=",
+                sql`to_timestamp(${Number(now) / 1000})`
+              ),
+              eb("Launch.wlStartsAt", "is not", null),
             ]),
-            eb.and([
-              eb("Launch.poStartsAt", "<=", now.toString()),
-              eb("Launch.poEndsAt", ">=", now.toString()),
-            ]),
+            // Include upcoming and live public periods
+            eb(
+              sql`"Launch"."createdAt" + ("Launch"."poEndsAt" || ' seconds')::interval`,
+              ">=",
+              sql`to_timestamp(${Number(now) / 1000})`
+            ),
           ]);
         } else {
           // 'past' interval
           return eb.and([
             eb.or([
-              eb("Launch.wlEndsAt", "<", now.toString()),
+              eb(
+                sql`"Launch"."createdAt" + ("Launch"."wlEndsAt" || ' seconds')::interval`,
+                "<",
+                sql`to_timestamp(${Number(now) / 1000})`
+              ),
               eb("Launch.wlEndsAt", "is", null),
             ]),
-            eb("Launch.poEndsAt", "<", now.toString()),
+            eb(
+              sql`"Launch"."createdAt" + ("Launch"."poEndsAt" || ' seconds')::interval`,
+              "<",
+              sql`to_timestamp(${Number(now) / 1000})`
+            ),
           ]);
         }
       });
@@ -152,22 +167,10 @@ export const collectionRepository = {
 
     return collections.map((collection) => ({
       ...collection,
-      wlStartsAt: collection.wlStartsAt
-        ? new Date(
-            Number(collection.wlStartsAt) * 1000 + Number(collection.createdAt)
-          )
-        : null,
-      wlEndsAt: collection.wlEndsAt
-        ? new Date(
-            Number(collection.wlEndsAt) * 1000 + Number(collection.createdAt)
-          )
-        : null,
-      poStartsAt: new Date(
-        Number(collection.poStartsAt) * 1000 + Number(collection.createdAt)
-      ),
-      poEndsAt: new Date(
-        Number(collection.poEndsAt) * 1000 + Number(collection.createdAt)
-      ),
+      wlStartsAt: collection.wlStartsAt ? Number(collection.wlStartsAt) : null,
+      wlEndsAt: collection.wlEndsAt ? Number(collection.wlEndsAt) : null,
+      poStartsAt: Number(collection.poStartsAt),
+      poEndsAt: Number(collection.poEndsAt),
     }));
   },
   getLaunchedCollectionById: async (id: string) => {
