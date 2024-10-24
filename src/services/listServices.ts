@@ -203,6 +203,7 @@ export const listServices = {
     issuerId: string
   ) => {
     const list = await listRepository.getById(id);
+    console.log("🚀 ~ list:", list);
     if (!list) throw new CustomError("No list found.", 400);
     if (list.status !== "PENDING")
       throw new CustomError("This list is could not be confirmed.", 400);
@@ -270,6 +271,7 @@ export const listServices = {
   },
   generateBuyPsbtHex: async (id: string, feeRate: number, issuerId: string) => {
     const list = await listRepository.getById(id);
+    console.log("🚀 ~ generateBuyPsbtHex: ~ list:", list);
     if (!list) throw new CustomError("No list found.", 400);
     if (list.status !== "ACTIVE")
       throw new CustomError("This list is could not be bought.", 400);
@@ -278,9 +280,10 @@ export const listServices = {
     if (!seller) throw new CustomError("Seller not found.", 400);
 
     const buyer = await userRepository.getById(issuerId);
+    console.log("🚀 ~ generateBuyPsbtHex: ~ buyer:", buyer);
     if (!buyer) throw new CustomError("User not found.", 400);
-    if (buyer.address === seller.address)
-      throw new CustomError("You cannot buy your own listing.", 400);
+    // if (buyer.address === seller.address)
+    //   throw new CustomError("You cannot buy your own listing.", 400);
 
     if (list.layer === "CITREA") {
       //generate & return buy tx hex
@@ -290,14 +293,19 @@ export const listServices = {
 
       const txHex =
         await marketplaceContract.buyFromListing.populateTransaction(
-          list.uniqueIdx,
+          list.uniqueIdx.split("i")[1],
+          // list.uniqueIdx,
           buyer.address,
           1,
           ethers.ZeroAddress, // ETH as currency
           ethers.parseEther(list.price.toString()) // Price from metadata
         );
+      const unsignedHex = await nftService.prepareUnsignedTransaction(
+        txHex,
+        buyer.address
+      );
 
-      const serializedTx = serializeBigInt(txHex);
+      const serializedTx = serializeBigInt(unsignedHex);
 
       return serializedTx;
     } else if (list.layer === "FRACTAL") {
@@ -331,6 +339,33 @@ export const listServices = {
 
       return txHex;
     } else throw new CustomError("Unsupported layer.", 400);
+  },
+  updateListedCollectible: async (id: string, issuerId: string) => {
+    const list = await listRepository.getById(id);
+    console.log("🚀 ~ generateBuyPsbtHex: ~ list:", list);
+    if (!list) throw new CustomError("No list found.", 400);
+    const buyer = await userRepository.getById(issuerId);
+    console.log("🚀 ~ generateBuyPsbtHex: ~ buyer:", buyer);
+    if (!buyer) throw new CustomError("User not found.", 400);
+    const marketplaceContract =
+      await marketplaceService.getEthersMarketplaceContract();
+
+    const txHex = await marketplaceContract.buyFromListing.populateTransaction(
+      list.uniqueIdx.split("i")[1],
+      // list.uniqueIdx,
+      buyer.address,
+      1,
+      ethers.ZeroAddress, // ETH as currency
+      ethers.parseEther(list.price.toString()) // Price from metadata
+    );
+    const unsignedHex = await nftService.prepareUnsignedTransaction(
+      txHex,
+      buyer.address
+    );
+
+    const serializedTx = serializeBigInt(unsignedHex);
+
+    return serializedTx;
   },
   buyListedCollectible: async (
     id: string,
