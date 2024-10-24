@@ -41,8 +41,16 @@ export const collectibleRepository = {
   getListableCollectiblesByInscriptionIds: async (
     inscriptionIds: string[],
     params: CollectibleQueryParams,
-    userId: string
+    userId: string,
+    collectionId?: string
   ) => {
+    console.log("🚀 ~ inscriptionIds:", Array.isArray(inscriptionIds));
+    const collectionIdsArray = Array.isArray(params.collectionIds)
+      ? params.collectionIds
+      : params.collectionIds
+      ? [params.collectionIds]
+      : [];
+
     let query = db
       .selectFrom("Collectible")
       .leftJoin("List as CurrentList", (join) =>
@@ -86,14 +94,19 @@ export const collectibleRepository = {
         )
       );
 
+    if (collectionId) {
+      query = query.where("Collectible.collectionId", "=", collectionId);
+    }
+
     if (params.isListed)
       query = query.where("CurrentList.status", "=", "ACTIVE");
 
-    const collectionIds = params.collectionIds as string[];
-    if (collectionIds && collectionIds.length > 0) {
+    // const collectionIds = params.collectionIds as string[];
+    // console.log("🚀 ~ collectionIds:", collectionIds);
+    if (collectionIdsArray && collectionIdsArray.length > 0) {
       query = query.where((eb) =>
         eb.or(
-          collectionIds.map((collectionId) =>
+          collectionIdsArray.map((collectionId) =>
             eb("Collectible.collectionId", "=", collectionId)
           )
         )
@@ -173,10 +186,10 @@ export const collectibleRepository = {
         eb.fn.coalesce("CurrentList.price", sql<number>`0`).as("price"),
         "FloorPrices.floor",
         sql`
-          CASE 
-            WHEN ${eb.ref("FloorPrices.floor")} > 0 
+          CASE
+            WHEN ${eb.ref("FloorPrices.floor")} > 0
             THEN ${eb.ref("CurrentList.price")} / ${eb.ref("FloorPrices.floor")}
-            ELSE 0 
+            ELSE 0
           END`
           .$castTo<number>()
           .as("floorDifference"),
@@ -271,10 +284,10 @@ export const collectibleRepository = {
         eb.fn.coalesce("CurrentList.price", sql<number>`0`).as("price"),
         "FloorPrices.floor",
         sql`
-          CASE 
-            WHEN ${eb.ref("FloorPrices.floor")} > 0 
+          CASE
+            WHEN ${eb.ref("FloorPrices.floor")} > 0
             THEN ${eb.ref("CurrentList.price")} / ${eb.ref("FloorPrices.floor")}
-            ELSE 0 
+            ELSE 0
           END`
           .$castTo<number>()
           .as("floorDifference"),
@@ -304,6 +317,40 @@ export const collectibleRepository = {
 
     return countResult;
   },
+
+  // New function to get total count across collections
+  getListableCollectiblesCountByCollections: async (
+    collectionIds: string[]
+  ) => {
+    const result = await db
+      .selectFrom("Collectible")
+      .select((eb) => [eb.fn.countAll().as("count")])
+      .where("Collectible.collectionId", "in", collectionIds)
+      .executeTakeFirst();
+
+    return result;
+  },
+
+  getCollectionWithCollectionAddress: async (collectionIds: string[]) => {
+    let query = db
+      .selectFrom("Collection")
+      .select([
+        "id",
+        "name",
+        "contractAddress",
+        "supply",
+        "description",
+        "logoKey",
+      ])
+      .where("contractAddress", "is not", null);
+
+    if (collectionIds?.length) {
+      query = query.where("id", "in", collectionIds);
+    }
+
+    return query.execute();
+  },
+
   getByUniqueIdx: async (uniqueIdx: string) => {
     const collectible = await db
       .selectFrom("Collectible")

@@ -1,7 +1,5 @@
 import { ethers } from "ethers";
 import { EVM_CONFIG } from "../evm-config";
-import { ethers6Adapter } from "thirdweb/adapters/ethers6";
-import { createThirdwebClient, defineChain, getContract } from "thirdweb";
 import { config } from "../../../src/config/config";
 import { ThirdwebStorage } from "@thirdweb-dev/storage";
 import { NextFunction, Request, Response } from "express";

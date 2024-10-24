@@ -48,6 +48,7 @@ export const collectibleControllers = {
       next(e);
     }
   },
+
   getListableCollectiblesByCollectionId: async (
     req: Request<{ collectionId: string }, {}, {}, CollectibleQueryParams>,
     res: Response,
