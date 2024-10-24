@@ -3,15 +3,52 @@ import { AuthenticatedRequest } from "../../custom";
 import { CustomError } from "../exceptions/CustomError";
 import { MAX_SATOSHI_AMOUNT } from "../../blockchain/utxo/constants";
 import { listServices } from "../services/listServices";
+import TradingService from "../../blockchain/evm/services/tradingService";
+import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
+import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
+import { userRepository } from "../repositories/userRepository";
+import { serializeBigInt } from "../../blockchain/evm/utils";
+const tradingService = new TradingService(
+  EVM_CONFIG.RPC_URL,
+  EVM_CONFIG.MARKETPLACE_ADDRESS,
+  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
+);
 
 export const listController = {
+  getApprovelTransactionOfTrading: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { collectionAddress } = req.body;
+      if (!req.user?.id)
+        throw new CustomError("Could not retrieve id from the token.", 400);
+      const user = await userRepository.getById(req.user.id);
+      if (!user) throw new CustomError("User not found", 400);
+      if (!collectionAddress)
+        throw new CustomError("Please provide a collectionAddress.", 400);
+
+      const unsignedTx = await tradingService.getUnsignedApprovalTransaction(
+        collectionAddress,
+        user?.address
+      );
+      const serializedTx = serializeBigInt(unsignedTx);
+
+      return res
+        .status(200)
+        .json({ success: true, data: { approveTxHex: serializedTx } });
+    } catch (e) {
+      next(e);
+    }
+  },
   listCollectible: async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {
     try {
-      const { collectibleId, price } = req.body;
+      const { collectibleId, price, txid } = req.body;
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
       if (!collectibleId)
@@ -22,7 +59,8 @@ export const listController = {
       const list = await listServices.listCollectible(
         price,
         collectibleId,
-        req.user.id
+        req.user.id,
+        txid
       );
 
       return res.status(200).json({ success: true, data: { list } });
