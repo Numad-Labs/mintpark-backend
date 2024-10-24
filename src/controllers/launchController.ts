@@ -105,7 +105,7 @@ export const launchController = {
     next: NextFunction
   ) => {
     try {
-      const { collectionTxid, mintFee } = req.body;
+      const { collectionTxid, mintFee } = req.body.data;
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
       const user = await userRepository.getById(req.user?.id!);
