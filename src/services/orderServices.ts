@@ -187,9 +187,6 @@ export const orderServices = {
           throw new Error("Invalid order type.");
       }
 
-      // await collectionServices.update()
-      //todo deployed contract address yaj hadgalhii contract address ruu?
-
       const unsignedTx = await nftService.getUnsignedBatchMintNFTTransaction(
         transactionDetail.deployedContractAddress,
         user.address,

@@ -7,3 +7,5 @@ export const intervalMap: { [key: string]: number } = {
 
 export const MINIMUM_LISTING_SERVICE_FEE = 10000;
 export const LISTING_SERVICE_FEE_PERCENTAGE = 0.02;
+
+export const ON_HOLD_MINUTES = 3;

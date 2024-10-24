@@ -68,7 +68,7 @@ export const launchController = {
     next: NextFunction
   ) => {
     const { collectionId } = req.params;
-    const { feeRate, launchOfferType, txid } = req.body;
+    const { feeRate, launchOfferType } = req.body;
 
     try {
       const user = await userRepository.getById(req.user?.id!);
@@ -93,8 +93,7 @@ export const launchController = {
         collectionId,
         user.id,
         feeRate,
-        offerType,
-        txid
+        offerType
       );
 
       return res.status(200).json({ success: true, data: order });

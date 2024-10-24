@@ -37,7 +37,6 @@ export const LIST_STATUS = {
 export type LIST_STATUS = (typeof LIST_STATUS)[keyof typeof LIST_STATUS];
 export const LAUNCH_ITEM_STATUS = {
   ACTIVE: "ACTIVE",
-  ON_HOLD: "ON_HOLD",
   SOLD: "SOLD",
   CANCELLED: "CANCELLED",
 } as const;
