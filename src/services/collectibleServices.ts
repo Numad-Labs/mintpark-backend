@@ -30,27 +30,42 @@ export const collectibleServices = {
       const evmCollectibleService = new EVMCollectibleService(
         EVM_CONFIG.RPC_URL
       );
-
       const collections = await collectionRepository.getCollectionsByLayer(
         "CITREA"
       );
 
-      console.log(`citrea collections: ${collections}`);
+      if (collections?.length) {
+        console.log(`Found ${collections.length} CITREA collections`);
 
-      for (const collection of collections) {
-        if (!collection.contractAddress) continue;
-        console.log(collection.contractAddress);
-        const tokenIds = await evmCollectibleService.getOwnedTokens(
-          collection.contractAddress,
-          user.address
+        // Filter valid collections and process them in parallel
+        const validCollections = collections.filter((c) => c.contractAddress);
+        const tokenResults = await Promise.all(
+          validCollections.map(async (collection) => {
+            try {
+              const tokenIds = await evmCollectibleService.getOwnedTokens(
+                collection.contractAddress!,
+                user.address
+              );
+
+              if (!tokenIds?.length) return [];
+
+              console.log(
+                `Found ${tokenIds.length} tokens for contract: ${collection.contractAddress}`
+              );
+              return tokenIds.map(
+                (tokenId) => `${collection.contractAddress}i${tokenId}`
+              );
+            } catch (error) {
+              console.error(
+                `Error processing collection ${collection.contractAddress}:`,
+                error
+              );
+              return [];
+            }
+          })
         );
 
-        console.log(`tokenIds: ${tokenIds}`);
-
-        if (!tokenIds || tokenIds.length === 0) continue;
-
-        for (const tokenId of tokenIds)
-          uniqueIdxs.push(`${collection.contractAddress}i${tokenId}`);
+        uniqueIdxs.push(...tokenResults.flat());
       }
     } else if (layerType.layer === "FRACTAL") {
       const inscriptionUtxos = await getInscriptionUtxosByAddress(
