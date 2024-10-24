@@ -53,7 +53,7 @@ export const launchServices = {
 
     if (files.length < 1)
       throw new Error("Launch must have at least one file.");
-    
+
     const launch = await launchRepository.create(data);
 
     if (layerType.layer === "CITREA" && layerType.network === "TESTNET") {

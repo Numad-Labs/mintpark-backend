@@ -87,8 +87,6 @@ export const launchController = {
         offerType: launchOfferType as "public" | "whitelist",
       };
 
-      //todo transaction ID ogoh
-      // const txid = "123";
       const order = await launchServices.generateOrderForLaunchedCollection(
         collectionId,
         user.id,
@@ -102,18 +100,22 @@ export const launchController = {
     }
   },
   getUnsignedMintPriceChange: async (
-    req: Request,
+    req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {
     try {
-      const { ownerAddress, collectionAddress, mintFee } = req.body;
-
+      const { collectionTxid, mintFee } = req.body;
+      if (!req.user?.id)
+        throw new CustomError("Could not retrieve id from the token.", 400);
+      const user = await userRepository.getById(req.user?.id!);
+      if (!user || !user.address)
+        throw new CustomError("User address not found from the token.", 400);
       // Prepare transaction data
       const unsignedTx =
         await launchPadService.createLaunchpadContractFeeChange(
-          collectionAddress,
-          ownerAddress,
+          collectionTxid,
+          user.address,
           mintFee
         );
 

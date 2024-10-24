@@ -11,11 +11,16 @@ import { Launch, LaunchItem } from "../../../src/types/db/types";
 import { CustomError } from "../../../src/exceptions/CustomError";
 import { LAUNCH_ITEM_STATUS } from "../../../src/types/db/enums";
 import { LaunchItemTypes, Launchtype } from "../controller/launchpadController";
+import { TransactionConfirmationService } from "./transactionConfirmationService";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
   EVM_CONFIG.MARKETPLACE_ADDRESS,
   new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
+);
+
+const confirmationService = new TransactionConfirmationService(
+  EVM_CONFIG.RPC_URL!
 );
 
 interface LaunchAsset {
@@ -204,14 +209,33 @@ class LaunchpadService {
   }
 
   async createLaunchpadContractFeeChange(
-    collectionAddress: string,
+    collectionTxid: string,
     ownerAddress: string,
     mintFee: string
   ) {
     try {
+      if (!collectionTxid) throw new Error("txid not found.");
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        collectionTxid
+      );
+
+      if (transactionDetail.status !== 1) {
+        throw new CustomError(
+          "Transaction not confirmed. Please try again.",
+          500
+        );
+      }
+
+      if (!transactionDetail.deployedContractAddress) {
+        throw new CustomError(
+          "Transaction does not contain deployed contract address.",
+          500
+        );
+      }
+
       // Get the NFT contract
       const nftContract = new ethers.Contract(
-        collectionAddress,
+        transactionDetail.deployedContractAddress,
         EVM_CONFIG.NFT_CONTRACT_ABI,
         this.provider
       );
