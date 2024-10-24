@@ -331,7 +331,7 @@ export const launchServices = {
 
       const collectible = await collectibleRepository.create({
         collectionId: collection.id,
-        uniqueIdx: launchItem.evmAssetId,
+        uniqueIdx: `${collection.contractAddress}i${launchItem.evmAssetId}`,
         name: launchItem.name,
         fileKey: launchItem.fileKey,
       });

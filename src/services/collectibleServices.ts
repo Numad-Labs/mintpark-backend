@@ -6,8 +6,12 @@ import {
 import { CustomError } from "../exceptions/CustomError";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import { collectionRepository } from "../repositories/collectionRepository";
+import { layerRepository } from "../repositories/layerRepository";
 import { listRepository } from "../repositories/listRepository";
 import { userRepository } from "../repositories/userRepository";
+import { EVMCollectibleService } from "../../blockchain/evm/services/evmIndexService";
+import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
+const evmCollectibleService = new EVMCollectibleService(EVM_CONFIG.RPC_URL!);
 
 export const collectibleServices = {
   getListableCollectibles: async (
@@ -15,17 +19,54 @@ export const collectibleServices = {
     params: CollectibleQueryParams
   ) => {
     const user = await userRepository.getById(userId);
-    if (!user) throw new CustomError("User not found.", 400);
+    if (!user || !user.layerId) throw new CustomError("User not found.", 400);
 
-    const inscriptionUtxos = await getInscriptionUtxosByAddress(
-      user.address,
-      true
-    );
-    const inscriptionIds = inscriptionUtxos.map(
-      (inscriptionUtxo) => inscriptionUtxo.inscriptions[0].inscriptionId
-    );
+    const layerType = await layerRepository.getById(user.layerId!);
+    if (!layerType) throw new Error("Layer not found.");
 
-    if (inscriptionIds.length === 0)
+    const uniqueIdxs: string[] = [];
+
+    if (layerType.layer === "CITREA" && layerType.network === "TESTNET") {
+      const evmCollectibleService = new EVMCollectibleService(
+        EVM_CONFIG.RPC_URL
+      );
+
+      const collections = await collectionRepository.getCollectionsByLayer(
+        "CITREA"
+      );
+
+      console.log(`citrea collections: ${collections}`);
+
+      for (const collection of collections) {
+        if (!collection.contractAddress) continue;
+        console.log(collection.contractAddress);
+        const tokenIds = await evmCollectibleService.getOwnedTokens(
+          collection.contractAddress,
+          user.address
+        );
+
+        console.log(`tokenIds: ${tokenIds}`);
+
+        if (!tokenIds || tokenIds.length === 0) continue;
+
+        for (const tokenId of tokenIds)
+          uniqueIdxs.push(`${collection.contractAddress}i${tokenId}`);
+      }
+    } else if (layerType.layer === "FRACTAL") {
+      const inscriptionUtxos = await getInscriptionUtxosByAddress(
+        user.address,
+        true
+      );
+
+      inscriptionUtxos.map((inscriptionUtxo) => {
+        inscriptionUtxo.inscriptions[0].inscriptionId;
+        uniqueIdxs.push(inscriptionUtxo.inscriptions[0].inscriptionId);
+      });
+    }
+
+    console.log(`uniqueIdxs after ${uniqueIdxs}`);
+
+    if (uniqueIdxs.length === 0)
       return {
         collectibles: [],
         totalCount: 0,
@@ -40,16 +81,16 @@ export const collectibleServices = {
       collections,
     ] = await Promise.all([
       collectibleRepository.getListableCollectiblesByInscriptionIds(
-        inscriptionIds,
+        uniqueIdxs,
         params,
         user.id
       ),
       collectibleRepository.getListableCollectiblesCountByInscriptionIds(
-        inscriptionIds
+        uniqueIdxs
       ),
       listRepository.getActiveListCountByUserId(userId),
       collectionRepository.getListedCollectionsWithCollectibleCountByInscriptionIds(
-        inscriptionIds
+        uniqueIdxs
       ),
     ]);
 

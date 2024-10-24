@@ -41,82 +41,116 @@ export const collectibleRepository = {
   getListableCollectiblesByInscriptionIds: async (
     inscriptionIds: string[],
     params: CollectibleQueryParams,
-    userId: string
+    userId: string,
+    collectionId?: string
   ) => {
-    let query = db
-      .selectFrom("Collectible")
-      .leftJoin("List as CurrentList", (join) =>
-        join
-          .onRef("CurrentList.collectibleId", "=", "Collectible.id")
-          .on("CurrentList.status", "=", "ACTIVE")
-      )
-      .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
-      .select(({ eb }) => [
-        "Collectible.id",
-        "Collectible.name",
-        "Collectible.uniqueIdx",
-        "Collectible.createdAt",
-        "Collectible.fileKey",
-        "Collectible.createdAt",
-        "Collectible.collectionId",
-        "Collection.name as collectionName",
-        "CurrentList.listedAt",
-        "CurrentList.id as listId",
-        "CurrentList.price",
-        eb.fn
-          .coalesce(
-            eb
-              .selectFrom("List")
-              .innerJoin("Collectible", "Collectible.id", "List.collectibleId")
-              .select("price")
-              .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
-              .orderBy("price", "asc")
-              .limit(1),
-            sql<number>`0`
-          )
-          .as("floor"),
-      ])
-      .where((eb) =>
-        eb("Collectible.uniqueIdx", "in", inscriptionIds).or(
-          eb("CurrentList.price", ">", 0).and(
-            "CurrentList.sellerId",
-            "=",
-            userId
-          )
-        )
-      );
+    console.log("Query parameters:", {
+      inscriptionIds,
+      userId,
+      collectionId,
+      params,
+    });
 
-    if (params.isListed)
-      query = query.where("CurrentList.status", "=", "ACTIVE");
+    // Ensure inscriptionIds is an array and contains strings
+    const cleanInscriptionIds = Array.isArray(inscriptionIds)
+      ? inscriptionIds.map((id) => id.toString())
+      : [];
 
-    const collectionIds = params.collectionIds as string[];
-    if (collectionIds && collectionIds.length > 0) {
-      query = query.where((eb) =>
-        eb.or(
-          collectionIds.map((collectionId) =>
-            eb("Collectible.collectionId", "=", collectionId)
-          )
-        )
-      );
+    if (cleanInscriptionIds.length === 0) {
+      console.log("No inscription IDs provided");
+      return [];
     }
 
-    switch (params.orderBy) {
-      case "price":
-        query = query.orderBy(
+    try {
+      let query = db
+        .selectFrom("Collectible")
+        .leftJoin("List as CurrentList", (join) =>
+          join
+            .onRef("CurrentList.collectibleId", "=", "Collectible.id")
+            .on("CurrentList.status", "=", "ACTIVE")
+        )
+        .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
+        .select(({ eb }) => [
+          "Collectible.id",
+          "Collectible.name",
+          "Collectible.uniqueIdx",
+          "Collectible.createdAt",
+          "Collectible.fileKey",
+          "Collectible.collectionId",
+          "Collection.name as collectionName",
+          "CurrentList.listedAt",
+          "CurrentList.id as listId",
           "CurrentList.price",
-          params.orderDirection === "desc" ? "desc" : "asc"
-        );
-        break;
-      case "recent":
-        query = query.orderBy("CurrentList.listedAt", "asc");
-        break;
-      default:
-        query = query.orderBy("Collectible.createdAt", "asc");
+          eb.fn
+            .coalesce(
+              eb
+                .selectFrom("List")
+                .innerJoin(
+                  "Collectible",
+                  "Collectible.id",
+                  "List.collectibleId"
+                )
+                .select("price")
+                .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
+                .orderBy("price", "asc")
+                .limit(1),
+              sql<number>`0`
+            )
+            .as("floor"),
+        ]);
+
+      // Base condition - match inscription IDs for the specific collection
+      let baseCondition = (eb: any) => {
+        let condition = eb("Collectible.uniqueIdx", "in", cleanInscriptionIds);
+
+        if (collectionId) {
+          condition = condition.and(
+            "Collectible.collectionId",
+            "=",
+            collectionId
+          );
+        }
+
+        return condition;
+      };
+
+      // Add the base condition
+      query = query.where(baseCondition);
+
+      // Add listed condition if specified
+      if (params.isListed) {
+        query = query.where("CurrentList.status", "=", "ACTIVE");
+      }
+
+      // Add sorting
+      switch (params.orderBy) {
+        case "price":
+          query = query.orderBy(
+            "CurrentList.price",
+            params.orderDirection === "desc" ? "desc" : "asc"
+          );
+          break;
+        case "recent":
+          query = query.orderBy("CurrentList.listedAt", "desc");
+          break;
+        default:
+          query = query.orderBy("Collectible.createdAt", "desc");
+      }
+
+      // Execute query and log results for debugging
+      const collectibles = await query.execute();
+      console.log(`Found ${collectibles.length} collectibles`);
+
+      // Log the first few results for debugging
+      if (collectibles.length > 0) {
+        console.log("First collectible:", collectibles[0]);
+      }
+
+      return collectibles;
+    } catch (error) {
+      console.error("Error in getListableCollectiblesByInscriptionIds:", error);
+      throw error;
     }
-
-    const collectibles = await query.execute();
-
-    return collectibles;
   },
   getListableCollectiblesCountByInscriptionIds: async (
     inscriptionIds: string[]
@@ -173,10 +207,10 @@ export const collectibleRepository = {
         eb.fn.coalesce("CurrentList.price", sql<number>`0`).as("price"),
         "FloorPrices.floor",
         sql`
-          CASE 
-            WHEN ${eb.ref("FloorPrices.floor")} > 0 
+          CASE
+            WHEN ${eb.ref("FloorPrices.floor")} > 0
             THEN ${eb.ref("CurrentList.price")} / ${eb.ref("FloorPrices.floor")}
-            ELSE 0 
+            ELSE 0
           END`
           .$castTo<number>()
           .as("floorDifference"),
@@ -271,10 +305,10 @@ export const collectibleRepository = {
         eb.fn.coalesce("CurrentList.price", sql<number>`0`).as("price"),
         "FloorPrices.floor",
         sql`
-          CASE 
-            WHEN ${eb.ref("FloorPrices.floor")} > 0 
+          CASE
+            WHEN ${eb.ref("FloorPrices.floor")} > 0
             THEN ${eb.ref("CurrentList.price")} / ${eb.ref("FloorPrices.floor")}
-            ELSE 0 
+            ELSE 0
           END`
           .$castTo<number>()
           .as("floorDifference"),
@@ -304,6 +338,40 @@ export const collectibleRepository = {
 
     return countResult;
   },
+
+  // New function to get total count across collections
+  getListableCollectiblesCountByCollections: async (
+    collectionIds: string[]
+  ) => {
+    const result = await db
+      .selectFrom("Collectible")
+      .select((eb) => [eb.fn.countAll().as("count")])
+      .where("Collectible.collectionId", "in", collectionIds)
+      .executeTakeFirst();
+
+    return result;
+  },
+
+  getCollectionWithCollectionAddress: async (collectionIds: string[]) => {
+    let query = db
+      .selectFrom("Collection")
+      .select([
+        "id",
+        "name",
+        "contractAddress",
+        "supply",
+        "description",
+        "logoKey",
+      ])
+      .where("contractAddress", "is not", null);
+
+    if (collectionIds?.length) {
+      query = query.where("id", "in", collectionIds);
+    }
+
+    return query.execute();
+  },
+
   getByUniqueIdx: async (uniqueIdx: string) => {
     const collectible = await db
       .selectFrom("Collectible")
