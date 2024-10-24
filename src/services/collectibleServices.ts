@@ -38,7 +38,6 @@ export const collectibleServices = {
         const collections = await evmCollectibleService.getEVMCollections(
           params.collectionIds
         );
-        console.log("🚀 ~ collections:", collections);
 
         // Process collections in parallel
         const collectiblesPromise = collections.map(async (collection) => {
@@ -71,7 +70,9 @@ export const collectibleServices = {
         });
 
         const collectiblesArrays = await Promise.all(collectiblesPromise);
+        console.log("🚀 ~ collectiblesArrays:", collectiblesArrays);
         const listableCollectibles = collectiblesArrays.flat();
+        console.log("🚀 ~ listableCollectibles:", listableCollectibles);
 
         const [totalCountResult, listedCountResult] = await Promise.all([
           collectibleRepository.getListableCollectiblesCountByCollections(

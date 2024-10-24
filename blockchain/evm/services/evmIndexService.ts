@@ -1,4 +1,4 @@
-import { ethers, BytesLike } from "ethers";
+import { ethers, BytesLike, EventLog, Contract } from "ethers";
 import { EVM_CONFIG } from "../evm-config";
 import { db } from "../../../src/utils/db";
 import { CustomError } from "../../../src/exceptions/CustomError";
@@ -16,6 +16,15 @@ export class EVMCollectibleService {
   }
 
   async getOwnedTokens(contractAddress: string, ownerAddress: string) {
+    if (!ethers.isAddress(contractAddress)) {
+      throw new CustomError(
+        `Invalid contract address: ${contractAddress}`,
+        400
+      );
+    }
+    if (!ethers.isAddress(ownerAddress)) {
+      throw new CustomError(`Invalid owner address: ${ownerAddress}`, 400);
+    }
     try {
       // Validate inputs
       if (!ethers.isAddress(contractAddress)) {
@@ -41,6 +50,7 @@ export class EVMCollectibleService {
       if (balanceNumber === 0) {
         return [];
       }
+      // return this.getOwnedTokensByEvents(contract, ownerAddress);
 
       // Get all token IDs
       const tokenPromises = [];
@@ -66,6 +76,70 @@ export class EVMCollectibleService {
       }
     }
   }
+
+  // Fallback method using events
+  private async getOwnedTokensByEvents(
+    contract: Contract,
+    ownerAddress: string
+  ): Promise<string[]> {
+    try {
+      // Get transfer events
+      const filter = contract.filters.Transfer(null, ownerAddress);
+      const events = await contract.queryFilter(filter);
+
+      // Get unique token IDs
+      const tokenIds = new Set<string>();
+
+      for (const event of events) {
+        // Check if event is EventLog (has args) or Log (doesn't have args)
+        if (event instanceof EventLog) {
+          const tokenId = event.args[2]; // Third argument is tokenId
+          if (tokenId) {
+            try {
+              // Check if the owner still owns this token
+              const currentOwner = await contract.ownerOf(tokenId);
+              if (currentOwner.toLowerCase() === ownerAddress.toLowerCase()) {
+                tokenIds.add(tokenId.toString());
+              }
+            } catch (error) {
+              console.warn(
+                `Failed to verify ownership of token ${tokenId}:`,
+                error
+              );
+            }
+          }
+        } else {
+          // Handle old-style logs
+          const decodedData = contract.interface.parseLog({
+            topics: event.topics,
+            data: event.data,
+          });
+
+          if (decodedData?.args) {
+            const tokenId = decodedData.args[2]; // Third argument is tokenId
+            if (tokenId) {
+              try {
+                const currentOwner = await contract.ownerOf(tokenId);
+                if (currentOwner.toLowerCase() === ownerAddress.toLowerCase()) {
+                  tokenIds.add(tokenId.toString());
+                }
+              } catch (error) {
+                console.warn(
+                  `Failed to verify ownership of token ${tokenId}:`,
+                  error
+                );
+              }
+            }
+          }
+        }
+      }
+
+      return Array.from(tokenIds);
+    } catch (error) {
+      console.error("Failed to get tokens by events:", error);
+      return [];
+    }
+  }
   async getEVMCollections(collectionIds?: string[]) {
     let query = db
       .selectFrom("Collection")
@@ -82,12 +156,7 @@ export class EVMCollectibleService {
     console.log(collectionIds);
 
     if (collectionIds?.length) {
-      query = query.where((eb) =>
-        eb("Collection.id", "in", [
-          "02424158-f089-4a95-b341-0fb1f02f7573",
-          "02424158-f089-4a95-b341-0fb1f02f7573",
-        ])
-      );
+      query = query.where("Collection.id", "in", collectionIds);
     }
 
     const collections = await query.execute();

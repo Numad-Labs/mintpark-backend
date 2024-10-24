@@ -44,92 +44,113 @@ export const collectibleRepository = {
     userId: string,
     collectionId?: string
   ) => {
-    console.log("🚀 ~ inscriptionIds:", Array.isArray(inscriptionIds));
-    const collectionIdsArray = Array.isArray(params.collectionIds)
-      ? params.collectionIds
-      : params.collectionIds
-      ? [params.collectionIds]
+    console.log("Query parameters:", {
+      inscriptionIds,
+      userId,
+      collectionId,
+      params,
+    });
+
+    // Ensure inscriptionIds is an array and contains strings
+    const cleanInscriptionIds = Array.isArray(inscriptionIds)
+      ? inscriptionIds.map((id) => id.toString())
       : [];
 
-    let query = db
-      .selectFrom("Collectible")
-      .leftJoin("List as CurrentList", (join) =>
-        join
-          .onRef("CurrentList.collectibleId", "=", "Collectible.id")
-          .on("CurrentList.status", "=", "ACTIVE")
-      )
-      .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
-      .select(({ eb }) => [
-        "Collectible.id",
-        "Collectible.name",
-        "Collectible.uniqueIdx",
-        "Collectible.createdAt",
-        "Collectible.fileKey",
-        "Collectible.createdAt",
-        "Collectible.collectionId",
-        "Collection.name as collectionName",
-        "CurrentList.listedAt",
-        "CurrentList.id as listId",
-        "CurrentList.price",
-        eb.fn
-          .coalesce(
-            eb
-              .selectFrom("List")
-              .innerJoin("Collectible", "Collectible.id", "List.collectibleId")
-              .select("price")
-              .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
-              .orderBy("price", "asc")
-              .limit(1),
-            sql<number>`0`
-          )
-          .as("floor"),
-      ])
-      .where((eb) =>
-        eb("Collectible.uniqueIdx", "in", inscriptionIds).or(
-          eb("CurrentList.price", ">", 0).and(
-            "CurrentList.sellerId",
-            "=",
-            userId
-          )
-        )
-      );
-
-    if (collectionId) {
-      query = query.where("Collectible.collectionId", "=", collectionId);
+    if (cleanInscriptionIds.length === 0) {
+      console.log("No inscription IDs provided");
+      return [];
     }
 
-    if (params.isListed)
-      query = query.where("CurrentList.status", "=", "ACTIVE");
-
-    // const collectionIds = params.collectionIds as string[];
-    // console.log("🚀 ~ collectionIds:", collectionIds);
-    if (collectionIdsArray && collectionIdsArray.length > 0) {
-      query = query.where((eb) =>
-        eb.or(
-          collectionIdsArray.map((collectionId) =>
-            eb("Collectible.collectionId", "=", collectionId)
-          )
+    try {
+      let query = db
+        .selectFrom("Collectible")
+        .leftJoin("List as CurrentList", (join) =>
+          join
+            .onRef("CurrentList.collectibleId", "=", "Collectible.id")
+            .on("CurrentList.status", "=", "ACTIVE")
         )
-      );
-    }
-
-    switch (params.orderBy) {
-      case "price":
-        query = query.orderBy(
+        .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
+        .select(({ eb }) => [
+          "Collectible.id",
+          "Collectible.name",
+          "Collectible.uniqueIdx",
+          "Collectible.createdAt",
+          "Collectible.fileKey",
+          "Collectible.collectionId",
+          "Collection.name as collectionName",
+          "CurrentList.listedAt",
+          "CurrentList.id as listId",
           "CurrentList.price",
-          params.orderDirection === "desc" ? "desc" : "asc"
-        );
-        break;
-      case "recent":
-        query = query.orderBy("CurrentList.listedAt", "asc");
-        break;
-      default:
-        query = query.orderBy("Collectible.createdAt", "asc");
+          eb.fn
+            .coalesce(
+              eb
+                .selectFrom("List")
+                .innerJoin(
+                  "Collectible",
+                  "Collectible.id",
+                  "List.collectibleId"
+                )
+                .select("price")
+                .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
+                .orderBy("price", "asc")
+                .limit(1),
+              sql<number>`0`
+            )
+            .as("floor"),
+        ]);
+
+      // Base condition - match inscription IDs for the specific collection
+      let baseCondition = (eb: any) => {
+        let condition = eb("Collectible.uniqueIdx", "in", cleanInscriptionIds);
+
+        if (collectionId) {
+          condition = condition.and(
+            "Collectible.collectionId",
+            "=",
+            collectionId
+          );
+        }
+
+        return condition;
+      };
+
+      // Add the base condition
+      query = query.where(baseCondition);
+
+      // Add listed condition if specified
+      if (params.isListed) {
+        query = query.where("CurrentList.status", "=", "ACTIVE");
+      }
+
+      // Add sorting
+      switch (params.orderBy) {
+        case "price":
+          query = query.orderBy(
+            "CurrentList.price",
+            params.orderDirection === "desc" ? "desc" : "asc"
+          );
+          break;
+        case "recent":
+          query = query.orderBy("CurrentList.listedAt", "desc");
+          break;
+        default:
+          query = query.orderBy("Collectible.createdAt", "desc");
+      }
+
+      // Execute query and log results for debugging
+      const collectibles = await query.execute();
+      console.log(`Found ${collectibles.length} collectibles`);
+
+      // Log the first few results for debugging
+      if (collectibles.length > 0) {
+        console.log("First collectible:", collectibles[0]);
+      }
+
+      return collectibles;
+    } catch (error) {
+      console.error("Error in getListableCollectiblesByInscriptionIds:", error);
+      throw error;
     }
-
-    const collectibles = await query.execute();
-
-    return collectibles;
   },
   getListableCollectiblesCountByInscriptionIds: async (
     inscriptionIds: string[]
