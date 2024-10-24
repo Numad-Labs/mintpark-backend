@@ -128,36 +128,29 @@ export const collectionRepository = {
           return eb.or([
             // Include upcoming and live whitelist periods
             eb.and([
-              eb(
-                sql`"Launch"."createdAt" + ("Launch"."wlEndsAt" || ' seconds')::interval`,
-                ">=",
-                sql`to_timestamp(${Number(now) / 1000})`
-              ),
               eb("Launch.wlStartsAt", "is not", null),
+              eb("Launch.wlEndsAt", ">=", now.toString()),
+              eb("Launch.wlStartsAt", "<=", now.toString()),
             ]),
             // Include upcoming and live public periods
-            eb(
-              sql`"Launch"."createdAt" + ("Launch"."poEndsAt" || ' seconds')::interval`,
-              ">=",
-              sql`to_timestamp(${Number(now) / 1000})`
-            ),
+            eb.and([
+              eb("Launch.poEndsAt", ">=", now.toString()),
+              eb("Launch.poStartsAt", "<=", now.toString()),
+            ]),
           ]);
         } else {
           // 'past' interval
           return eb.and([
+            // Both WL and PO periods have ended
             eb.or([
-              eb(
-                sql`"Launch"."createdAt" + ("Launch"."wlEndsAt" || ' seconds')::interval`,
-                "<",
-                sql`to_timestamp(${Number(now) / 1000})`
-              ),
-              eb("Launch.wlEndsAt", "is", null),
+              // WL has ended or doesn't exist
+              eb.or([
+                eb("Launch.wlEndsAt", "is", null),
+                eb("Launch.wlEndsAt", "<", now.toString()),
+              ]),
             ]),
-            eb(
-              sql`"Launch"."createdAt" + ("Launch"."poEndsAt" || ' seconds')::interval`,
-              "<",
-              sql`to_timestamp(${Number(now) / 1000})`
-            ),
+            // PO has ended
+            eb("Launch.poEndsAt", "<", now.toString()),
           ]);
         }
       });
@@ -165,8 +158,9 @@ export const collectionRepository = {
 
     const collections = await query.execute();
 
-    console.log(new Date().toLocaleString());
+    console.log(now);
 
+    // Convert timestamps from seconds to milliseconds for consistency
     return collections.map((collection) => ({
       ...collection,
       wlStartsAt: collection.wlStartsAt ? Number(collection.wlStartsAt) : null,
@@ -210,7 +204,15 @@ export const collectionRepository = {
       .where("Launch.id", "is not", null)
       .executeTakeFirst();
 
-    return collection;
+    if (!collection) return null;
+
+    return {
+      ...collection,
+      wlStartsAt: collection.wlStartsAt ? Number(collection.wlStartsAt) : null,
+      wlEndsAt: collection.wlEndsAt ? Number(collection.wlEndsAt) : null,
+      poStartsAt: Number(collection.poStartsAt),
+      poEndsAt: Number(collection.poEndsAt),
+    };
   },
   getListedCollections: async (params: CollectionQueryParams) => {
     let query = db
