@@ -24,6 +24,7 @@ import MarketplaceService from "../../blockchain/evm/services/marketplaceService
 import { ethers } from "ethers";
 import NFTService from "../../blockchain/evm/services/nftService";
 import { serializeBigInt } from "../../blockchain/evm/utils";
+import { collectionRepository } from "../repositories/collectionRepository";
 // import MarketplaceService from "./marketplaceService";
 
 const marketplaceService = new MarketplaceService(
@@ -50,6 +51,20 @@ export const listServices = {
     if (!issuer) throw new CustomError("User not found.", 400);
 
     const collectible = await collectibleRepository.getById(collectibleId);
+    if (!collectible || !collectible.collectionId)
+      throw new CustomError("Collectible not found.", 400);
+
+    const collection = await collectionRepository.getById(
+      collectible?.collectionId
+    );
+    if (!collection || !collection.contractAddress)
+      throw new CustomError("Contract address not found.", 400);
+
+    console.log(
+      "🚀 ~ listing. collection.contractAddress:",
+      collection.contractAddress
+    );
+
     if (!collectible) throw new CustomError("Collectible not found.", 400);
     if (collectible.layer !== "FRACTAL" && collectible.network !== "TESTNET")
       throw new CustomError("This layer is not supported ATM.", 400);
@@ -68,9 +83,23 @@ export const listServices = {
           500
         );
       }
+
+      const signer = await nftService.provider.getSigner();
+      const nftContract = new ethers.Contract(
+        collection.contractAddress,
+        EVM_CONFIG.NFT_CONTRACT_ABI,
+        signer
+      );
+
+      // Check if the marketplace is already approved
+      const isApproved = await nftContract.isApprovedForAll(
+        issuer.address,
+        EVM_CONFIG.MARKETPLACE_ADDRESS
+      );
+      console.log("🚀 ~ isApproved:", isApproved);
       const listing = {
-        assetContract: collectible.collectionId,
-        tokenId: collectible.uniqueIdx,
+        assetContract: collection.contractAddress,
+        tokenId: collectible.uniqueIdx.split("i")[0],
         // startTime: Math.floor(Date.now() / 1000),
         startTimestamp: Math.floor(Date.now() / 1000),
         endTimestamp: Math.floor(Date.now() / 1000) + 86400 * 7, // 1 week
@@ -80,7 +109,7 @@ export const listServices = {
         // reservePricePerToken: pricePerToken,
         // buyoutPricePerToken: pricePerToken,
         listingType: 0, // Direct listing
-        pricePerToken: price,
+        pricePerToken: ethers.parseEther(price.toString()),
         reserved: false,
       };
 
