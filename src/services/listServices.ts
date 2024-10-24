@@ -1,3 +1,5 @@
+import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
+import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
 import { estimateBuyPsbtRequiredAmount } from "../../blockchain/utxo/calculateRequiredAmount";
 import {
   generateBuyPsbtHex,
@@ -18,12 +20,24 @@ import { hideSensitiveData } from "../libs/hideDataHelper";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import { listRepository } from "../repositories/listRepository";
 import { userRepository } from "../repositories/userRepository";
+import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
+import { ethers } from "ethers";
+// import MarketplaceService from "./marketplaceService";
+
+const marketplaceService = new MarketplaceService(
+  EVM_CONFIG.MARKETPLACE_ADDRESS
+);
+
+const confirmationService = new TransactionConfirmationService(
+  EVM_CONFIG.RPC_URL
+);
 
 export const listServices = {
   listCollectible: async (
     price: number,
     collectibleId: string,
-    issuerId: string
+    issuerId: string,
+    txid?: string
   ) => {
     const issuer = await userRepository.getById(issuerId);
     if (!issuer) throw new CustomError("User not found.", 400);
@@ -37,6 +51,37 @@ export const listServices = {
 
     if (collectible.layer === "CITREA") {
       // avsan txid-gaa validate hiine, list uusgene
+      if (!txid) throw new CustomError("txid is missing", 500);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
+      if (transactionDetail.status !== 1) {
+        throw new CustomError(
+          "Transaction not confirmed. Please try again.",
+          500
+        );
+      }
+      // const listing = {
+      //   assetContract: collectible.collectionId,
+      //   tokenId: collectible.uniqueIdx,
+      //   startTime: Math.floor(Date.now() / 1000),
+      //   startTimestamp: Math.floor(Date.now() / 1000),
+      //   endTimestamp: Math.floor(Date.now() / 1000) + 86400 * 7, // 1 week
+      //   listingDurationInSeconds: 86400 * 7, // 1 week
+      //   quantity: 1,
+      //   currency: ethers.ZeroAddress, // ETH
+      //   reservePricePerToken: pricePerToken,
+      //   buyoutPricePerToken: pricePerToken,
+      //   listingType: 0, // Direct listing
+      //   pricePerToken: pricePerToken,
+      //   reserved: false,
+      // };
+
+      const marketplaceContract =
+        await marketplaceService.getEthersMarketplaceContract();
+      if (!marketplaceContract) {
+        throw new Error("Could not find marketplace contract");
+      }
     } else if (collectible.layer === "FRACTAL") {
       const inscription = await getInscriptionInfo(collectible.uniqueIdx);
       if (!inscription)
@@ -215,6 +260,7 @@ export const listServices = {
 
       return { txid: buyTxId, confirmedList };
     } else throw new CustomError("Unsupported layer.", 400);
+    return { txid: "", confirmedList: [] };
   },
   estimateFee: async (id: string, feeRate: number) => {
     const list = await listRepository.getById(id);
