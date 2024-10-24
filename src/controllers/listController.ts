@@ -8,6 +8,7 @@ import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
 import { userRepository } from "../repositories/userRepository";
 import { serializeBigInt } from "../../blockchain/evm/utils";
+import { collectionRepository } from "../repositories/collectionRepository";
 const tradingService = new TradingService(
   EVM_CONFIG.RPC_URL,
   EVM_CONFIG.MARKETPLACE_ADDRESS,
@@ -21,16 +22,20 @@ export const listController = {
     next: NextFunction
   ) => {
     try {
-      const { collectionAddress } = req.body;
+      const { collectionId } = req.body;
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
       const user = await userRepository.getById(req.user.id);
       if (!user) throw new CustomError("User not found", 400);
-      if (!collectionAddress)
-        throw new CustomError("Please provide a collectionAddress.", 400);
+      if (!collectionId)
+        throw new CustomError("Please provide a collectionId.", 400);
+
+      const collection = await collectionRepository.getById(collectionId);
+      if (!collection || !collection.contractAddress)
+        throw new CustomError("Please provide a valid collection.", 400);
 
       const unsignedTx = await tradingService.getUnsignedApprovalTransaction(
-        collectionAddress,
+        collection.contractAddress,
         user?.address
       );
       const serializedTx = serializeBigInt(unsignedTx);
