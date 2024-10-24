@@ -289,6 +289,7 @@ class LaunchpadService {
       throw new CustomError("No active sale phase", 400);
     }
     const mintPrice = ethers.formatEther(price);
+    console.log("🚀 ~ LaunchpadService ~ mintPrice:", mintPrice);
 
     // Prepare transaction data
     const unsignedTx = await nftContract.mint.populateTransaction(

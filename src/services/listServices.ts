@@ -22,6 +22,8 @@ import { listRepository } from "../repositories/listRepository";
 import { userRepository } from "../repositories/userRepository";
 import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
 import { ethers } from "ethers";
+import NFTService from "../../blockchain/evm/services/nftService";
+import { serializeBigInt } from "../../blockchain/evm/utils";
 // import MarketplaceService from "./marketplaceService";
 
 const marketplaceService = new MarketplaceService(
@@ -30,6 +32,11 @@ const marketplaceService = new MarketplaceService(
 
 const confirmationService = new TransactionConfirmationService(
   EVM_CONFIG.RPC_URL
+);
+const nftService = new NFTService(
+  EVM_CONFIG.RPC_URL,
+  EVM_CONFIG.MARKETPLACE_ADDRESS,
+  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
 );
 
 export const listServices = {
@@ -61,27 +68,53 @@ export const listServices = {
           500
         );
       }
-      // const listing = {
-      //   assetContract: collectible.collectionId,
-      //   tokenId: collectible.uniqueIdx,
-      //   startTime: Math.floor(Date.now() / 1000),
-      //   startTimestamp: Math.floor(Date.now() / 1000),
-      //   endTimestamp: Math.floor(Date.now() / 1000) + 86400 * 7, // 1 week
-      //   listingDurationInSeconds: 86400 * 7, // 1 week
-      //   quantity: 1,
-      //   currency: ethers.ZeroAddress, // ETH
-      //   reservePricePerToken: pricePerToken,
-      //   buyoutPricePerToken: pricePerToken,
-      //   listingType: 0, // Direct listing
-      //   pricePerToken: pricePerToken,
-      //   reserved: false,
-      // };
+      const listing = {
+        assetContract: collectible.collectionId,
+        tokenId: collectible.uniqueIdx,
+        // startTime: Math.floor(Date.now() / 1000),
+        startTimestamp: Math.floor(Date.now() / 1000),
+        endTimestamp: Math.floor(Date.now() / 1000) + 86400 * 7, // 1 week
+        // listingDurationInSeconds: 86400 * 7, // 1 week
+        quantity: 1,
+        currency: ethers.ZeroAddress, // ETH
+        // reservePricePerToken: pricePerToken,
+        // buyoutPricePerToken: pricePerToken,
+        listingType: 0, // Direct listing
+        pricePerToken: price,
+        reserved: false,
+      };
 
       const marketplaceContract =
         await marketplaceService.getEthersMarketplaceContract();
       if (!marketplaceContract) {
         throw new Error("Could not find marketplace contract");
       }
+
+      const unsignedTx =
+        await marketplaceContract.createListing.populateTransaction(listing);
+
+      const preparedListingTx = await nftService.prepareUnsignedTransaction(
+        unsignedTx,
+        issuer.address
+      );
+
+      const serializedTx = serializeBigInt(preparedListingTx);
+      list = await listRepository.create({
+        collectibleId: collectible.id,
+        sellerId: issuer.id,
+        address: issuer.address,
+        privateKey: "evm",
+        price: price,
+        inscribedAmount: price,
+      });
+
+      const sanitizedList = hideSensitiveData(list, [
+        "privateKey",
+        "vaultTxid",
+        "vaultVout",
+      ]);
+
+      return { sanitizedList, preparedListingTx: serializedTx };
     } else if (collectible.layer === "FRACTAL") {
       const inscription = await getInscriptionInfo(collectible.uniqueIdx);
       if (!inscription)
@@ -147,6 +180,30 @@ export const listServices = {
 
     if (list.layer === "CITREA") {
       // avsan txid-gaa validate hiine, listiin state update hiine
+      if (!txid) throw new CustomError("txid is missing", 500);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
+      if (transactionDetail.status !== 1) {
+        throw new CustomError(
+          "Transaction not confirmed. Please try again.",
+          500
+        );
+      }
+      const updatedList = await listRepository.update(list.id, {
+        status: "ACTIVE",
+        vaultTxid: txid,
+        vaultVout: 0,
+        inscribedAmount: inscribedAmount,
+      });
+
+      const sanitizedList = hideSensitiveData(updatedList, [
+        "privateKey",
+        "vaultTxid",
+        "vaultVout",
+      ]);
+
+      return sanitizedList;
     } else if (list.layer === "FRACTAL") {
       const inscription = await getInscriptionInfo(list.uniqueIdx);
       if (!inscription)
@@ -193,6 +250,22 @@ export const listServices = {
 
     if (list.layer === "CITREA") {
       //generate & return buy tx hex
+
+      const marketplaceContract =
+        await marketplaceService.getEthersMarketplaceContract();
+
+      const txHex =
+        await marketplaceContract.buyFromListing.populateTransaction(
+          list.uniqueIdx,
+          buyer.address,
+          1,
+          ethers.ZeroAddress, // ETH as currency
+          ethers.parseEther(list.price.toString()) // Price from metadata
+        );
+
+      const serializedTx = serializeBigInt(txHex);
+
+      return serializedTx;
     } else if (list.layer === "FRACTAL") {
       if (!list.inscribedAmount)
         throw new CustomError("Invalid inscribed amount.", 400);
@@ -244,6 +317,22 @@ export const listServices = {
 
     if (list.layer === "CITREA") {
       //txid-gaa validate hiine, listee sold bolgono
+      if (!txid) throw new CustomError("txid is missing", 500);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
+      if (transactionDetail.status !== 1) {
+        throw new CustomError(
+          "Transaction not confirmed. Please try again.",
+          500
+        );
+      }
+      const confirmedList = await listRepository.update(list.id, {
+        status: "SOLD",
+        soldAt: new Date(),
+      });
+      const buyTxId = txid;
+      return { txid: buyTxId, confirmedList };
     } else if (list.layer === "FRACTAL") {
       const buyTxId = await validateSignAndBroadcastBuyPsbtHex(
         hex,

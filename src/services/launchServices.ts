@@ -313,13 +313,6 @@ export const launchServices = {
         );
       }
 
-      if (!transactionDetail.deployedContractAddress) {
-        throw new CustomError(
-          "Transaction does not contain deployed contract address.",
-          500
-        );
-      }
-
       if (collection && collection.id) {
         if (collection?.type === "UNCONFIRMED" && order.collectionId)
           await collectionRepository.update(order.collectionId, {
