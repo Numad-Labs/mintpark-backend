@@ -117,6 +117,7 @@ model LaunchItem {
 
   evmAssetId String?
   name String?
+  onHoldUntil DateTime?
 }
 
 model Launch {
@@ -227,7 +228,6 @@ enum LIST_STATUS {
 
 enum LAUNCH_ITEM_STATUS {
   ACTIVE
-  ON_HOLD
   SOLD
   CANCELLED
 }

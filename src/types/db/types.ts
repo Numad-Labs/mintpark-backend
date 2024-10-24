@@ -70,6 +70,7 @@ export type LaunchItem = {
   status: Generated<LAUNCH_ITEM_STATUS>;
   evmAssetId: string | null;
   name: string | null;
+  onHoldUntil: Timestamp | null;
 };
 export type Layer = {
   id: Generated<string>;
