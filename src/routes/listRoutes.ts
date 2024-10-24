@@ -5,6 +5,12 @@ const listRouter = Router();
 
 listRouter.post("/", authenticateToken, listController.listCollectible);
 listRouter.post(
+  "/approval",
+  authenticateToken,
+  listController.getApprovelTransactionOfTrading
+);
+
+listRouter.post(
   "/:id/confirm",
   authenticateToken,
   listController.confirmPendingList

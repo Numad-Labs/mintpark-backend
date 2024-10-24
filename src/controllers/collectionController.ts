@@ -93,11 +93,10 @@ export const collectionController = {
           400
         );
 
-      if (POStartsAt < POEndsAt || WLStartsAt < WLEndsAt) {
+      if (POStartsAt > POEndsAt || WLStartsAt < WLEndsAt) {
         throw new CustomError("Start date must be before end date", 400);
       }
 
-      const launchedAt = Date.now();
       const launch = await launchServices.create(
         {
           collectionId,
@@ -110,7 +109,7 @@ export const collectionController = {
           wlEndsAt: WLEndsAt ? BigInt(WLEndsAt) : null,
           wlMaxMintPerWallet: WLMaxMintPerWallet || null,
           wlMintPrice: WLMintPrice || null,
-          createdAt: launchedAt,
+          // createdAt: launchedAt,
         },
         files,
         txid

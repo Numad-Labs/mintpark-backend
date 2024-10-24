@@ -113,11 +113,13 @@ export const launchItemRepository = {
       .selectAll()
       .where("LaunchItem.launchId", "=", launchId)
       .where("LaunchItem.status", "=", "ACTIVE")
-      .where(
-        (eb) =>
-          sql`"${eb.ref(
-            "LaunchItem.onHoldUntil"
-          )}" <= NOW() - INTERVAL '${ON_HOLD_MINUTES} minutes'`
+      .where((eb) =>
+        eb.or([
+          eb("LaunchItem.onHoldUntil", "is", null),
+          sql`${eb.ref(
+            "onHoldUntil"
+          )} < NOW() - INTERVAL '5 minute'`.$castTo<boolean>(),
+        ])
       )
       .orderBy(sql`RANDOM()`)
       .limit(1)
@@ -134,11 +136,13 @@ export const launchItemRepository = {
       .returningAll()
       .where("LaunchItem.id", "=", id)
       .where("LaunchItem.status", "=", "ACTIVE")
-      .where(
-        (eb) =>
-          sql`"${eb.ref(
-            "LaunchItem.onHoldUntil"
-          )}" <= NOW() - INTERVAL '${ON_HOLD_MINUTES} minutes'`
+      .where((eb) =>
+        eb.or([
+          eb("LaunchItem.onHoldUntil", "is", null),
+          sql`${eb.ref(
+            "onHoldUntil"
+          )} < NOW() - INTERVAL '5 minute'`.$castTo<boolean>(),
+        ])
       )
       .executeTakeFirstOrThrow(
         () => new Error("Please try again. Could not update the launch item.")
