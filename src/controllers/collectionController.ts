@@ -92,28 +92,25 @@ export const collectionController = {
           "Please provide all required fields for white listed collection. (WLStartsAt, WLEndsAt, WLMintPrice, WLMaxMintPerWallet)",
           400
         );
-      const currentTime = new Date();
-      const POStartsAtTime = new Date(
-        currentTime.getTime() + Number(POStartsAt)
-      );
-      const POEndsAtTime = new Date(currentTime.getTime() + Number(POEndsAt));
 
+      if (POStartsAt < POEndsAt || WLStartsAt < WLEndsAt) {
+        throw new CustomError("Start date must be before end date", 400);
+      }
+
+      const launchedAt = Date.now();
       const launch = await launchServices.create(
         {
           collectionId,
-          poStartsAt: POStartsAtTime,
-          poEndsAt: POEndsAtTime,
+          poStartsAt: BigInt(POStartsAt),
+          poEndsAt: BigInt(POEndsAt),
           poMintPrice: POMintPrice,
           poMaxMintPerWallet: POMaxMintPerWallet,
           isWhitelisted: isWhiteListed,
-          wlStartsAt: WLStartsAt
-            ? new Date(currentTime.getTime() + Number(WLStartsAt))
-            : null,
-          wlEndsAt: WLEndsAt
-            ? new Date(currentTime.getTime() + Number(WLEndsAt))
-            : null,
+          wlStartsAt: WLStartsAt ? BigInt(WLStartsAt) : null,
+          wlEndsAt: WLEndsAt ? BigInt(WLEndsAt) : null,
           wlMaxMintPerWallet: WLMaxMintPerWallet || null,
           wlMintPrice: WLMintPrice || null,
+          createdAt: launchedAt,
         },
         files,
         txid

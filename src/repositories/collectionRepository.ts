@@ -85,7 +85,8 @@ export const collectionRepository = {
     layerId,
     interval,
   }: LaunchQueryParams) => {
-    const now = new Date();
+    // Get current timestamp in milliseconds
+    const now = BigInt(Date.now());
 
     let query = db
       .selectFrom("Collection")
@@ -109,12 +110,13 @@ export const collectionRepository = {
         "Launch.poMintPrice",
         "Launch.poMaxMintPerWallet",
         "Launch.isWhitelisted",
+        "Launch.createdAt",
         sql<number>`COALESCE((
-        SELECT COUNT(*)::integer
-        FROM "LaunchItem"
-        WHERE "LaunchItem"."launchId" = "Launch"."id"
-        AND "LaunchItem"."status" = 'SOLD'
-      ), 0)`.as("mintedAmount"),
+          SELECT COUNT(*)::integer
+          FROM "LaunchItem"
+          WHERE "LaunchItem"."launchId" = "Launch"."id"
+          AND "LaunchItem"."status" = 'SOLD'
+        ), 0)`.as("mintedAmount"),
       ])
       .where("Collection.layerId", "=", layerId)
       .where("Collection.type", "!=", "UNCONFIRMED")
@@ -125,22 +127,22 @@ export const collectionRepository = {
         if (interval === "live") {
           return eb.or([
             eb.and([
-              eb("Launch.wlStartsAt", "<=", now),
-              eb("Launch.wlEndsAt", ">=", now),
+              eb("Launch.wlStartsAt", "<=", now.toString()), // Convert BigInt to string for comparison
+              eb("Launch.wlEndsAt", ">=", now.toString()),
             ]),
             eb.and([
-              eb("Launch.poStartsAt", "<=", now),
-              eb("Launch.poEndsAt", ">=", now),
+              eb("Launch.poStartsAt", "<=", now.toString()),
+              eb("Launch.poEndsAt", ">=", now.toString()),
             ]),
           ]);
         } else {
           // 'past' interval
           return eb.and([
             eb.or([
-              eb("Launch.wlEndsAt", "<", now),
+              eb("Launch.wlEndsAt", "<", now.toString()),
               eb("Launch.wlEndsAt", "is", null),
             ]),
-            eb("Launch.poEndsAt", "<", now),
+            eb("Launch.poEndsAt", "<", now.toString()),
           ]);
         }
       });
@@ -151,11 +153,21 @@ export const collectionRepository = {
     return collections.map((collection) => ({
       ...collection,
       wlStartsAt: collection.wlStartsAt
-        ? new Date(collection.wlStartsAt)
+        ? new Date(
+            Number(collection.wlStartsAt) * 1000 + Number(collection.createdAt)
+          )
         : null,
-      wlEndsAt: collection.wlEndsAt ? new Date(collection.wlEndsAt) : null,
-      poStartsAt: new Date(collection.poStartsAt),
-      poEndsAt: new Date(collection.poEndsAt),
+      wlEndsAt: collection.wlEndsAt
+        ? new Date(
+            Number(collection.wlEndsAt) * 1000 + Number(collection.createdAt)
+          )
+        : null,
+      poStartsAt: new Date(
+        Number(collection.poStartsAt) * 1000 + Number(collection.createdAt)
+      ),
+      poEndsAt: new Date(
+        Number(collection.poEndsAt) * 1000 + Number(collection.createdAt)
+      ),
     }));
   },
   getLaunchedCollectionById: async (id: string) => {
