@@ -116,7 +116,7 @@ export const listController = {
         req.user.id
       );
 
-      return res.status(200).json({ success: true, data: { hex: txHex } });
+      return res.status(200).json({ success: true, data: { txHex } });
     } catch (e) {
       next(e);
     }
