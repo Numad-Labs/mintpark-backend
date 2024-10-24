@@ -40,4 +40,13 @@ export const launchRepository = {
 
     return launch;
   },
+  getByCollectionId: async (collectionId: string) => {
+    const launch = await db
+      .selectFrom("Launch")
+      .selectAll()
+      .where("Launch.collectionId", "=", collectionId)
+      .executeTakeFirst();
+
+    return launch;
+  },
 };

@@ -1,6 +1,7 @@
-import { Insertable, Updateable } from "kysely";
+import { Insertable, sql, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { LaunchItem } from "../types/db/types";
+import { ON_HOLD_MINUTES } from "../libs/constants";
 
 export const launchItemRepository = {
   create: async (data: Insertable<LaunchItem>) => {
@@ -105,5 +106,44 @@ export const launchItemRepository = {
       .execute();
 
     return launchItems;
+  },
+  getRandomItemByLauchId: async (launchId: string) => {
+    const launchItem = await db
+      .selectFrom("LaunchItem")
+      .selectAll()
+      .where("LaunchItem.launchId", "=", launchId)
+      .where("LaunchItem.status", "=", "ACTIVE")
+      .where(
+        (eb) =>
+          sql`"${eb.ref(
+            "LaunchItem.onHoldUntil"
+          )}" <= NOW() - INTERVAL '${ON_HOLD_MINUTES} minutes'`
+      )
+      .orderBy(sql`RANDOM()`)
+      .limit(1)
+      .executeTakeFirstOrThrow(
+        () => new Error("No available launch item was found.")
+      );
+
+    return launchItem;
+  },
+  setOnHoldById: async (id: string) => {
+    const launchItem = await db
+      .updateTable("LaunchItem")
+      .set({ onHoldUntil: sql`NOW()` })
+      .returningAll()
+      .where("LaunchItem.id", "=", id)
+      .where("LaunchItem.status", "=", "ACTIVE")
+      .where(
+        (eb) =>
+          sql`"${eb.ref(
+            "LaunchItem.onHoldUntil"
+          )}" <= NOW() - INTERVAL '${ON_HOLD_MINUTES} minutes'`
+      )
+      .executeTakeFirstOrThrow(
+        () => new Error("Please try again. Could not update the launch item.")
+      );
+
+    return launchItem;
   },
 };

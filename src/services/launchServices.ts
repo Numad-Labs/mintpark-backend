@@ -75,6 +75,7 @@ export const launchServices = {
           500
         );
       }
+
       if (!collection || !collection.id)
         throw new Error("Collection not found.");
       await collectionRepository.update(collection.id, {
@@ -136,13 +137,11 @@ export const launchServices = {
 
   //   return { buyTxHex };
   // },
-
   generateOrderForLaunchedCollection: async (
     collectionId: string,
     issuerId: string,
     feeRate: number,
-    launchOfferType: LaunchOfferType,
-    txid?: string
+    launchOfferType: LaunchOfferType
   ) => {
     //TODO
     const user = await userRepository.getById(issuerId);
@@ -156,42 +155,19 @@ export const launchServices = {
     );
     if (!collection) throw new Error("Collection not found.");
 
-    const launchItems = await launchItemRepository.getActiveLaunchItems(
-      collectionId
-    );
-    if (!launchItems) throw new Error("Launch items not found.");
+    const launch = await launchRepository.getByCollectionId(collection.id);
+    if (!launch) throw new Error("Launch not found.");
+
     //TODO: add validations(mintPerWallet, phases...)
-
-    const winnerIndex = Math.floor(Math.random() * launchItems.length);
-
-    const pickedItem = launchItems[winnerIndex];
-    const file = await getObjectFromS3(pickedItem.fileKey);
+    const launchItem = await launchItemRepository.getRandomItemByLauchId(
+      launch.id
+    );
+    const pickedLaunchItem = await launchItemRepository.setOnHoldById(
+      launchItem.id
+    );
+    const file = await getObjectFromS3(pickedLaunchItem.fileKey);
 
     if (layer.layer === "CITREA" && layer.network === "TESTNET") {
-      /*
-          IF LAYER IS CITREA, validate funding TXID
-          RETURNs single mint tx hex
-      */
-
-      // if (!txid) throw new Error("txid not found.");
-      // const transactionDetail = await confirmationService.getTransactionDetails(
-      //   txid
-      // );
-
-      // if (transactionDetail.status !== 1) {
-      //   throw new CustomError(
-      //     "Transaction not confirmed. Please try again.",
-      //     500
-      //   );
-      // }
-
-      // if (!transactionDetail.deployedContractAddress) {
-      //   throw new CustomError(
-      //     "Transaction does not contain deployed contract address.",
-      //     500
-      //   );
-      // }
-
       const serviceFee = 0;
       const networkFee = 0;
       const fundingAmount = 0;
@@ -212,7 +188,7 @@ export const launchServices = {
       const purchase = await purchaseRepository.create({
         userId: issuerId,
         orderId: order.id,
-        launchItemId: pickedItem.id,
+        launchItemId: pickedLaunchItem.id,
       });
 
       const collection = await collectionRepository.getById(collectionId);
@@ -225,7 +201,7 @@ export const launchServices = {
       const unsignedTx =
         await launchPadService.getUnsignedLaunchMintTransaction(
           // launch,
-          pickedItem,
+          pickedLaunchItem,
           user.address,
           collection.contractAddress
         );
@@ -234,7 +210,7 @@ export const launchServices = {
 
       const singleMintTxHex = serializedTx;
 
-      return { order: order, launchedItem: pickedItem, singleMintTxHex };
+      return { order: order, launchedItem: pickedLaunchItem, singleMintTxHex };
     } else if (layer.layer === "FRACTAL" && layer.network === "TESTNET") {
       switch (launchOfferType.offerType) {
         case "public":
@@ -269,10 +245,10 @@ export const launchServices = {
           const purchase = await purchaseRepository.create({
             userId: issuerId,
             orderId: order.id,
-            launchItemId: pickedItem.id,
+            launchItemId: pickedLaunchItem.id,
           });
 
-          return { order: order, launchedItem: pickedItem };
+          return { order: order, launchedItem: pickedLaunchItem };
 
         case "whitelist":
           //TODO
