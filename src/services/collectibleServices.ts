@@ -18,89 +18,92 @@ export const collectibleServices = {
     userId: string,
     params: CollectibleQueryParams
   ) => {
-    console.log("🚀 ~      params.collectionIds:", params.collectionIds);
-
     const user = await userRepository.getById(userId);
-    if (!user) throw new CustomError("User not found.", 400);
+    if (!user || !user.layerId) throw new CustomError("User not found.", 400);
 
     const layerType = await layerRepository.getById(user.layerId!);
     if (!layerType) throw new Error("Layer not found.");
+
+    const uniqueIdxs: string[] = [];
 
     if (layerType.layer === "CITREA" && layerType.network === "TESTNET") {
       const evmCollectibleService = new EVMCollectibleService(
         EVM_CONFIG.RPC_URL
       );
 
-      try {
-        // const testIds = ["8e06eae2-e1d4-47e7-9196-71747a1851c1"];
-        // const testAddress = "0xd6721C1fAC8417D031D7eC7D6cF804446D3BdCDe";
-        // Get collections
-        const collections = await evmCollectibleService.getEVMCollections(
-          params.collectionIds
+      const collections = await collectionRepository.getCollectionsByLayer(
+        "CITREA"
+      );
+
+      console.log(`citrea collections: ${collections}`);
+
+      for (const collection of collections) {
+        if (!collection.contractAddress) continue;
+        console.log(collection.contractAddress);
+        const tokenIds = await evmCollectibleService.getOwnedTokens(
+          collection.contractAddress,
+          user.address
         );
 
-        // Process collections in parallel
-        const collectiblesPromise = collections.map(async (collection) => {
-          if (!collection.contractAddress) return [];
+        console.log(`tokenIds: ${tokenIds}`);
 
-          try {
-            const tokenIds = await evmCollectibleService.getOwnedTokens(
-              collection.contractAddress,
-              // testAddress,
-              user.address
-            );
-            console.log("🚀 ~ collectiblesPromise ~ tokenIds:", tokenIds);
+        if (!tokenIds || tokenIds.length === 0) continue;
 
-            if (!tokenIds) return [];
-            if (tokenIds.length === 0) return [];
-
-            return await collectibleRepository.getListableCollectiblesByInscriptionIds(
-              tokenIds,
-              params,
-              user.id,
-              collection.id
-            );
-          } catch (error) {
-            console.error(
-              `Failed to fetch collectibles for collection ${collection.id}:`,
-              error
-            );
-            return [];
-          }
-        });
-
-        const collectiblesArrays = await Promise.all(collectiblesPromise);
-        console.log("🚀 ~ collectiblesArrays:", collectiblesArrays);
-        const listableCollectibles = collectiblesArrays.flat();
-        console.log("🚀 ~ listableCollectibles:", listableCollectibles);
-
-        const [totalCountResult, listedCountResult] = await Promise.all([
-          collectibleRepository.getListableCollectiblesCountByCollections(
-            collections.map((c) => c.id)
-            // user.id
-          ),
-          listRepository.getActiveListCountByUserId(userId),
-        ]);
-
-        const listedCount = Number(listedCountResult?.activeListCount ?? 0);
-        const totalCount = Number(totalCountResult?.count ?? 0) + listedCount;
-
-        return {
-          collectibles: listableCollectibles,
-          totalCount,
-          listCount: listedCount,
-          collections,
-        };
-      } catch (error) {
-        console.error("Error in getListableCollectibles:", error);
-        if (error instanceof CustomError) {
-          throw error;
-        }
-        throw new CustomError("Failed to fetch collectibles", 500);
+        for (const tokenId of tokenIds)
+          uniqueIdxs.push(`${collection.contractAddress}i${tokenId}`);
       }
-    }
-  },
+    } else if (layerType.layer === "FRACTAL") {
+      const inscriptionUtxos = await getInscriptionUtxosByAddress(
+        user.address,
+        true
+      );
 
+      inscriptionUtxos.map((inscriptionUtxo) => {
+        inscriptionUtxo.inscriptions[0].inscriptionId;
+        uniqueIdxs.push(inscriptionUtxo.inscriptions[0].inscriptionId);
+      });
+    }
+
+    console.log(`uniqueIdxs after ${uniqueIdxs}`);
+
+    if (uniqueIdxs.length === 0)
+      return {
+        collectibles: [],
+        totalCount: 0,
+        listCount: 0,
+        collections: [],
+      };
+
+    const [
+      listableCollectibles,
+      totalCountResult,
+      listedCountResult,
+      collections,
+    ] = await Promise.all([
+      collectibleRepository.getListableCollectiblesByInscriptionIds(
+        uniqueIdxs,
+        params,
+        user.id
+      ),
+      collectibleRepository.getListableCollectiblesCountByInscriptionIds(
+        uniqueIdxs
+      ),
+      listRepository.getActiveListCountByUserId(userId),
+      collectionRepository.getListedCollectionsWithCollectibleCountByInscriptionIds(
+        uniqueIdxs
+      ),
+    ]);
+
+    const listedCount = Number(listedCountResult?.activeListCount ?? 0);
+    const totalCount = Number(totalCountResult?.count ?? 0) + listedCount;
+
+    return {
+      collectibles: listableCollectibles,
+      totalCount: totalCount,
+      listCount: listedCount,
+      collections,
+    };
+  },
   getListableCollectiblesByCollectionId: async (
     collectionId: string,
     params: CollectibleQueryParams

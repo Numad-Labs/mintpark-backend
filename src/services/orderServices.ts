@@ -353,7 +353,7 @@ export const orderServices = {
             if (collection?.id && orderItem.evmAssetId) {
               collectibles.push({
                 collectionId: collection.id,
-                uniqueIdx: orderItem.evmAssetId,
+                uniqueIdx: `${collection.contractAddress}i${orderItem.evmAssetId}`,
                 name: orderItem.name,
                 fileKey: orderItem.fileKey,
               });

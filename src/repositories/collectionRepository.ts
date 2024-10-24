@@ -3,6 +3,7 @@ import { db } from "../utils/db";
 import { Collection, DB } from "../types/db/types";
 import { CollectionQueryParams } from "../controllers/collectionController";
 import { intervalMap } from "../libs/constants";
+import { LAYER } from "../types/db/enums";
 
 export interface LaunchQueryParams {
   layerId: string;
@@ -202,6 +203,7 @@ export const collectionRepository = {
           WHERE "LaunchItem"."launchId" = "Launch"."id"
           AND "LaunchItem"."status" = 'SOLD'
         ), 0)`.as("mintedAmount"),
+        "Collection.contractAddress",
       ])
       .where("Collection.id", "=", id)
       .where("Launch.id", "is not", null)
@@ -411,6 +413,18 @@ export const collectionRepository = {
       ])
       .where("Collectible.uniqueIdx", "in", inscriptionIds)
       .groupBy("Collection.id")
+      .execute();
+
+    return collections;
+  },
+  getCollectionsByLayer: async (layer: LAYER) => {
+    let collections = db
+      .selectFrom("Collection")
+      .innerJoin("Layer", "Layer.id", "Collection.layerId")
+      .selectAll()
+      .where("Layer.layer", "=", layer)
+      .where("Collection.contractAddress", "is not", null)
+      .where("Collection.type", "=", "MINTED")
       .execute();
 
     return collections;
