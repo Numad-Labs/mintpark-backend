@@ -127,21 +127,22 @@ export const collectionRepository = {
         query = query.where((eb) => {
           if (interval === "live") {
             return eb.or([
-              eb("Launch.poEndsAt", "<=", now.toString()),
-              eb.and([
-                eb("Launch.wlStartsAt", "is not", null),
-                eb("Launch.wlEndsAt", "is not", null),
-                eb("Launch.wlEndsAt", "<=", now.toString()),
-              ]),
+              eb("Launch.poEndsAt", ">", now.toString()),
+              // eb.and([
+              //   eb("Launch.wlStartsAt", "is not", null),
+              //   eb("Launch.wlEndsAt", "is not", null),
+              //   eb("Launch.wlEndsAt", "<=", now.toString()),
+              // ]),
             ]);
           } else {
-            return eb.and([
-              eb("Launch.poEndsAt", ">", now.toString()),
-              eb.or([
-                eb("Launch.wlEndsAt", "is", null),
-                eb("Launch.wlEndsAt", ">", now.toString()),
-              ]),
-            ]);
+            // return eb.and([
+            //   eb("Launch.poEndsAt", ">", now.toString()),
+            //   eb.or([
+            //     eb("Launch.wlEndsAt", "is not", null),
+            //     eb("Launch.wlEndsAt", ">", now.toString()),
+            //   ]),
+            // ]);
+            return eb("Launch.poEndsAt", "<=", now.toString());
           }
         });
       }
