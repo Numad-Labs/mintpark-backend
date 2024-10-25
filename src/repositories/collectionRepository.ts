@@ -87,7 +87,7 @@ export const collectionRepository = {
     interval,
   }: LaunchQueryParams) => {
     // Get current timestamp in milliseconds
-    const now = BigInt(Date.now());
+    const now = BigInt(Math.floor(Date.now()/ 1000));
 
     let query = db
       .selectFrom("Collection")
