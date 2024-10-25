@@ -5,11 +5,7 @@ import {
   generateBuyPsbtHex,
   validateSignAndBroadcastBuyPsbtHex,
 } from "../../blockchain/utxo/fractal/buyPsbt";
-import {
-  getAddressType,
-  getInscriptionInfo,
-  getInscriptionUtxosByAddress,
-} from "../../blockchain/utxo/fractal/libs";
+import { getInscriptionInfo } from "../../blockchain/utxo/fractal/libs";
 import { createFundingAddress } from "../../blockchain/utxo/fundingAddressHelper";
 import { CustomError } from "../exceptions/CustomError";
 import {
@@ -73,17 +69,6 @@ export const listServices = {
 
     if (collectible.layer === "CITREA") {
       // avsan txid-gaa validate hiine, list uusgene
-      if (!txid) throw new CustomError("txid is missing", 500);
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
-      if (transactionDetail.status !== 1) {
-        throw new CustomError(
-          "Transaction not confirmed. Please try again.",
-          500
-        );
-      }
-
       const signer = await nftService.provider.getSigner();
       const nftContract = new ethers.Contract(
         collection.contractAddress,
@@ -101,6 +86,17 @@ export const listServices = {
         "🚀 ~ listing.collectible.uniqueIdx.split",
         collectible.uniqueIdx.split("i")[1]
       );
+      if (!isApproved) {
+        if (!txid) throw new CustomError("txid is missing", 500);
+        const transactionDetail =
+          await confirmationService.getTransactionDetails(txid);
+        if (transactionDetail.status !== 1) {
+          throw new CustomError(
+            "Transaction not confirmed. Please try again.",
+            500
+          );
+        }
+      }
 
       const listing = {
         assetContract: collection.contractAddress,
@@ -108,11 +104,8 @@ export const listServices = {
         // startTime: Math.floor(Date.now() / 1000),
         startTimestamp: Math.floor(Date.now() / 1000),
         endTimestamp: Math.floor(Date.now() / 1000) + 86400 * 7, // 1 week
-        // listingDurationInSeconds: 86400 * 7, // 1 week
         quantity: 1,
         currency: ethers.ZeroAddress, // ETH
-        // reservePricePerToken: pricePerToken,
-        // buyoutPricePerToken: pricePerToken,
         listingType: 0, // Direct listing
         pricePerToken: ethers.parseEther(price.toString()),
         reserved: false,
@@ -139,7 +132,7 @@ export const listServices = {
         address: issuer.address,
         privateKey: "evm",
         price: price,
-        inscribedAmount: price,
+        // inscribedAmount: price,
       });
 
       const sanitizedList = hideSensitiveData(list, [
@@ -294,11 +287,10 @@ export const listServices = {
       const txHex =
         await marketplaceContract.buyFromListing.populateTransaction(
           list.uniqueIdx.split("i")[1],
-          // list.uniqueIdx,
-          buyer.address,
-          1,
-          ethers.ZeroAddress, // ETH as currency
-          ethers.parseEther(list.price.toString()) // Price from metadata
+          BigInt(1),
+          buyer.address
+          // ethers.ZeroAddress, // ETH as currency
+          // ethers.parseEther(list.price.toString()) // Price from metadata
         );
       const unsignedHex = await nftService.prepareUnsignedTransaction(
         txHex,
