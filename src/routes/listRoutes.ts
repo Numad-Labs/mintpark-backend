@@ -9,6 +9,11 @@ listRouter.post(
   authenticateToken,
   listController.getApprovelTransactionOfTrading
 );
+listRouter.post(
+  "/deploy-contract",
+  authenticateToken,
+  listController.createMarketplaceContractDeployment
+);
 
 listRouter.post(
   "/:id/confirm",

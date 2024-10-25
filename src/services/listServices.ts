@@ -21,8 +21,20 @@ import { ethers } from "ethers";
 import NFTService from "../../blockchain/evm/services/nftService";
 import { serializeBigInt } from "../../blockchain/evm/utils";
 import { collectionRepository } from "../repositories/collectionRepository";
-// import MarketplaceService from "./marketplaceService";
+import {
+  BaseTransactionOptions,
+  createThirdwebClient,
+  defineChain,
+  getContract,
+  readContract,
+} from "thirdweb";
+import { config } from "../config/config";
+import {
+  GetAllValidListingParams,
+  getAllValidListings,
+} from "thirdweb/extensions/marketplace";
 
+// import MarketplaceService from "./marketplaceService";
 const marketplaceService = new MarketplaceService(
   EVM_CONFIG.MARKETPLACE_ADDRESS
 );
@@ -56,11 +68,6 @@ export const listServices = {
     if (!collection || !collection.contractAddress)
       throw new CustomError("Contract address not found.", 400);
 
-    console.log(
-      "🚀 ~ listing. collection.contractAddress:",
-      collection.contractAddress
-    );
-
     if (!collectible) throw new CustomError("Collectible not found.", 400);
     if (collectible.layer !== "FRACTAL" && collectible.network !== "TESTNET")
       throw new CustomError("This layer is not supported ATM.", 400);
@@ -69,6 +76,12 @@ export const listServices = {
 
     if (collectible.layer === "CITREA") {
       // avsan txid-gaa validate hiine, list uusgene
+
+      const marketplaceContract =
+        await marketplaceService.getEthersMarketplaceContract();
+      if (!marketplaceContract) {
+        throw new CustomError("Could not find marketplace contract", 500);
+      }
       const signer = await nftService.provider.getSigner();
       const nftContract = new ethers.Contract(
         collection.contractAddress,
@@ -82,10 +95,7 @@ export const listServices = {
         EVM_CONFIG.MARKETPLACE_ADDRESS
       );
       console.log("🚀 ~ isApproved:", isApproved);
-      console.log(
-        "🚀 ~ listing.collectible.uniqueIdx.split",
-        collectible.uniqueIdx.split("i")[1]
-      );
+
       if (!isApproved) {
         if (!txid) throw new CustomError("txid is missing", 500);
         const transactionDetail =
@@ -97,28 +107,36 @@ export const listServices = {
           );
         }
       }
+      const tokenId = collectible.uniqueIdx.split("i")[1];
 
-      const listing = {
-        assetContract: collection.contractAddress,
-        tokenId: collectible.uniqueIdx.split("i")[1],
-        // startTime: Math.floor(Date.now() / 1000),
-        startTimestamp: Math.floor(Date.now() / 1000),
-        endTimestamp: Math.floor(Date.now() / 1000) + 86400 * 7, // 1 week
-        quantity: 1,
-        currency: ethers.ZeroAddress, // ETH
-        listingType: 0, // Direct listing
-        pricePerToken: ethers.parseEther(price.toString()),
-        reserved: false,
-      };
+      // const listing = {
+      //   assetContract: collection.contractAddress,
+      //   tokenId: collectible.uniqueIdx.split("i")[1],
+      //   // startTime: Math.floor(Date.now() / 1000),
+      //   startTimestamp: Math.floor(Date.now() / 1000),
+      //   endTimestamp: Math.floor(Date.now() / 1000) + 86400 * 7, // 1 week
+      //   quantity: 1,
+      //   currency: ethers.ZeroAddress, // ETH
+      //   listingType: 0, // Direct listing
+      //   pricePerToken: ethers.parseEther(price.toString()),
+      //   reserved: false,
+      // };
 
-      const marketplaceContract =
-        await marketplaceService.getEthersMarketplaceContract();
-      if (!marketplaceContract) {
-        throw new Error("Could not find marketplace contract");
-      }
+      // const marketplaceContract =
+      //   await marketplaceService.getEthersMarketplaceContract();
+      // if (!marketplaceContract) {
+      //   throw new Error("Could not find marketplace contract");
+      // }
 
-      const unsignedTx =
-        await marketplaceContract.createListing.populateTransaction(listing);
+      // const unsignedTx =
+      //   await marketplaceContract.createListing.populateTransaction(listing);
+
+      // Create listing transaction
+      const unsignedTx = await marketplaceContract.listItem.populateTransaction(
+        collection.contractAddress,
+        tokenId,
+        ethers.parseEther(price.toString())
+      );
 
       const preparedListingTx = await nftService.prepareUnsignedTransaction(
         unsignedTx,
@@ -280,26 +298,38 @@ export const listServices = {
 
     if (list.layer === "CITREA") {
       //generate & return buy tx hex
-
       const marketplaceContract =
         await marketplaceService.getEthersMarketplaceContract();
 
-      const txHex =
-        await marketplaceContract.buyFromListing.populateTransaction(
-          list.uniqueIdx.split("i")[1],
-          BigInt(1),
-          buyer.address
-          // ethers.ZeroAddress, // ETH as currency
-          // ethers.parseEther(list.price.toString()) // Price from metadata
-        );
+      // Verify listing is still active
+      const collectible = await collectibleRepository.getById(
+        list.collectibleId
+      );
+      if (!collectible) throw new CustomError("Collectible not found", 400);
+
+      const listingData = await marketplaceContract.getListing(
+        collectible.uniqueIdx.split("i")[0],
+        collectible.uniqueIdx.split("i")[1]
+      );
+
+      if (!listingData.isActive) {
+        throw new CustomError("Listing no longer active", 400);
+      }
+
+      const txHex = await marketplaceContract.buyItem.populateTransaction(
+        collectible.uniqueIdx.split("i")[0], // NFT contract
+        collectible.uniqueIdx.split("i")[1], // token ID
+        {
+          value: ethers.parseEther(list.price.toString()),
+        }
+      );
+
       const unsignedHex = await nftService.prepareUnsignedTransaction(
         txHex,
         buyer.address
       );
 
-      const serializedTx = serializeBigInt(unsignedHex);
-
-      return serializedTx;
+      return serializeBigInt(unsignedHex);
     } else if (list.layer === "FRACTAL") {
       if (!list.inscribedAmount)
         throw new CustomError("Invalid inscribed amount.", 400);

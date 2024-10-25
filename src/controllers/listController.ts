@@ -14,8 +14,30 @@ const tradingService = new TradingService(
   EVM_CONFIG.MARKETPLACE_ADDRESS,
   new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
 );
+// import MarketplaceService from "./marketplaceService";
+const marketplaceService = new MarketplaceService(
+  EVM_CONFIG.MARKETPLACE_ADDRESS
+);
 
 export const listController = {
+  createMarketplaceContractDeployment: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { initialOwner } = req.body;
+      console.log("🚀 ~ initialOwner:", initialOwner);
+      const unsignedTx =
+        await marketplaceService.getUnsignedDeploymentTransaction(initialOwner);
+      console.log("🚀 ~ unsignedTx:", unsignedTx);
+      // Serialize BigInt values before sending the response
+      const serializedTx = serializeBigInt(unsignedTx);
+      res.json({ success: true, unsignedTransaction: serializedTx });
+    } catch (e) {
+      next(e);
+    }
+  },
   getApprovelTransactionOfTrading: async (
     req: AuthenticatedRequest,
     res: Response,

@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract, Signer } from "ethers";
-import { MPMNFT } from "../typechain-types";
+import { MPMNFT, MarketplaceContract } from "../typechain-types";
 
 describe("MPMNFT", function () {
   let nftContract: MPMNFT;
@@ -199,7 +199,7 @@ describe("MPMNFT", function () {
     it("Should allow owner to withdraw funds", async function () {
       const tokenURI = "ipfs://test-uri";
       // First, have someone mint an NFT to add funds to contract
-      await nftContract.connect(addr1).mint(1, tokenURI,{ value: MINT_FEE });
+      await nftContract.connect(addr1).mint(1, tokenURI, { value: MINT_FEE });
 
       const initialBalance = await ethers.provider.getBalance(
         await owner.getAddress()
@@ -253,7 +253,9 @@ describe("MPMNFT", function () {
       const tokenURI = "ipfs://test-uri";
       // First, have someone mint an NFT to add funds to contract
 
-      const tx = await nftContract.connect(addr1).mint(1, tokenURI,{ value: MINT_FEE });
+      const tx = await nftContract
+        .connect(addr1)
+        .mint(1, tokenURI, { value: MINT_FEE });
 
       const receipt = await tx.wait();
       console.log("Gas used for single mint:", receipt?.gasUsed.toString());
@@ -264,6 +266,287 @@ describe("MPMNFT", function () {
       const tx = await nftContract.batchMint(await addr1.getAddress(), 3, uris);
       const receipt = await tx.wait();
       console.log("Gas used for batch mint:", receipt?.gasUsed.toString());
+    });
+  });
+});
+
+describe("SimpleMarketplace", function () {
+  let marketplace: MarketplaceContract;
+  let nftContract: MPMNFT;
+  let owner: Signer;
+  let seller: Signer;
+  let buyer: Signer;
+  let addrs: Signer[];
+
+  const TOKEN_ID = 1;
+  const LISTING_PRICE = ethers.parseEther("1.0");
+  const MINT_FEE = ethers.parseEther("0.1");
+  const TOKEN_URI = "ipfs://test-uri";
+
+  beforeEach(async function () {
+    [owner, seller, buyer, ...addrs] = await ethers.getSigners();
+
+    // Deploy NFT contract
+    const NFTFactory = await ethers.getContractFactory("MPMNFT");
+    nftContract = (await NFTFactory.deploy(
+      await owner.getAddress(),
+      "Test NFT",
+      "TNFT",
+      MINT_FEE
+    )) as MPMNFT;
+    await nftContract.waitForDeployment();
+
+    // Deploy Marketplace contract
+    const MarketplaceFactory = await ethers.getContractFactory(
+      "SimpleMarketplace"
+    );
+    marketplace = (await MarketplaceFactory.deploy()) as MarketplaceContract;
+    await marketplace.waitForDeployment();
+
+    // Mint NFT to seller
+    await nftContract
+      .connect(seller)
+      .mint(TOKEN_ID, TOKEN_URI, { value: MINT_FEE });
+  });
+
+  describe("Deployment", function () {
+    it("Should set the right owner", async function () {
+      expect(await marketplace.owner()).to.equal(await owner.getAddress());
+    });
+  });
+
+  describe("Listing", function () {
+    beforeEach(async function () {
+      // Approve marketplace for NFT transfer
+      await nftContract
+        .connect(seller)
+        .setApprovalForAll(await marketplace.getAddress(), true);
+    });
+
+    it("Should create a listing successfully", async function () {
+      await expect(
+        marketplace
+          .connect(seller)
+          .listItem(await nftContract.getAddress(), TOKEN_ID, LISTING_PRICE)
+      )
+        .to.emit(marketplace, "ItemListed")
+        .withArgs(
+          await seller.getAddress(),
+          await nftContract.getAddress(),
+          TOKEN_ID,
+          LISTING_PRICE
+        );
+
+      const listing = await marketplace.listings(
+        await nftContract.getAddress(),
+        TOKEN_ID
+      );
+      expect(listing.seller).to.equal(await seller.getAddress());
+      expect(listing.price).to.equal(LISTING_PRICE);
+      expect(listing.isActive).to.be.true;
+    });
+
+    it("Should not allow listing with zero price", async function () {
+      await expect(
+        marketplace
+          .connect(seller)
+          .listItem(await nftContract.getAddress(), TOKEN_ID, 0)
+      ).to.be.revertedWith("Price must be greater than zero");
+    });
+
+    it("Should not allow listing if not owner of NFT", async function () {
+      await expect(
+        marketplace
+          .connect(buyer)
+          .listItem(await nftContract.getAddress(), TOKEN_ID, LISTING_PRICE)
+      ).to.be.revertedWith("Not the owner of this NFT");
+    });
+
+    it("Should not allow listing without marketplace approval", async function () {
+      // Revoke approval
+      await nftContract
+        .connect(seller)
+        .setApprovalForAll(await marketplace.getAddress(), false);
+
+      await expect(
+        marketplace
+          .connect(seller)
+          .listItem(await nftContract.getAddress(), TOKEN_ID, LISTING_PRICE)
+      ).to.be.revertedWith("NFT not approved for marketplace");
+    });
+  });
+
+  describe("Buying", function () {
+    beforeEach(async function () {
+      await nftContract
+        .connect(seller)
+        .setApprovalForAll(await marketplace.getAddress(), true);
+      await marketplace
+        .connect(seller)
+        .listItem(await nftContract.getAddress(), TOKEN_ID, LISTING_PRICE);
+    });
+
+    it("Should allow buying a listed item", async function () {
+      await expect(
+        marketplace
+          .connect(buyer)
+          .buyItem(await nftContract.getAddress(), TOKEN_ID, {
+            value: LISTING_PRICE,
+          })
+      )
+        .to.emit(marketplace, "ItemSold")
+        .withArgs(
+          await seller.getAddress(),
+          await buyer.getAddress(),
+          await nftContract.getAddress(),
+          TOKEN_ID,
+          LISTING_PRICE
+        );
+
+      // Verify NFT ownership changed
+      expect(await nftContract.ownerOf(TOKEN_ID)).to.equal(
+        await buyer.getAddress()
+      );
+
+      // Verify listing is removed
+      const listing = await marketplace.listings(
+        await nftContract.getAddress(),
+        TOKEN_ID
+      );
+      expect(listing.isActive).to.be.false;
+    });
+
+    it("Should not allow buying with insufficient payment", async function () {
+      const insufficientPrice = LISTING_PRICE - ethers.parseEther("0.5");
+      await expect(
+        marketplace
+          .connect(buyer)
+          .buyItem(await nftContract.getAddress(), TOKEN_ID, {
+            value: insufficientPrice,
+          })
+      ).to.be.revertedWith("Insufficient payment");
+    });
+
+    it("Should not allow buying unlisted items", async function () {
+      const UNLISTED_TOKEN_ID = 2;
+      await nftContract
+        .connect(seller)
+        .mint(UNLISTED_TOKEN_ID, TOKEN_URI, { value: MINT_FEE });
+
+      await expect(
+        marketplace
+          .connect(buyer)
+          .buyItem(await nftContract.getAddress(), UNLISTED_TOKEN_ID, {
+            value: LISTING_PRICE,
+          })
+      ).to.be.revertedWith("Item not listed for sale");
+    });
+
+    it("Should transfer payment to seller", async function () {
+      const sellerInitialBalance = await ethers.provider.getBalance(
+        await seller.getAddress()
+      );
+
+      await marketplace
+        .connect(buyer)
+        .buyItem(await nftContract.getAddress(), TOKEN_ID, {
+          value: LISTING_PRICE,
+        });
+
+      const sellerFinalBalance = await ethers.provider.getBalance(
+        await seller.getAddress()
+      );
+      expect(sellerFinalBalance).to.be.gt(sellerInitialBalance);
+    });
+  });
+
+  describe("Cancelling Listings", function () {
+    beforeEach(async function () {
+      await nftContract
+        .connect(seller)
+        .setApprovalForAll(await marketplace.getAddress(), true);
+      await marketplace
+        .connect(seller)
+        .listItem(await nftContract.getAddress(), TOKEN_ID, LISTING_PRICE);
+    });
+
+    it("Should allow seller to cancel listing", async function () {
+      await expect(
+        marketplace
+          .connect(seller)
+          .cancelListing(await nftContract.getAddress(), TOKEN_ID)
+      )
+        .to.emit(marketplace, "ListingCancelled")
+        .withArgs(
+          await seller.getAddress(),
+          await nftContract.getAddress(),
+          TOKEN_ID
+        );
+
+      const listing = await marketplace.listings(
+        await nftContract.getAddress(),
+        TOKEN_ID
+      );
+      expect(listing.isActive).to.be.false;
+    });
+
+    it("Should not allow non-seller to cancel listing", async function () {
+      await expect(
+        marketplace
+          .connect(buyer)
+          .cancelListing(await nftContract.getAddress(), TOKEN_ID)
+      ).to.be.revertedWith("Not the seller");
+    });
+  });
+
+  describe("Listing Queries", function () {
+    it("Should return correct listing data", async function () {
+      await nftContract
+        .connect(seller)
+        .setApprovalForAll(await marketplace.getAddress(), true);
+      await marketplace
+        .connect(seller)
+        .listItem(await nftContract.getAddress(), TOKEN_ID, LISTING_PRICE);
+
+      const listing = await marketplace.getListing(
+        await nftContract.getAddress(),
+        TOKEN_ID
+      );
+      expect(listing.seller).to.equal(await seller.getAddress());
+      expect(listing.nftContract).to.equal(await nftContract.getAddress());
+      expect(listing.tokenId).to.equal(TOKEN_ID);
+      expect(listing.price).to.equal(LISTING_PRICE);
+      expect(listing.isActive).to.be.true;
+    });
+  });
+
+  describe("Gas Usage", function () {
+    beforeEach(async function () {
+      await nftContract
+        .connect(seller)
+        .setApprovalForAll(await marketplace.getAddress(), true);
+    });
+
+    it("Should track gas usage for listing", async function () {
+      const tx = await marketplace
+        .connect(seller)
+        .listItem(await nftContract.getAddress(), TOKEN_ID, LISTING_PRICE);
+      const receipt = await tx.wait();
+      console.log("Gas used for listing:", receipt?.gasUsed.toString());
+    });
+
+    it("Should track gas usage for buying", async function () {
+      await marketplace
+        .connect(seller)
+        .listItem(await nftContract.getAddress(), TOKEN_ID, LISTING_PRICE);
+
+      const tx = await marketplace
+        .connect(buyer)
+        .buyItem(await nftContract.getAddress(), TOKEN_ID, {
+          value: LISTING_PRICE,
+        });
+      const receipt = await tx.wait();
+      console.log("Gas used for buying:", receipt?.gasUsed.toString());
     });
   });
 });
