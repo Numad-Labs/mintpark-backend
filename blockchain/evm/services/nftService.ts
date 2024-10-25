@@ -242,36 +242,28 @@ class NFTService {
       throw new Error("No files uploaded or files are not in expected format");
     }
 
-    // if (files.length !== quantity) {
-    //   throw new Error(
-    //     `Expected ${quantity} files, but received ${files.length}`
-    //   );
-    // }
-
-    console.log("🚀 ~ NFTService ~ files.map ~ this.storage:", this.storage);
-    const metadataURIs = await Promise.all(
-      files.map(async (file, index) => {
-        // Upload the image to IPFS
-        const imageURI = await this.storage.upload(file.buffer, {
-          uploadWithGatewayUrl: true,
-        });
-
-        // Create metadata object
-        const metadata = {
-          name: `${name || "Unnamed NFT"} #${index + 1}`,
-          // description: req.body.description || "No description provided",
-          image: imageURI,
-          // attributes: JSON.parse(req.body.attributes || "[]"),
-        };
-
-        // Upload metadata to IPFS
-        const metadataURI = await this.storage.upload(metadata, {
-          uploadWithGatewayUrl: true,
-        });
-
-        return metadataURI;
-      })
+    // Upload all images in batch
+    console.log(
+      "🚀 ~ NFTService ~ starting batch upload ~ this.storage:",
+      this.storage
     );
+    const imageURIs = await this.storage.uploadBatch(
+      files.map((file) => file.buffer),
+      {
+        uploadWithGatewayUrl: true,
+      }
+    );
+
+    // Create metadata objects for all NFTs
+    const metadataObjects = imageURIs.map((imageURI, index) => ({
+      name: `${name || "Unnamed NFT"} #${index + 1}`,
+      image: imageURI,
+    }));
+
+    // Upload all metadata in batch
+    const metadataURIs = await this.storage.uploadBatch(metadataObjects, {
+      uploadWithGatewayUrl: true,
+    });
 
     return metadataURIs;
   }

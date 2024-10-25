@@ -51,8 +51,8 @@ app.use("/api/v1/evm", nftRouter);
 app.use(errorHandler);
 app.use(notFound);
 
-checkPaymentAndUpdateOrderStatus();
-mintingQueue(); //
+// checkPaymentAndUpdateOrderStatus();
+// mintingQueue();
 
 app.listen(config.PORT, () => {
   console.log(`Server has started on port ${config.PORT}`);
