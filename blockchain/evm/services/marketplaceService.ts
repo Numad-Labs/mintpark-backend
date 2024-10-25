@@ -1,282 +1,106 @@
 import { ethers } from "ethers";
-import { createThirdwebClient, defineChain, getContract } from "thirdweb";
-import { ethers6Adapter } from "thirdweb/adapters/ethers6";
 import { EVM_CONFIG } from "../evm-config";
-import { config } from "../../../src/config/config";
+import NFTService from "./nftService";
 
 class MarketplaceService {
   private marketplaceAddress: string;
-  private ethersMarketplaceContract?: ethers.Contract;
-  private initialized: boolean = false;
+  private provider: ethers.JsonRpcProvider;
 
   constructor(marketplaceAddress: string) {
     this.marketplaceAddress = marketplaceAddress;
+    this.provider = new ethers.JsonRpcProvider(EVM_CONFIG.RPC_URL);
   }
 
-  // async initialize(): Promise<void> {
-  //   if (this.initialized) return;
+  async getUnsignedDeploymentTransaction(initialOwner: string) {
+    const signer = await this.provider.getSigner();
 
-  //   const client = createThirdwebClient({
-  //     secretKey: config.THIRDWEB_SECRET_KEY!,
-  //   });
+    const factory = new ethers.ContractFactory(
+      EVM_CONFIG.MARKETPLACE_ABI,
+      EVM_CONFIG.MARKETPLACE_CONTRACT_BYTECODE,
+      signer
+    );
 
-  //   const citreaChain = defineChain({
-  //     id: EVM_CONFIG.CHAIN_ID,
-  //     rpc: EVM_CONFIG.RPC_URL,
-  //   });
+    const unsignedTx = await factory.getDeployTransaction();
 
-  //   const marketplaceContract = getContract({
-  //     address: this.marketplaceAddress,
-  //     client,
-  //     chain: citreaChain,
-  //   });
+    return this.prepareUnsignedTransaction(unsignedTx, initialOwner);
+  }
 
-  //   this.ethersMarketplaceContract = await ethers6Adapter.contract.toEthers({
-  //     thirdwebContract: marketplaceContract,
-  //   });
+  async getEthersMarketplaceContract() {
+    const signer = await this.provider.getSigner();
+    return new ethers.Contract(
+      this.marketplaceAddress,
+      EVM_CONFIG.MARKETPLACE_ABI,
+      signer
+    );
+  }
 
-  //   this.initialized = true;
-  // }
+  async getListing(nftContract: string, tokenId: string) {
+    const contract = await this.getEthersMarketplaceContract();
+    return contract.getListing(nftContract, tokenId);
+  }
 
-  // async getContract(): Promise<ethers.Contract | undefined> {
-  //   this.ensureInitialized();
-  //   return this.ethersMarketplaceContract;
-  // }
+  async createListingTransaction(
+    nftContract: string,
+    tokenId: string,
+    price: string,
+    sellerAddress: string
+  ) {
+    const contract = await this.getEthersMarketplaceContract();
+    const unsignedTx = await contract.listItem.populateTransaction(
+      nftContract,
+      tokenId,
+      ethers.parseEther(price)
+    );
+    return this.prepareUnsignedTransaction(unsignedTx, sellerAddress);
+  }
 
-  // async ensureInitialized(): Promise<void> {
-  //   if (!this.initialized) {
-  //     await this.initialize();
-  //   }
-  // }
+  async buyListingTransaction(
+    nftContract: string,
+    tokenId: string,
+    price: string,
+    buyerAddress: string
+  ) {
+    const contract = await this.getEthersMarketplaceContract();
+    const unsignedTx = await contract.buyItem.populateTransaction(
+      nftContract,
+      tokenId,
+      {
+        value: ethers.parseEther(price),
+      }
+    );
+    return this.prepareUnsignedTransaction(unsignedTx, buyerAddress);
+  }
 
-  async getEthersMarketplaceContract(): Promise<ethers.Contract> {
-    // if (!this.ethersMarketplaceContract) {
-    const client = createThirdwebClient({
-      secretKey: config.THIRDWEB_SECRET_KEY,
+  async prepareUnsignedTransaction(
+    unsignedTx: ethers.ContractTransaction | ethers.ContractDeployTransaction,
+    from: string
+  ) {
+    const estimatedGas = await this.provider.estimateGas({
+      ...unsignedTx,
+      from: from,
     });
+    const feeData = await this.provider.getFeeData();
+    const nonce = await this.provider.getTransactionCount(from);
+    const { chainId } = await this.provider.getNetwork();
 
-    const citreaChain = defineChain({
-      id: EVM_CONFIG.CHAIN_ID,
-      rpc: EVM_CONFIG.RPC_URL,
-    });
+    const preparedTx: ethers.TransactionRequest = {
+      from: from,
+      data: unsignedTx.data,
+      value: unsignedTx.value || "0x0",
+      gasLimit: estimatedGas,
+      maxFeePerGas: feeData.maxFeePerGas,
+      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
+      nonce: nonce,
+      chainId: chainId,
+      type: 2, // EIP-1559 transaction type
+    };
 
-    const marketplaceContract = getContract({
-      address: this.marketplaceAddress,
-      client,
-      chain: citreaChain,
-    });
+    // Add 'to' property only if it exists (for non-deployment transactions)
+    if ("to" in unsignedTx && unsignedTx.to) {
+      preparedTx.to = unsignedTx.to;
+    }
 
-    const ethersMarketplaceContract = await ethers6Adapter.contract.toEthers({
-      thirdwebContract: marketplaceContract,
-    });
-
-    return ethersMarketplaceContract;
-  }
-
-  // Read Functions
-
-  async DEFAULT_ADMIN_ROLE(): Promise<string> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.DEFAULT_ADMIN_ROLE();
-  }
-
-  async contractType(): Promise<string> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.contractType();
-  }
-
-  async contractURI(): Promise<string> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.contractURI();
-  }
-
-  async contractVersion(): Promise<string> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.contractVersion();
-  }
-
-  async defaultExtensions(): Promise<any> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.defaultExtensions();
-  }
-
-  async getAllExtensions(): Promise<any> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getAllExtensions();
-  }
-
-  async getExtension(extension: string): Promise<any> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getExtension(extension);
-  }
-
-  async getFlatPlatformFeeInfo(): Promise<any> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getFlatPlatformFeeInfo();
-  }
-
-  async getImplementationForFunction(
-    functionSelector: string
-  ): Promise<string> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getImplementationForFunction(functionSelector);
-  }
-
-  async getMetadataForFunction(functionSelector: string): Promise<any> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getMetadataForFunction(functionSelector);
-  }
-
-  async getPlatformFeeInfo(): Promise<any> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getPlatformFeeInfo();
-  }
-
-  async getPlatformFeeType(): Promise<number> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getPlatformFeeType();
-  }
-
-  async getRoleAdmin(role: string): Promise<string> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getRoleAdmin(role);
-  }
-
-  async getRoleMember(role: string, index: number): Promise<string> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getRoleMember(role, index);
-  }
-
-  async getRoleMemberCount(role: string): Promise<number> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getRoleMemberCount(role);
-  }
-
-  async getRoyaltyEngineAddress(): Promise<string> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getRoyaltyEngineAddress();
-  }
-
-  async hasRole(role: string, account: string): Promise<boolean> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.hasRole(role, account);
-  }
-
-  async hasRoleWithSwitch(role: string, account: string): Promise<boolean> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.hasRoleWithSwitch(role, account);
-  }
-
-  async isTrustedForwarder(forwarder: string): Promise<boolean> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.isTrustedForwarder(forwarder);
-  }
-
-  async supportsInterface(interfaceId: string): Promise<boolean> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.supportsInterface(interfaceId);
-  }
-
-  async currencyPriceForListing(
-    listingId: number,
-    currency: string
-  ): Promise<ethers.BigNumberish> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.currencyPriceForListing(listingId, currency);
-  }
-
-  async getAllListings(startId: number, endId: number): Promise<any> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getAllListings(startId, endId);
-  }
-
-  async getAllValidListings(startId: number, endId: number): Promise<any> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getAllValidListings(startId, endId);
-  }
-
-  async getListing(listingId: number): Promise<any> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getListing(listingId);
-  }
-
-  async isBuyerApprovedForListing(
-    listingId: number,
-    buyer: string
-  ): Promise<boolean> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.isBuyerApprovedForListing(listingId, buyer);
-  }
-
-  async isCurrencyApprovedForListing(
-    listingId: number,
-    currency: string
-  ): Promise<boolean> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.isCurrencyApprovedForListing(listingId, currency);
-  }
-
-  async totalListings(): Promise<number> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.totalListings();
-  }
-
-  async getAllAuctions(startId: number, endId: number): Promise<any> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getAllAuctions(startId, endId);
-  }
-
-  async getAllValidAuctions(startId: number, endId: number): Promise<any> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getAllValidAuctions(startId, endId);
-  }
-
-  async getAuction(auctionId: number): Promise<any> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getAuction(auctionId);
-  }
-
-  async getWinningBid(auctionId: number): Promise<any> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getWinningBid(auctionId);
-  }
-
-  async isAuctionExpired(auctionId: number): Promise<boolean> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.isAuctionExpired(auctionId);
-  }
-
-  async isNewWinningBid(
-    auctionId: number,
-    bidAmount: ethers.BigNumberish
-  ): Promise<boolean> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.isNewWinningBid(auctionId, bidAmount);
-  }
-
-  async totalAuctions(): Promise<number> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.totalAuctions();
-  }
-
-  async getAllOffers(startId: number, endId: number): Promise<any> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getAllOffers(startId, endId);
-  }
-
-  async getAllValidOffers(startId: number, endId: number): Promise<any> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getAllValidOffers(startId, endId);
-  }
-
-  async getOffer(offerId: number): Promise<any> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.getOffer(offerId);
-  }
-
-  async totalOffers(): Promise<number> {
-    const contract = await this.getEthersMarketplaceContract();
-    return await contract.totalOffers();
+    return preparedTx;
   }
 }
 

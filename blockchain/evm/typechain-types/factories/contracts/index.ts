@@ -2,3 +2,4 @@
 /* tslint:disable */
 /* eslint-disable */
 export { MPMNFT__factory } from "./MPMNFT__factory";
+export { MarketplaceContract__factory } from "./MarketplaceContract__factory";

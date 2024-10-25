@@ -2,3 +2,4 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { MPMNFT } from "./MPMNFT";
+export type { MarketplaceContract } from "./MarketplaceContract";
