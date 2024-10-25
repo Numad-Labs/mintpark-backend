@@ -313,7 +313,11 @@ export const launchServices = {
       }
 
       if (collection && collection.id) {
-        if (collection?.type === "UNCONFIRMED" && order.collectionId)
+        if (
+          (collection?.type === "UNCONFIRMED" ||
+            collection?.type === "LAUNCHED") &&
+          order.collectionId
+        )
           await collectionRepository.update(order.collectionId, {
             type: "MINTED",
           });
