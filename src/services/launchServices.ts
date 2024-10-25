@@ -332,6 +332,11 @@ export const launchServices = {
         fileKey: launchItem.fileKey,
       });
 
+      await orderRepository.update(orderId, {
+        paidAt: new Date(),
+        orderStatus: "DONE",
+      });
+
       return { commitTxId: null, revealTxId: null, collectible };
     } else if (layer?.layer === "FRACTAL" && layer.network === "TESTNET") {
       const tokenData = {
