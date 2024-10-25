@@ -127,7 +127,22 @@ export const orderServices = {
         });
       }
 
-      let networkFee = 0,
+      const unsignedTx = await nftService.getUnsignedBatchMintNFTTransaction(
+        transactionDetail.deployedContractAddress,
+        user.address,
+        collection?.name ?? "NFT",
+        files.length,
+        files
+      );
+
+      const mintContractTxHex = JSON.parse(
+        JSON.stringify(unsignedTx, (_, value) =>
+          typeof value === "bigint" ? value.toString() : value
+        )
+      );
+      const batchMintTxHex = mintContractTxHex;
+
+      let networkFee = batchMintTxHex.gasLimit / 10 ** 9,
         serviceFee = 0;
       let totalAmount = networkFee + serviceFee;
 
@@ -139,7 +154,7 @@ export const orderServices = {
           order = await orderRepository.create({
             userId: userId,
             quantity: files.length,
-            fundingAddress: "",
+            fundingAddress: batchMintTxHex.to,
             fundingAmount: totalAmount,
             networkFee: networkFee,
             serviceFee: serviceFee,
@@ -164,7 +179,7 @@ export const orderServices = {
           order = await orderRepository.create({
             userId: userId,
             quantity: files.length,
-            fundingAddress: "",
+            fundingAddress: batchMintTxHex.to,
             fundingAmount: totalAmount,
             networkFee: networkFee,
             serviceFee: serviceFee,
@@ -186,21 +201,6 @@ export const orderServices = {
         default:
           throw new Error("Invalid order type.");
       }
-
-      const unsignedTx = await nftService.getUnsignedBatchMintNFTTransaction(
-        transactionDetail.deployedContractAddress,
-        user.address,
-        collection?.name ?? "NFT",
-        files.length,
-        files
-      );
-
-      const mintContractTxHex = JSON.parse(
-        JSON.stringify(unsignedTx, (_, value) =>
-          typeof value === "bigint" ? value.toString() : value
-        )
-      );
-      const batchMintTxHex = mintContractTxHex;
 
       return { order, orderItems, batchMintTxHex };
     } else if (

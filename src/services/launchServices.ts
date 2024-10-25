@@ -168,29 +168,6 @@ export const launchServices = {
     const file = await getObjectFromS3(pickedLaunchItem.fileKey);
 
     if (layer.layer === "CITREA" && layer.network === "TESTNET") {
-      const serviceFee = 0;
-      const networkFee = 0;
-      const fundingAmount = 0;
-
-      const order = await orderRepository.create({
-        userId: issuerId,
-        collectionId: collectionId,
-        quantity: 1,
-        feeRate,
-        orderType: "LAUNCH",
-        fundingAddress: "",
-        privateKey: "",
-        serviceFee: serviceFee,
-        networkFee: networkFee,
-        fundingAmount: fundingAmount,
-      });
-
-      const purchase = await purchaseRepository.create({
-        userId: issuerId,
-        orderId: order.id,
-        launchItemId: pickedLaunchItem.id,
-      });
-
       const collection = await collectionRepository.getById(collectionId);
 
       if (!collection || !collection.contractAddress)
@@ -209,6 +186,28 @@ export const launchServices = {
       const serializedTx = serializeBigInt(unsignedTx);
 
       const singleMintTxHex = serializedTx;
+      const serviceFee = singleMintTxHex.value / 10 ** 18;
+      const networkFee = singleMintTxHex.gasLimit / 10 ** 9;
+      const fundingAmount = networkFee + serviceFee;
+
+      const order = await orderRepository.create({
+        userId: issuerId,
+        collectionId: collectionId,
+        quantity: 1,
+        feeRate,
+        orderType: "LAUNCH",
+        fundingAddress: singleMintTxHex.to,
+        privateKey: "",
+        serviceFee: serviceFee,
+        networkFee: networkFee,
+        fundingAmount: fundingAmount,
+      });
+
+      const purchase = await purchaseRepository.create({
+        userId: issuerId,
+        orderId: order.id,
+        launchItemId: pickedLaunchItem.id,
+      });
 
       return { order: order, launchedItem: pickedLaunchItem, singleMintTxHex };
     } else if (layer.layer === "FRACTAL" && layer.network === "TESTNET") {
