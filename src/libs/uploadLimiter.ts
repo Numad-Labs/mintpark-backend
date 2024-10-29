@@ -1,4 +1,5 @@
 import { redis } from "..";
+import { config } from "../config/config";
 import logger from "../config/winston";
 import { CustomError } from "../exceptions/CustomError";
 import { REDIS_KEYS } from "./constants";
@@ -38,37 +39,11 @@ export type FileUpload = {
 };
 
 /**
- * Initialize limiter configuration
- */
-export const initializeLimiter = async (
-  initialConfig: Partial<LimiterConfig> = {}
-): Promise<void> => {
-  const config: LimiterConfig = {
-    maxConcurrentCollections: initialConfig.maxConcurrentCollections ?? 3,
-    timeoutMinutes: initialConfig.timeoutMinutes ?? 10,
-    retryConfig: {
-      maxRetries: initialConfig.retryConfig?.maxRetries ?? 3,
-      initialDelayMs: initialConfig.retryConfig?.initialDelayMs ?? 1000,
-      maxDelayMs: initialConfig.retryConfig?.maxDelayMs ?? 10000,
-      backoffFactor: initialConfig.retryConfig?.backoffFactor ?? 2,
-    },
-  };
-
-  const existingConfig = await redis.get(REDIS_KEYS.CONFIG);
-  if (!existingConfig) {
-    await redis.set(REDIS_KEYS.CONFIG, JSON.stringify(config));
-    logger.info("Initialized limiter configuration", { config });
-  }
-};
-
-/**
- * Remove stale collections based on timeout configuration
+ * Remove stale collections based on timeout
  */
 export const cleanupStaleCollections = async (): Promise<void> => {
   try {
-    const config = await getCurrentConfig();
     const now = new Date();
-
     const keys = await redis.keys(`${REDIS_KEYS.COLLECTION_PREFIX}*`);
 
     for (const key of keys) {
@@ -79,7 +54,7 @@ export const cleanupStaleCollections = async (): Promise<void> => {
           (now.getTime() - new Date(collection.lastUpdateTime).getTime()) /
           (1000 * 60);
 
-        if (timeDiff > config.timeoutMinutes) {
+        if (timeDiff > config.COLLECTION_TIMEOUT_MINUTES) {
           const collectionId = key.replace(REDIS_KEYS.COLLECTION_PREFIX, "");
           logger.warn(
             `Collection ${collectionId} timed out after ${timeDiff.toFixed(
@@ -105,7 +80,6 @@ export const acquireSlot = async (
 ): Promise<boolean> => {
   try {
     await cleanupStaleCollections();
-    const config = await getCurrentConfig();
 
     const collectionKey = REDIS_KEYS.getCollectionKey(collectionId);
     const existingCollection = await redis.get(collectionKey);
@@ -121,11 +95,14 @@ export const acquireSlot = async (
     const activeCollections = await redis.keys(
       `${REDIS_KEYS.COLLECTION_PREFIX}*`
     );
-    if (activeCollections.length >= config.maxConcurrentCollections) {
+    if (activeCollections.length >= config.MAX_CONCURRENT_COLLECTIONS) {
       logger.warn(
         `Slot acquisition failed for collection ${collectionId}: concurrent limit reached`
       );
-      return false;
+      throw new CustomError(
+        "Slot acquisition failed for collection ${collectionId}: concurrent limit reached",
+        400
+      );
     }
 
     const now = new Date();
@@ -139,6 +116,7 @@ export const acquireSlot = async (
     logger.info(`Acquired slot for new collection ${collectionId}`);
     return true;
   } catch (error) {
+    if (error instanceof CustomError) throw error;
     logger.error(`Error acquiring slot for collection ${collectionId}:`, error);
     throw new Error("Failed to acquire processing slot");
   }
@@ -159,7 +137,7 @@ export const updateProgress = async (
     if (!collectionData) {
       throw new CustomError(
         `Collection ${collectionId} not found in active uploads`,
-        400
+        404
       );
     }
 
@@ -203,104 +181,23 @@ export const forceReleaseSlot = async (collectionId: string): Promise<void> => {
 };
 
 /**
- * Update limiter configuration
+ * Get system capacity information
  */
-export const updateConfig = async (
-  newConfig: Partial<LimiterConfig>
-): Promise<LimiterConfig> => {
+export const getSystemCapacity = async () => {
   try {
-    const currentConfig = await getCurrentConfig();
-    const updatedConfig: LimiterConfig = {
-      ...currentConfig,
-      ...newConfig,
-      retryConfig: {
-        ...currentConfig.retryConfig,
-        ...newConfig.retryConfig,
-      },
-    };
-
-    await redis.set(REDIS_KEYS.CONFIG, JSON.stringify(updatedConfig));
-    logger.info("Updated limiter configuration", { config: updatedConfig });
-    return updatedConfig;
-  } catch (error) {
-    logger.error("Error updating configuration:", error);
-    throw new Error("Failed to update configuration");
-  }
-};
-
-/**
- * Get current limiter configuration
- */
-export const getCurrentConfig = async (): Promise<LimiterConfig> => {
-  try {
-    const config = await redis.get(REDIS_KEYS.CONFIG);
-    if (!config) {
-      throw new Error("Configuration not found");
-    }
-    return JSON.parse(config);
-  } catch (error) {
-    logger.error("Error getting configuration:", error);
-    if (error instanceof CustomError) throw error;
-    throw new Error("Failed to get configuration");
-  }
-};
-
-/**
- * Get status of all active collections
- */
-export const getStatus = async () => {
-  try {
-    await cleanupStaleCollections();
-    const now = new Date();
-
-    const keys = await redis.keys(`${REDIS_KEYS.COLLECTION_PREFIX}*`);
-    const collections = await Promise.all(
-      keys.map(async (key) => {
-        const collectionData = await redis.get(key);
-        if (!collectionData) return null;
-
-        const collection: Collection = JSON.parse(collectionData);
-        const collectionId = key.replace(REDIS_KEYS.COLLECTION_PREFIX, "");
-
-        return {
-          collectionId,
-          startTime: new Date(collection.startTime),
-          lastUpdateTime: new Date(collection.lastUpdateTime),
-          remainingCalls: collection.remainingCalls,
-          idleMinutes:
-            (now.getTime() - new Date(collection.lastUpdateTime).getTime()) /
-            (1000 * 60),
-        };
-      })
+    const activeCollections = await redis.keys(
+      `${REDIS_KEYS.COLLECTION_PREFIX}*`
     );
-
-    return collections.filter((c): c is NonNullable<typeof c> => c !== null);
-  } catch (error) {
-    logger.error("Error getting status:", error);
-    throw new Error("Failed to get limiter status");
-  }
-};
-
-/**
- * Get complete limiter status including configuration and active collections
- */
-export const getLimiterStatus = async () => {
-  try {
-    const [config, status] = await Promise.all([
-      getCurrentConfig(),
-      getStatus(),
-    ]);
+    const currentLoad = activeCollections.length;
 
     return {
-      config,
-      activeCollections: status,
-      availableSlots: Math.max(
-        0,
-        config.maxConcurrentCollections - status.length
-      ),
+      available: currentLoad < config.MAX_CONCURRENT_COLLECTIONS,
+      currentLoad,
+      maxCapacity: config.MAX_CONCURRENT_COLLECTIONS,
+      // estimatedWaitTime: calculateEstimatedWaitTime(currentLoad),
     };
   } catch (error) {
-    logger.error("Error getting limiter status:", error);
-    throw new Error("Failed to get limiter status");
+    logger.error("Error getting system capacity:", error);
+    throw new Error("Unable to determine system capacity");
   }
 };

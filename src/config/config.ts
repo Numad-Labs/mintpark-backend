@@ -30,6 +30,8 @@ const envSchema = z.object({
   UNISAT_BITCOIN_TESTNET_API_KEY: z.string(),
   UNISAT_FRACTAL_TESTNET_API_KEY: z.string(),
   THIRDWEB_SECRET_KEY: z.string(),
+  COLLECTION_TIMEOUT_MINUTES: z.string().transform(Number),
+  MAX_CONCURRENT_COLLECTIONS: z.string().transform(Number),
 });
 
 let env = envSchema.safeParse(process.env);
