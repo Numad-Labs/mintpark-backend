@@ -1,6 +1,5 @@
 import { randomUUID } from "crypto";
 import { launchRepository } from "../repositories/launchRepository";
-import { Launch } from "@prisma/client";
 import { getObjectFromS3, uploadToS3 } from "../utils/aws";
 import { launchItemRepository } from "../repositories/launchItemRepository";
 import { collectionRepository } from "../repositories/collectionRepository";
@@ -29,6 +28,12 @@ import LaunchpadService from "../../blockchain/evm/services/launchpadService";
 import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
 import { serializeBigInt } from "../../blockchain/evm/utils";
 import { NextFunction } from "express";
+import { FILE_COUNT_LIMIT } from "../libs/constants";
+import {
+  acquireSlot,
+  forceReleaseSlot,
+  updateProgress,
+} from "../libs/uploadLimiter";
 
 const launchPadService = new LaunchpadService(
   EVM_CONFIG.RPC_URL,
@@ -40,21 +45,35 @@ const confirmationService = new TransactionConfirmationService(
 );
 
 export const launchServices = {
-  create: async (data: any, files: Express.Multer.File[], txid?: string) => {
+  create: async (
+    data: any,
+    files: Express.Multer.File[],
+    totalFileCount: number,
+    txid?: string
+  ) => {
     const collection = await collectionRepository.getById(data.collectionId);
     if (!collection || !collection.layerId)
       throw new Error("Collection not found.");
 
     const layerType = await layerRepository.getById(collection.layerId);
     if (!layerType) throw new Error("Layer not found.");
-
-    if (collection.type === "LAUNCHED")
-      throw new Error("Collection already launched.");
-
     if (files.length < 1)
       throw new Error("Launch must have at least one file.");
 
-    const launch = await launchRepository.create(data);
+    let launch;
+    if (collection.type === "LAUNCHED") {
+      launch = await launchRepository.create(data);
+    }
+    if (!launch?.id) throw new Error("No launch id found.");
+
+    const totalBatches = Math.ceil(totalFileCount / FILE_COUNT_LIMIT);
+    const slotAcquired = await acquireSlot(collection.id, totalBatches);
+    if (!slotAcquired) {
+      throw new CustomError(
+        "The upload system is at maximum capacity. Please wait a moment and try again.",
+        400
+      );
+    }
 
     if (layerType.layer === "CITREA" && layerType.network === "TESTNET") {
       if (!txid) throw new Error("txid not found.");
@@ -76,8 +95,6 @@ export const launchServices = {
         );
       }
 
-      if (!collection || !collection.id)
-        throw new Error("Collection not found.");
       await collectionRepository.update(collection.id, {
         contractAddress: transactionDetail.deployedContractAddress,
       });
@@ -86,10 +103,9 @@ export const launchServices = {
     const nftMetadatas: nftMetaData[] = [];
     let index = 0;
     for (let file of files) {
-      const nftId = layerType.layer === "CITREA" ? index.toString() : null;
       nftMetadatas.push({
         name: `${collection?.name ?? "NFT"} #${index}`,
-        nftId: nftId,
+        nftId: index.toString(),
         ipfsUri: null,
         file: file,
       });
@@ -97,16 +113,22 @@ export const launchServices = {
       index++;
     }
 
-    console.log(nftMetadatas);
-
-    const launchItems = await createLaunchItems(launch.id, nftMetadatas);
+    let launchItems;
+    try {
+      launchItems = await createLaunchItems(launch.id, nftMetadatas);
+    } catch (e) {
+      forceReleaseSlot(collection.id);
+      throw e;
+    }
 
     const updatedCollection = await collectionRepository.update(collection.id, {
       type: "LAUNCHED",
       supply: collection.supply + launchItems.length,
     });
 
-    return { launch, updatedCollection, launchItems };
+    const isComplete = await updateProgress(collection.id);
+
+    return { launch, updatedCollection, launchItems, isComplete };
   },
   /*
     IF LAYER IS CITREA, generate money transfer hex
@@ -196,8 +218,6 @@ export const launchServices = {
         quantity: 1,
         feeRate,
         orderType: "LAUNCH",
-        fundingAddress: singleMintTxHex.to,
-        privateKey: "",
         serviceFee: serviceFee,
         networkFee: networkFee,
         fundingAmount: fundingAmount,
@@ -234,8 +254,6 @@ export const launchServices = {
             quantity: 1,
             feeRate,
             orderType: "LAUNCH",
-            fundingAddress: funder.address,
-            privateKey: funder.privateKey,
             serviceFee: estimatedFee.serviceFee,
             networkFee: estimatedFee.networkFee,
             fundingAmount: estimatedFee.totalAmount,
@@ -286,7 +304,6 @@ export const launchServices = {
     const launchItem = await launchItemRepository.getById(
       purchase.launchItemId
     );
-    console.log(launchItem);
     if (!launchItem) throw new Error("Launch item not found.");
 
     const file = await getObjectFromS3(launchItem.fileKey);
@@ -350,6 +367,9 @@ export const launchServices = {
         headline: "headline",
         ticker: "test",
       };
+      if (!order.fundingAddress || !order.privateKey)
+        throw new CustomError("No funding address & private key found.", 400);
+
       const mintHexes = await mint(
         tokenData,
         order.fundingAddress,

@@ -1,12 +1,12 @@
 import { NextFunction, Request, Response } from "express";
 import multer from "multer";
-import { fileSizeLimit } from "../../blockchain/utxo/constants";
+import { FILE_COUNT_LIMIT, FILE_SIZE_LIMIT } from "../libs/constants";
 
 const storage = multer.memoryStorage();
 
 const uploader = multer({
   storage: storage,
-  limits: { fileSize: fileSizeLimit },
+  limits: { fileSize: FILE_SIZE_LIMIT, files: FILE_COUNT_LIMIT },
 });
 
 export function parseFiles(fieldName: string, isSingle: boolean) {

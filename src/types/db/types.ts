@@ -13,6 +13,7 @@ import type {
   LAUNCH_ITEM_STATUS,
   LAYER,
   NETWORK,
+  ROLES,
 } from "./enums";
 
 export type Collectible = {
@@ -66,6 +67,7 @@ export type LaunchItem = {
   id: Generated<string>;
   launchId: string;
   fileKey: string;
+  ipfsUrl: string | null;
   metadata: unknown | null;
   status: Generated<LAUNCH_ITEM_STATUS>;
   evmAssetId: string | null;
@@ -100,12 +102,12 @@ export type Order = {
   collectionId: string | null;
   quantity: number;
   feeRate: Generated<number>;
-  fundingAddress: string;
+  fundingAddress: string | null;
   networkFee: number;
   serviceFee: number;
   fundingAmount: number;
   txId: string | null;
-  privateKey: string;
+  privateKey: string | null;
   createdAt: Generated<Timestamp>;
   paidAt: Timestamp | null;
   mintedAt: Timestamp | null;
@@ -117,6 +119,7 @@ export type OrderItem = {
   id: Generated<string>;
   orderId: string;
   fileKey: string;
+  ipfsUrl: string | null;
   metadata: unknown | null;
   status: Generated<ORDER_ITEM_STATUS>;
   evmAssetId: string | null;
@@ -140,6 +143,7 @@ export type User = {
   pubkey: string | null;
   xpub: string | null;
   createdAt: Generated<Timestamp>;
+  role: Generated<ROLES>;
 };
 export type WlAddress = {
   id: Generated<string>;

@@ -5,35 +5,72 @@ import { CustomError } from "../exceptions/CustomError";
 import { hideSensitiveData } from "../libs/hideDataHelper";
 
 export const orderController = {
-  create: async (
+  createCollectible: async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {
     try {
       if (!req.user) throw new CustomError("Cannot parse user from token", 401);
-      //todo txid nemsen example oorchloh
-      const { orderType, collectionId, feeRate, txid } = req.body;
-      if (!orderType || !feeRate)
+      const { collectionId, feeRate, txid } = req.body;
+      if (!feeRate)
         throw new CustomError("Order type and fee rate are required.", 400);
-      const files = req.files as Express.Multer.File[];
-
-      if (
-        (orderType === "COLLECTION" && !collectionId) ||
-        (orderType === "LAUNCH" && !collectionId)
-      )
+      if (!collectionId)
         throw new CustomError(
           "CollectionId is required when creating order for collection or launch.",
           400
         );
-      const { order, orderItems, batchMintTxHex } = await orderServices.create(
-        req.user.id,
-        orderType,
-        Number(feeRate),
-        files,
-        txid,
-        collectionId
-      );
+      const file = req.file as Express.Multer.File;
+
+      const { order, orderItems, batchMintTxHex } =
+        await orderServices.createCollectible(
+          req.user.id,
+          Number(feeRate),
+          [file],
+          collectionId,
+          txid
+        );
+      const sanitazedOrder = hideSensitiveData(order, ["privateKey"]);
+
+      return res.status(200).json({
+        success: true,
+        data: { order: sanitazedOrder, orderItems: orderItems, batchMintTxHex },
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
+  createCollection: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user) throw new CustomError("Cannot parse user from token", 401);
+      const { collectionId, feeRate, txid, totalFileCount } = req.body;
+      if (!feeRate)
+        throw new CustomError("Order type and fee rate are required.", 400);
+      if (!collectionId)
+        throw new CustomError(
+          "CollectionId is required when creating order for collection.",
+          400
+        );
+      if (!totalFileCount)
+        throw new CustomError(
+          "CollectionId is required when creating order for collection.",
+          400
+        );
+      const files = req.files as Express.Multer.File[];
+
+      const { order, orderItems, batchMintTxHex } =
+        await orderServices.createCollection(
+          req.user.id,
+          Number(feeRate),
+          files,
+          totalFileCount,
+          collectionId,
+          txid
+        );
       const sanitazedOrder = hideSensitiveData(order, ["privateKey"]);
 
       return res.status(200).json({

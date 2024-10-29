@@ -1,5 +1,3 @@
-export const fileSizeLimit = 37748736; //36MB
-
 export const TX_INPUT_P2PKH = 148;
 export const TX_INPUT_P2SH = 91;
 export const TX_INPUT_P2WPKH = 68;
