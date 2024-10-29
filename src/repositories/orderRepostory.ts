@@ -46,7 +46,7 @@ export const orderRepository = {
       .selectFrom("Order")
       .selectAll()
       .where("Order.userId", "=", userId)
-      .orderBy('Order.createdAt desc')
+      .orderBy("Order.createdAt desc")
       .execute();
 
     return orders;
@@ -95,5 +95,15 @@ export const orderRepository = {
       .execute();
 
     return orders;
+  },
+  getByCollectionId: async (collectionId: string) => {
+    const order = await db
+      .selectFrom("Order")
+      .selectAll()
+      .where("Order.collectionId", "=", collectionId)
+      .orderBy("createdAt desc")
+      .executeTakeFirst();
+
+    return order;
   },
 };

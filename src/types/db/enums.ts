@@ -53,3 +53,9 @@ export const NETWORK = {
   TESTNET: "TESTNET",
 } as const;
 export type NETWORK = (typeof NETWORK)[keyof typeof NETWORK];
+export const ROLES = {
+  USER: "USER",
+  ADMIN: "ADMIN",
+  SUPER_ADMIN: "SUPER_ADMIN",
+} as const;
+export type ROLES = (typeof ROLES)[keyof typeof ROLES];

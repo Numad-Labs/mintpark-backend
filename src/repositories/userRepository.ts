@@ -49,4 +49,24 @@ export const userRepository = {
 
     return user;
   },
+  getByIdWithLayer: async (id: string) => {
+    const user = await db
+      .selectFrom("User")
+      .innerJoin("Layer", "Layer.id", "User.layerId")
+      .select([
+        "User.id",
+        "User.address",
+        "User.pubkey",
+        "User.xpub",
+        "User.role",
+        "User.createdAt",
+        "User.layerId",
+        "Layer.layer",
+        "Layer.network",
+      ])
+      .where("User.id", "=", id)
+      .executeTakeFirst();
+
+    return user;
+  },
 };

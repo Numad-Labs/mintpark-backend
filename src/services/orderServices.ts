@@ -1,4 +1,3 @@
-import { Order, OrderItem } from "@prisma/client";
 import { orderRepository } from "../repositories/orderRepostory";
 import { ORDER_TYPE } from "../types/db/enums";
 import { createFundingAddress } from "../../blockchain/utxo/fundingAddressHelper";
@@ -21,7 +20,12 @@ import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import NFTService from "../../blockchain/evm/services/nftService";
 import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
 import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
-import LaunchpadService from "../../blockchain/evm/services/launchpadService";
+import {
+  acquireSlot,
+  forceReleaseSlot,
+  updateProgress,
+} from "../libs/uploadLimiter";
+import { FILE_COUNT_LIMIT } from "../libs/constants";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
@@ -40,48 +44,26 @@ export interface nftMetaData {
 }
 
 export const orderServices = {
-  create: async (
+  createCollectible: async (
     userId: string,
-    orderType: ORDER_TYPE,
     feeRate: number,
     files: Express.Multer.File[],
-    txid?: string,
-    collectionId?: string
-  ): Promise<{
-    order: Order;
-    orderItems: any[];
-    batchMintTxHex: any;
-  }> => {
-    const user = await userRepository.getById(userId);
+    collectionId?: string,
+    txid?: string
+  ) => {
+    const user = await userRepository.getByIdWithLayer(userId);
     if (!user) throw new Error("User not found.");
-    const layerType = await layerRepository.getById(user.layerId!);
-    if (!layerType) throw new Error("Layer not found.");
 
-    let order: Order;
-    let orderItems: any[];
-
-    /*
-      if user.layer is citrea
-      create order & orderItems
-      build metadata array with (nftId, ipfsUri)
-      generate batch mint tx hex
-      return that hex with the order & orderItems
-    */
-    let collection;
-    if (orderType === "COLLECTION") {
-      if (!collectionId) throw new Error("Collection id is required.");
-      collection = await collectionServices.getById(collectionId);
-      if (!collection || !collection.id)
-        throw new Error("Collection not found.");
-    }
+    if (!collectionId) throw new Error("Collection id is required.");
+    let collection = await collectionServices.getById(collectionId);
+    if (!collection || !collection.id) throw new Error("Collection not found.");
 
     const nftMetadatas: nftMetaData[] = [];
     let index = 0;
     for (let file of files) {
-      const nftId = layerType.layer === "CITREA" ? index.toString() : null;
       nftMetadatas.push({
         name: `${collection?.name ?? "NFT"} #${index}`,
-        nftId: nftId,
+        nftId: index.toString(),
         ipfsUri: null,
         file: file,
       });
@@ -89,9 +71,7 @@ export const orderServices = {
       index++;
     }
 
-    console.log(nftMetadatas);
-
-    if (layerType.layer === "CITREA" && layerType.network === "TESTNET") {
+    if (user.layer === "CITREA" && user.network === "TESTNET") {
       if (!txid) throw new Error("txid not found.");
       const transactionDetail = await confirmationService.getTransactionDetails(
         txid
@@ -111,21 +91,9 @@ export const orderServices = {
         );
       }
 
-      if (collection && collection.id) {
-        await collectionRepository.update(collection.id, {
-          contractAddress: transactionDetail.deployedContractAddress,
-        });
-      }
-
-      if (orderType === "COLLECTION") {
-        if (!collectionId) throw new Error("Collection id is required.");
-        collection = await collectionServices.getById(collectionId);
-        if (!collection || !collection.id)
-          throw new Error("Collection not found.");
-        await collectionRepository.update(collection.id, {
-          contractAddress: transactionDetail.deployedContractAddress,
-        });
-      }
+      await collectionRepository.update(collection.id, {
+        contractAddress: transactionDetail.deployedContractAddress,
+      });
 
       const unsignedTx = await nftService.getUnsignedBatchMintNFTTransaction(
         transactionDetail.deployedContractAddress,
@@ -146,69 +114,183 @@ export const orderServices = {
         serviceFee = 0;
       let totalAmount = networkFee + serviceFee;
 
-      switch (orderType) {
-        case ORDER_TYPE.COLLECTIBLE:
-          if (files.length !== 1)
-            throw new Error("Collectible order must have one file.");
+      if (files.length !== 1)
+        throw new Error("Collectible order must have one file.");
 
-          order = await orderRepository.create({
-            userId: userId,
-            quantity: files.length,
-            fundingAddress: batchMintTxHex.to,
-            fundingAmount: totalAmount,
-            networkFee: networkFee,
-            serviceFee: serviceFee,
-            privateKey: "",
-            orderType: orderType,
-            feeRate: feeRate,
-          });
+      let order = await orderRepository.create({
+        userId: userId,
+        quantity: files.length,
+        fundingAmount: totalAmount,
+        networkFee: networkFee,
+        serviceFee: serviceFee,
+        orderType: "COLLECTIBLE",
+        feeRate: feeRate,
+      });
 
-          orderItems = await uploadToS3AndCreateOrderItems(
-            order.id,
-            nftMetadatas
-          );
-          break;
-
-        case ORDER_TYPE.COLLECTION:
-          if (files.length < 1)
-            throw new Error(
-              "Collection order must have at least one collectible file."
-            );
-          if (!collection) throw new Error("Collection not found.");
-
-          order = await orderRepository.create({
-            userId: userId,
-            quantity: files.length,
-            fundingAddress: batchMintTxHex.to,
-            fundingAmount: totalAmount,
-            networkFee: networkFee,
-            serviceFee: serviceFee,
-            privateKey: "",
-            orderType: orderType,
-            collectionId: collection.id,
-            feeRate: feeRate,
-          });
-          orderItems = await uploadToS3AndCreateOrderItems(
-            order.id,
-            nftMetadatas
-          );
-          break;
-        case ORDER_TYPE.LAUNCH:
-          throw new Error("Launch order is not supported yet.");
-          break;
-        case ORDER_TYPE.TOKEN:
-          throw new Error("Token order is not supported yet.");
-        default:
-          throw new Error("Invalid order type.");
-      }
+      let orderItems = await uploadToS3AndCreateOrderItems(
+        order.id,
+        nftMetadatas
+      );
 
       return { order, orderItems, batchMintTxHex };
-    } else if (
-      layerType.layer === "FRACTAL" &&
-      layerType.network === "TESTNET"
-    ) {
-      let serviceFee = SERVICE_FEE[layerType.layer][layerType.network];
-      const funder = createFundingAddress(layerType.layer, layerType.network);
+    } else if (user.layer === "FRACTAL" && user.network === "TESTNET") {
+      let serviceFee = SERVICE_FEE[user.layer][user.network];
+      const funder = createFundingAddress(user.layer, user.network);
+
+      //Calculate fee
+      const fileSizes = files.map((file) => file.buffer.length);
+      const mimeTypeSizes = files.map((file) => file.mimetype.length);
+      const { estimatedFee } = getEstimatedFee(
+        fileSizes,
+        mimeTypeSizes,
+        serviceFee,
+        feeRate
+      );
+
+      if (files.length !== 1)
+        throw new Error("Collectible order must have one file.");
+
+      let order = await orderRepository.create({
+        userId: userId,
+        quantity: files.length,
+        fundingAddress: funder.address,
+        fundingAmount: estimatedFee.totalAmount,
+        networkFee: estimatedFee.networkFee,
+        serviceFee: estimatedFee.serviceFee,
+        privateKey: funder.privateKey,
+        orderType: "COLLECTIBLE",
+        feeRate: feeRate,
+      });
+
+      if (!order.id) throw new CustomError("No order id was found.", 400);
+
+      let orderItems = await uploadToS3AndCreateOrderItems(
+        order.id,
+        nftMetadatas
+      );
+
+      return { order, orderItems, batchMintTxHex: null };
+    } else throw new Error("This layer is unsupported ATM.");
+  },
+  createCollection: async (
+    userId: string,
+    feeRate: number,
+    files: Express.Multer.File[],
+    totalFileCount: number,
+    collectionId?: string,
+    txid?: string
+  ) => {
+    const user = await userRepository.getByIdWithLayer(userId);
+    if (!user) throw new Error("User not found.");
+
+    if (!collectionId) throw new Error("Collection id is required.");
+    let collection = await collectionServices.getById(collectionId);
+    if (!collection || !collection.id) throw new Error("Collection not found.");
+
+    const nftMetadatas: nftMetaData[] = [];
+    let index = 0;
+    for (let file of files) {
+      nftMetadatas.push({
+        name: `${collection.name} #${index}`,
+        nftId: index.toString(),
+        ipfsUri: null,
+        file: file,
+      });
+
+      index++;
+    }
+
+    const totalBatches = Math.ceil(totalFileCount / FILE_COUNT_LIMIT);
+    const slotAcquired = await acquireSlot(collectionId, totalBatches);
+    if (!slotAcquired) {
+      throw new CustomError(
+        "The upload system is at maximum capacity. Please wait a moment and try again.",
+        400
+      );
+    }
+
+    if (user.layer === "CITREA" && user.network === "TESTNET") {
+      if (!txid) throw new Error("txid not found.");
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
+
+      if (transactionDetail.status !== 1) {
+        throw new CustomError(
+          "Transaction not confirmed. Please try again.",
+          500
+        );
+      }
+
+      if (!transactionDetail.deployedContractAddress) {
+        throw new CustomError(
+          "Transaction does not contain deployed contract address.",
+          500
+        );
+      }
+
+      await collectionRepository.update(collection.id, {
+        contractAddress: transactionDetail.deployedContractAddress,
+      });
+
+      let networkFee = 0,
+        serviceFee = 0;
+      let totalAmount = networkFee + serviceFee;
+
+      if (files.length < 1)
+        throw new Error(
+          "Collection order must have at least one collectible file."
+        );
+      if (!collection) throw new Error("Collection not found.");
+
+      let order = await orderRepository.getByCollectionId(collection.id);
+      if (!order) {
+        order = await orderRepository.create({
+          userId: userId,
+          quantity: files.length,
+          fundingAmount: totalAmount,
+          networkFee: networkFee,
+          serviceFee: serviceFee,
+          orderType: "COLLECTION",
+          collectionId: collection.id,
+          feeRate: feeRate,
+        });
+      }
+
+      let unsignedTx, orderItems;
+      try {
+        //only upload to S3 & IPFS
+        //attach ipfs url to the nftMetadatas list
+        unsignedTx = await nftService.getUnsignedBatchMintNFTTransaction(
+          transactionDetail.deployedContractAddress,
+          user.address,
+          collection.name,
+          files.length,
+          files
+        );
+
+        orderItems = await uploadToS3AndCreateOrderItems(
+          order.id,
+          nftMetadatas
+        );
+      } catch (e) {
+        forceReleaseSlot(collectionId);
+        throw e;
+      }
+
+      const mintContractTxHex = JSON.parse(
+        JSON.stringify(unsignedTx, (_, value) =>
+          typeof value === "bigint" ? value.toString() : value
+        )
+      );
+      const batchMintTxHex = mintContractTxHex;
+
+      const isComplete = await updateProgress(collectionId);
+
+      return { order, orderItems, batchMintTxHex, isComplete };
+    } else if (user.layer === "FRACTAL" && user.network === "TESTNET") {
+      let serviceFee = SERVICE_FEE[user.layer][user.network];
+      const funder = createFundingAddress(user.layer, user.network);
 
       //Calculate fee
       const fileSizes = files.map((file) => file.buffer.length);
@@ -222,63 +304,35 @@ export const orderServices = {
 
       console.log(estimatedFee);
 
-      switch (orderType) {
-        case ORDER_TYPE.COLLECTIBLE:
-          if (files.length !== 1)
-            throw new Error("Collectible order must have one file.");
+      if (files.length < 1)
+        throw new Error(
+          "Collection order must have at least one collectible file."
+        );
+      if (!collection) throw new Error("Collection not found.");
 
-          order = await orderRepository.create({
-            userId: userId,
-            quantity: files.length,
-            fundingAddress: funder.address,
-            fundingAmount: estimatedFee.totalAmount,
-            networkFee: estimatedFee.networkFee,
-            serviceFee: estimatedFee.serviceFee,
-            privateKey: funder.privateKey,
-            orderType: orderType,
-            feeRate: feeRate,
-          });
+      let order = await orderRepository.create({
+        userId: userId,
+        quantity: files.length,
+        fundingAddress: funder.address,
+        fundingAmount: estimatedFee.totalAmount,
+        networkFee: estimatedFee.networkFee,
+        serviceFee: estimatedFee.serviceFee,
+        privateKey: funder.privateKey,
+        orderType: "COLLECTION",
+        collectionId: collection.id,
+        feeRate: feeRate,
+      });
 
-          orderItems = await uploadToS3AndCreateOrderItems(
-            order.id,
-            nftMetadatas
-          );
-          break;
+      if (!order.id) throw new CustomError("No order id was found.", 400);
 
-        case ORDER_TYPE.COLLECTION:
-          if (files.length < 1)
-            throw new Error(
-              "Collection order must have at least one collectible file."
-            );
-          if (!collection) throw new Error("Collection not found.");
+      let orderItems = await uploadToS3AndCreateOrderItems(
+        order.id,
+        nftMetadatas
+      );
 
-          order = await orderRepository.create({
-            userId: userId,
-            quantity: files.length,
-            fundingAddress: funder.address,
-            fundingAmount: estimatedFee.totalAmount,
-            networkFee: estimatedFee.networkFee,
-            serviceFee: estimatedFee.serviceFee,
-            privateKey: funder.privateKey,
-            orderType: orderType,
-            collectionId: collection.id,
-            feeRate: feeRate,
-          });
-          orderItems = await uploadToS3AndCreateOrderItems(
-            order.id,
-            nftMetadatas
-          );
-          break;
-        case ORDER_TYPE.LAUNCH:
-          throw new Error("Launch order is not supported yet.");
-          break;
-        case ORDER_TYPE.TOKEN:
-          throw new Error("Token order is not supported yet.");
-        default:
-          throw new Error("Invalid order type.");
-      }
+      const isComplete = await updateProgress(collectionId);
 
-      return { order, orderItems, batchMintTxHex: null };
+      return { order, orderItems, batchMintTxHex: null, isComplete };
     } else throw new Error("This layer is unsupported ATM.");
   },
   getByUserId: async (userId: string) => {
@@ -288,6 +342,23 @@ export const orderServices = {
   getById: async (orderId: string) => {
     const order = await orderRepository.getById(orderId);
     return order;
+  },
+  generateMintTxHex: async (orderId: string, issuerId: string) => {
+    const issuer = await userRepository.getByIdWithLayer(issuerId);
+    if (!issuer) throw new CustomError("No user found.", 400);
+
+    const order = await orderRepository.getById(orderId);
+    if (!order) throw new CustomError("Order user found.", 400);
+
+    const orderItems = await orderItemRepository.getByOrderId(order.id);
+    if (orderItems.length <= 1)
+      throw new CustomError("Insufficient order items.", 400);
+
+    if (issuer.layer === "CITREA") {
+      const batchMintTxHex = "DULGUUN";
+
+      return { order, batchMintTxHex };
+    } else throw new Error("This layer is unsupported ATM.");
   },
   checkOrderisPaid: async (orderId: string, txid?: string) => {
     // Check payment status
@@ -369,6 +440,8 @@ export const orderServices = {
         return true;
       } else if (layer.layer === "FRACTAL" && layer.network === "TESTNET") {
         let isTestNet = true;
+        if (!order.fundingAddress)
+          throw new CustomError("No funding address was provided.", 400);
         // if (layer.network === "MAINNET") isTestNet = false;
         const utxos = await getUtxosHelper(
           order.fundingAddress,

@@ -6,10 +6,17 @@ import { parseFiles } from "../middlewares/fileParser";
 const orderRouter = Router();
 
 orderRouter.post(
-  "/",
+  "/collectible",
+  authenticateToken,
+  parseFiles("file", true),
+  orderController.createCollectible
+);
+
+orderRouter.post(
+  "/collection",
   authenticateToken,
   parseFiles("files", false),
-  orderController.create
+  orderController.createCollection
 );
 
 orderRouter.get("/user/:userId", orderController.getByUserId);

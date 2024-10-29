@@ -22,6 +22,7 @@ model User {
   pubkey    String?    @unique
   xpub      String?    @unique
   createdAt DateTime   @default(now())
+  role      ROLES      @default(USER)
   purchases Purchase[]
   orders    Order[]
 }
@@ -43,12 +44,12 @@ model Order {
   collection     Collection?  @relation(fields: [collectionId], references: [id])
   quantity       Int
   feeRate        Float        @default(1)
-  fundingAddress String
+  fundingAddress String?
   networkFee     Float
   serviceFee     Float
   fundingAmount  Float
   txId           String?
-  privateKey     String
+  privateKey     String?
   createdAt      DateTime     @default(now())
   paidAt         DateTime?
   mintedAt       DateTime?
@@ -64,6 +65,7 @@ model OrderItem {
   orderId  String
   order    Order             @relation(fields: [orderId], references: [id])
   fileKey  String
+  ipfsUrl String?
   metadata Json?
   status   ORDER_ITEM_STATUS @default(PENDING)
 
@@ -88,8 +90,8 @@ model Collection {
   layerId         String?
 
   contractAddress String?
-  createdAt       DateTime        @default(now())
-  layer           Layer?          @relation(fields: [layerId], references: [id], onDelete: SetNull)
+  createdAt       DateTime      @default(now())
+  layer           Layer?        @relation(fields: [layerId], references: [id], onDelete: SetNull)
   launches        Launch[]
   orders          Order[]
   collectibles    Collectible[]
@@ -111,12 +113,13 @@ model LaunchItem {
   launchId  String
   launch    Launch             @relation(fields: [launchId], references: [id])
   fileKey   String
+  ipfsUrl String?
   metadata  Json?
   status    LAUNCH_ITEM_STATUS @default(ACTIVE)
   purchases Purchase[]
 
-  evmAssetId String?
-  name String?
+  evmAssetId  String?
+  name        String?
   onHoldUntil DateTime?
 }
 
@@ -129,8 +132,8 @@ model Launch {
   wlEndsAt           BigInt?
   wlMintPrice        Float?
   wlMaxMintPerWallet Int?
-  poStartsAt         BigInt @default(0)
-  poEndsAt           BigInt @default(0)
+  poStartsAt         BigInt       @default(0)
+  poEndsAt           BigInt       @default(0)
   poMintPrice        Float
   poMaxMintPerWallet Int
   createdAt          DateTime     @default(now())
@@ -241,4 +244,10 @@ enum LAYER {
 enum NETWORK {
   MAINNET
   TESTNET
+}
+
+enum ROLES {
+  USER
+  ADMIN
+  SUPER_ADMIN
 }
