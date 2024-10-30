@@ -12,6 +12,91 @@ export class EVMCollectibleService {
     this.provider = new ethers.JsonRpcProvider(providerUrl);
   }
 
+  // async getOwnedTokens(contractAddress: string, ownerAddress: string) {
+  //   if (!ethers.isAddress(contractAddress)) {
+  //     throw new CustomError(
+  //       `Invalid contract address: ${contractAddress}`,
+  //       400
+  //     );
+  //   }
+  //   if (!ethers.isAddress(ownerAddress)) {
+  //     throw new CustomError(`Invalid owner address: ${ownerAddress}`, 400);
+  //   }
+  //   try {
+  //     // Validate inputs
+  //     if (!ethers.isAddress(contractAddress)) {
+  //       throw new CustomError(
+  //         `Invalid contract address: ${contractAddress}`,
+  //         400
+  //       );
+  //     }
+  //     if (!ethers.isAddress(ownerAddress)) {
+  //       throw new CustomError(`Invalid owner address: ${ownerAddress}`, 400);
+  //     }
+
+  //     // Create contract instance
+  //     const contract = new ethers.Contract(
+  //       contractAddress,
+  //       EVM_CONFIG.NFT_CONTRACT_ABI,
+  //       this.provider
+  //     );
+
+  //     const balance = await contract.balanceOf(ownerAddress);
+  //     console.log(
+  //       "🚀 ~ EVMCollectibleService ~ getOwnedTokens ~ balance:",
+  //       balance
+  //     );
+  //     const balanceNumber = Number(balance);
+
+  //     if (balanceNumber === 0) {
+  //       return [];
+  //     }
+  //     // return this.getOwnedTokensByEvents(contract, ownerAddress);
+
+  //     // Get all token IDs
+  //     const BATCH_SIZE = 25;
+  //     const allTokenIds: string[] = [];
+  //     for (
+  //       let startIndex = 0;
+  //       startIndex < balanceNumber;
+  //       startIndex += BATCH_SIZE
+  //     ) {
+  //       const endIndex = Math.min(startIndex + BATCH_SIZE, balanceNumber);
+  //       const batchPromises = [];
+
+  //       for (let i = startIndex; i < endIndex; i++) {
+  //         batchPromises.push(
+  //           contract
+  //             .tokenOfOwnerByIndex(ownerAddress, i)
+  //             .then((tokenId: bigint) => tokenId.toString())
+  //             .catch((error: any) => {
+  //               // console.error(`Failed to get token at index ${i}:`, error);
+  //               return null;
+  //             })
+  //         );
+  //       }
+
+  //       // Add delay between batches to prevent rate limiting
+  //       if (startIndex > 0) {
+  //         await new Promise((resolve) => setTimeout(resolve, 1000));
+  //       }
+
+  //       const batchResults = await Promise.all(batchPromises);
+  //       allTokenIds.push(
+  //         ...batchResults.filter((id): id is string => id !== null)
+  //       );
+  //     }
+
+  //     return allTokenIds;
+  //   } catch (error) {
+  //     console.error(`Error in getOwnedTokens for ${ownerAddress}:`, error);
+
+  //     if (error instanceof CustomError) {
+  //       throw error;
+  //     }
+  //   }
+  // }
+
   async getOwnedTokens(contractAddress: string, ownerAddress: string) {
     if (!ethers.isAddress(contractAddress)) {
       throw new CustomError(
@@ -23,17 +108,6 @@ export class EVMCollectibleService {
       throw new CustomError(`Invalid owner address: ${ownerAddress}`, 400);
     }
     try {
-      // Validate inputs
-      if (!ethers.isAddress(contractAddress)) {
-        throw new CustomError(
-          `Invalid contract address: ${contractAddress}`,
-          400
-        );
-      }
-      if (!ethers.isAddress(ownerAddress)) {
-        throw new CustomError(`Invalid owner address: ${ownerAddress}`, 400);
-      }
-
       // Create contract instance
       const contract = new ethers.Contract(
         contractAddress,
@@ -42,36 +116,84 @@ export class EVMCollectibleService {
       );
 
       const balance = await contract.balanceOf(ownerAddress);
+      console.log(
+        "🚀 ~ EVMCollectibleService ~ getOwnedTokens ~ balance:",
+        balance
+      );
       const balanceNumber = Number(balance);
 
       if (balanceNumber === 0) {
         return [];
       }
-      // return this.getOwnedTokensByEvents(contract, ownerAddress);
 
       // Get all token IDs
-      const tokenPromises = [];
-      for (let i = 0; i < Number(balance); i++) {
-        tokenPromises.push(
-          contract
-            .tokenOfOwnerByIndex(ownerAddress, i)
-            .then((tokenId: bigint) => tokenId.toString())
-            .catch((error: any) => {
-              console.error(`Failed to get token at index ${i}:`, error);
-              return null;
-            })
-        );
+      const BATCH_SIZE = 10; // Reduced batch size
+      const allTokenIds: string[] = [];
+
+      // Process one token at a time to prevent concurrent requests
+      for (let i = 0; i < balanceNumber; i++) {
+        try {
+          const tokenId = await contract.tokenOfOwnerByIndex(ownerAddress, i);
+          allTokenIds.push(tokenId.toString());
+
+          // Add a small delay between individual token requests
+          if (i > 0 && i % 5 === 0) {
+            // Add delay every 5 tokens
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+        } catch (error: any) {
+          console.error(`Failed to get token at index ${i}:`, error);
+          continue;
+        }
       }
 
-      const tokenIds = await Promise.all(tokenPromises);
-      return tokenIds.filter((id): id is string => id !== null);
+      return allTokenIds;
     } catch (error) {
       console.error(`Error in getOwnedTokens for ${ownerAddress}:`, error);
 
       if (error instanceof CustomError) {
         throw error;
       }
+      throw error; // Re-throw other errors
     }
+  }
+
+  async processCollections(collections: string[], ownerAddress: string) {
+    const results: Record<string, string[]> = {};
+    const CONCURRENT_COLLECTIONS = 5; // Process 5 collections at a time
+
+    // Process collections in groups
+    for (let i = 0; i < collections.length; i += CONCURRENT_COLLECTIONS) {
+      const batch = collections.slice(i, i + CONCURRENT_COLLECTIONS);
+      const batchPromises = batch.map(async (contractAddress) => {
+        try {
+          const tokens = await this.getOwnedTokens(
+            contractAddress,
+            ownerAddress
+          );
+          return { contractAddress, tokens };
+        } catch (error) {
+          console.error(
+            `Error processing collection ${contractAddress}:`,
+            error
+          );
+          return { contractAddress, tokens: [] };
+        }
+      });
+
+      // Wait for the current batch to complete
+      const batchResults = await Promise.all(batchPromises);
+      batchResults.forEach(({ contractAddress, tokens }) => {
+        results[contractAddress] = tokens;
+      });
+
+      // Add delay between collection batches
+      if (i + CONCURRENT_COLLECTIONS < collections.length) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+
+    return results;
   }
 
   // Fallback method using events
