@@ -1,0 +1,45 @@
+name: CI/CD pipeline
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  deploy-to-staging:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: akhileshns/heroku-deploy@v3.13.15
+        with:
+          heroku_api_key: ${{secrets.HEROKU_API_KEY}}
+          heroku_app_name: ${{secrets.HEROKU_STAGING_APP_NAME}}
+          heroku_email: ${{secrets.HEROKU_USERNAME}}
+
+  # approve-production:
+  #   needs: deploy-to-staging
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: trstringer/manual-approval@v1
+  #       with:
+  #         secret: ${{ github.TOKEN }}
+  #         approvers: gombochirr
+  #         minimum-approvals: 1
+  #         timeout-minutes: 60
+  #         issue-title: "Approve deployment to production"
+  #         issue-body: "Please approve or deny the deployment to production"
+  #         exclude-workflow-initiator-as-approver: false
+
+  # deploy-to-production:
+  #   needs: approve-production
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: akhileshns/heroku-deploy@v3.13.15
+  #       with:
+  #         heroku_api_key: ${{secrets.HEROKU_API_KEY}}
+  #         heroku_app_name: ${{secrets.HEROKU_PRODUCTION_APP_NAME}}
+  #         heroku_email: ${{secrets.HEROKU_USERNAME}}

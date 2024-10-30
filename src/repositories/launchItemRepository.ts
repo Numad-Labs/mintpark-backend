@@ -118,13 +118,13 @@ export const launchItemRepository = {
           eb("LaunchItem.onHoldUntil", "is", null),
           sql`${eb.ref(
             "onHoldUntil"
-          )} < NOW() - INTERVAL '5 minute'`.$castTo<boolean>(),
+          )} < NOW() - INTERVAL '1 minute'`.$castTo<boolean>(),
         ])
       )
       .orderBy(sql`RANDOM()`)
       .limit(1)
       .executeTakeFirstOrThrow(
-        () => new Error("No available launch item was found.")
+        () => new Error("Please try again. No available launch item was found.")
       );
 
     return launchItem;
@@ -141,11 +141,12 @@ export const launchItemRepository = {
           eb("LaunchItem.onHoldUntil", "is", null),
           sql`${eb.ref(
             "onHoldUntil"
-          )} < NOW() - INTERVAL '5 minute'`.$castTo<boolean>(),
+          )} < NOW() - INTERVAL '1 minute'`.$castTo<boolean>(),
         ])
       )
       .executeTakeFirstOrThrow(
-        () => new Error("Please try again. Could not update the launch item.")
+        () =>
+          new Error("Please try again. Could not set the launch item on hold.")
       );
 
     return launchItem;
