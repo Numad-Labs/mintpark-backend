@@ -405,9 +405,11 @@ export const orderServices = {
       const layer = await layerRepository.getById(user.layerId!);
       if (!layer) throw new Error("Layer not found.");
 
-      let collection;
+      let collection, orderItemCount;
       if (order.orderType === "COLLECTION" && order.collectionId) {
         collection = await collectionRepository.getById(order.collectionId);
+         orderItemCount = await orderItemRepository.getCountByCollectionId(order.collectionId);
+        console.log("Order item count: ", orderItemCount);
       }
 
       if (layer.layer === "CITREA" && layer.network === "TESTNET") {
@@ -431,9 +433,9 @@ export const orderServices = {
           );
         }
 
-        const orderItemCount = await orderItemRepository.getCountByCollectionId(orderId);
+
         if (Number(orderItemCount) < order.quantity) {
-          return true;
+          return false;
         }
 
         order.paidAt = new Date();
@@ -452,7 +454,7 @@ export const orderServices = {
           if (collection?.type === "UNCONFIRMED" && order.collectionId)
             await collectionRepository.update(order.collectionId, {
               type: "MINTED",
-              supply: Number(orderItemCount) + orderItems.length,
+              supply: orderItems.length,
             });
 
           const collectibles: Insertable<Collectible>[] = [];

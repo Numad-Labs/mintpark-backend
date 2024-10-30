@@ -98,6 +98,7 @@ export const orderItemRepository = {
         "Layer.layer",
       ])
       .where("Order.id", "=", orderId)
+      .where('OrderItem.status', '=', 'PENDING')
       .execute();
   },
   updateByOrderId: async (orderId: string, data: Updateable<OrderItem>) => {
@@ -114,9 +115,8 @@ export const orderItemRepository = {
     const result = await db
       .selectFrom("OrderItem")
       .innerJoin("Order", "Order.id", "OrderItem.orderId")
-      .innerJoin("Collection", "Collection.id", "Order.collectionId")
       .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
-      .where("Collection.id", "=", collectionId)
+      .where('Order.collectionId', "=", collectionId)
       .executeTakeFirst();
 
     return result?.count;
