@@ -431,7 +431,7 @@ export const orderServices = {
           );
         }
 
-        const orderItemCount = await orderRepository.getByCollectionId(orderId);
+        const orderItemCount = await orderItemRepository.getCountByCollectionId(orderId);
         if (Number(orderItemCount) < order.quantity) {
           return true;
         }
