@@ -3,6 +3,8 @@ import { AuthenticatedRequest } from "../../custom";
 import { CustomError } from "../exceptions/CustomError";
 import { collectibleServices } from "../services/collectibleServices";
 import { collectibleRepository } from "../repositories/collectibleRepository";
+import { EVMCollectibleService } from "../../blockchain/evm/services/evmIndexService";
+import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 
 export interface traitFilter {
   name: string;
@@ -81,6 +83,7 @@ export const collectibleControllers = {
       next(e);
     }
   },
+
   getCollectibleById: async (
     req: Request,
     res: Response,
@@ -92,6 +95,30 @@ export const collectibleControllers = {
       const collectible = await collectibleRepository.getByIdWithDetails(id);
 
       return res.status(200).json({ success: true, data: collectible });
-    } catch (e) {}
+    } catch (e) {
+      next(e);
+    }
+  },
+
+  getTokenActivity: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { collectibleId } = req.params;
+      const { fromBlock } = req.query;
+
+      if (!collectibleId) {
+        throw new CustomError("collectibleId is required", 400);
+      }
+
+      const activities = await collectibleServices.getActivityByCollectibleId(
+        collectibleId
+      );
+
+      res.status(200).json({
+        success: true,
+        data: activities,
+      });
+    } catch (error) {
+      next(error);
+    }
   },
 };

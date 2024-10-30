@@ -5,6 +5,7 @@ import {
   CollectibleQueryParams,
   traitFilter,
 } from "../controllers/collectibleController";
+import { EVMCollectibleService } from "../../blockchain/evm/services/evmIndexService";
 
 export const collectibleRepository = {
   create: async (data: Insertable<Collectible>) => {

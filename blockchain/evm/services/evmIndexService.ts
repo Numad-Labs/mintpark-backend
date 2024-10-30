@@ -1,15 +1,12 @@
-import { ethers, BytesLike, EventLog, Contract } from "ethers";
+import { ethers, BytesLike, EventLog, Contract, Log } from "ethers";
 import { EVM_CONFIG } from "../evm-config";
 import { db } from "../../../src/utils/db";
 import { CustomError } from "../../../src/exceptions/CustomError";
-
-interface MulticallResponse {
-  success: boolean;
-  returnData: string;
-}
+import { NFTActivity, NFTActivityType } from "../evm-types";
 
 export class EVMCollectibleService {
   private provider: ethers.JsonRpcProvider;
+  private BLOCK_RANGE = 1000;
 
   constructor(providerUrl: string) {
     this.provider = new ethers.JsonRpcProvider(providerUrl);
@@ -225,32 +222,588 @@ export class EVMCollectibleService {
 
     return Array.from(collectiblesMap.values());
   }
-  //  applyFiltersAndSort(
-  //   collectibles: Collectible[],
-  //   params: CollectibleQueryParams
-  // ): Collectible[] {
-  //   let filtered = [...collectibles];
 
-  //   if (params.isListed !== undefined) {
-  //     filtered = filtered.filter((c) => c.isListed === params.isListed);
+  private async getPaginatedLogs(
+    filter: any,
+    fromBlock: number,
+    toBlock: number
+  ): Promise<Log[]> {
+    const logs: Log[] = [];
+    let currentFromBlock = fromBlock;
+
+    while (currentFromBlock <= toBlock) {
+      const currentToBlock = Math.min(
+        currentFromBlock + this.BLOCK_RANGE - 1,
+        toBlock
+      );
+
+      try {
+        const blockLogs = await this.provider.getLogs({
+          ...filter,
+          fromBlock: currentFromBlock,
+          toBlock: currentToBlock,
+        });
+        logs.push(...blockLogs);
+      } catch (error) {
+        console.error(
+          `Error fetching logs for blocks ${currentFromBlock}-${currentToBlock}:`,
+          error
+        );
+      }
+
+      currentFromBlock = currentToBlock + 1;
+    }
+
+    return logs;
+  }
+  // async getActivityByTokenId(
+  //   nftContractAddress: string,
+  //   tokenId: string,
+  //   fromBlock: number = 0
+  // ): Promise<NFTActivity[]> {
+  //   const activities: NFTActivity[] = [];
+  //   const nftContract = new ethers.Contract(
+  //     nftContractAddress,
+  //     EVM_CONFIG.NFT_CONTRACT_ABI,
+  //     this.provider
+  //   );
+
+  //   const marketplaceContract = new ethers.Contract(
+  //     EVM_CONFIG.MARKETPLACE_ADDRESS,
+  //     EVM_CONFIG.MARKETPLACE_ABI,
+  //     this.provider
+  //   );
+
+  //   // Get mint events
+  //   const mintFilter = nftContract.filters.Transfer(
+  //     ethers.ZeroAddress,
+  //     null,
+  //     tokenId
+  //   );
+  //   const mintLogs = await this.provider.getLogs({
+  //     ...mintFilter,
+  //     fromBlock,
+  //   });
+
+  //   // Get transfer events (excluding mints)
+  //   const transferFilter = nftContract.filters.Transfer(null, null, tokenId);
+  //   const transferLogs = await this.provider.getLogs({
+  //     ...transferFilter,
+  //     fromBlock,
+  //   });
+
+  //   // Get listing events
+  //   const listingFilter = marketplaceContract.filters.ItemListed(
+  //     null,
+  //     nftContractAddress,
+  //     tokenId
+  //   );
+  //   const listingLogs = await this.provider.getLogs({
+  //     ...listingFilter,
+  //     fromBlock,
+  //   });
+
+  //   // Get sale events
+  //   const saleFilter = marketplaceContract.filters.ItemSold(
+  //     null,
+  //     null,
+  //     nftContractAddress,
+  //     tokenId
+  //   );
+  //   const saleLogs = await this.provider.getLogs({
+  //     ...saleFilter,
+  //     fromBlock,
+  //   });
+
+  //   // Get listing cancellation events
+  //   const cancelFilter = marketplaceContract.filters.ListingCancelled(
+  //     null,
+  //     nftContractAddress,
+  //     tokenId
+  //   );
+  //   const cancelLogs = await this.provider.getLogs({
+  //     ...cancelFilter,
+  //     fromBlock,
+  //   });
+
+  //   // Process mint events
+  //   for (const log of mintLogs) {
+  //     const eventArgs = await this.processEventLog(
+  //       log,
+  //       nftContract,
+  //       "Transfer"
+  //     );
+  //     if (eventArgs) {
+  //       const block = await this.provider.getBlock(log.blockNumber);
+  //       const timestamp = block ? Number(block.timestamp) : 0;
+
+  //       activities.push({
+  //         activityType: NFTActivityType.MINTED,
+  //         tokenId,
+  //         collectionId: nftContractAddress,
+  //         fromAddress: ethers.ZeroAddress,
+  //         toAddress: eventArgs[1],
+  //         transactionHash: log.transactionHash,
+  //         timestamp,
+  //         blockNumber: log.blockNumber,
+  //       });
+  //     }
   //   }
 
-  //   if (params.orderBy) {
-  //     filtered.sort((a, b) => {
-  //       const direction = params.orderDirection === "desc" ? -1 : 1;
-  //       if (params.orderBy === "price") {
-  //         const priceA = a.price ? parseFloat(a.price) : 0;
-  //         const priceB = b.price ? parseFloat(b.price) : 0;
-  //         return (priceA - priceB) * direction;
-  //       }
-  //       return (
-  //         (parseInt(a.uniqueIdx) - parseInt(b.uniqueIdx)) * direction
-  //       );
+  //   // Process transfer events (excluding mints)
+  //   for (const log of transferLogs) {
+  //     const eventArgs = await this.processEventLog(
+  //       log,
+  //       nftContract,
+  //       "Transfer"
+  //     );
+  //     if (eventArgs && eventArgs[0] !== ethers.ZeroAddress) {
+  //       const block = await this.provider.getBlock(log.blockNumber);
+  //       const timestamp = block ? Number(block.timestamp) : 0;
+
+  //       activities.push({
+  //         activityType: NFTActivityType.TRANSFER,
+  //         tokenId,
+  //         collectionId: nftContractAddress,
+  //         fromAddress: eventArgs[0],
+  //         toAddress: eventArgs[1],
+  //         transactionHash: log.transactionHash,
+  //         timestamp,
+  //         blockNumber: log.blockNumber,
+  //       });
+  //     }
+  //   }
+
+  //   // Process listing events
+  //   for (const log of listingLogs) {
+  //     const eventArgs = await this.processEventLog(
+  //       log,
+  //       marketplaceContract,
+  //       "ItemListed"
+  //     );
+  //     if (eventArgs) {
+  //       const block = await this.provider.getBlock(log.blockNumber);
+  //       const timestamp = block ? Number(block.timestamp) : 0;
+
+  //       activities.push({
+  //         activityType: NFTActivityType.LISTED,
+  //         tokenId,
+  //         collectionId: nftContractAddress,
+  //         fromAddress: eventArgs[0],
+  //         price: eventArgs[3].toString(),
+  //         transactionHash: log.transactionHash,
+  //         timestamp,
+  //         blockNumber: log.blockNumber,
+  //       });
+  //     }
+  //   }
+
+  //   // Process sale events
+  //   for (const log of saleLogs) {
+  //     const eventArgs = await this.processEventLog(
+  //       log,
+  //       marketplaceContract,
+  //       "ItemSold"
+  //     );
+  //     if (eventArgs) {
+  //       const block = await this.provider.getBlock(log.blockNumber);
+  //       const timestamp = block ? Number(block.timestamp) : 0;
+
+  //       activities.push({
+  //         activityType: NFTActivityType.SALE,
+  //         tokenId,
+  //         collectionId: nftContractAddress,
+  //         fromAddress: eventArgs[0],
+  //         toAddress: eventArgs[1],
+  //         price: eventArgs[4].toString(),
+  //         transactionHash: log.transactionHash,
+  //         timestamp,
+  //         blockNumber: log.blockNumber,
+  //       });
+  //     }
+  //   }
+
+  //   // Process cancellation events
+  //   for (const log of cancelLogs) {
+  //     const eventArgs = await this.processEventLog(
+  //       log,
+  //       marketplaceContract,
+  //       "ListingCancelled"
+  //     );
+  //     if (eventArgs) {
+  //       const block = await this.provider.getBlock(log.blockNumber);
+  //       const timestamp = block ? Number(block.timestamp) : 0;
+
+  //       activities.push({
+  //         activityType: NFTActivityType.LISTING_CANCELED,
+  //         tokenId,
+  //         collectionId: nftContractAddress,
+  //         fromAddress: eventArgs[0],
+  //         transactionHash: log.transactionHash,
+  //         timestamp,
+  //         blockNumber: log.blockNumber,
+  //       });
+  //     }
+  //   }
+
+  //   // Sort activities by timestamp (newest first)
+  //   return activities.sort((a, b) => b.timestamp - a.timestamp);
+  // }
+  async getActivityByTokenId(
+    nftContractAddress: string,
+    tokenId: string,
+    fromBlock: number = 0
+  ): Promise<NFTActivity[]> {
+    const activities: NFTActivity[] = [];
+
+    try {
+      const latestBlock = await this.provider.getBlockNumber();
+
+      const nftContract = new ethers.Contract(
+        nftContractAddress,
+        EVM_CONFIG.NFT_CONTRACT_ABI,
+        this.provider
+      );
+
+      const marketplaceContract = new ethers.Contract(
+        EVM_CONFIG.MARKETPLACE_ADDRESS,
+        EVM_CONFIG.MARKETPLACE_ABI,
+        this.provider
+      );
+
+      // Get all events and filter afterwards
+      const [transferLogs, listingLogs, saleLogs, cancelLogs] =
+        await Promise.all([
+          // All Transfer events for the contract
+          this.getPaginatedLogs(
+            {
+              address: nftContractAddress,
+              topics: [ethers.id("Transfer(address,address,uint256)")],
+            },
+            fromBlock,
+            latestBlock
+          ),
+          // All ItemListed events
+          this.getPaginatedLogs(
+            {
+              address: EVM_CONFIG.MARKETPLACE_ADDRESS,
+              topics: [
+                ethers.id("ItemListed(address,address,uint256,uint256)"),
+              ],
+            },
+            fromBlock,
+            latestBlock
+          ),
+          // All ItemSold events
+          this.getPaginatedLogs(
+            {
+              address: EVM_CONFIG.MARKETPLACE_ADDRESS,
+              topics: [
+                ethers.id("ItemSold(address,address,address,uint256,uint256)"),
+              ],
+            },
+            fromBlock,
+            latestBlock
+          ),
+          // All ListingCancelled events
+          this.getPaginatedLogs(
+            {
+              address: EVM_CONFIG.MARKETPLACE_ADDRESS,
+              topics: [ethers.id("ListingCancelled(address,address,uint256)")],
+            },
+            fromBlock,
+            latestBlock
+          ),
+        ]);
+
+      // Process Transfer events
+      for (const log of transferLogs) {
+        const eventArgs = await this.processEventLog(
+          log,
+          nftContract,
+          "Transfer"
+        );
+        if (eventArgs && eventArgs[2].toString() === tokenId) {
+          const block = await this.provider.getBlock(log.blockNumber);
+          const timestamp = block ? Number(block.timestamp) : 0;
+
+          // Check if it's a mint (from zero address)
+          if (eventArgs[0] === ethers.ZeroAddress) {
+            activities.push({
+              activityType: NFTActivityType.MINTED,
+              tokenId,
+              collectionId: nftContractAddress,
+              fromAddress: ethers.ZeroAddress,
+              toAddress: eventArgs[1],
+              transactionHash: log.transactionHash,
+              timestamp,
+              blockNumber: log.blockNumber,
+            });
+          } else {
+            activities.push({
+              activityType: NFTActivityType.TRANSFER,
+              tokenId,
+              collectionId: nftContractAddress,
+              fromAddress: eventArgs[0],
+              toAddress: eventArgs[1],
+              transactionHash: log.transactionHash,
+              timestamp,
+              blockNumber: log.blockNumber,
+            });
+          }
+        }
+      }
+
+      // Process Listing events
+      for (const log of listingLogs) {
+        const eventArgs = await this.processEventLog(
+          log,
+          marketplaceContract,
+          "ItemListed"
+        );
+        if (
+          eventArgs &&
+          eventArgs[1].toLowerCase() === nftContractAddress.toLowerCase() &&
+          eventArgs[2].toString() === tokenId
+        ) {
+          const block = await this.provider.getBlock(log.blockNumber);
+          const timestamp = block ? Number(block.timestamp) : 0;
+
+          activities.push({
+            activityType: NFTActivityType.LISTED,
+            tokenId,
+            collectionId: nftContractAddress,
+            fromAddress: eventArgs[0],
+            price: eventArgs[3].toString(),
+            transactionHash: log.transactionHash,
+            timestamp,
+            blockNumber: log.blockNumber,
+          });
+        }
+      }
+
+      // Process Sale events
+      for (const log of saleLogs) {
+        const eventArgs = await this.processEventLog(
+          log,
+          marketplaceContract,
+          "ItemSold"
+        );
+        if (
+          eventArgs &&
+          eventArgs[2].toLowerCase() === nftContractAddress.toLowerCase() &&
+          eventArgs[3].toString() === tokenId
+        ) {
+          const block = await this.provider.getBlock(log.blockNumber);
+          const timestamp = block ? Number(block.timestamp) : 0;
+
+          activities.push({
+            activityType: NFTActivityType.SALE,
+            tokenId,
+            collectionId: nftContractAddress,
+            fromAddress: eventArgs[0],
+            toAddress: eventArgs[1],
+            price: eventArgs[4].toString(),
+            transactionHash: log.transactionHash,
+            timestamp,
+            blockNumber: log.blockNumber,
+          });
+        }
+      }
+
+      // Process Cancel events
+      for (const log of cancelLogs) {
+        const eventArgs = await this.processEventLog(
+          log,
+          marketplaceContract,
+          "ListingCancelled"
+        );
+        if (
+          eventArgs &&
+          eventArgs[1].toLowerCase() === nftContractAddress.toLowerCase() &&
+          eventArgs[2].toString() === tokenId
+        ) {
+          const block = await this.provider.getBlock(log.blockNumber);
+          const timestamp = block ? Number(block.timestamp) : 0;
+
+          activities.push({
+            activityType: NFTActivityType.LISTING_CANCELED,
+            tokenId,
+            collectionId: nftContractAddress,
+            fromAddress: eventArgs[0],
+            transactionHash: log.transactionHash,
+            timestamp,
+            blockNumber: log.blockNumber,
+          });
+        }
+      }
+
+      // Sort activities by timestamp (newest first)
+      return activities.sort((a, b) => b.timestamp - a.timestamp);
+    } catch (error) {
+      console.error("Error fetching NFT activities:", error);
+      throw error;
+    }
+  }
+
+  // async getActivityByCollection(
+  //   nftContractAddress: string,
+  //   fromBlock: number = 0
+  // ): Promise<NFTActivity[]> {
+  //   const activities: NFTActivity[] = [];
+  //   const nftContract = new ethers.Contract(
+  //     nftContractAddress,
+  //     EVM_CONFIG.NFT_CONTRACT_ABI,
+  //     this.provider
+  //   );
+
+  //   const marketplaceContract = new ethers.Contract(
+  //     EVM_CONFIG.MARKETPLACE_ADDRESS,
+  //     EVM_CONFIG.MARKETPLACE_ABI,
+  //     this.provider
+  //   );
+
+  //   // Get mint events
+  //   const mintFilter = nftContract.filters.Transfer(ethers.ZeroAddress, null);
+  //   const mintEvents = await nftContract.queryFilter(mintFilter, fromBlock);
+
+  //   // Get transfer events (excluding mints)
+  //   const transferFilter = nftContract.filters.Transfer(null, null);
+  //   const transferEvents = await nftContract.queryFilter(
+  //     transferFilter,
+  //     fromBlock
+  //   );
+
+  //   // Get listing events
+  //   const listingFilter = marketplaceContract.filters.ItemListed(
+  //     null,
+  //     nftContractAddress
+  //   );
+  //   const listingEvents = await marketplaceContract.queryFilter(
+  //     listingFilter,
+  //     fromBlock
+  //   );
+
+  //   // Get sale events
+  //   const saleFilter = marketplaceContract.filters.ItemSold(
+  //     null,
+  //     null,
+  //     nftContractAddress
+  //   );
+  //   const saleEvents = await marketplaceContract.queryFilter(
+  //     saleFilter,
+  //     fromBlock
+  //   );
+
+  //   // Get listing cancellation events
+  //   const cancelFilter = marketplaceContract.filters.ListingCancelled(
+  //     null,
+  //     nftContractAddress
+  //   );
+  //   const cancelEvents = await marketplaceContract.queryFilter(
+  //     cancelFilter,
+  //     fromBlock
+  //   );
+
+  //   // Process mint events
+  //   for (const event of mintEvents) {
+  //     const block = await event.getBlock();
+  //     activities.push({
+  //       activityType: NFTActivityType.MINTED,
+  //       tokenId: null,
+  //       collectionId: nftContractAddress,
+  //       fromAddress: ethers.ZeroAddress,
+  //       toAddress: event.args?.[1],
+  //       transactionHash: event.transactionHash,
+  //       timestamp: block.timestamp,
+  //       blockNumber: event.blockNumber,
   //     });
   //   }
 
-  //   return filtered;
+  //   // Process transfer events (excluding mints)
+  //   for (const event of transferEvents) {
+  //     if (event.args?.[0] !== ethers.ZeroAddress) {
+  //       const block = await event.getBlock();
+  //       activities.push({
+  //         activityType: NFTActivityType.TRANSFER,
+  //         tokenId: null,
+  //         collectionId: nftContractAddress,
+  //         fromAddress: event.args?.[0],
+  //         toAddress: event.args?.[1],
+  //         transactionHash: event.transactionHash,
+  //         timestamp: block.timestamp,
+  //         blockNumber: event.blockNumber,
+  //       });
+  //     }
+  //   }
+
+  //   // Process listing events
+  //   for (const event of listingEvents) {
+  //     const block = await event.getBlock();
+  //     activities.push({
+  //       activityType: NFTActivityType.LISTED,
+  //       tokenId: null,
+  //       collectionId: nftContractAddress,
+  //       fromAddress: event.args?.[0],
+  //       price: event.args?.[3].toString(),
+  //       transactionHash: event.transactionHash,
+  //       timestamp: block.timestamp,
+  //       blockNumber: event.blockNumber,
+  //     });
+  //   }
+
+  //   // Process sale events
+  //   for (const event of saleEvents) {
+  //     const block = await event.getBlock();
+  //     activities.push({
+  //       activityType: NFTActivityType.SALE,
+  //       tokenId: null,
+  //       collectionId: nftContractAddress,
+  //       fromAddress: event.args?.[0],
+  //       toAddress: event.args?.[1],
+  //       price: event.args?.[4].toString(),
+  //       transactionHash: event.transactionHash,
+  //       timestamp: block.timestamp,
+  //       blockNumber: event.blockNumber,
+  //     });
+  //   }
+
+  //   // Process cancellation events
+  //   for (const event of cancelEvents) {
+  //     const block = await event.getBlock();
+  //     activities.push({
+  //       activityType: NFTActivityType.LISTING_CANCELED,
+  //       tokenId: null,
+  //       collectionId: nftContractAddress,
+  //       fromAddress: event.args?.[0],
+  //       transactionHash: event.transactionHash,
+  //       timestamp: block.timestamp,
+  //       blockNumber: event.blockNumber,
+  //     });
+  //   }
+
+  //   // Sort activities by timestamp (newest first)
+  //   return activities.sort((a, b) => b.timestamp - a.timestamp);
   // }
+
+  private async processEventLog(
+    log: Log,
+    contract: ethers.Contract,
+    eventName: string
+  ) {
+    const iface = new ethers.Interface(contract.interface.formatJson());
+    try {
+      const parsedLog = iface.parseLog({
+        topics: log.topics,
+        data: log.data,
+      });
+
+      return parsedLog?.args;
+    } catch (error) {
+      console.error(`Error parsing ${eventName} event:`, error);
+      return null;
+    }
+  }
 }
 
 // // Controller implementation
