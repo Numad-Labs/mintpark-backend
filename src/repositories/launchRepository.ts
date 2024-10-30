@@ -49,4 +49,14 @@ export const launchRepository = {
 
     return launch;
   },
+  getCountByLaunchId: async (launchId: string) => {
+    const result = await db
+      .selectFrom("LaunchItem")
+      .innerJoin("Launch", "Launch.id", "LaunchItem.launchId")
+      .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
+      .where("Launch.id", "=", launchId)
+      .executeTakeFirst();
+
+    return result?.count;
+  },
 };

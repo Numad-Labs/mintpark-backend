@@ -60,11 +60,10 @@ export const launchServices = {
     if (files.length < 1)
       throw new Error("Launch must have at least one file.");
 
-    let launch;
-    if (collection.type === "LAUNCHED") {
+    let launch = await launchRepository.getByCollectionId(collection.id);
+    if (!launch) {
       launch = await launchRepository.create(data);
     }
-    if (!launch?.id) throw new Error("No launch id found.");
 
     const totalBatches = Math.ceil(totalFileCount / FILE_COUNT_LIMIT);
     const slotAcquired = await acquireSlot(collection.id, totalBatches);
@@ -100,12 +99,17 @@ export const launchServices = {
       });
     }
 
+    const launchItemCount = await launchRepository.getCountByLaunchId(
+      launch.id
+    );
     const nftMetadatas: nftMetaData[] = [];
     let index = 0;
     for (let file of files) {
+      let nftId = Number(launchItemCount) + index;
+
       nftMetadatas.push({
-        name: `${collection?.name ?? "NFT"} #${index}`,
-        nftId: index.toString(),
+        name: `${collection?.name ?? "NFT"} #${nftId}`,
+        nftId: nftId.toString(),
         ipfsUri: null,
         file: file,
       });
@@ -121,12 +125,14 @@ export const launchServices = {
       throw e;
     }
 
-    const updatedCollection = await collectionRepository.update(collection.id, {
-      type: "LAUNCHED",
-      supply: collection.supply + launchItems.length,
-    });
-
+    let updatedCollection;
     const isComplete = await updateProgress(collection.id);
+    if (isComplete) {
+      updatedCollection = await collectionRepository.update(collection.id, {
+        type: "LAUNCHED",
+        supply: collection.supply + launchItems.length,
+      });
+    }
 
     return { launch, updatedCollection, launchItems, isComplete };
   },

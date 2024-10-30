@@ -3,6 +3,7 @@ import express, { Express } from "express";
 import { userServices } from "../services/userServices";
 import { expect, jest, describe, beforeEach, it } from "@jest/globals";
 import { userController } from "../controller/evmUserController";
+import { ROLES } from "../../../src/types/db/enums";
 
 jest.mock("../services/userServices");
 jest.mock("../../../src/repositories/userRepository");
@@ -59,7 +60,7 @@ describe("User Controller", () => {
       const mockUser = {
         id: "1",
         address,
-
+        role: ROLES.USER,
         layerId: "12",
         createdAt: new Date(),
         xpub: null,
