@@ -25,6 +25,7 @@ export const collectibleServices = {
     params: CollectibleQueryParams
   ) => {
     const user = await userRepository.getById(userId);
+
     if (!user || !user.layerId) throw new CustomError("User not found.", 400);
 
     const layerType = await layerRepository.getById(user.layerId!);
@@ -33,46 +34,71 @@ export const collectibleServices = {
     const uniqueIdxs: string[] = [];
 
     if (layerType.layer === "CITREA" && layerType.network === "TESTNET") {
-      const evmCollectibleService = new EVMCollectibleService(
-        EVM_CONFIG.RPC_URL
-      );
       const collections = await collectionRepository.getCollectionsByLayer(
         "CITREA"
       );
 
+      // if (collections?.length) {
+      //   console.log(`Found ${collections.length} CITREA collections`);
+
+      //   // Filter valid collections and process them in parallel
+      //   const validCollections = collections.filter((c) => c.contractAddress);
+      //   const tokenResults = await Promise.all(
+      //     validCollections.map(async (collection) => {
+      //       try {
+      //         const tokenIds = await evmCollectibleService.getOwnedTokens(
+      //           collection.contractAddress!,
+      //           user.address
+      //         );
+
+      //         if (!tokenIds?.length) return [];
+
+      //         console.log(
+      //           `Found ${tokenIds.length} tokens for contract: ${collection.contractAddress}`
+      //         );
+      //         return tokenIds.map(
+      //           (tokenId) => `${collection.contractAddress}i${tokenId}`
+      //         );
+      //       } catch (error) {
+      //         console.error(
+      //           `Error processing collection ${collection.contractAddress}:`,
+      //           error
+      //         );
+      //         return [];
+      //       }
+      //     })
+      //   );
       if (collections?.length) {
         console.log(`Found ${collections.length} CITREA collections`);
 
-        // Filter valid collections and process them in parallel
-        const validCollections = collections.filter((c) => c.contractAddress);
-        const tokenResults = await Promise.all(
-          validCollections.map(async (collection) => {
-            try {
-              const tokenIds = await evmCollectibleService.getOwnedTokens(
-                collection.contractAddress!,
-                user.address
-              );
+        // Filter valid collections
+        const validCollections = collections
+          .filter((c) => c.contractAddress)
+          .map((c) => c.contractAddress!);
 
-              if (!tokenIds?.length) return [];
-
-              console.log(
-                `Found ${tokenIds.length} tokens for contract: ${collection.contractAddress}`
-              );
-              return tokenIds.map(
-                (tokenId) => `${collection.contractAddress}i${tokenId}`
-              );
-            } catch (error) {
-              console.error(
-                `Error processing collection ${collection.contractAddress}:`,
-                error
-              );
-              return [];
-            }
-          })
+        // Process collections in batches using the new method
+        const tokenResults = await evmCollectibleService.processCollections(
+          validCollections,
+          user.address
         );
 
-        uniqueIdxs.push(...tokenResults.flat());
+        // Convert the results into the required format
+        for (const [contractAddress, tokenIds] of Object.entries(
+          tokenResults
+        )) {
+          if (tokenIds.length) {
+            console.log(
+              `Found ${tokenIds.length} tokens for contract: ${contractAddress}`
+            );
+            const formattedTokens = tokenIds.map(
+              (tokenId) => `${contractAddress}i${tokenId}`
+            );
+            uniqueIdxs.push(...formattedTokens);
+          }
+        }
       }
+
+      // return uniqueIdxs;
     } else if (layerType.layer === "FRACTAL") {
       const inscriptionUtxos = await getInscriptionUtxosByAddress(
         user.address,
