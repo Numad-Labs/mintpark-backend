@@ -264,36 +264,24 @@ export const orderServices = {
       }
 
       let unsignedTx, orderItems;
-      let nftUrls: any;
       try {
         //only upload to S3 & IPFS
         //attach ipfs url to the nftMetadatas list
-        // nftUrls = await nftService.uploadNftImagesToIpfs(
-        //   // transactionDetail.deployedContractAddress,
-        //   // user.address,
-        //   collection.name,
-        //   files.length,
-        //   files
-        // );
-        // orderItems = await uploadToS3AndCreateOrderItems(
-        //   order.id,
-        //   nftMetadatas
-        // );
-
-        [nftUrls, orderItems] = await Promise.all([
-          await nftService.uploadNftImagesToIpfs(
-            // transactionDetail.deployedContractAddress,
-            // user.address,
-            collection.name,
-            files.length,
-            files
-          ),
-          await uploadToS3AndCreateOrderItems(order.id, nftMetadatas),
-        ]);
-
+        const nftUrls = await nftService.uploadNftImagesToIpfs(
+          // transactionDetail.deployedContractAddress,
+          // user.address,
+          collection.name,
+          files.length,
+          files
+        );
         nftMetadatas.forEach((metadata, index) => {
           metadata.ipfsUri = nftUrls[index];
         });
+
+        orderItems = await uploadToS3AndCreateOrderItems(
+          order.id,
+          nftMetadatas
+        );
       } catch (e) {
         forceReleaseSlot(collectionId);
         throw e;
