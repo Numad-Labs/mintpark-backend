@@ -32,6 +32,8 @@ const envSchema = z.object({
   THIRDWEB_SECRET_KEY: z.string(),
   COLLECTION_TIMEOUT_MINUTES: z.string().transform(Number),
   MAX_CONCURRENT_COLLECTIONS: z.string().transform(Number),
+  PINATA_JWT: z.string(),
+  PINATA_GATEWAY_URL: z.string(),
 });
 
 let env = envSchema.safeParse(process.env);

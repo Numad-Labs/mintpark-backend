@@ -1,37 +1,22 @@
 import { ethers } from "ethers";
 import { EVM_CONFIG } from "../evm-config";
 import { config } from "../../../src/config/config";
-import { ThirdwebStorage } from "@thirdweb-dev/storage";
 import { NextFunction, Request, Response } from "express";
 import MarketplaceService from "./marketplaceService";
 
-interface LaunchAsset {
-  fileKey: string;
-  metadata: {
-    name: string;
-    description: string;
-    attributes: Array<{ trait_type: string; value: string }>;
-  };
-}
+import { PinataSDK, PinResponse } from "pinata-web3";
+import { convertMulterToFileObject } from "../utils";
 
-interface LaunchConfig {
-  collectionAddress: string;
-  price: string;
-  startTime: number;
-  endTime: number;
-  maxPerWallet: number;
-  assets: LaunchAsset[];
-  isWhitelisted: boolean;
-  wlStartsAt?: number;
-  wlEndsAt?: number;
-  wlPrice?: string;
-  wlMaxPerWallet?: number;
+interface UploadResult {
+  metadataURI: string;
+  imageMetadata: PinResponse;
+  metadataFileMetadata: PinResponse;
 }
 
 class NFTService {
   provider: ethers.JsonRpcProvider;
   private marketplaceAddress: string;
-  private storage: ThirdwebStorage;
+  private storage: PinataSDK;
   private marketplaceService: MarketplaceService;
 
   constructor(
@@ -43,9 +28,9 @@ class NFTService {
     this.marketplaceAddress = marketplaceAddress;
     this.marketplaceService = marketplaceService;
 
-    this.storage = new ThirdwebStorage({
-      clientId: "db5f648449211cd159aa6032e83434cf",
-      secretKey: config.THIRDWEB_SECRET_KEY,
+    this.storage = new PinataSDK({
+      pinataJwt: config.PINATA_JWT,
+      pinataGateway: config.PINATA_GATEWAY_URL,
     });
   }
 
@@ -74,29 +59,6 @@ class NFTService {
   async getUnsignedMintNFTTransaction(
     collectionAddress: string,
     to: string,
-    tokenId: number,
-    req: Request
-  ) {
-    const signer = await this.provider.getSigner();
-
-    const contract = new ethers.Contract(
-      collectionAddress,
-      EVM_CONFIG.NFT_CONTRACT_ABI,
-      signer
-    );
-    const metadataURI = await this.createAndUploadMetadata(req);
-    const unsignedTx = await contract.safeMint.populateTransaction(
-      to,
-      tokenId,
-      metadataURI
-    );
-
-    return this.prepareUnsignedTransaction(unsignedTx, to);
-  }
-
-  async getUnsignedBatchMintNFTTransaction(
-    collectionAddress: string,
-    to: string,
     name: string,
     quantity: number,
     files: Express.Multer.File[]
@@ -108,12 +70,48 @@ class NFTService {
       EVM_CONFIG.NFT_CONTRACT_ABI,
       signer
     );
+    const metadataURIs = await this.createAndUploadBatchMetadata(
+      files,
+      quantity,
+      name
+    );
 
+    // Assuming the contract has a batchMintWithURI function
+    const unsignedTx = await contract.batchMint.populateTransaction(
+      to,
+      quantity,
+      metadataURIs
+    );
+    return this.prepareUnsignedTransaction(unsignedTx, to);
+  }
+
+  async uploadNftImagesToIpfs(
+    name: string,
+    quantity: number,
+    files: Express.Multer.File[]
+  ) {
     // Handle file uploads and metadata creation
     const metadataURIs = await this.createAndUploadBatchMetadata(
       files,
       quantity,
       name
+    );
+
+    return metadataURIs;
+  }
+
+  async getUnsignedBatchMintNFTTransaction(
+    collectionAddress: string,
+    to: string,
+    quantity: number,
+    metadataURIs: string[]
+  ) {
+    const signer = await this.provider.getSigner();
+
+    const contract = new ethers.Contract(
+      collectionAddress,
+      EVM_CONFIG.NFT_CONTRACT_ABI,
+      signer
     );
 
     // Assuming the contract has a batchMintWithURI function
@@ -126,6 +124,38 @@ class NFTService {
 
     return this.prepareUnsignedTransaction(unsignedTx, to);
   }
+
+  // async getUnsignedMintNFTTransaction(
+  //   collectionAddress: string,
+  //   to: string,
+  //   quantity: number,
+  //   metadataURIs: string[]
+  // ) {
+  //   const signer = await this.provider.getSigner();
+
+  //   const contract = new ethers.Contract(
+  //     collectionAddress,
+  //     EVM_CONFIG.NFT_CONTRACT_ABI,
+  //     signer
+  //   );
+
+  //   // Handle file uploads and metadata creation
+  //   const metadataURIs = await this.createAndUploadBatchMetadata(
+  //     files,
+  //     quantity,
+  //     name
+  //   );
+
+  //   // Assuming the contract has a batchMintWithURI function
+  //   const unsignedTx = await contract.batchMint.populateTransaction(
+  //     to,
+  //     // startTokenId,
+  //     quantity,
+  //     metadataURIs
+  //   );
+
+  //   return this.prepareUnsignedTransaction(unsignedTx, to);
+  // }
 
   async getUnsignedListNFTTransaction(
     collectionAddress: string,
@@ -242,30 +272,59 @@ class NFTService {
       throw new Error("No files uploaded or files are not in expected format");
     }
 
-    // Upload all images in batch
-    console.log(
-      "🚀 ~ NFTService ~ starting batch upload ~ this.storage:",
-      this.storage
-    );
-    const imageURIs = await this.storage.uploadBatch(
-      files.map((file) => file.buffer),
-      {
-        uploadWithGatewayUrl: true,
+    const imageUploadResponses: PinResponse[] = [];
+    for (const file of files) {
+      try {
+        const blob = new Blob([file.buffer], { type: file.mimetype });
+        const fileObject = new File([blob], file.originalname, {
+          type: file.mimetype,
+        });
+
+        const response: PinResponse = await this.storage.upload.file(
+          fileObject
+        );
+        imageUploadResponses.push(response);
+      } catch (error) {
+        console.error("Upload error details:", {
+          error,
+          file: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        });
+
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error occurred";
+
+        throw new Error(
+          `Failed to upload file ${file.originalname}: ${errorMessage}`
+        );
       }
+    }
+
+    // Create metadata objects for all NFTs using the IPFS hashes from the image uploads
+    const metadataObjects = imageUploadResponses.map(
+      (imageResponse, index) => ({
+        name: `${name || "Unnamed NFT"} #${index + 1}`,
+        image: `ipfs://${imageResponse.IpfsHash}`, // Using IPFS URI format
+      })
     );
 
-    // Create metadata objects for all NFTs
-    const metadataObjects = imageURIs.map((imageURI, index) => ({
-      name: `${name || "Unnamed NFT"} #${index + 1}`,
-      image: imageURI,
-    }));
+    // Upload metadata files one by one
+    const metadataUploadResponses: PinResponse[] = [];
+    for (const metadata of metadataObjects) {
+      const response: PinResponse = await this.storage.upload.json(metadata);
+      metadataUploadResponses.push(response);
+    }
+    // Combine all the metadata into a single return object for each NFT
+    const results: UploadResult[] = metadataUploadResponses.map(
+      (metadataResponse, index) => ({
+        metadataURI: `ipfs://${metadataResponse.IpfsHash}`,
+        imageMetadata: imageUploadResponses[index],
+        metadataFileMetadata: metadataResponse,
+      })
+    );
 
-    // Upload all metadata in batch
-    const metadataURIs = await this.storage.uploadBatch(metadataObjects, {
-      uploadWithGatewayUrl: true,
-    });
-
-    return metadataURIs;
+    return results.map((result) => result.metadataURI);
   }
 
   private async createAndUploadMetadata(req: Request): Promise<string> {
@@ -275,9 +334,9 @@ class NFTService {
 
     // Upload the image to IPFS
     const imageFile = req.file;
-    const imageURI = await this.storage.upload(imageFile.buffer, {
-      uploadWithGatewayUrl: true,
-    });
+    const imageURI = await this.storage.upload.file(
+      convertMulterToFileObject(imageFile)
+    );
 
     // Create metadata object
     const metadata = {
@@ -288,11 +347,9 @@ class NFTService {
     };
 
     // Upload metadata to IPFS
-    const metadataURI = await this.storage.upload(metadata, {
-      uploadWithGatewayUrl: true,
-    });
+    const metadataURI = await this.storage.upload.json(metadata);
 
-    return metadataURI;
+    return `ipfs://${metadataURI.IpfsHash}`;
   }
 
   async prepareUnsignedTransaction(

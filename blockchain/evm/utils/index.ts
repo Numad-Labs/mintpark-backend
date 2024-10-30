@@ -1,6 +1,7 @@
 import * as crypto from "crypto";
 
 import { ethers } from "ethers";
+import { FileObject } from "pinata-web3";
 // import * as utils from "ethers/utils"
 
 export function generateNonce(length = 16) {
@@ -43,4 +44,23 @@ export function serializeBigInt(obj: any): any {
     );
   }
   return obj;
+}
+// Create an adapter function to convert Multer files to FileObject
+export function convertMulterToFileObject(
+  multerFile: Express.Multer.File
+): FileObject {
+  return {
+    name: multerFile.originalname,
+    type: multerFile.mimetype,
+    lastModified: Date.now(),
+    size: multerFile.size,
+    // Use Buffer.from to convert Buffer to ArrayBuffer
+    arrayBuffer: async () => {
+      // Convert Buffer to ArrayBuffer
+      return multerFile.buffer.buffer.slice(
+        multerFile.buffer.byteOffset,
+        multerFile.buffer.byteOffset + multerFile.buffer.byteLength
+      );
+    },
+  };
 }

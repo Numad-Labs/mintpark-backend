@@ -3,6 +3,7 @@ import NFTService from "../services/nftService";
 import MarketplaceService from "../services/marketplaceService";
 import { EVM_CONFIG } from "../evm-config";
 import { serializeBigInt } from "../utils";
+import { CustomError } from "../../../src/exceptions/CustomError";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
@@ -48,11 +49,17 @@ export const getMintNFTTransaction = async (
 ) => {
   try {
     const { collectionAddress, to, tokenId } = req.body;
+    if (!req.files) {
+      throw new CustomError("not found", 400);
+    }
+
+    const files = req.files as Express.Multer.File[];
     const unsignedTx = await nftService.getUnsignedMintNFTTransaction(
       collectionAddress,
       to,
       tokenId,
-      req
+      1,
+      files
     );
     console.log("🚀 ~ unsignedTx:", unsignedTx);
     const serializedTx = serializeBigInt(unsignedTx);
@@ -62,32 +69,32 @@ export const getMintNFTTransaction = async (
     next(e);
   }
 };
-export const getMintBatchNFTTransaction = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const { collectionAddress, to, quantity } = req.body;
-    if (!req.files) {
-      throw new Error("no files");
-    }
+// export const getMintBatchNFTTransaction = async (
+//   req: Request,
+//   res: Response
+// ) => {
+//   try {
+//     const { collectionAddress, to, quantity } = req.body;
+//     if (!req.files) {
+//       throw new Error("no files");
+//     }
 
-    const files = req.files as Express.Multer.File[];
-    const name = "bbb";
-    const unsignedTx = await nftService.getUnsignedBatchMintNFTTransaction(
-      collectionAddress,
-      to,
-      name,
-      quantity,
-      files
-    );
-    const serializedTx = serializeBigInt(unsignedTx);
+//     const files = req.files as Express.Multer.File[];
+//     const name = "bbb";
+//     const unsignedTx = await nftService.getUnsignedBatchMintNFTTransaction(
+//       collectionAddress,
+//       to,
+//       // name,
+//       quantity,
+//       files.
+//     );
+//     const serializedTx = serializeBigInt(unsignedTx);
 
-    res.json({ success: true, unsignedTransaction: serializedTx });
-  } catch (error) {
-    res.status(400).json({ error: (error as Error).message });
-  }
-};
+//     res.json({ success: true, unsignedTransaction: serializedTx });
+//   } catch (error) {
+//     res.status(400).json({ error: (error as Error).message });
+//   }
+// };
 
 export const getListNFTTransaction = async (
   req: Request,

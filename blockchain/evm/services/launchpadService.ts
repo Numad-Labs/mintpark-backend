@@ -1,17 +1,13 @@
 import { ethers } from "ethers";
 import { EVM_CONFIG } from "../evm-config";
-import { ethers6Adapter } from "thirdweb/adapters/ethers6";
-import { createThirdwebClient, defineChain, getContract } from "thirdweb";
-import { config } from "../../../src/config/config";
-import { ThirdwebStorage } from "@thirdweb-dev/storage";
-import { NextFunction, Request, Response } from "express";
 import MarketplaceService from "./marketplaceService";
 import NFTService from "./nftService";
 import { Launch, LaunchItem } from "../../../src/types/db/types";
 import { CustomError } from "../../../src/exceptions/CustomError";
-import { LAUNCH_ITEM_STATUS } from "../../../src/types/db/enums";
-import { LaunchItemTypes, Launchtype } from "../controller/launchpadController";
 import { TransactionConfirmationService } from "./transactionConfirmationService";
+import { PinataSDK } from "pinata-web3";
+import { config } from "../../../src/config/config";
+import { LaunchConfig } from "../../../custom";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
@@ -23,40 +19,18 @@ const confirmationService = new TransactionConfirmationService(
   EVM_CONFIG.RPC_URL!
 );
 
-interface LaunchAsset {
-  fileKey: string;
-  metadata: {
-    name: string;
-    description: string;
-    attributes: Array<{ trait_type: string; value: string }>;
-  };
-}
-
-interface LaunchConfig {
-  collectionAddress: string;
-  price: string;
-  startTime: number;
-  endTime: number;
-  maxPerWallet: number;
-  assets: LaunchAsset[];
-  isWhitelisted: boolean;
-  wlStartsAt?: number;
-  wlEndsAt?: number;
-  wlPrice?: string;
-  wlMaxPerWallet?: number;
-}
-
 class LaunchpadService {
   private provider: ethers.JsonRpcProvider;
-  private storage: ThirdwebStorage;
+  private storage: PinataSDK;
   private marketplaceService: MarketplaceService;
 
   constructor(providerUrl: string, marketplaceService: MarketplaceService) {
     this.provider = new ethers.JsonRpcProvider(providerUrl);
     this.marketplaceService = marketplaceService;
 
-    this.storage = new ThirdwebStorage({
-      secretKey: config.THIRDWEB_SECRET_KEY,
+    this.storage = new PinataSDK({
+      pinataJwt: config.PINATA_JWT,
+      pinataGateway: config.PINATA_GATEWAY_URL,
     });
   }
 
@@ -153,60 +127,58 @@ class LaunchpadService {
     }
   }
 
-  async mintAndBuyFromListing(
-    listingId: string,
-    buyerAddress: string,
-    quantity: number,
-    collectionAddress: string,
-    metadata: any
-  ) {
-    try {
-      // First, upload metadata to IPFS
-      const metadataUri = await this.storage.upload(metadata, {
-        uploadWithGatewayUrl: true,
-      });
+  // async mintAndBuyFromListing(
+  //   listingId: string,
+  //   buyerAddress: string,
+  //   quantity: number,
+  //   collectionAddress: string,
+  //   metadata: any
+  // ) {
+  //   try {
+  //     // First, upload metadata to IPFS
+  //     const metadataUri = await this.storage.upload.file(metadata);
 
-      // Get the NFT contract
-      const nftContract = new ethers.Contract(
-        collectionAddress,
-        EVM_CONFIG.NFT_CONTRACT_ABI,
-        this.provider
-      );
+  //     // Get the NFT contract
+  //     const nftContract = new ethers.Contract(
+  //       collectionAddress,
+  //       EVM_CONFIG.NFT_CONTRACT_ABI,
+  //       this.provider
+  //     );
 
-      // Create batch transaction
-      const mintTx = await nftContract.safeMint.populateTransaction(
-        buyerAddress,
-        quantity,
-        metadataUri
-      );
+  //     // Create batch transaction
+  //     const mintTx = await nftContract.safeMint.populateTransaction(
+  //       buyerAddress,
+  //       quantity,
+  //       metadataUri
+  //     );
 
-      // Get the marketplace contract
-      const marketplaceContract =
-        await this.marketplaceService.getEthersMarketplaceContract();
+  //     // Get the marketplace contract
+  //     const marketplaceContract =
+  //       await this.marketplaceService.getEthersMarketplaceContract();
 
-      // Create buy transaction
-      const buyTx =
-        await marketplaceContract.buyFromListing.populateTransaction(
-          listingId,
-          buyerAddress,
-          quantity,
-          ethers.ZeroAddress, // ETH as currency
-          ethers.parseEther(metadata.price) // Price from metadata
-        );
+  //     // Create buy transaction
+  //     const buyTx =
+  //       await marketplaceContract.buyFromListing.populateTransaction(
+  //         listingId,
+  //         buyerAddress,
+  //         quantity,
+  //         ethers.ZeroAddress, // ETH as currency
+  //         ethers.parseEther(metadata.price) // Price from metadata
+  //       );
 
-      // Combine transactions using multicall
-      const multicallTx =
-        await marketplaceContract.multicall.populateTransaction([
-          mintTx.data,
-          buyTx.data,
-        ]);
+  //     // Combine transactions using multicall
+  //     const multicallTx =
+  //       await marketplaceContract.multicall.populateTransaction([
+  //         mintTx.data,
+  //         buyTx.data,
+  //       ]);
 
-      return nftService.prepareUnsignedTransaction(multicallTx, buyerAddress);
-    } catch (error) {
-      console.error("Error minting and buying:", error);
-      throw error;
-    }
-  }
+  //     return nftService.prepareUnsignedTransaction(multicallTx, buyerAddress);
+  //   } catch (error) {
+  //     console.error("Error minting and buying:", error);
+  //     throw error;
+  //   }
+  // }
 
   async createLaunchpadContractFeeChange(
     collectionTxid: string,
@@ -274,9 +246,7 @@ class LaunchpadService {
       : this.generateTokenId(winnerItem);
 
     // Prepare metadata URI
-    const metadataURI = await this.storage.upload(winnerItem.metadata, {
-      uploadWithGatewayUrl: true,
-    });
+    const metadataURI = await this.storage.upload.json(winnerItem.metadata);
 
     const nftContract = new ethers.Contract(
       collectionAddress,
@@ -300,53 +270,6 @@ class LaunchpadService {
 
     // Prepare the full transaction
     return await nftService.prepareUnsignedTransaction(unsignedTx, buyer);
-  }
-
-  // private validateLaunchStatus(launch: Launch): void {
-  //   const now = new Date();
-
-  //   // Check whitelist phase
-  //   if (launch.isWhitelisted && launch.wlStartsAt && launch.wlEndsAt) {
-  //     if (now >= launch.wlStartsAt && now <= launch.wlEndsAt) {
-  //       return; // Valid whitelist phase
-  //     }
-  //   }
-
-  //   // Check public phase
-  //   if (now >= launch.poStartsAt && now <= launch.poEndsAt) {
-  //     return; // Valid public phase
-  //   }
-
-  //   throw new CustomError("No active sale phase", 400);
-  // }
-
-  private getRandomAvailableItem(items: LaunchItem[]): LaunchItem | null {
-    const randomIndex = Math.floor(Math.random() * items.length);
-    return items[randomIndex];
-  }
-
-  private calculateCurrentPrice(launch: Launch): number | undefined {
-    const now = new Date();
-
-    // Check whitelist phase
-    if (
-      launch.isWhitelisted &&
-      launch.wlStartsAt &&
-      launch.wlEndsAt &&
-      launch.wlMintPrice
-      // &&
-      // now >= launch.wlStartsAt &&
-      // now <= launch.wlEndsAt
-    ) {
-      return launch.wlMintPrice;
-    }
-
-    // // Check public phase
-    // if (now >= launch.poStartsAt && now <= launch.poEndsAt) {
-    //   return launch.poMintPrice;
-    // }
-
-    return undefined;
   }
 
   private generateTokenId(items: LaunchItem[]): number {

@@ -161,12 +161,10 @@ export const listController = {
         txid
       );
 
-      return res
-        .status(200)
-        .json({
-          success: true,
-          data: { confirmedList: result.confirmedList, txid: result.txid },
-        });
+      return res.status(200).json({
+        success: true,
+        data: { confirmedList: result.confirmedList, txid: result.txid },
+      });
     } catch (e) {
       next(e);
     }

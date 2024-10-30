@@ -19,6 +19,12 @@ orderRouter.post(
   orderController.createCollection
 );
 
+orderRouter.post(
+  "/collection/hex",
+  authenticateToken,
+  orderController.generateMintTxHex
+);
+
 orderRouter.get("/user/:userId", orderController.getByUserId);
 orderRouter.get("/:orderId", orderController.getById);
 
