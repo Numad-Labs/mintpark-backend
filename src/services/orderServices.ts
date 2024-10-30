@@ -188,19 +188,6 @@ export const orderServices = {
     let collection = await collectionServices.getById(collectionId);
     if (!collection || !collection.id) throw new Error("Collection not found.");
 
-    const nftMetadatas: nftMetaData[] = [];
-    let index = 0;
-    for (let file of files) {
-      nftMetadatas.push({
-        name: `${collection.name} #${index}`,
-        nftId: index.toString(),
-        ipfsUri: null,
-        file: file,
-      });
-
-      index++;
-    }
-
     const totalBatches = Math.ceil(totalFileCount / FILE_COUNT_LIMIT);
     const slotAcquired = await acquireSlot(collectionId, totalBatches);
     if (!slotAcquired) {
@@ -208,6 +195,24 @@ export const orderServices = {
         "The upload system is at maximum capacity. Please wait a moment and try again.",
         400
       );
+    }
+
+    const orderItemCount = await orderItemRepository.getCountByCollectionId(
+      collectionId
+    );
+    const nftMetadatas: nftMetaData[] = [];
+    let index = 0;
+    for (let file of files) {
+      let nftId = Number(orderItemCount) + index;
+
+      nftMetadatas.push({
+        name: `${collection.name} #${nftId}`,
+        nftId: nftId.toString(),
+        ipfsUri: null,
+        file: file,
+      });
+
+      index++;
     }
 
     if (user.layer === "CITREA" && user.network === "TESTNET") {
@@ -248,7 +253,7 @@ export const orderServices = {
       if (!order) {
         order = await orderRepository.create({
           userId: userId,
-          quantity: files.length,
+          quantity: totalFileCount,
           fundingAmount: totalAmount,
           networkFee: networkFee,
           serviceFee: serviceFee,
@@ -259,24 +264,36 @@ export const orderServices = {
       }
 
       let unsignedTx, orderItems;
+      let nftUrls: any;
       try {
         //only upload to S3 & IPFS
         //attach ipfs url to the nftMetadatas list
-        const nftUrls = await nftService.uploadNftImagesToIpfs(
-          // transactionDetail.deployedContractAddress,
-          // user.address,
-          collection.name,
-          files.length,
-          files
-        );
+        // nftUrls = await nftService.uploadNftImagesToIpfs(
+        //   // transactionDetail.deployedContractAddress,
+        //   // user.address,
+        //   collection.name,
+        //   files.length,
+        //   files
+        // );
+        // orderItems = await uploadToS3AndCreateOrderItems(
+        //   order.id,
+        //   nftMetadatas
+        // );
+
+        [nftUrls, orderItems] = await Promise.all([
+          await nftService.uploadNftImagesToIpfs(
+            // transactionDetail.deployedContractAddress,
+            // user.address,
+            collection.name,
+            files.length,
+            files
+          ),
+          await uploadToS3AndCreateOrderItems(order.id, nftMetadatas),
+        ]);
+
         nftMetadatas.forEach((metadata, index) => {
           metadata.ipfsUri = nftUrls[index];
         });
-
-        orderItems = await uploadToS3AndCreateOrderItems(
-          order.id,
-          nftMetadatas
-        );
       } catch (e) {
         forceReleaseSlot(collectionId);
         throw e;
@@ -314,20 +331,21 @@ export const orderServices = {
         );
       if (!collection) throw new Error("Collection not found.");
 
-      let order = await orderRepository.create({
-        userId: userId,
-        quantity: files.length,
-        fundingAddress: funder.address,
-        fundingAmount: estimatedFee.totalAmount,
-        networkFee: estimatedFee.networkFee,
-        serviceFee: estimatedFee.serviceFee,
-        privateKey: funder.privateKey,
-        orderType: "COLLECTION",
-        collectionId: collection.id,
-        feeRate: feeRate,
-      });
-
-      if (!order.id) throw new CustomError("No order id was found.", 400);
+      let order = await orderRepository.getByCollectionId(collection.id);
+      if (!order) {
+        order = await orderRepository.create({
+          userId: userId,
+          quantity: files.length,
+          fundingAddress: funder.address,
+          fundingAmount: estimatedFee.totalAmount,
+          networkFee: estimatedFee.networkFee,
+          serviceFee: estimatedFee.serviceFee,
+          privateKey: funder.privateKey,
+          orderType: "COLLECTION",
+          collectionId: collection.id,
+          feeRate: feeRate,
+        });
+      }
 
       let orderItems = await uploadToS3AndCreateOrderItems(
         order.id,
@@ -390,9 +408,8 @@ export const orderServices = {
     // If payment is confirmed, return true else false
     try {
       const order = await orderRepository.getById(orderId);
-      console.log(order);
       if (!order) throw new Error("Order not found.");
-      if (order.paidAt) return true;
+      if (order.paidAt && order.orderStatus !== "PENDING") return true;
 
       const user = await userRepository.getById(order.userId);
       if (!user) throw new Error("User not found.");
@@ -424,6 +441,11 @@ export const orderServices = {
             "Transaction not confirmed. Please try again.",
             500
           );
+        }
+
+        const orderItemCount = await orderRepository.getByCollectionId(orderId);
+        if (Number(orderItemCount) < order.quantity) {
+          return true;
         }
 
         order.paidAt = new Date();

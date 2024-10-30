@@ -110,4 +110,15 @@ export const orderItemRepository = {
 
     return orderItems;
   },
+  getCountByCollectionId: async (collectionId: string) => {
+    const result = await db
+      .selectFrom("OrderItem")
+      .innerJoin("Order", "Order.id", "OrderItem.orderId")
+      .innerJoin("Collection", "Collection.id", "Order.collectionId")
+      .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
+      .where("Collection.id", "=", collectionId)
+      .executeTakeFirst();
+
+    return result?.count;
+  },
 };

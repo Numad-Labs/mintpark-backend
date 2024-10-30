@@ -69,6 +69,7 @@ export const collectionController = {
       WLMintPrice,
       WLMaxMintPerWallet,
       txid,
+      totalFileCount,
     } = req.body;
     const { collectionId } = req.params;
     try {
@@ -112,6 +113,7 @@ export const collectionController = {
           // createdAt: launchedAt,
         },
         files,
+        totalFileCount,
         txid
       );
       return res.status(200).json({ success: true, data: launch });

@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build": "tsc && copyfiles package.json dist",
     "dev": "nodemon --exec ts-node -P tsconfig.json src/index.ts",
+    "start": "node dist/src/index.js",
     "test": "npx ts-node src/test.ts",
     "test-evm": "jest blockchain/evm"
   },
@@ -48,6 +50,7 @@
     "bitcoinjs-message": "^2.2.0",
     "body-parser": "^1.20.2",
     "chromajs-lib": "file:chromajs-lib",
+    "copyfiles": "^2.4.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "erc721a-upgradeable": "^4.3.0",
