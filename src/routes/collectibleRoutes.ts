@@ -15,5 +15,9 @@ collectibleRouter.get(
   collectibleControllers.getListableCollectiblesByCollectionId
 );
 collectibleRouter.get("/:id", collectibleControllers.getCollectibleById);
+collectibleRouter.get(
+  "/:collectibleId/activity",
+  collectibleControllers.getTokenActivity
+);
 
 export = collectibleRouter;

@@ -11,7 +11,13 @@ import { listRepository } from "../repositories/listRepository";
 import { userRepository } from "../repositories/userRepository";
 import { EVMCollectibleService } from "../../blockchain/evm/services/evmIndexService";
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
+import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
+import { orderRepository } from "../repositories/orderRepostory";
+
 const evmCollectibleService = new EVMCollectibleService(EVM_CONFIG.RPC_URL!);
+const confirmationService = new TransactionConfirmationService(
+  EVM_CONFIG.RPC_URL!
+);
 
 export const collectibleServices = {
   getListableCollectibles: async (
@@ -143,5 +149,36 @@ export const collectibleServices = {
       listableCollectibles,
       activeListCount: countResult?.activeListCount ?? 0,
     };
+  },
+
+  getActivityByCollectibleId: async (collectibleId: string) => {
+    const collectible = await collectibleRepository.getById(collectibleId);
+    if (!collectible) throw new Error("collectible not found.");
+
+    const collection = await collectionRepository.getById(
+      collectible.collectionId
+    );
+    if (!collection) throw new CustomError("collection not found.", 400);
+
+    if (!collection.contractAddress)
+      throw new CustomError("contractAddress not found", 400);
+
+    const order = await orderRepository.getByCollectionId(collection.id);
+    if (!order) throw new CustomError("order not found.", 400);
+
+    if (!order.txId) throw new CustomError("txid not found in order.", 400);
+    const collectionAddress = collectible.uniqueIdx.split("i")[0];
+    const tokenId = collectible.uniqueIdx.split("i")[1];
+
+    const transactionDetail = await confirmationService.getTransactionDetails(
+      order.txId
+    );
+
+    const activities = await evmCollectibleService.getActivityByTokenId(
+      collection.contractAddress,
+      tokenId,
+      transactionDetail.blockNumber
+    );
+    return activities;
   },
 };

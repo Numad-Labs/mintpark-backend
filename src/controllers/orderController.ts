@@ -57,25 +57,24 @@ export const orderController = {
         );
       if (!totalFileCount)
         throw new CustomError(
-          "CollectionId is required when creating order for collection.",
+          "totalFileCount is required when creating order for collection.",
           400
         );
       const files = req.files as Express.Multer.File[];
 
-      const { order, orderItems, batchMintTxHex } =
-        await orderServices.createCollection(
-          req.user.id,
-          Number(feeRate),
-          files,
-          totalFileCount,
-          collectionId,
-          txid
-        );
+      const { order, orderItems } = await orderServices.createCollection(
+        req.user.id,
+        Number(feeRate),
+        files,
+        totalFileCount,
+        collectionId,
+        txid
+      );
       const sanitazedOrder = hideSensitiveData(order, ["privateKey"]);
 
       return res.status(200).json({
         success: true,
-        data: { order: sanitazedOrder, orderItems: orderItems, batchMintTxHex },
+        data: { order: sanitazedOrder, orderItems: orderItems },
       });
     } catch (e) {
       next(e);

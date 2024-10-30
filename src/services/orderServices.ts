@@ -263,7 +263,7 @@ export const orderServices = {
         });
       }
 
-      let unsignedTx, orderItems;
+      let orderItems;
       try {
         //only upload to S3 & IPFS
         //attach ipfs url to the nftMetadatas list
@@ -342,7 +342,7 @@ export const orderServices = {
 
       const isComplete = await updateProgress(collectionId);
 
-      return { order, orderItems, batchMintTxHex: null, isComplete };
+      return { order, orderItems, isComplete };
     } else throw new Error("This layer is unsupported ATM.");
   },
   getByUserId: async (userId: string) => {
@@ -440,6 +440,7 @@ export const orderServices = {
         await orderRepository.update(order.id, {
           paidAt: order.paidAt,
           orderStatus: "DONE",
+          txId: txid,
         });
 
         const orderItems = await orderItemRepository.updateByOrderId(order.id, {
