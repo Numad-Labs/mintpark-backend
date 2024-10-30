@@ -4,7 +4,7 @@ import {
   getDeploymentTransaction,
   getMintNFTTransaction,
   getListNFTTransaction,
-  getMintBatchNFTTransaction,
+  // getMintBatchNFTTransaction,
 } from "../controller/nftController";
 import { TransactionConfirmationService } from "../services/transactionConfirmationService";
 import { TransactionConfirmationController } from "../controller/transactionConfirmationController";
@@ -25,11 +25,11 @@ const nftRouter = express.Router();
 
 nftRouter.post("/deploy-collection", getDeploymentTransaction);
 nftRouter.post("/mint", parseFiles("image", true), getMintNFTTransaction);
-nftRouter.post(
-  "/mint-batch",
-  parseFiles("images", false),
-  getMintBatchNFTTransaction
-);
+// nftRouter.post(
+//   "/mint-batch",
+//   parseFiles("images", false),
+//   getMintBatchNFTTransaction
+// );
 nftRouter.post("/list", getListNFTTransaction);
 
 nftRouter.post("/confirm", confirmationController.confirmTransaction);

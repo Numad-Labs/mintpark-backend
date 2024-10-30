@@ -81,6 +81,30 @@ export const orderController = {
       next(e);
     }
   },
+  generateMintTxHex: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { orderId } = req.body;
+      if (!req.user) throw new CustomError("Cannot parse user from token", 401);
+      if (!orderId) throw new CustomError("Cannot parse orderId", 401);
+
+      const { order, batchMintTxHex } = await orderServices.generateMintTxHex(
+        orderId,
+        req.user.id
+      );
+      const sanitazedOrder = hideSensitiveData(order, ["privateKey"]);
+
+      res.status(200).json({
+        success: true,
+        data: { order: sanitazedOrder, batchMintTxHex },
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
   getByUserId: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { userId } = req.params;

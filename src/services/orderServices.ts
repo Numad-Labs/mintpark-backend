@@ -26,6 +26,7 @@ import {
   updateProgress,
 } from "../libs/uploadLimiter";
 import { FILE_COUNT_LIMIT } from "../libs/constants";
+import { serializeBigInt } from "../../blockchain/evm/utils";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
@@ -95,7 +96,7 @@ export const orderServices = {
         contractAddress: transactionDetail.deployedContractAddress,
       });
 
-      const unsignedTx = await nftService.getUnsignedBatchMintNFTTransaction(
+      const unsignedTx = await nftService.getUnsignedMintNFTTransaction(
         transactionDetail.deployedContractAddress,
         user.address,
         collection?.name ?? "NFT",
@@ -261,13 +262,16 @@ export const orderServices = {
       try {
         //only upload to S3 & IPFS
         //attach ipfs url to the nftMetadatas list
-        unsignedTx = await nftService.getUnsignedBatchMintNFTTransaction(
-          transactionDetail.deployedContractAddress,
-          user.address,
+        const nftUrls = await nftService.uploadNftImagesToIpfs(
+          // transactionDetail.deployedContractAddress,
+          // user.address,
           collection.name,
           files.length,
           files
         );
+        nftMetadatas.forEach((metadata, index) => {
+          metadata.ipfsUri = nftUrls[index];
+        });
 
         orderItems = await uploadToS3AndCreateOrderItems(
           order.id,
@@ -278,16 +282,16 @@ export const orderServices = {
         throw e;
       }
 
-      const mintContractTxHex = JSON.parse(
-        JSON.stringify(unsignedTx, (_, value) =>
-          typeof value === "bigint" ? value.toString() : value
-        )
-      );
-      const batchMintTxHex = mintContractTxHex;
+      // const mintContractTxHex = JSON.parse(
+      //   JSON.stringify(unsignedTx, (_, value) =>
+      //     typeof value === "bigint" ? value.toString() : value
+      //   )
+      // );
+      // const batchMintTxHex = mintContractTxHex;
 
       const isComplete = await updateProgress(collectionId);
 
-      return { order, orderItems, batchMintTxHex, isComplete };
+      return { order, orderItems, isComplete };
     } else if (user.layer === "FRACTAL" && user.network === "TESTNET") {
       let serviceFee = SERVICE_FEE[user.layer][user.network];
       const funder = createFundingAddress(user.layer, user.network);
@@ -355,7 +359,28 @@ export const orderServices = {
       throw new CustomError("Insufficient order items.", 400);
 
     if (issuer.layer === "CITREA") {
-      const batchMintTxHex = "DULGUUN";
+      if (!order.collectionId)
+        throw new CustomError("Couldn't find collection id.", 400);
+      const collection = await collectionRepository.getById(order.collectionId);
+
+      if (!collection?.contractAddress) {
+        throw new CustomError(
+          "Couldn't find collection contract address.",
+          400
+        );
+      }
+      const ipfsUrls = orderItems
+        .map((item) => item.ipfsUrl)
+        .filter((url): url is string => url !== null);
+
+      const unsignedTx = await nftService.getUnsignedBatchMintNFTTransaction(
+        collection?.contractAddress,
+        issuer.address,
+        orderItems.length,
+        ipfsUrls
+      );
+
+      const batchMintTxHex = serializeBigInt(unsignedTx);
 
       return { order, batchMintTxHex };
     } else throw new Error("This layer is unsupported ATM.");
@@ -479,6 +504,7 @@ async function uploadToS3AndCreateOrderItems(
         fileKey: key,
         name: metadata.name,
         evmAssetId: metadata.nftId,
+        ipfsUrl: metadata.ipfsUri,
       });
     })
   );

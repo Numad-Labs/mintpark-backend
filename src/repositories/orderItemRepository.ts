@@ -10,6 +10,7 @@ export interface OrderItemDetails {
   userId: string;
   userAddress: string;
   fileKey: string;
+  ipfsUrl: string | null;
   metadata: unknown;
   status: "PENDING" | "IN_QUEUE" | "MINTING" | "MINTED" | "FAILED";
   layerId: string;
@@ -66,6 +67,7 @@ export const orderItemRepository = {
         "OrderItem.fileKey",
         "OrderItem.metadata",
         "OrderItem.metadata",
+        "OrderItem.ipfsUrl",
         "OrderItem.status",
         "Layer.id as layerId",
         "Layer.network",
@@ -90,6 +92,7 @@ export const orderItemRepository = {
         "OrderItem.fileKey",
         "OrderItem.metadata",
         "OrderItem.status",
+        "OrderItem.ipfsUrl",
         "Layer.id as layerId",
         "Layer.network",
         "Layer.layer",

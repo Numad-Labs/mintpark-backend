@@ -57,3 +57,26 @@ export type rpcResponse = {
   error: boolean;
   id: string;
 };
+
+interface LaunchAsset {
+  fileKey: string;
+  metadata: {
+    name: string;
+    description: string;
+    attributes: Array<{ trait_type: string; value: string }>;
+  };
+}
+
+export interface LaunchConfig {
+  collectionAddress: string;
+  price: string;
+  startTime: number;
+  endTime: number;
+  maxPerWallet: number;
+  assets: LaunchAsset[];
+  isWhitelisted: boolean;
+  wlStartsAt?: number;
+  wlEndsAt?: number;
+  wlPrice?: string;
+  wlMaxPerWallet?: number;
+}
