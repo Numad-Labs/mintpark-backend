@@ -311,7 +311,6 @@ export const listServices = {
         collectible.uniqueIdx.split("i")[0],
         collectible.uniqueIdx.split("i")[1]
       );
-
       if (!listingData.isActive) {
         throw new CustomError("Listing no longer active", 400);
       }
