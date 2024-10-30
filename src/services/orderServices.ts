@@ -452,7 +452,7 @@ export const orderServices = {
           if (collection?.type === "UNCONFIRMED" && order.collectionId)
             await collectionRepository.update(order.collectionId, {
               type: "MINTED",
-              supply: orderItems.length,
+              supply: Number(orderItemCount) + orderItems.length,
             });
 
           const collectibles: Insertable<Collectible>[] = [];

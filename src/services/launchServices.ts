@@ -130,7 +130,7 @@ export const launchServices = {
     if (isComplete) {
       updatedCollection = await collectionRepository.update(collection.id, {
         type: "LAUNCHED",
-        supply: collection.supply + launchItems.length,
+        supply: Number(launchItemCount) + launchItems.length,
       });
     }
 
