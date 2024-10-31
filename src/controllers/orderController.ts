@@ -22,7 +22,7 @@ export const orderController = {
         );
       const file = req.file as Express.Multer.File;
 
-      const { order, orderItems, batchMintTxHex } =
+      const { order, orderItem, batchMintTxHex } =
         await orderServices.createCollectible(
           req.user.id,
           Number(feeRate),
@@ -34,7 +34,7 @@ export const orderController = {
 
       return res.status(200).json({
         success: true,
-        data: { order: sanitazedOrder, orderItems: orderItems, batchMintTxHex },
+        data: { order: sanitazedOrder, orderItems: orderItem, batchMintTxHex },
       });
     } catch (e) {
       next(e);
@@ -137,7 +137,7 @@ export const orderController = {
 
       const order = await orderServices.getById(orderId);
       if (!order) throw new CustomError("Order not found", 404);
-      if (order.orderStatus !== 'PENDING')
+      if (order.orderStatus !== "PENDING")
         return res.status(200).json({ success: true, data: { isPaid: true } });
 
       const isPaid = await orderServices.checkOrderisPaid(

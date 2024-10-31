@@ -123,4 +123,13 @@ export const orderItemRepository = {
 
     return result?.count;
   },
+  bulkInsert: async (data: Insertable<OrderItem>[]) => {
+    const orderItems = await db
+      .insertInto("OrderItem")
+      .values(data)
+      .returningAll()
+      .execute();
+
+    return orderItems;
+  },
 };
