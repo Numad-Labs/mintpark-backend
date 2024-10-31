@@ -11,12 +11,15 @@ import { CustomError } from "../exceptions/CustomError";
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import NFTService from "../../blockchain/evm/services/nftService";
 import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
+import { EVMCollectibleService } from "../../blockchain/evm/services/evmIndexService";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
   EVM_CONFIG.MARKETPLACE_ADDRESS,
   new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
 );
+
+const evmCollectibleService = new EVMCollectibleService(EVM_CONFIG.RPC_URL!);
 
 export const collectionServices = {
   create: async (
@@ -97,8 +100,42 @@ export const collectionServices = {
     return collection;
   },
   getListedCollections: async (params: CollectionQueryParams) => {
-    const result = await collectionRepository.getListedCollections(params);
+    const collections = await collectionRepository.getListedCollections(params);
+    console.log("🚀 ~ getListedCollections: ~ collections:", collections);
 
-    return result;
+    // Fetch owner counts for all collections in parallel
+    const collectionsWithOwners = await Promise.all(
+      collections.map(async (collection) => {
+        try {
+          if (collection.contractAddress) {
+            const totalOwnerCount =
+              await evmCollectibleService.getCollectionOwnersCount(
+                collection.contractAddress
+              );
+
+            return {
+              ...collection,
+              totalOwnerCount,
+            };
+          } else {
+            return {
+              ...collection,
+              totalOwnerCount: 0,
+            };
+          }
+        } catch (error) {
+          console.error(
+            `Failed to fetch owner count for collection ${collection.id}:`,
+            error
+          );
+          // Return 0 or null if we fail to fetch the count
+          return {
+            ...collection,
+            totalOwnerCount: 0,
+          };
+        }
+      })
+    );
+    return collectionsWithOwners;
   },
 };

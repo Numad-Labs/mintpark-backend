@@ -87,7 +87,7 @@ export const collectionRepository = {
     interval,
   }: LaunchQueryParams) => {
     // Get current timestamp in milliseconds
-    const now = BigInt(Math.floor(Date.now()/ 1000));
+    const now = BigInt(Math.floor(Date.now() / 1000));
 
     let query = db
       .selectFrom("Collection")
@@ -123,29 +123,29 @@ export const collectionRepository = {
       .where("Collection.type", "!=", "UNCONFIRMED")
       .where("Launch.id", "is not", null);
 
-      if (interval !== "all") {
-        query = query.where((eb) => {
-          if (interval === "live") {
-            return eb.or([
-              eb("Launch.poEndsAt", ">", now.toString()),
-              // eb.and([
-              //   eb("Launch.wlStartsAt", "is not", null),
-              //   eb("Launch.wlEndsAt", "is not", null),
-              //   eb("Launch.wlEndsAt", "<=", now.toString()),
-              // ]),
-            ]);
-          } else {
-            // return eb.and([
-            //   eb("Launch.poEndsAt", ">", now.toString()),
-            //   eb.or([
-            //     eb("Launch.wlEndsAt", "is not", null),
-            //     eb("Launch.wlEndsAt", ">", now.toString()),
-            //   ]),
-            // ]);
-            return eb("Launch.poEndsAt", "<=", now.toString());
-          }
-        });
-      }
+    if (interval !== "all") {
+      query = query.where((eb) => {
+        if (interval === "live") {
+          return eb.or([
+            eb("Launch.poEndsAt", ">", now.toString()),
+            // eb.and([
+            //   eb("Launch.wlStartsAt", "is not", null),
+            //   eb("Launch.wlEndsAt", "is not", null),
+            //   eb("Launch.wlEndsAt", "<=", now.toString()),
+            // ]),
+          ]);
+        } else {
+          // return eb.and([
+          //   eb("Launch.poEndsAt", ">", now.toString()),
+          //   eb.or([
+          //     eb("Launch.wlEndsAt", "is not", null),
+          //     eb("Launch.wlEndsAt", ">", now.toString()),
+          //   ]),
+          // ]);
+          return eb("Launch.poEndsAt", "<=", now.toString());
+        }
+      });
+    }
 
     const collections = await query.execute();
 
@@ -280,6 +280,7 @@ export const collectionRepository = {
         "Collection.supply",
         "Collection.type",
         "Collection.logoKey",
+        "Collection.contractAddress",
         "Collection.layerId",
         "CollectionStats.floor",
         "CollectionStats.volume",
