@@ -52,6 +52,9 @@ export const orderServices = {
     collectionId?: string,
     txid?: string
   ) => {
+    if (files.length !== 1)
+      throw new Error("Collectible order must have one file.");
+
     const user = await userRepository.getByIdWithLayer(userId);
     if (!user) throw new Error("User not found.");
 
@@ -114,9 +117,6 @@ export const orderServices = {
       let networkFee = batchMintTxHex.gasLimit / 10 ** 9,
         serviceFee = 0;
       let totalAmount = networkFee + serviceFee;
-
-      if (files.length !== 1)
-        throw new Error("Collectible order must have one file.");
 
       let order = await orderRepository.create({
         userId: userId,
@@ -189,13 +189,15 @@ export const orderServices = {
     if (!collection || !collection.id) throw new Error("Collection not found.");
 
     const totalBatches = Math.ceil(totalFileCount / FILE_COUNT_LIMIT);
+    if (totalBatches < 1 || files.length < 1)
+      throw new CustomError("Insufficient file count.", 400);
+
     const slotAcquired = await acquireSlot(collectionId, totalBatches);
-    if (!slotAcquired) {
+    if (!slotAcquired)
       throw new CustomError(
-        "The upload system is at maximum capacity. Please wait a moment and try again.",
+        "The minting service is at maximum capacity. Please wait a moment and try again.",
         400
       );
-    }
 
     const orderItemCount = await orderItemRepository.getCountByCollectionId(
       collectionId
@@ -243,12 +245,6 @@ export const orderServices = {
         serviceFee = 0;
       let totalAmount = networkFee + serviceFee;
 
-      if (files.length < 1)
-        throw new Error(
-          "Collection order must have at least one collectible file."
-        );
-      if (!collection) throw new Error("Collection not found.");
-
       let order = await orderRepository.getByCollectionId(collection.id);
       if (!order) {
         order = await orderRepository.create({
@@ -268,8 +264,6 @@ export const orderServices = {
         //only upload to S3 & IPFS
         //attach ipfs url to the nftMetadatas list
         const nftUrls = await nftService.uploadNftImagesToIpfs(
-          // transactionDetail.deployedContractAddress,
-          // user.address,
           collection.name,
           files.length,
           files
@@ -286,13 +280,6 @@ export const orderServices = {
         forceReleaseSlot(collectionId);
         throw e;
       }
-
-      // const mintContractTxHex = JSON.parse(
-      //   JSON.stringify(unsignedTx, (_, value) =>
-      //     typeof value === "bigint" ? value.toString() : value
-      //   )
-      // );
-      // const batchMintTxHex = mintContractTxHex;
 
       const isComplete = await updateProgress(collectionId);
 
@@ -335,10 +322,16 @@ export const orderServices = {
         });
       }
 
-      let orderItems = await uploadToS3AndCreateOrderItems(
-        order.id,
-        nftMetadatas
-      );
+      let orderItems;
+      try {
+        orderItems = await uploadToS3AndCreateOrderItems(
+          order.id,
+          nftMetadatas
+        );
+      } catch (e) {
+        forceReleaseSlot(collectionId);
+        throw e;
+      }
 
       const isComplete = await updateProgress(collectionId);
 
@@ -359,22 +352,22 @@ export const orderServices = {
 
     const order = await orderRepository.getById(orderId);
     if (!order) throw new CustomError("Order user found.", 400);
+    if (!order.collectionId)
+      throw new CustomError("Couldn't find collection id.", 400);
 
     const orderItems = await orderItemRepository.getByOrderId(order.id);
-    if (orderItems.length <= 1)
+    if (orderItems.length <= 1 || orderItems.length < order.quantity)
       throw new CustomError("Insufficient order items.", 400);
 
     if (issuer.layer === "CITREA") {
-      if (!order.collectionId)
-        throw new CustomError("Couldn't find collection id.", 400);
       const collection = await collectionRepository.getById(order.collectionId);
 
-      if (!collection?.contractAddress) {
+      if (!collection?.contractAddress)
         throw new CustomError(
           "Couldn't find collection contract address.",
           400
         );
-      }
+
       const ipfsUrls = orderItems
         .map((item) => item.ipfsUrl)
         .filter((url): url is string => url !== null);
@@ -399,28 +392,10 @@ export const orderServices = {
       if (!order) throw new Error("Order not found.");
       if (order.paidAt && order.orderStatus !== "PENDING") return true;
 
-      const user = await userRepository.getById(order.userId);
+      const user = await userRepository.getByIdWithLayer(order.userId);
       if (!user) throw new Error("User not found.");
 
-      const layer = await layerRepository.getById(user.layerId!);
-      if (!layer) throw new Error("Layer not found.");
-
-      let collection, orderItemCount;
-      if (order.orderType === "COLLECTION" && order.collectionId) {
-        collection = await collectionRepository.getById(order.collectionId);
-         orderItemCount = await orderItemRepository.getCountByCollectionId(order.collectionId);
-        console.log("Order item count: ", orderItemCount);
-      }
-
-      if (layer.layer === "CITREA" && layer.network === "TESTNET") {
-        /*
-          if user.layer is citrea(add txid parameter)
-          validate order by txid
-          updates order & orderItems status to be DONE & MINTED
-          sets collectionId to MINTED
-          inserts the orderItems into collectibles
-          return true
-        */
+      if (user.layer === "CITREA" && user.network === "TESTNET") {
         if (!txid) throw new CustomError("txid is missing", 500);
 
         const transactionDetail =
@@ -433,10 +408,35 @@ export const orderServices = {
           );
         }
 
+        if (order.orderType === "COLLECTIBLE" || !order.collectionId) {
+          order.paidAt = new Date();
+          await orderRepository.update(order.id, {
+            paidAt: order.paidAt,
+            orderStatus: "DONE",
+            txId: txid,
+          });
 
-        if (Number(orderItemCount) < order.quantity) {
-          return false;
+          const orderItems = await orderItemRepository.updateByOrderId(
+            order.id,
+            {
+              status: "MINTED",
+            }
+          );
+
+          return true;
         }
+
+        const collection = await collectionRepository.getById(
+          order.collectionId
+        );
+        const orderItemCount = await orderItemRepository.getCountByCollectionId(
+          order.collectionId
+        );
+        if (Number(orderItemCount) < order.quantity)
+          throw new CustomError(
+            "Uploaded file count is lower than the quantity that was specified in the order.",
+            400
+          );
 
         order.paidAt = new Date();
         await orderRepository.update(order.id, {
@@ -449,34 +449,28 @@ export const orderServices = {
           status: "MINTED",
         });
 
-        if (collection && collection.id) {
-          console.log(collection);
-          if (collection?.type === "UNCONFIRMED" && order.collectionId)
-            await collectionRepository.update(order.collectionId, {
-              type: "MINTED",
-              supply: orderItems.length,
+        if (collection?.type === "UNCONFIRMED")
+          await collectionRepository.update(order.collectionId, {
+            type: "MINTED",
+            supply: Number(orderItemCount),
+          });
+
+        const collectibles: Insertable<Collectible>[] = [];
+        for (const orderItem of orderItems) {
+          if (collection?.id && orderItem.evmAssetId) {
+            collectibles.push({
+              collectionId: collection.id,
+              uniqueIdx: `${collection.contractAddress}i${orderItem.evmAssetId}`,
+              name: orderItem.name,
+              fileKey: orderItem.fileKey,
             });
-
-          const collectibles: Insertable<Collectible>[] = [];
-          for (const orderItem of orderItems) {
-            if (collection?.id && orderItem.evmAssetId) {
-              collectibles.push({
-                collectionId: collection.id,
-                uniqueIdx: `${collection.contractAddress}i${orderItem.evmAssetId}`,
-                name: orderItem.name,
-                fileKey: orderItem.fileKey,
-              });
-            }
           }
-
-          console.log(collectibles);
-
-          if (collectibles.length > 0)
-            await collectibleRepository.bulkInsert(collectibles);
         }
 
+        await collectibleRepository.bulkInsert(collectibles);
+
         return true;
-      } else if (layer.layer === "FRACTAL" && layer.network === "TESTNET") {
+      } else if (user.layer === "FRACTAL" && user.network === "TESTNET") {
         let isTestNet = true;
         if (!order.fundingAddress)
           throw new CustomError("No funding address was provided.", 400);
@@ -484,7 +478,7 @@ export const orderServices = {
         const utxos = await getUtxosHelper(
           order.fundingAddress,
           isTestNet,
-          layer.layer
+          user.layer
         );
         const totalAmount = utxos.reduce((a, b) => a + b.satoshi, 0);
 

@@ -118,7 +118,7 @@ export const launchItemRepository = {
           eb("LaunchItem.onHoldUntil", "is", null),
           sql`${eb.ref(
             "onHoldUntil"
-          )} < NOW() - INTERVAL '1 minute'`.$castTo<boolean>(),
+          )} < NOW() - INTERVAL '2 minute'`.$castTo<boolean>(),
         ])
       )
       .orderBy(sql`RANDOM()`)
@@ -129,10 +129,10 @@ export const launchItemRepository = {
 
     return launchItem;
   },
-  setOnHoldById: async (id: string) => {
+  setOnHoldById: async (id: string, buyerId: string) => {
     const launchItem = await db
       .updateTable("LaunchItem")
-      .set({ onHoldUntil: sql`NOW()` })
+      .set({ onHoldUntil: sql`NOW()`, onHoldBy: buyerId })
       .returningAll()
       .where("LaunchItem.id", "=", id)
       .where("LaunchItem.status", "=", "ACTIVE")
@@ -141,13 +141,28 @@ export const launchItemRepository = {
           eb("LaunchItem.onHoldUntil", "is", null),
           sql`${eb.ref(
             "onHoldUntil"
-          )} < NOW() - INTERVAL '1 minute'`.$castTo<boolean>(),
+          )} < NOW() - INTERVAL '2 minute'`.$castTo<boolean>(),
         ])
       )
       .executeTakeFirstOrThrow(
         () =>
           new Error("Please try again. Could not set the launch item on hold.")
       );
+
+    return launchItem;
+  },
+  getOnHoldById: async (id: string) => {
+    const launchItem = await db
+      .selectFrom("LaunchItem")
+      .selectAll()
+      .where("LaunchItem.id", "=", id)
+      .where("LaunchItem.status", "=", "ACTIVE")
+      .where((eb) =>
+        sql`${eb.ref(
+          "onHoldUntil"
+        )} < NOW() - INTERVAL '2 minute'`.$castTo<boolean>()
+      )
+      .executeTakeFirst();
 
     return launchItem;
   },

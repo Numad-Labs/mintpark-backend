@@ -60,23 +60,16 @@ export const purchaseRepository = {
 
     return purchases;
   },
-  getByOrderId: async (orderId: string) => {
-    const purchase = await db
-      .selectFrom("Purchase")
-      .selectAll()
-      .where("Purchase.orderId", "=", orderId)
-      .executeTakeFirst();
-
-    return purchase;
-  },
-  getCountByUserIdAndLaunchId(launchId: string, userId: string) {
-    return db
+  getCountByUserIdAndLaunchId: async (launchId: string, userId: string) => {
+    const result = await db
       .selectFrom("Purchase")
       .innerJoin("LaunchItem", "Purchase.launchItemId", "LaunchItem.id")
       .innerJoin("Launch", "LaunchItem.launchId", "Launch.id")
-      .selectAll()
+      .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
       .where("Launch.id", "=", launchId)
       .where("Purchase.userId", "=", userId)
-      .execute();
+      .executeTakeFirst();
+
+    return result?.count;
   },
 };

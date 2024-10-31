@@ -73,6 +73,7 @@ export type LaunchItem = {
   evmAssetId: string | null;
   name: string | null;
   onHoldUntil: Timestamp | null;
+  onHoldBy: string | null;
 };
 export type Layer = {
   id: Generated<string>;
@@ -114,6 +115,7 @@ export type Order = {
   expiredAt: Timestamp | null;
   orderType: Generated<ORDER_TYPE>;
   orderStatus: Generated<ORDER_STATUS>;
+  purchaseId: string | null;
 };
 export type OrderItem = {
   id: Generated<string>;
@@ -130,7 +132,6 @@ export type Purchase = {
   userId: string;
   launchItemId: string;
   purchasedAt: Generated<Timestamp>;
-  orderId: string;
 };
 export type Trait = {
   id: Generated<string>;

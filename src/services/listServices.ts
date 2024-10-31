@@ -75,8 +75,6 @@ export const listServices = {
     let list;
 
     if (collectible.layer === "CITREA") {
-      // avsan txid-gaa validate hiine, list uusgene
-
       const marketplaceContract =
         await marketplaceService.getEthersMarketplaceContract();
       if (!marketplaceContract) {
@@ -97,7 +95,7 @@ export const listServices = {
       console.log("🚀 ~ isApproved:", isApproved);
 
       if (!isApproved) {
-        if (!txid) throw new CustomError("txid is missing", 500);
+        if (!txid) throw new CustomError("txid is missing", 400);
         const transactionDetail =
           await confirmationService.getTransactionDetails(txid);
         if (transactionDetail.status !== 1) {
@@ -108,28 +106,6 @@ export const listServices = {
         }
       }
       const tokenId = collectible.uniqueIdx.split("i")[1];
-
-      // const listing = {
-      //   assetContract: collection.contractAddress,
-      //   tokenId: collectible.uniqueIdx.split("i")[1],
-      //   // startTime: Math.floor(Date.now() / 1000),
-      //   startTimestamp: Math.floor(Date.now() / 1000),
-      //   endTimestamp: Math.floor(Date.now() / 1000) + 86400 * 7, // 1 week
-      //   quantity: 1,
-      //   currency: ethers.ZeroAddress, // ETH
-      //   listingType: 0, // Direct listing
-      //   pricePerToken: ethers.parseEther(price.toString()),
-      //   reserved: false,
-      // };
-
-      // const marketplaceContract =
-      //   await marketplaceService.getEthersMarketplaceContract();
-      // if (!marketplaceContract) {
-      //   throw new Error("Could not find marketplace contract");
-      // }
-
-      // const unsignedTx =
-      //   await marketplaceContract.createListing.populateTransaction(listing);
 
       // Create listing transaction
       const unsignedTx = await marketplaceContract.listItem.populateTransaction(

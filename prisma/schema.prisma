@@ -15,16 +15,17 @@ datasource db {
 }
 
 model User {
-  id        String     @id @default(dbgenerated("gen_random_uuid()"))
-  layerId   String?
-  layer     Layer?     @relation(fields: [layerId], references: [id])
-  address   String     @unique
-  pubkey    String?    @unique
-  xpub      String?    @unique
-  createdAt DateTime   @default(now())
-  role      ROLES      @default(USER)
-  purchases Purchase[]
-  orders    Order[]
+  id         String       @id @default(dbgenerated("gen_random_uuid()"))
+  layerId    String?
+  layer      Layer?       @relation(fields: [layerId], references: [id])
+  address    String       @unique
+  pubkey     String?      @unique
+  xpub       String?      @unique
+  createdAt  DateTime     @default(now())
+  role       ROLES        @default(USER)
+  purchases  Purchase[]
+  orders     Order[]
+  LaunchItem LaunchItem[]
 }
 
 model Layer {
@@ -57,7 +58,8 @@ model Order {
   orderType      ORDER_TYPE   @default(COLLECTIBLE)
   orderStatus    ORDER_STATUS @default(PENDING)
   orderItems     OrderItem[]
-  purchase       Purchase?
+  purchase       Purchase?    @relation(fields: [purchaseId], references: [id])
+  purchaseId     String?
 }
 
 model OrderItem {
@@ -65,12 +67,12 @@ model OrderItem {
   orderId  String
   order    Order             @relation(fields: [orderId], references: [id])
   fileKey  String
-  ipfsUrl String?
+  ipfsUrl  String?
   metadata Json?
   status   ORDER_ITEM_STATUS @default(PENDING)
 
   evmAssetId String?
-  name String?
+  name       String?
 }
 
 model Collection {
@@ -104,8 +106,7 @@ model Purchase {
   launchItemId String
   launchItem   LaunchItem @relation(fields: [launchItemId], references: [id])
   purchasedAt  DateTime   @default(now())
-  order        Order      @relation(fields: [orderId], references: [id])
-  orderId      String     @unique
+  Order        Order[]
 }
 
 model LaunchItem {
@@ -113,7 +114,7 @@ model LaunchItem {
   launchId  String
   launch    Launch             @relation(fields: [launchId], references: [id])
   fileKey   String
-  ipfsUrl String?
+  ipfsUrl   String?
   metadata  Json?
   status    LAUNCH_ITEM_STATUS @default(ACTIVE)
   purchases Purchase[]
@@ -121,6 +122,8 @@ model LaunchItem {
   evmAssetId  String?
   name        String?
   onHoldUntil DateTime?
+  onHoldBy    String?
+  User        User?     @relation(fields: [onHoldBy], references: [id])
 }
 
 model Launch {

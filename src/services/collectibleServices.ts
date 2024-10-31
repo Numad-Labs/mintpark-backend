@@ -142,7 +142,7 @@ export const collectibleServices = {
     ]);
 
     const listedCount = Number(listedCountResult?.activeListCount ?? 0);
-    const totalCount = Number(totalCountResult?.count ?? 0) + listedCount;
+    const totalCount = Number(totalCountResult?.count ?? 0);
 
     return {
       collectibles: listableCollectibles,

@@ -1,7 +1,4 @@
 import { Router } from "express";
-import { authenticateToken } from "../middlewares/authenticateToken";
-import { collectionController } from "../controllers/collectionController";
-import { parseFiles } from "../middlewares/fileParser";
 import { collectibleControllers } from "../controllers/collectibleController";
 
 const collectibleRouter = Router();

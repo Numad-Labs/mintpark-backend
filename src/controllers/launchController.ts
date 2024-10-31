@@ -134,7 +134,7 @@ export const launchController = {
     res: Response,
     next: NextFunction
   ) => {
-    const { orderId, txid } = req.body;
+    const { orderId, launchItemId, txid } = req.body;
 
     try {
       const user = await userRepository.getById(req.user?.id!);
@@ -149,6 +149,7 @@ export const launchController = {
 
       const mintHexes = await launchServices.mintPickedCollection(
         orderId,
+        launchItemId,
         user.id,
         txid
       );

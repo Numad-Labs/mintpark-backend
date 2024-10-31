@@ -57,8 +57,6 @@ export const launchServices = {
 
     const layerType = await layerRepository.getById(collection.layerId);
     if (!layerType) throw new Error("Layer not found.");
-    if (files.length < 1)
-      throw new Error("Launch must have at least one file.");
 
     let launch = await launchRepository.getByCollectionId(collection.id);
     if (!launch) {
@@ -66,6 +64,9 @@ export const launchServices = {
     }
 
     const totalBatches = Math.ceil(totalFileCount / FILE_COUNT_LIMIT);
+    if (totalBatches < 1 || files.length < 1)
+      throw new CustomError("Insufficient file count.", 400);
+
     const slotAcquired = await acquireSlot(collection.id, totalBatches);
     if (!slotAcquired) {
       throw new CustomError(
@@ -130,7 +131,7 @@ export const launchServices = {
     if (isComplete) {
       updatedCollection = await collectionRepository.update(collection.id, {
         type: "LAUNCHED",
-        supply: Number(launchItemCount) + launchItems.length,
+        supply: launchItemCount,
       });
     }
 
@@ -171,7 +172,6 @@ export const launchServices = {
     feeRate: number,
     launchOfferType: LaunchOfferType
   ) => {
-    //TODO
     const user = await userRepository.getById(issuerId);
     if (!user) throw new Error("User not found.");
 
@@ -186,12 +186,18 @@ export const launchServices = {
     const launch = await launchRepository.getByCollectionId(collection.id);
     if (!launch) throw new Error("Launch not found.");
 
-    //TODO: add validations(mintPerWallet, phases...)
+    //TODO: add phase validation
+    const userPurchaseCount =
+      await purchaseRepository.getCountByUserIdAndLaunchId(launch.id, user.id);
+    if (userPurchaseCount && userPurchaseCount >= launch.poMaxMintPerWallet)
+      throw new CustomError("Wallet limit has been reached.", 400);
+
     const launchItem = await launchItemRepository.getRandomItemByLauchId(
       launch.id
     );
     const pickedLaunchItem = await launchItemRepository.setOnHoldById(
-      launchItem.id
+      launchItem.id,
+      user.id
     );
     console.log("🚀 ~ pickedLaunchItem:", pickedLaunchItem);
     const file = await getObjectFromS3(pickedLaunchItem.fileKey);
@@ -202,22 +208,16 @@ export const launchServices = {
       if (!collection || !collection.contractAddress)
         throw new Error("Contract address not found.");
 
-      console.log(collection.contractAddress);
-      // if (!pickedLaunchItem.metadata)
-      //   throw new Error("NFT metadata not found.");
-
-      console.log(issuerId);
       const unsignedTx =
         await launchPadService.getUnsignedLaunchMintTransaction(
-          // launch,
           pickedLaunchItem,
           user.address,
           collection.contractAddress
         );
 
       const serializedTx = serializeBigInt(unsignedTx);
-
       const singleMintTxHex = serializedTx;
+
       const serviceFee = singleMintTxHex.value / 10 ** 18;
       const networkFee = singleMintTxHex.gasLimit / 10 ** 9;
       const fundingAmount = networkFee + serviceFee;
@@ -233,60 +233,50 @@ export const launchServices = {
         fundingAmount: fundingAmount,
       });
 
-      const purchase = await purchaseRepository.create({
-        userId: issuerId,
-        orderId: order.id,
-        launchItemId: pickedLaunchItem.id,
-      });
+      // const purchase = await purchaseRepository.create({
+      //   userId: issuerId,
+      //   orderId: order.id,
+      //   launchItemId: pickedLaunchItem.id,
+      // });
 
       return { order: order, launchedItem: pickedLaunchItem, singleMintTxHex };
     } else if (layer.layer === "FRACTAL" && layer.network === "TESTNET") {
-      switch (launchOfferType.offerType) {
-        case "public":
-          // if (collection.poEndsAt < issueDate)
-          //   throw new Error("Public offer has ended.");
-          // if (collection.poStartsAt > issueDate)
-          //   throw new Error("Public offer has not started yet.");
+      const { estimatedFee } = getEstimatedFee(
+        [(file.content as Buffer).length],
+        [file.contentType!.length],
+        SERVICE_FEE[layer.layer][layer.network],
+        feeRate,
+        collection.poMintPrice
+      );
+      const funder = createFundingAddress(layer.layer, layer.network);
 
-          const { estimatedFee } = getEstimatedFee(
-            [(file.content as Buffer).length],
-            [file.contentType!.length],
-            SERVICE_FEE[layer.layer][layer.network],
-            feeRate,
-            collection.poMintPrice
-          );
+      const order = await orderRepository.create({
+        userId: issuerId,
+        collectionId: collectionId,
+        quantity: 1,
+        feeRate,
+        orderType: "LAUNCH",
+        serviceFee: estimatedFee.serviceFee,
+        networkFee: estimatedFee.networkFee,
+        fundingAmount: estimatedFee.totalAmount,
+      });
 
-          const funder = createFundingAddress(layer.layer, layer.network);
+      // const purchase = await purchaseRepository.create({
+      //   userId: issuerId,
+      //   orderId: order.id,
+      //   launchItemId: pickedLaunchItem.id,
+      // });
 
-          const order = await orderRepository.create({
-            userId: issuerId,
-            collectionId: collectionId,
-            quantity: 1,
-            feeRate,
-            orderType: "LAUNCH",
-            serviceFee: estimatedFee.serviceFee,
-            networkFee: estimatedFee.networkFee,
-            fundingAmount: estimatedFee.totalAmount,
-          });
-
-          const purchase = await purchaseRepository.create({
-            userId: issuerId,
-            orderId: order.id,
-            launchItemId: pickedLaunchItem.id,
-          });
-
-          return { order: order, launchedItem: pickedLaunchItem };
-
-        case "whitelist":
-          //TODO
-          break;
-        default:
-          throw new Error("Invalid launch offer type.");
-      }
+      return {
+        order: order,
+        launchedItem: pickedLaunchItem,
+        singleMintTxHex: null,
+      };
     } else throw new CustomError("This layer is unsupported ATM.", 400);
   },
   mintPickedCollection: async (
     orderId: string,
+    launchItemId: string,
     issuerId: string,
     txid: string
   ) => {
@@ -305,33 +295,30 @@ export const launchServices = {
     );
     if (!collection) throw new Error("Collection not found.");
 
-    const purchase = await purchaseRepository.getByOrderId(orderId);
-    if (!purchase) throw new Error("Order has not been created yet.");
-
     if (order.orderStatus !== "PENDING")
       throw new Error("Order is not pending.");
 
-    const launchItem = await launchItemRepository.getById(
-      purchase.launchItemId
+    const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
+      launchItemId
     );
-    if (!launchItem) throw new Error("Launch item not found.");
+    if (isLaunchItemOnHold && isLaunchItemOnHold.onHoldBy !== user.id)
+      throw new CustomError(
+        "This launch item is currently reserved to another user.",
+        400
+      );
+
+    const launchItem = await launchItemRepository.getById(launchItemId);
+    if (!launchItem) throw new CustomError("Launch item not found.", 400);
 
     const file = await getObjectFromS3(launchItem.fileKey);
 
     if (layer?.layer === "CITREA" && layer.network === "TESTNET") {
       if (!launchItem.evmAssetId) throw new Error("Launch item not found.");
-
-      /*
-        IF LAYER IS CITREA, validate mint TXID
-        sets the collection(if its first mint of that transaction) & launchItem status to CONFIRMED
-        creates collectible
-        returns {collectible?, commitTxId, revealTxId}
-      */
       if (!txid) throw new Error("txid not found.");
+
       const transactionDetail = await confirmationService.getTransactionDetails(
         txid
       );
-
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -339,16 +326,14 @@ export const launchServices = {
         );
       }
 
-      if (collection && collection.id) {
-        if (
-          (collection?.type === "UNCONFIRMED" ||
-            collection?.type === "LAUNCHED") &&
-          order.collectionId
-        )
-          await collectionRepository.update(order.collectionId, {
-            type: "MINTED",
-          });
-      }
+      if (
+        (collection?.type === "UNCONFIRMED" ||
+          collection?.type === "LAUNCHED") &&
+        order.collectionId
+      )
+        await collectionRepository.update(order.collectionId, {
+          type: "MINTED",
+        });
 
       await launchItemRepository.update(launchItem.id, { status: "SOLD" });
 
@@ -362,6 +347,11 @@ export const launchServices = {
       await orderRepository.update(orderId, {
         paidAt: new Date(),
         orderStatus: "DONE",
+      });
+
+      await purchaseRepository.create({
+        userId: user.id,
+        launchItemId: launchItem.id,
       });
 
       return { commitTxId: null, revealTxId: null, collectible };
@@ -420,6 +410,11 @@ export const launchServices = {
         name: `${collection.name} #${collection.mintedAmount}`,
         collectionId: collection.id,
         uniqueIdx: `${revealTxId}i0`,
+      });
+
+      await purchaseRepository.create({
+        userId: user.id,
+        launchItemId: launchItem.id,
       });
 
       return { commitTxId, revealTxId, collectible };
