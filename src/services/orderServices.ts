@@ -13,7 +13,7 @@ import { getEstimatedFee } from "../../blockchain/utxo/calculateRequiredAmount";
 import { CustomError } from "../exceptions/CustomError";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { Insertable } from "kysely";
-import { Collectible } from "../types/db/types";
+import { Collectible, OrderItem } from "../types/db/types";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
@@ -128,12 +128,16 @@ export const orderServices = {
         feeRate: feeRate,
       });
 
-      let orderItems = await uploadToS3AndCreateOrderItems(
+      let insertableOrderItem = await uploadToS3AndReturnOrderItems(
         order.id,
         nftMetadatas
       );
 
-      return { order, orderItems, batchMintTxHex };
+      const orderItem = await orderItemRepository.create(
+        insertableOrderItem[0]
+      );
+
+      return { order, orderItem, batchMintTxHex };
     } else if (user.layer === "FRACTAL" && user.network === "TESTNET") {
       let serviceFee = SERVICE_FEE[user.layer][user.network];
       const funder = createFundingAddress(user.layer, user.network);
@@ -165,12 +169,16 @@ export const orderServices = {
 
       if (!order.id) throw new CustomError("No order id was found.", 400);
 
-      let orderItems = await uploadToS3AndCreateOrderItems(
+      let insertableOrderItem = await uploadToS3AndReturnOrderItems(
         order.id,
         nftMetadatas
       );
 
-      return { order, orderItems, batchMintTxHex: null };
+      const orderItem = await orderItemRepository.create(
+        insertableOrderItem[0]
+      );
+
+      return { order, orderItem, batchMintTxHex: null };
     } else throw new Error("This layer is unsupported ATM.");
   },
   createCollection: async (
@@ -259,27 +267,38 @@ export const orderServices = {
         });
       }
 
-      let orderItems;
+      let orderItems, insertableOrderItems, nftUrls: any;
       try {
         //only upload to S3 & IPFS
         //attach ipfs url to the nftMetadatas list
-        const nftUrls = await nftService.uploadNftImagesToIpfs(
-          collection.name,
-          files.length,
-          files
-        );
-        nftMetadatas.forEach((metadata, index) => {
-          metadata.ipfsUri = nftUrls[index];
-        });
+        // nftUrls = await nftService.uploadNftImagesToIpfs(
+        //   collection.name,
+        //   files.length,
+        //   files
+        // );
+        // insertableOrderItems = await uploadToS3AndReturnOrderItems(
+        //   order.id,
+        //   nftMetadatas
+        // );
 
-        orderItems = await uploadToS3AndCreateOrderItems(
-          order.id,
-          nftMetadatas
-        );
+        [nftUrls, insertableOrderItems] = await Promise.all([
+          nftService.uploadNftImagesToIpfs(
+            collection.name,
+            files.length,
+            files
+          ),
+          uploadToS3AndReturnOrderItems(order.id, nftMetadatas),
+        ]);
+
+        insertableOrderItems.forEach((metadata, index) => {
+          metadata.ipfsUrl = nftUrls[index];
+        });
       } catch (e) {
         forceReleaseSlot(collectionId);
         throw e;
       }
+
+      orderItems = await orderItemRepository.bulkInsert(insertableOrderItems);
 
       const isComplete = await updateProgress(collectionId);
 
@@ -322,9 +341,9 @@ export const orderServices = {
         });
       }
 
-      let orderItems;
+      let orderItems, insertableOrderItems;
       try {
-        orderItems = await uploadToS3AndCreateOrderItems(
+        insertableOrderItems = await uploadToS3AndReturnOrderItems(
           order.id,
           nftMetadatas
         );
@@ -332,6 +351,8 @@ export const orderServices = {
         forceReleaseSlot(collectionId);
         throw e;
       }
+
+      orderItems = await orderItemRepository.bulkInsert(insertableOrderItems);
 
       const isComplete = await updateProgress(collectionId);
 
@@ -498,21 +519,39 @@ export const orderServices = {
   },
 };
 
-async function uploadToS3AndCreateOrderItems(
+// async function uploadToS3AndCreateOrderItems(
+//   orderId: string,
+//   nftMetadatas: nftMetaData[]
+// ): Promise<any[]> {
+//   return await Promise.all(
+//     nftMetadatas.map(async (metadata) => {
+//       const key = randomUUID();
+//       if (metadata.file) await uploadToS3(key, metadata.file);
+//       return await orderItemRepository.create({
+//         orderId,
+//         fileKey: key,
+//         name: metadata.name,
+//         evmAssetId: metadata.nftId,
+//         ipfsUrl: metadata.ipfsUri,
+//       });
+//     })
+//   );
+// }
+
+async function uploadToS3AndReturnOrderItems(
   orderId: string,
   nftMetadatas: nftMetaData[]
-): Promise<any[]> {
+): Promise<Insertable<OrderItem>[]> {
   return await Promise.all(
     nftMetadatas.map(async (metadata) => {
       const key = randomUUID();
       if (metadata.file) await uploadToS3(key, metadata.file);
-      return await orderItemRepository.create({
+      return {
         orderId,
         fileKey: key,
         name: metadata.name,
         evmAssetId: metadata.nftId,
-        ipfsUrl: metadata.ipfsUri,
-      });
+      };
     })
   );
 }

@@ -261,6 +261,47 @@ class NFTService {
     }
   }
 
+  async uploadImages(
+    files: Express.Multer.File[]
+    // storage: { upload: { file: (file: File) => Promise<PinResponse> } }
+  ): Promise<PinResponse[]> {
+    const createUploadTask = async (file: Express.Multer.File) => {
+      try {
+        const blob = new Blob([file.buffer], { type: file.mimetype });
+        const fileObject = new File([blob], file.originalname, {
+          type: file.mimetype,
+        });
+
+        return this.storage.upload.file(fileObject);
+      } catch (error) {
+        console.error("Upload error details:", {
+          error,
+          file: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        });
+
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        throw new Error(
+          `Failed to upload file ${file.originalname}: ${errorMessage}`
+        );
+      }
+    };
+
+    // Create an array of upload promises
+    const uploadPromises = files.map((file) => createUploadTask(file));
+
+    // Process uploads concurrently with error handling
+    try {
+      const responses = await Promise.all(uploadPromises);
+      return responses;
+    } catch (error) {
+      // If any upload fails, the error will be caught here
+      throw error;
+    }
+  }
+
   async createAndUploadBatchMetadata(
     files: Express.Multer.File[],
     quantity: number,
@@ -273,34 +314,34 @@ class NFTService {
       throw new Error("No files uploaded or files are not in expected format");
     }
 
-    const imageUploadResponses: PinResponse[] = [];
-    for (const file of files) {
-      try {
-        const blob = new Blob([file.buffer], { type: file.mimetype });
-        const fileObject = new File([blob], file.originalname, {
-          type: file.mimetype,
-        });
+    const imageUploadResponses: PinResponse[] = await this.uploadImages(files);
+    // for (const file of files) {
+    //   try {
+    //     const blob = new Blob([file.buffer], { type: file.mimetype });
+    //     const fileObject = new File([blob], file.originalname, {
+    //       type: file.mimetype,
+    //     });
 
-        const response: PinResponse = await this.storage.upload.file(
-          fileObject
-        );
-        imageUploadResponses.push(response);
-      } catch (error) {
-        console.error("Upload error details:", {
-          error,
-          file: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-        });
+    //     const response: PinResponse = await this.storage.upload.file(
+    //       fileObject
+    //     );
+    //     imageUploadResponses.push(response);
+    //   } catch (error) {
+    //     console.error("Upload error details:", {
+    //       error,
+    //       file: file.originalname,
+    //       mimetype: file.mimetype,
+    //       size: file.size,
+    //     });
 
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error occurred";
+    //     const errorMessage =
+    //       error instanceof Error ? error.message : "Unknown error occurred";
 
-        throw new Error(
-          `Failed to upload file ${file.originalname}: ${errorMessage}`
-        );
-      }
-    }
+    //     throw new Error(
+    //       `Failed to upload file ${file.originalname}: ${errorMessage}`
+    //     );
+    //   }
+    // }
 
     // Create metadata objects for all NFTs using the IPFS hashes from the image uploads
     const metadataObjects = imageUploadResponses.map(

@@ -170,6 +170,7 @@ export const collectibleServices = {
       ),
       listRepository.getActiveListCountByCollectionid(collectionId),
     ]);
+    console.log(listableCollectibles[0]);
     if (!listableCollectibles[0].contractAddress) {
       throw new Error("collectible not found.");
     }
