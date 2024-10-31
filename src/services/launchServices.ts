@@ -21,7 +21,7 @@ import { sendRawTransactionWithNode } from "../../blockchain/utxo/fractal/libs";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import { CustomError } from "../exceptions/CustomError";
 import { Insertable } from "kysely";
-import { Collectible } from "../types/db/types";
+import { Collectible, LaunchItem } from "../types/db/types";
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
 import LaunchpadService from "../../blockchain/evm/services/launchpadService";
@@ -118,13 +118,17 @@ export const launchServices = {
       index++;
     }
 
-    let launchItems;
+    let launchItems, insertableLaunchItems: Insertable<LaunchItem>[];
     try {
-      launchItems = await createLaunchItems(launch.id, nftMetadatas);
+      insertableLaunchItems = await uploadFilesAndReturnLaunchItems(
+        launch.id,
+        nftMetadatas
+      );
     } catch (e) {
       forceReleaseSlot(collection.id);
       throw e;
     }
+    launchItems = await launchItemRepository.bulkInsert(insertableLaunchItems);
 
     let updatedCollection;
     const isComplete = await updateProgress(collection.id);
@@ -422,20 +426,38 @@ export const launchServices = {
   },
 };
 
-async function createLaunchItems(
+// async function createLaunchItems(
+//   launchId: string,
+//   nftMetadatas: nftMetaData[]
+// ): Promise<any[]> {
+//   return await Promise.all(
+//     nftMetadatas.map(async (metadata) => {
+//       const key = randomUUID();
+//       if (metadata.file) await uploadToS3(key, metadata.file);
+//       return await launchItemRepository.create({
+//         launchId,
+//         fileKey: key,
+//         evmAssetId: metadata.nftId,
+//         name: metadata.name,
+//       });
+//     })
+//   );
+// }
+
+async function uploadFilesAndReturnLaunchItems(
   launchId: string,
   nftMetadatas: nftMetaData[]
-): Promise<any[]> {
+): Promise<Insertable<LaunchItem>[]> {
   return await Promise.all(
     nftMetadatas.map(async (metadata) => {
       const key = randomUUID();
       if (metadata.file) await uploadToS3(key, metadata.file);
-      return await launchItemRepository.create({
+      return {
         launchId,
         fileKey: key,
         evmAssetId: metadata.nftId,
         name: metadata.name,
-      });
+      };
     })
   );
 }

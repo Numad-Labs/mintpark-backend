@@ -166,4 +166,15 @@ export const launchItemRepository = {
 
     return launchItem;
   },
+  bulkInsert: async (data: Insertable<LaunchItem>[]) => {
+    const launchItem = await db
+      .insertInto("LaunchItem")
+      .values(data)
+      .returningAll()
+      .executeTakeFirstOrThrow(
+        () => new Error("Couldnt create the launch item.")
+      );
+
+    return launchItem;
+  },
 };
