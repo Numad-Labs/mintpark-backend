@@ -77,6 +77,7 @@ export const collectibleControllers = {
         data: {
           collectibles: result.listableCollectibles,
           listedCollectibleCount: result.activeListCount,
+          totalOwnerCount: result.totalOwnerCount,
         },
       });
     } catch (e) {

@@ -193,6 +193,7 @@ export const launchServices = {
     const pickedLaunchItem = await launchItemRepository.setOnHoldById(
       launchItem.id
     );
+    console.log("🚀 ~ pickedLaunchItem:", pickedLaunchItem);
     const file = await getObjectFromS3(pickedLaunchItem.fileKey);
 
     if (layer.layer === "CITREA" && layer.network === "TESTNET") {
@@ -202,6 +203,9 @@ export const launchServices = {
         throw new Error("Contract address not found.");
 
       console.log(collection.contractAddress);
+      // if (!pickedLaunchItem.metadata)
+      //   throw new Error("NFT metadata not found.");
+
       console.log(issuerId);
       const unsignedTx =
         await launchPadService.getUnsignedLaunchMintTransaction(

@@ -238,6 +238,7 @@ class NFTService {
       }
 
       // Combine transactions using multicall
+
       const multicallTx =
         await marketplaceContract.multicall.populateTransaction([
           unsignedTx.data,
@@ -260,7 +261,7 @@ class NFTService {
     }
   }
 
-  private async createAndUploadBatchMetadata(
+  async createAndUploadBatchMetadata(
     files: Express.Multer.File[],
     quantity: number,
     name: string

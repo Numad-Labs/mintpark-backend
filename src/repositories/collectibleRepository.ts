@@ -205,6 +205,7 @@ export const collectibleRepository = {
         "Collectible.fileKey",
         "Collectible.collectionId",
         "Collection.name as collectionName",
+        "Collection.contractAddress",
         eb.fn.coalesce("CurrentList.price", sql<number>`0`).as("price"),
         "FloorPrices.floor",
         sql`
