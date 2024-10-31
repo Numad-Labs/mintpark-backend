@@ -50,7 +50,6 @@ export const collectibleControllers = {
       next(e);
     }
   },
-
   getListableCollectiblesByCollectionId: async (
     req: Request<{ collectionId: string }, {}, {}, CollectibleQueryParams>,
     res: Response,
@@ -100,7 +99,6 @@ export const collectibleControllers = {
       next(e);
     }
   },
-
   getTokenActivity: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { collectibleId } = req.params;

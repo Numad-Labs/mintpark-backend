@@ -98,7 +98,7 @@ export const orderItemRepository = {
         "Layer.layer",
       ])
       .where("Order.id", "=", orderId)
-      .where('OrderItem.status', '=', 'PENDING')
+      .where("OrderItem.status", "=", "PENDING")
       .execute();
   },
   updateByOrderId: async (orderId: string, data: Updateable<OrderItem>) => {
@@ -107,6 +107,7 @@ export const orderItemRepository = {
       .set(data)
       .returningAll()
       .where("OrderItem.orderId", "=", orderId)
+      .where("OrderItem.status", "!=", "MINTED")
       .execute();
 
     return orderItems;
@@ -116,7 +117,8 @@ export const orderItemRepository = {
       .selectFrom("OrderItem")
       .innerJoin("Order", "Order.id", "OrderItem.orderId")
       .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
-      .where('Order.collectionId', "=", collectionId)
+      .where("Order.collectionId", "=", collectionId)
+      .where("OrderItem.status", "!=", "MINTED")
       .executeTakeFirst();
 
     return result?.count;
