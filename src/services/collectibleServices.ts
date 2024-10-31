@@ -170,10 +170,19 @@ export const collectibleServices = {
       ),
       listRepository.getActiveListCountByCollectionid(collectionId),
     ]);
+    if (!listableCollectibles[0].contractAddress) {
+      throw new Error("collectible not found.");
+    }
+
+    const totalOwnerCount =
+      await evmCollectibleService.getCollectionOwnersCount(
+        listableCollectibles[0].contractAddress
+      );
 
     return {
       listableCollectibles,
       activeListCount: countResult?.activeListCount ?? 0,
+      totalOwnerCount,
     };
   },
 

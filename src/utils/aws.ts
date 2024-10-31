@@ -95,3 +95,55 @@ export async function deleteFromS3(key: string) {
     Key: key,
   });
 }
+interface S3FileResponse {
+  contentType: string | undefined;
+  content: string;
+}
+
+export async function createMetadataFromS3File(
+  fileKey: string,
+  name: string,
+  storage: any // Your storage service for IPFS
+): Promise<string> {
+  try {
+    // Get the file from S3 using your existing function
+    const file = await getObjectFromS3(fileKey);
+
+    // Create the data URL from the file content
+    const dataUrl = `data:${file.contentType};base64,${file.content}`;
+
+    // Convert data URL to blob
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+
+    // Create a File object
+    const fileObject = new File([blob], fileKey.split("/").pop() || "unnamed", {
+      type: file.contentType || "application/octet-stream",
+    });
+
+    // Upload to IPFS
+    const imageResponse: PinResponse = await storage.upload.file(fileObject);
+
+    // Create metadata object
+    const metadata = {
+      name: name || "Unnamed NFT",
+      image: `ipfs://${imageResponse.IpfsHash}`,
+    };
+
+    // Upload metadata to IPFS
+    const metadataResponse: PinResponse = await storage.upload.json(metadata);
+
+    return `ipfs://${metadataResponse.IpfsHash}`;
+  } catch (error) {
+    console.error("Error in createMetadataFromS3File:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
+    throw new Error(`Failed to create metadata from S3 file: ${errorMessage}`);
+  }
+}
+// Example interface for PinResponse (adjust according to your actual types)
+interface PinResponse {
+  IpfsHash: string;
+  PinSize?: number;
+  Timestamp?: string;
+}

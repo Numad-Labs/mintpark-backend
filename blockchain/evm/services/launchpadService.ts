@@ -8,6 +8,8 @@ import { TransactionConfirmationService } from "./transactionConfirmationService
 import { PinataSDK } from "pinata-web3";
 import { config } from "../../../src/config/config";
 import { LaunchConfig } from "../../../custom";
+import { createMetadataFromS3File } from "../../../src/utils/aws";
+import { launchItemRepository } from "../../../src/repositories/launchItemRepository";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
@@ -230,23 +232,24 @@ class LaunchpadService {
     buyer: string,
     collectionAddress: string
   ): Promise<ethers.TransactionRequest> {
-    // // Validate launch status
-    // this.validateLaunchStatus(launch);
-
     const signer = await this.provider.getSigner();
-    // // Get random available item
-    // const selectedItem = this.getRandomAvailableItem(launchItems);
-    // if (!selectedItem) {
-    //   throw new CustomError("No available items to mint", 400);
-    // }
 
     // Generate tokenId if not already set
     const tokenId = winnerItem.evmAssetId
       ? parseInt(winnerItem.evmAssetId)
       : this.generateTokenId(winnerItem);
 
-    // Prepare metadata URI
-    const metadataURI = await this.storage.upload.json(winnerItem.metadata);
+    const metadataURI = await createMetadataFromS3File(
+      winnerItem.fileKey,
+      winnerItem.name || "Unnamed NFT",
+      this.storage
+    );
+
+    console.log("🚀 ~ LaunchpadService ~ metadataURI:", metadataURI);
+
+    await launchItemRepository.update(winnerItem.id, {
+      ipfsUrl: metadataURI,
+    });
 
     const nftContract = new ethers.Contract(
       collectionAddress,

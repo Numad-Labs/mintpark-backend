@@ -7,95 +7,12 @@ import { NFTActivity, NFTActivityType } from "../evm-types";
 export class EVMCollectibleService {
   private provider: ethers.JsonRpcProvider;
   private BLOCK_RANGE = 1000;
+  private BATCH_SIZE = 5; // Process collections in batches
+  private DELAY_BETWEEN_BATCHES = 1000; // 1 second delay between batches
 
   constructor(providerUrl: string) {
     this.provider = new ethers.JsonRpcProvider(providerUrl);
   }
-
-  // async getOwnedTokens(contractAddress: string, ownerAddress: string) {
-  //   if (!ethers.isAddress(contractAddress)) {
-  //     throw new CustomError(
-  //       `Invalid contract address: ${contractAddress}`,
-  //       400
-  //     );
-  //   }
-  //   if (!ethers.isAddress(ownerAddress)) {
-  //     throw new CustomError(`Invalid owner address: ${ownerAddress}`, 400);
-  //   }
-  //   try {
-  //     // Validate inputs
-  //     if (!ethers.isAddress(contractAddress)) {
-  //       throw new CustomError(
-  //         `Invalid contract address: ${contractAddress}`,
-  //         400
-  //       );
-  //     }
-  //     if (!ethers.isAddress(ownerAddress)) {
-  //       throw new CustomError(`Invalid owner address: ${ownerAddress}`, 400);
-  //     }
-
-  //     // Create contract instance
-  //     const contract = new ethers.Contract(
-  //       contractAddress,
-  //       EVM_CONFIG.NFT_CONTRACT_ABI,
-  //       this.provider
-  //     );
-
-  //     const balance = await contract.balanceOf(ownerAddress);
-  //     console.log(
-  //       "🚀 ~ EVMCollectibleService ~ getOwnedTokens ~ balance:",
-  //       balance
-  //     );
-  //     const balanceNumber = Number(balance);
-
-  //     if (balanceNumber === 0) {
-  //       return [];
-  //     }
-  //     // return this.getOwnedTokensByEvents(contract, ownerAddress);
-
-  //     // Get all token IDs
-  //     const BATCH_SIZE = 25;
-  //     const allTokenIds: string[] = [];
-  //     for (
-  //       let startIndex = 0;
-  //       startIndex < balanceNumber;
-  //       startIndex += BATCH_SIZE
-  //     ) {
-  //       const endIndex = Math.min(startIndex + BATCH_SIZE, balanceNumber);
-  //       const batchPromises = [];
-
-  //       for (let i = startIndex; i < endIndex; i++) {
-  //         batchPromises.push(
-  //           contract
-  //             .tokenOfOwnerByIndex(ownerAddress, i)
-  //             .then((tokenId: bigint) => tokenId.toString())
-  //             .catch((error: any) => {
-  //               // console.error(`Failed to get token at index ${i}:`, error);
-  //               return null;
-  //             })
-  //         );
-  //       }
-
-  //       // Add delay between batches to prevent rate limiting
-  //       if (startIndex > 0) {
-  //         await new Promise((resolve) => setTimeout(resolve, 1000));
-  //       }
-
-  //       const batchResults = await Promise.all(batchPromises);
-  //       allTokenIds.push(
-  //         ...batchResults.filter((id): id is string => id !== null)
-  //       );
-  //     }
-
-  //     return allTokenIds;
-  //   } catch (error) {
-  //     console.error(`Error in getOwnedTokens for ${ownerAddress}:`, error);
-
-  //     if (error instanceof CustomError) {
-  //       throw error;
-  //     }
-  //   }
-  // }
 
   async getOwnedTokens(contractAddress: string, ownerAddress: string) {
     if (!ethers.isAddress(contractAddress)) {
@@ -126,8 +43,6 @@ export class EVMCollectibleService {
         return [];
       }
 
-      // Get all token IDs
-      const BATCH_SIZE = 10; // Reduced batch size
       const allTokenIds: string[] = [];
 
       // Process one token at a time to prevent concurrent requests
@@ -196,69 +111,89 @@ export class EVMCollectibleService {
     return results;
   }
 
-  // Fallback method using events
-  private async getOwnedTokensByEvents(
-    contract: Contract,
-    ownerAddress: string
-  ): Promise<string[]> {
+  async getCollectionOwnersCount(contractAddress: string): Promise<number> {
+    if (!ethers.isAddress(contractAddress)) {
+      throw new CustomError(
+        `Invalid contract address: ${contractAddress}`,
+        400
+      );
+    }
+
     try {
-      // Get transfer events
-      const filter = contract.filters.Transfer(null, ownerAddress);
-      const events = await contract.queryFilter(filter);
+      const contract = new Contract(
+        contractAddress,
+        EVM_CONFIG.NFT_CONTRACT_ABI,
+        this.provider
+      );
 
-      // Get unique token IDs
-      const tokenIds = new Set<string>();
+      // Get total supply of tokens
+      const totalSupply = await contract.totalSupply();
+      const totalSupplyNum = Number(totalSupply);
 
-      for (const event of events) {
-        // Check if event is EventLog (has args) or Log (doesn't have args)
-        if (event instanceof EventLog) {
-          const tokenId = event.args[2]; // Third argument is tokenId
-          if (tokenId) {
-            try {
-              // Check if the owner still owns this token
-              const currentOwner = await contract.ownerOf(tokenId);
-              if (currentOwner.toLowerCase() === ownerAddress.toLowerCase()) {
-                tokenIds.add(tokenId.toString());
-              }
-            } catch (error) {
-              console.warn(
-                `Failed to verify ownership of token ${tokenId}:`,
-                error
-              );
-            }
+      // Use Set to track unique owners
+      const uniqueOwners = new Set<string>();
+
+      // Process tokens in batches to avoid rate limiting
+      for (let i = 0; i < totalSupplyNum; i++) {
+        try {
+          const owner = await contract.ownerOf(i);
+          uniqueOwners.add(owner.toLowerCase());
+
+          // Add delay every BATCH_SIZE tokens
+          if ((i + 1) % this.BATCH_SIZE === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 200));
           }
-        } else {
-          // Handle old-style logs
-          const decodedData = contract.interface.parseLog({
-            topics: event.topics,
-            data: event.data,
-          });
-
-          if (decodedData?.args) {
-            const tokenId = decodedData.args[2]; // Third argument is tokenId
-            if (tokenId) {
-              try {
-                const currentOwner = await contract.ownerOf(tokenId);
-                if (currentOwner.toLowerCase() === ownerAddress.toLowerCase()) {
-                  tokenIds.add(tokenId.toString());
-                }
-              } catch (error) {
-                console.warn(
-                  `Failed to verify ownership of token ${tokenId}:`,
-                  error
-                );
-              }
-            }
-          }
+        } catch (error) {
+          console.error(`Error fetching owner for token ${i}:`, error);
+          continue; // Skip failed tokens
         }
       }
 
-      return Array.from(tokenIds);
+      return uniqueOwners.size;
     } catch (error) {
-      console.error("Failed to get tokens by events:", error);
-      return [];
+      console.error(
+        `Error getting owners count for ${contractAddress}:`,
+        error
+      );
+      throw error;
     }
   }
+
+  async getAllCollectionsOwnersCount(
+    contractAddresses: string[]
+  ): Promise<Record<string, number>> {
+    const results: Record<string, number> = {};
+
+    // Process collections in batches
+    for (let i = 0; i < contractAddresses.length; i += this.BATCH_SIZE) {
+      const batch = contractAddresses.slice(i, i + this.BATCH_SIZE);
+      const batchPromises = batch.map(async (address) => {
+        try {
+          const count = await this.getCollectionOwnersCount(address);
+          return { address, count };
+        } catch (error) {
+          console.error(`Error processing collection ${address}:`, error);
+          return { address, count: 0 };
+        }
+      });
+
+      // Wait for current batch to complete
+      const batchResults = await Promise.all(batchPromises);
+      batchResults.forEach(({ address, count }) => {
+        results[address] = count;
+      });
+
+      // Add delay between batches
+      if (i + this.BATCH_SIZE < contractAddresses.length) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.DELAY_BETWEEN_BATCHES)
+        );
+      }
+    }
+
+    return results;
+  }
+
   async getEVMCollections(collectionIds?: string[]) {
     let query = db
       .selectFrom("Collection")
