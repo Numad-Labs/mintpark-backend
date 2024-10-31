@@ -136,15 +136,33 @@ export class EVMCollectibleService {
       // Process tokens in batches to avoid rate limiting
       for (let i = 0; i < totalSupplyNum; i++) {
         try {
-          const owner = await contract.ownerOf(i);
+          // Get the actual token ID at this index
+          const tokenId = await contract.tokenByIndex(i);
+
+          // Get the owner of this token
+          const owner = await contract.ownerOf(tokenId);
           uniqueOwners.add(owner.toLowerCase());
 
           // Add delay every BATCH_SIZE tokens
           if ((i + 1) % this.BATCH_SIZE === 0) {
             await new Promise((resolve) => setTimeout(resolve, 200));
           }
-        } catch (error) {
-          console.error(`Error fetching owner for token ${i}:`, error);
+        } catch (err: unknown) {
+          // const error = err as ContractError;
+
+          // // Check if the contract doesn't support ERC721Enumerable
+          // if (
+          //   i === 0 &&
+          //   error.message &&
+          //   error.message.includes("tokenByIndex")
+          // ) {
+          //   throw new CustomError(
+          //     "Contract doesn't support ERC721Enumerable interface",
+          //     400
+          //   );
+          // }
+
+          console.error(`Error fetching owner for index ${i}:`, err);
           continue; // Skip failed tokens
         }
       }
