@@ -6,7 +6,7 @@ import { verifyRefreshToken } from "../utils/jwt";
 import { userServices } from "../services/userServices";
 import { CustomError } from "../exceptions/CustomError";
 import { AuthenticatedRequest } from "../../custom";
-import { get } from "http";
+import { hideSensitiveData } from "../libs/hideDataHelper";
 
 export const userController = {
   generateMessageToSign: async (
@@ -114,8 +114,11 @@ export const userController = {
 
     try {
       const user = await userRepository.getById(id);
+      if (!user) return res.status(200).json({ success: true, data: null });
 
-      return res.status(200).json({ success: true, data: user });
+      const sanitizedUser = await hideSensitiveData(user, ["pubkey", "xpub"]);
+
+      return res.status(200).json({ success: true, data: sanitizedUser });
     } catch (e) {
       next(e);
     }
@@ -125,8 +128,11 @@ export const userController = {
 
     try {
       const user = await userRepository.getByAddress(address);
+      if (!user) return res.status(200).json({ success: true, data: null });
 
-      return res.status(200).json({ success: true, data: user });
+      const sanitizedUser = await hideSensitiveData(user, ["pubkey", "xpub"]);
+
+      return res.status(200).json({ success: true, data: sanitizedUser });
     } catch (e) {
       next(e);
     }

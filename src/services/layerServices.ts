@@ -1,10 +1,12 @@
+import { CustomError } from "../exceptions/CustomError";
 import { layerRepository } from "../repositories/layerRepository";
 import { LAYER, NETWORK } from "../types/db/enums";
 
 export const layerServices = {
   create: async (name: string, layer: LAYER, network: NETWORK) => {
     const existingLayer = await layerRepository.getByName(name);
-    if (existingLayer.length > 1) throw new Error("Layer already exists.");
+    if (existingLayer.length > 1)
+      throw new CustomError("Layer already exists.", 400);
 
     const newLayer = await layerRepository.create({
       name,
@@ -16,7 +18,7 @@ export const layerServices = {
   },
   update: async (id: string, data: any) => {
     const existingLayer = await layerRepository.getById(id);
-    if (!existingLayer) throw new Error("No layer found.");
+    if (!existingLayer) throw new CustomError("No layer found.", 400);
 
     const layer = await layerRepository.update(id, data);
 
@@ -24,7 +26,7 @@ export const layerServices = {
   },
   delete: async (id: string) => {
     const existingLayer = await layerRepository.getById(id);
-    if (!existingLayer) throw new Error("No layer found.");
+    if (!existingLayer) throw new CustomError("No layer found.", 400);
 
     const layer = await layerRepository.delete(id);
 

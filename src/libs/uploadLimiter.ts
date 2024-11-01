@@ -38,9 +38,6 @@ export type FileUpload = {
   content: Buffer;
 };
 
-/**
- * Remove stale collections based on timeout
- */
 export const cleanupStaleCollections = async (): Promise<void> => {
   try {
     const now = new Date();
@@ -71,9 +68,6 @@ export const cleanupStaleCollections = async (): Promise<void> => {
   }
 };
 
-/**
- * Attempt to acquire a slot for collection processing
- */
 export const acquireSlot = async (
   collectionId: string,
   totalBatches: number
@@ -122,9 +116,6 @@ export const acquireSlot = async (
   }
 };
 
-/**
- * Update collection progress and check if complete
- */
 export const updateProgress = async (
   collectionId: string
 ): Promise<boolean> => {
@@ -166,9 +157,6 @@ export const updateProgress = async (
   }
 };
 
-/**
- * Force release a collection slot
- */
 export const forceReleaseSlot = async (collectionId: string): Promise<void> => {
   try {
     const collectionKey = REDIS_KEYS.getCollectionKey(collectionId);
@@ -180,9 +168,6 @@ export const forceReleaseSlot = async (collectionId: string): Promise<void> => {
   }
 };
 
-/**
- * Get system capacity information
- */
 export const getSystemCapacity = async () => {
   try {
     const activeCollections = await redis.keys(
@@ -194,7 +179,6 @@ export const getSystemCapacity = async () => {
       available: currentLoad < config.MAX_CONCURRENT_COLLECTIONS,
       currentLoad,
       maxCapacity: config.MAX_CONCURRENT_COLLECTIONS,
-      // estimatedWaitTime: calculateEstimatedWaitTime(currentLoad),
     };
   } catch (error) {
     logger.error("Error getting system capacity:", error);

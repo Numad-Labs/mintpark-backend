@@ -33,6 +33,7 @@ import {
   GetAllValidListingParams,
   getAllValidListings,
 } from "thirdweb/extensions/marketplace";
+import { db } from "../utils/db";
 
 // import MarketplaceService from "./marketplaceService";
 const marketplaceService = new MarketplaceService(
@@ -63,124 +64,128 @@ export const listServices = {
       throw new CustomError("Collectible not found.", 400);
 
     const collection = await collectionRepository.getById(
+      db,
       collectible?.collectionId
     );
-    if (!collection || !collection.contractAddress)
-      throw new CustomError("Contract address not found.", 400);
 
     if (!collectible) throw new CustomError("Collectible not found.", 400);
-    if (collectible.layer !== "FRACTAL" && collectible.network !== "TESTNET")
-      throw new CustomError("This layer is not supported ATM.", 400);
 
     let list;
 
-    if (collectible.layer === "CITREA") {
-      const marketplaceContract =
-        await marketplaceService.getEthersMarketplaceContract();
-      if (!marketplaceContract) {
-        throw new CustomError("Could not find marketplace contract", 500);
-      }
-      const signer = await nftService.provider.getSigner();
-      const nftContract = new ethers.Contract(
-        collection.contractAddress,
-        EVM_CONFIG.NFT_CONTRACT_ABI,
-        signer
-      );
-
-      // Check if the marketplace is already approved
-      const isApproved = await nftContract.isApprovedForAll(
-        issuer.address,
-        EVM_CONFIG.MARKETPLACE_ADDRESS
-      );
-      console.log("🚀 ~ isApproved:", isApproved);
-
-      if (!isApproved) {
-        if (!txid) throw new CustomError("txid is missing", 400);
-        const transactionDetail =
-          await confirmationService.getTransactionDetails(txid);
-        if (transactionDetail.status !== 1) {
-          throw new CustomError(
-            "Transaction not confirmed. Please try again.",
-            500
-          );
+    return await db.transaction().execute(async (trx) => {
+      if (collectible.layer === "CITREA") {
+        const marketplaceContract =
+          await marketplaceService.getEthersMarketplaceContract();
+        if (!marketplaceContract) {
+          throw new Error("Could not find marketplace contract.");
         }
-      }
-      const tokenId = collectible.uniqueIdx.split("i")[1];
+        if (!collection || !collection.contractAddress)
+          throw new CustomError("Contract address not found.", 400);
 
-      // Create listing transaction
-      const unsignedTx = await marketplaceContract.listItem.populateTransaction(
-        collection.contractAddress,
-        tokenId,
-        ethers.parseEther(price.toString())
-      );
-
-      const preparedListingTx = await nftService.prepareUnsignedTransaction(
-        unsignedTx,
-        issuer.address
-      );
-
-      const serializedTx = serializeBigInt(preparedListingTx);
-      list = await listRepository.create({
-        collectibleId: collectible.id,
-        sellerId: issuer.id,
-        address: issuer.address,
-        privateKey: "evm",
-        price: price,
-        // inscribedAmount: price,
-      });
-
-      const sanitizedList = hideSensitiveData(list, [
-        "privateKey",
-        "vaultTxid",
-        "vaultVout",
-      ]);
-
-      return { sanitizedList, preparedListingTx: serializedTx };
-    } else if (collectible.layer === "FRACTAL") {
-      const inscription = await getInscriptionInfo(collectible.uniqueIdx);
-      if (!inscription)
-        throw new CustomError(
-          "Invalid inscriptionId, this inscription cant be sold.",
-          400
-        );
-      if (inscription.address !== issuer.address)
-        throw new CustomError(
-          "You are not the owner of this inscription.",
-          400
-        );
-      if (!inscription.utxo.satoshi)
-        throw new CustomError("No inscription satoshi amount found.", 400);
-
-      const latestPendingList =
-        await listRepository.getLatestPendingListByCollectibleId(
-          collectible.id
-        );
-      if (latestPendingList)
-        await listRepository.cancelPendingListingsByCollectibleId(
-          collectible.id
+        const signer = await nftService.provider.getSigner();
+        const nftContract = new ethers.Contract(
+          collection.contractAddress,
+          EVM_CONFIG.NFT_CONTRACT_ABI,
+          signer
         );
 
-      const vault = createFundingAddress(
-        collectible.layer,
-        collectible.network
-      );
-      list = await listRepository.create({
-        collectibleId: collectible.id,
-        sellerId: issuer.id,
-        address: vault.address,
-        privateKey: vault.privateKey,
-        price: price,
-        inscribedAmount: inscription.utxo.satoshi,
-      });
+        // Check if the marketplace is already approved
+        const isApproved = await nftContract.isApprovedForAll(
+          issuer.address,
+          EVM_CONFIG.MARKETPLACE_ADDRESS
+        );
 
-      const sanitizedList = hideSensitiveData(list, [
-        "privateKey",
-        "vaultTxid",
-        "vaultVout",
-      ]);
+        if (!isApproved) {
+          if (!txid) throw new CustomError("txid is missing", 400);
+          const transactionDetail =
+            await confirmationService.getTransactionDetails(txid);
+          if (transactionDetail.status !== 1) {
+            throw new CustomError(
+              "Transaction not confirmed. Please try again.",
+              500
+            );
+          }
+        }
+        const tokenId = collectible.uniqueIdx.split("i")[1];
 
-      return sanitizedList;
-    } else throw new CustomError("Unsupported layer.", 400);
+        // Create listing transaction
+        const unsignedTx =
+          await marketplaceContract.listItem.populateTransaction(
+            collection.contractAddress,
+            tokenId,
+            ethers.parseEther(price.toString())
+          );
+
+        const preparedListingTx = await nftService.prepareUnsignedTransaction(
+          unsignedTx,
+          issuer.address
+        );
+
+        const serializedTx = serializeBigInt(preparedListingTx);
+        list = await listRepository.create(trx, {
+          collectibleId: collectible.id,
+          sellerId: issuer.id,
+          address: issuer.address,
+          privateKey: "evm",
+          price: price,
+          // inscribedAmount: price,
+        });
+
+        const sanitizedList = hideSensitiveData(list, [
+          "privateKey",
+          "vaultTxid",
+          "vaultVout",
+        ]);
+
+        return { sanitizedList, preparedListingTx: serializedTx };
+      } else if (collectible.layer === "FRACTAL") {
+        const inscription = await getInscriptionInfo(collectible.uniqueIdx);
+        if (!inscription)
+          throw new CustomError(
+            "Invalid inscriptionId, this inscription cant be sold.",
+            400
+          );
+        if (inscription.address !== issuer.address)
+          throw new CustomError(
+            "You are not the owner of this inscription.",
+            400
+          );
+        if (!inscription.utxo.satoshi)
+          throw new CustomError("No inscription satoshi amount found.", 400);
+
+        const latestPendingList =
+          await listRepository.getLatestPendingListByCollectibleId(
+            trx,
+            collectible.id
+          );
+        if (latestPendingList)
+          await listRepository.cancelPendingListingsByCollectibleId(
+            trx,
+            collectible.id
+          );
+
+        const vault = createFundingAddress(
+          collectible.layer,
+          collectible.network
+        );
+        list = await listRepository.create(trx, {
+          collectibleId: collectible.id,
+          sellerId: issuer.id,
+          address: vault.address,
+          privateKey: vault.privateKey,
+          price: price,
+          inscribedAmount: inscription.utxo.satoshi,
+        });
+
+        const sanitizedList = hideSensitiveData(list, [
+          "privateKey",
+          "vaultTxid",
+          "vaultVout",
+        ]);
+
+        return sanitizedList;
+      } else throw new CustomError("Unsupported layer.", 400);
+    });
   },
   confirmPendingList: async (
     id: string,
@@ -190,7 +195,6 @@ export const listServices = {
     issuerId: string
   ) => {
     const list = await listRepository.getById(id);
-    console.log("🚀 ~ list:", list);
     if (!list) throw new CustomError("No list found.", 400);
     if (list.status !== "PENDING")
       throw new CustomError("This list is could not be confirmed.", 400);
@@ -200,22 +204,53 @@ export const listServices = {
         400
       );
 
-    if (list.layer === "CITREA") {
-      // avsan txid-gaa validate hiine, listiin state update hiine
-      if (!txid) throw new CustomError("txid is missing", 500);
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
-      if (transactionDetail.status !== 1) {
-        throw new CustomError(
-          "Transaction not confirmed. Please try again.",
-          500
-        );
-      }
-      const updatedList = await listRepository.update(list.id, {
+    return await db.transaction().execute(async (trx) => {
+      if (list.layer === "CITREA") {
+        if (!txid) throw new CustomError("txid is missing", 400);
+        const transactionDetail =
+          await confirmationService.getTransactionDetails(txid);
+        if (transactionDetail.status !== 1) {
+          throw new CustomError(
+            "Transaction not confirmed. Please try again.",
+            400
+          );
+        }
+        const updatedList = await listRepository.update(trx, list.id, {
+          status: "ACTIVE",
+          vaultTxid: txid,
+          vaultVout: 0,
+          inscribedAmount: inscribedAmount,
+        });
+
+        const sanitizedList = hideSensitiveData(updatedList, [
+          "privateKey",
+          "vaultTxid",
+          "vaultVout",
+        ]);
+
+        return sanitizedList;
+      } else if (list.layer === "FRACTAL") {
+        const inscription = await getInscriptionInfo(list.uniqueIdx);
+        if (!inscription)
+          throw new CustomError(
+            "Invalid inscriptionId, this inscription cant be sold.",
+            400
+          );
+        if (inscription.address !== list.address)
+          throw new CustomError(
+            "Collectible has not been transferred yet.",
+            400
+          );
+        if (!inscription.utxo.satoshi)
+          throw new CustomError("No inscription satoshi amount found.", 400);
+        if (inscription.utxo.satoshi !== inscribedAmount)
+          throw new CustomError("Invalid inscribed amount.", 400);
+      } else throw new CustomError("Unsupported layer.", 400);
+
+      const updatedList = await listRepository.update(trx, list.id, {
         status: "ACTIVE",
         vaultTxid: txid,
-        vaultVout: 0,
+        vaultVout: vout,
         inscribedAmount: inscribedAmount,
       });
 
@@ -226,39 +261,10 @@ export const listServices = {
       ]);
 
       return sanitizedList;
-    } else if (list.layer === "FRACTAL") {
-      const inscription = await getInscriptionInfo(list.uniqueIdx);
-      if (!inscription)
-        throw new CustomError(
-          "Invalid inscriptionId, this inscription cant be sold.",
-          400
-        );
-      if (inscription.address !== list.address)
-        throw new CustomError("Collectible has not been transferred yet.", 400);
-      if (!inscription.utxo.satoshi)
-        throw new CustomError("No inscription satoshi amount found.", 400);
-      if (inscription.utxo.satoshi !== inscribedAmount)
-        throw new CustomError("Invalid inscribed amount.", 400);
-    } else throw new CustomError("Unsupported layer.", 400);
-
-    const updatedList = await listRepository.update(list.id, {
-      status: "ACTIVE",
-      vaultTxid: txid,
-      vaultVout: vout,
-      inscribedAmount: inscribedAmount,
     });
-
-    const sanitizedList = hideSensitiveData(updatedList, [
-      "privateKey",
-      "vaultTxid",
-      "vaultVout",
-    ]);
-
-    return sanitizedList;
   },
   generateBuyPsbtHex: async (id: string, feeRate: number, issuerId: string) => {
     const list = await listRepository.getById(id);
-    console.log("🚀 ~ generateBuyPsbtHex: ~ list:", list);
     if (!list) throw new CustomError("No list found.", 400);
     if (list.status !== "ACTIVE")
       throw new CustomError("This list is could not be bought.", 400);
@@ -267,17 +273,14 @@ export const listServices = {
     if (!seller) throw new CustomError("Seller not found.", 400);
 
     const buyer = await userRepository.getById(issuerId);
-    console.log("🚀 ~ generateBuyPsbtHex: ~ buyer:", buyer);
     if (!buyer) throw new CustomError("User not found.", 400);
     // if (buyer.address === seller.address)
     //   throw new CustomError("You cannot buy your own listing.", 400);
 
     if (list.layer === "CITREA") {
-      //generate & return buy tx hex
       const marketplaceContract =
         await marketplaceService.getEthersMarketplaceContract();
 
-      // Verify listing is still active
       const collectible = await collectibleRepository.getById(
         list.collectibleId
       );
@@ -339,17 +342,14 @@ export const listServices = {
   },
   updateListedCollectible: async (id: string, issuerId: string) => {
     const list = await listRepository.getById(id);
-    console.log("🚀 ~ generateBuyPsbtHex: ~ list:", list);
     if (!list) throw new CustomError("No list found.", 400);
     const buyer = await userRepository.getById(issuerId);
-    console.log("🚀 ~ generateBuyPsbtHex: ~ buyer:", buyer);
     if (!buyer) throw new CustomError("User not found.", 400);
     const marketplaceContract =
       await marketplaceService.getEthersMarketplaceContract();
 
     const txHex = await marketplaceContract.buyFromListing.populateTransaction(
       list.uniqueIdx.split("i")[1],
-      // list.uniqueIdx,
       buyer.address,
       1,
       ethers.ZeroAddress, // ETH as currency
@@ -381,41 +381,40 @@ export const listServices = {
     const seller = await userRepository.getById(issuerId);
     if (!seller) throw new CustomError("Seller not found.", 400);
 
-    if (list.layer === "CITREA") {
-      //txid-gaa validate hiine, listee sold bolgono
-      if (!txid) throw new CustomError("txid is missing", 500);
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
-      if (transactionDetail.status !== 1) {
-        throw new CustomError(
-          "Transaction not confirmed. Please try again.",
-          500
+    return await db.transaction().execute(async (trx) => {
+      if (list.layer === "CITREA") {
+        if (!txid) throw new CustomError("txid is missing", 400);
+        const transactionDetail =
+          await confirmationService.getTransactionDetails(txid);
+        if (transactionDetail.status !== 1) {
+          throw new CustomError(
+            "Transaction not confirmed. Please try again.",
+            500
+          );
+        }
+        const confirmedList = await listRepository.update(trx, list.id, {
+          status: "SOLD",
+          soldAt: new Date(),
+        });
+        const buyTxId = txid;
+        return { txid: buyTxId, confirmedList };
+      } else if (list.layer === "FRACTAL") {
+        const buyTxId = await validateSignAndBroadcastBuyPsbtHex(
+          hex,
+          list.privateKey,
+          seller.address,
+          list.price
         );
-      }
-      const confirmedList = await listRepository.update(list.id, {
-        status: "SOLD",
-        soldAt: new Date(),
-      });
-      const buyTxId = txid;
-      return { txid: buyTxId, confirmedList };
-    } else if (list.layer === "FRACTAL") {
-      const buyTxId = await validateSignAndBroadcastBuyPsbtHex(
-        hex,
-        list.privateKey,
-        seller.address,
-        list.price
-      );
-      if (!buyTxId) throw new CustomError("Invalid psbt.", 400);
+        if (!buyTxId) throw new CustomError("Invalid psbt.", 400);
 
-      const confirmedList = await listRepository.update(list.id, {
-        status: "SOLD",
-        soldAt: new Date(),
-      });
+        const confirmedList = await listRepository.update(trx, list.id, {
+          status: "SOLD",
+          soldAt: new Date(),
+        });
 
-      return { txid: buyTxId, confirmedList };
-    } else throw new CustomError("Unsupported layer.", 400);
-    return { txid: "", confirmedList: [] };
+        return { txid: buyTxId, confirmedList };
+      } else throw new CustomError("Unsupported layer.", 400);
+    });
   },
   estimateFee: async (id: string, feeRate: number) => {
     const list = await listRepository.getById(id);

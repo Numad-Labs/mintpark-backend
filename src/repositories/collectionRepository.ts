@@ -1,4 +1,11 @@
-import { ExpressionBuilder, Insertable, sql, Updateable } from "kysely";
+import {
+  ExpressionBuilder,
+  Insertable,
+  Kysely,
+  sql,
+  Transaction,
+  Updateable,
+} from "kysely";
 import { db } from "../utils/db";
 import { Collection, DB } from "../types/db/types";
 import { CollectionQueryParams } from "../controllers/collectionController";
@@ -41,7 +48,11 @@ export const collectionRepository = {
 
     return collection;
   },
-  update: async (id: string, data: Updateable<Collection>) => {
+  update: async (
+    db: Kysely<DB> | Transaction<DB>,
+    id: string,
+    data: Updateable<Collection>
+  ) => {
     const collection = await db
       .updateTable("Collection")
       .returningAll()
@@ -64,7 +75,7 @@ export const collectionRepository = {
 
     return collection;
   },
-  getById: async (id: string) => {
+  getById: async (db: Kysely<DB> | Transaction<DB>, id: string) => {
     const collection = await db
       .selectFrom("Collection")
       .selectAll()

@@ -12,13 +12,22 @@ export const authenticateToken = async (
   const token = req.header("Authorization")?.split(" ")[1];
 
   if (!jwtAuthSecret) {
-    throw new Error("jwtAuthSecret is not defined.");
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: "jwtAuthSecret is not defined.",
+    });
   }
   if (!token)
-    return res.status(401).json({ message: "Authentication required" });
+    return res
+      .status(401)
+      .json({ success: false, data: null, message: "Authentication required" });
 
   jwt.verify(token, jwtAuthSecret, (err, user: any) => {
-    if (err) return res.status(401).json({ message: `Invalid token ${err}` });
+    if (err)
+      return res
+        .status(401)
+        .json({ success: false, data: null, message: `Invalid token ${err}` });
 
     req.user = user;
     next();

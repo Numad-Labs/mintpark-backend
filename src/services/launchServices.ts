@@ -34,6 +34,8 @@ import {
   forceReleaseSlot,
   updateProgress,
 } from "../libs/uploadLimiter";
+import { db } from "../utils/db";
+import logger from "../config/winston";
 
 const launchPadService = new LaunchpadService(
   EVM_CONFIG.RPC_URL,
@@ -51,17 +53,15 @@ export const launchServices = {
     totalFileCount: number,
     txid?: string
   ) => {
-    const collection = await collectionRepository.getById(data.collectionId);
+    const collection = await collectionRepository.getById(
+      db,
+      data.collectionId
+    );
     if (!collection || !collection.layerId)
-      throw new Error("Collection not found.");
+      throw new CustomError("Collection not found.", 400);
 
     const layerType = await layerRepository.getById(collection.layerId);
-    if (!layerType) throw new Error("Layer not found.");
-
-    let launch = await launchRepository.getByCollectionId(collection.id);
-    if (!launch) {
-      launch = await launchRepository.create(data);
-    }
+    if (!layerType) throw new CustomError("Layer not found.", 400);
 
     const totalBatches = Math.ceil(totalFileCount / FILE_COUNT_LIMIT);
     if (totalBatches < 1 || files.length < 1)
@@ -75,101 +75,83 @@ export const launchServices = {
       );
     }
 
-    if (layerType.layer === "CITREA" && layerType.network === "TESTNET") {
-      if (!txid) throw new Error("txid not found.");
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
+    let launch = await launchRepository.getByCollectionId(collection.id);
+    return await db.transaction().execute(async (trx) => {
+      if (layerType.layer === "CITREA" && layerType.network === "TESTNET") {
+        if (!txid) throw new CustomError("txid not found.", 400);
+        const transactionDetail =
+          await confirmationService.getTransactionDetails(txid);
+
+        if (transactionDetail.status !== 1) {
+          throw new CustomError(
+            "Transaction not confirmed. Please try again.",
+            500
+          );
+        }
+
+        if (!transactionDetail.deployedContractAddress) {
+          throw new CustomError(
+            "Transaction does not contain deployed contract address.",
+            500
+          );
+        }
+
+        await collectionRepository.update(trx, collection.id, {
+          contractAddress: transactionDetail.deployedContractAddress,
+        });
+      }
+
+      if (!launch) launch = await launchRepository.create(trx, data);
+      const launchItemCount = await launchRepository.getCountByLaunchId(
+        trx,
+        launch.id
+      );
+      const nftMetadatas: nftMetaData[] = [];
+      let index = 0;
+      for (let file of files) {
+        let nftId = Number(launchItemCount) + index;
+
+        nftMetadatas.push({
+          name: `${collection?.name ?? "NFT"} #${nftId}`,
+          nftId: nftId.toString(),
+          ipfsUri: null,
+          file: file,
+        });
+
+        index++;
+      }
+
+      let launchItems, insertableLaunchItems: Insertable<LaunchItem>[];
+      try {
+        insertableLaunchItems = await uploadFilesAndReturnLaunchItems(
+          launch.id,
+          nftMetadatas
+        );
+      } catch (e) {
+        forceReleaseSlot(collection.id);
+        throw e;
+      }
+      launchItems = await launchItemRepository.bulkInsert(
+        trx,
+        insertableLaunchItems
       );
 
-      if (transactionDetail.status !== 1) {
-        throw new CustomError(
-          "Transaction not confirmed. Please try again.",
-          500
+      let updatedCollection;
+      const isComplete = await updateProgress(collection.id);
+      if (isComplete) {
+        updatedCollection = await collectionRepository.update(
+          trx,
+          collection.id,
+          {
+            type: "LAUNCHED",
+            supply: launchItemCount,
+          }
         );
       }
 
-      if (!transactionDetail.deployedContractAddress) {
-        throw new CustomError(
-          "Transaction does not contain deployed contract address.",
-          500
-        );
-      }
-
-      await collectionRepository.update(collection.id, {
-        contractAddress: transactionDetail.deployedContractAddress,
-      });
-    }
-
-    const launchItemCount = await launchRepository.getCountByLaunchId(
-      launch.id
-    );
-    const nftMetadatas: nftMetaData[] = [];
-    let index = 0;
-    for (let file of files) {
-      let nftId = Number(launchItemCount) + index;
-
-      nftMetadatas.push({
-        name: `${collection?.name ?? "NFT"} #${nftId}`,
-        nftId: nftId.toString(),
-        ipfsUri: null,
-        file: file,
-      });
-
-      index++;
-    }
-
-    let launchItems, insertableLaunchItems: Insertable<LaunchItem>[];
-    try {
-      insertableLaunchItems = await uploadFilesAndReturnLaunchItems(
-        launch.id,
-        nftMetadatas
-      );
-    } catch (e) {
-      forceReleaseSlot(collection.id);
-      throw e;
-    }
-    launchItems = await launchItemRepository.bulkInsert(insertableLaunchItems);
-
-    let updatedCollection;
-    const isComplete = await updateProgress(collection.id);
-    if (isComplete) {
-      updatedCollection = await collectionRepository.update(collection.id, {
-        type: "LAUNCHED",
-        supply: launchItemCount,
-      });
-    }
-
-    return { launch, updatedCollection, launchItems, isComplete };
+      return { launch, updatedCollection, launchItems, isComplete };
+    });
   },
-  /*
-    IF LAYER IS CITREA, generate money transfer hex
-    RETURN the hex
-  */
-  // generateCitreaBuyHex: async (id: string, userId: string) => {
-  //   const launch = await launchRepository.getById(id);
-  //   if (!launch) throw new CustomError("Invalid launchId", 400);
-
-  //   const launchItems = await launchItemRepository.getByLaunchId(id);
-
-  //   //add validations(availibility, mintPerWallet, phases...)
-
-  //   const issueDate = new Date();
-  //   let mintPrice: number;
-
-  //   if (launch.isWhitelisted && launch.wlStartsAt && launch.wlEndsAt) {
-  //     if (
-  //       launch.wlStartsAt < issueDate &&
-  //       launch.wlEndsAt > issueDate &&
-  //       launch.wlMintPrice
-  //     ) {
-  //       mintPrice = launch.wlMintPrice;
-  //     }
-  //   } else if (launch.poStartsAt < issueDate && launch.poEndsAt > issueDate) {
-  //     mintPrice = launch.poMintPrice;
-  //   }
-
-  //   return { buyTxHex };
-  // },
   generateOrderForLaunchedCollection: async (
     collectionId: string,
     issuerId: string,
@@ -177,18 +159,18 @@ export const launchServices = {
     launchOfferType: LaunchOfferType
   ) => {
     const user = await userRepository.getById(issuerId);
-    if (!user) throw new Error("User not found.");
+    if (!user) throw new CustomError("User not found.", 400);
 
     const layer = await layerRepository.getById(user.layerId!);
-    if (!layer) throw new Error("Layer not found.");
+    if (!layer) throw new CustomError("Layer not found.", 400);
 
     const collection = await collectionRepository.getLaunchedCollectionById(
       collectionId
     );
-    if (!collection) throw new Error("Collection not found.");
+    if (!collection) throw new CustomError("Collection not found.", 400);
 
     const launch = await launchRepository.getByCollectionId(collection.id);
-    if (!launch) throw new Error("Launch not found.");
+    if (!launch) throw new CustomError("Launch not found.", 400);
 
     //TODO: add phase validation
     const userPurchaseCount =
@@ -199,84 +181,83 @@ export const launchServices = {
     const launchItem = await launchItemRepository.getRandomItemByLauchId(
       launch.id
     );
-    const pickedLaunchItem = await launchItemRepository.setOnHoldById(
-      launchItem.id,
-      user.id
-    );
-    console.log("🚀 ~ pickedLaunchItem:", pickedLaunchItem);
-    const file = await getObjectFromS3(pickedLaunchItem.fileKey);
+    return await db.transaction().execute(async (trx) => {
+      const pickedLaunchItem = await launchItemRepository.setOnHoldById(
+        trx,
+        launchItem.id,
+        user.id
+      );
+      const file = await getObjectFromS3(pickedLaunchItem.fileKey);
 
-    if (layer.layer === "CITREA" && layer.network === "TESTNET") {
-      const collection = await collectionRepository.getById(collectionId);
-
-      if (!collection || !collection.contractAddress)
-        throw new Error("Contract address not found.");
-
-      const unsignedTx =
-        await launchPadService.getUnsignedLaunchMintTransaction(
-          pickedLaunchItem,
-          user.address,
-          collection.contractAddress
+      if (layer.layer === "CITREA" && layer.network === "TESTNET") {
+        const collection = await collectionRepository.getById(
+          trx,
+          collectionId
         );
 
-      const serializedTx = serializeBigInt(unsignedTx);
-      const singleMintTxHex = serializedTx;
+        if (!collection) throw new CustomError("Collection not found.", 400);
 
-      const serviceFee = singleMintTxHex.value / 10 ** 18;
-      const networkFee = singleMintTxHex.gasLimit / 10 ** 9;
-      const fundingAmount = networkFee + serviceFee;
+        if (!collection.contractAddress)
+          throw new Error("Collection with no contract address not found.");
 
-      const order = await orderRepository.create({
-        userId: issuerId,
-        collectionId: collectionId,
-        quantity: 1,
-        feeRate,
-        orderType: "LAUNCH",
-        serviceFee: serviceFee,
-        networkFee: networkFee,
-        fundingAmount: fundingAmount,
-      });
+        const unsignedTx =
+          await launchPadService.getUnsignedLaunchMintTransaction(
+            pickedLaunchItem,
+            user.address,
+            collection.contractAddress
+          );
 
-      // const purchase = await purchaseRepository.create({
-      //   userId: issuerId,
-      //   orderId: order.id,
-      //   launchItemId: pickedLaunchItem.id,
-      // });
+        const serializedTx = serializeBigInt(unsignedTx);
+        const singleMintTxHex = serializedTx;
 
-      return { order: order, launchedItem: pickedLaunchItem, singleMintTxHex };
-    } else if (layer.layer === "FRACTAL" && layer.network === "TESTNET") {
-      const { estimatedFee } = getEstimatedFee(
-        [(file.content as Buffer).length],
-        [file.contentType!.length],
-        SERVICE_FEE[layer.layer][layer.network],
-        feeRate,
-        collection.poMintPrice
-      );
-      const funder = createFundingAddress(layer.layer, layer.network);
+        const serviceFee = singleMintTxHex.value / 10 ** 18;
+        const networkFee = singleMintTxHex.gasLimit / 10 ** 9;
+        const fundingAmount = networkFee + serviceFee;
 
-      const order = await orderRepository.create({
-        userId: issuerId,
-        collectionId: collectionId,
-        quantity: 1,
-        feeRate,
-        orderType: "LAUNCH",
-        serviceFee: estimatedFee.serviceFee,
-        networkFee: estimatedFee.networkFee,
-        fundingAmount: estimatedFee.totalAmount,
-      });
+        const order = await orderRepository.create(trx, {
+          userId: issuerId,
+          collectionId: collectionId,
+          quantity: 1,
+          feeRate,
+          orderType: "LAUNCH",
+          serviceFee: serviceFee,
+          networkFee: networkFee,
+          fundingAmount: fundingAmount,
+        });
 
-      // const purchase = await purchaseRepository.create({
-      //   userId: issuerId,
-      //   orderId: order.id,
-      //   launchItemId: pickedLaunchItem.id,
-      // });
+        return {
+          order: order,
+          launchedItem: pickedLaunchItem,
+          singleMintTxHex,
+        };
+      } else if (layer.layer === "FRACTAL" && layer.network === "TESTNET") {
+        const { estimatedFee } = getEstimatedFee(
+          [(file.content as Buffer).length],
+          [file.contentType!.length],
+          SERVICE_FEE[layer.layer][layer.network],
+          feeRate,
+          collection.poMintPrice
+        );
+        const funder = createFundingAddress(layer.layer, layer.network);
 
-      return {
-        order: order,
-        launchedItem: pickedLaunchItem,
-        singleMintTxHex: null,
-      };
-    } else throw new CustomError("This layer is unsupported ATM.", 400);
+        const order = await orderRepository.create(trx, {
+          userId: issuerId,
+          collectionId: collectionId,
+          quantity: 1,
+          feeRate,
+          orderType: "LAUNCH",
+          serviceFee: estimatedFee.serviceFee,
+          networkFee: estimatedFee.networkFee,
+          fundingAmount: estimatedFee.totalAmount,
+        });
+
+        return {
+          order: order,
+          launchedItem: pickedLaunchItem,
+          singleMintTxHex: null,
+        };
+      } else throw new CustomError("This layer is unsupported ATM.", 400);
+    });
   },
   mintPickedCollection: async (
     orderId: string,
@@ -284,23 +265,21 @@ export const launchServices = {
     issuerId: string,
     txid: string
   ) => {
-    const user = await userRepository.getById(issuerId);
-    if (!user) throw new Error("User not found.");
-    if (!user.layerId) throw new Error("User not found.");
-
-    const layer = await layerRepository.getById(user.layerId);
-    if (!layer) throw new Error("Layer not found.");
+    const user = await userRepository.getByIdWithLayer(issuerId);
+    if (!user) throw new CustomError("User not found.", 400);
+    if (!user.layerId) throw new CustomError("Layer not found.", 400);
 
     const order = await orderRepository.getById(orderId);
-    if (!order) throw new Error("Order not found.");
+    if (!order) throw new CustomError("Order not found.", 400);
+    if (order.userId !== issuerId)
+      throw new CustomError("This order does not belong to you.", 400);
+    if (order.orderStatus !== "PENDING")
+      throw new CustomError("Order is not pending.", 400);
 
     const collection = await collectionRepository.getLaunchedCollectionById(
       order.collectionId!
     );
-    if (!collection) throw new Error("Collection not found.");
-
-    if (order.orderStatus !== "PENDING")
-      throw new Error("Order is not pending.");
+    if (!collection) throw new CustomError("Collection not found.", 400);
 
     const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
       launchItemId
@@ -316,113 +295,119 @@ export const launchServices = {
 
     const file = await getObjectFromS3(launchItem.fileKey);
 
-    if (layer?.layer === "CITREA" && layer.network === "TESTNET") {
-      if (!launchItem.evmAssetId) throw new Error("Launch item not found.");
-      if (!txid) throw new Error("txid not found.");
+    return await db.transaction().execute(async (trx) => {
+      if (user.layer === "CITREA" && user.network === "TESTNET") {
+        if (!launchItem.evmAssetId)
+          throw new CustomError("Launch item with no asset id.", 400);
+        if (!txid) throw new CustomError("txid not found.", 400);
 
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
-      if (transactionDetail.status !== 1) {
-        throw new CustomError(
-          "Transaction not confirmed. Please try again.",
-          500
-        );
-      }
+        const transactionDetail =
+          await confirmationService.getTransactionDetails(txid);
+        if (transactionDetail.status !== 1) {
+          throw new CustomError(
+            "Transaction not confirmed. Please try again.",
+            500
+          );
+        }
 
-      if (
-        (collection?.type === "UNCONFIRMED" ||
-          collection?.type === "LAUNCHED") &&
-        order.collectionId
-      )
-        await collectionRepository.update(order.collectionId, {
-          type: "MINTED",
-        });
-
-      await launchItemRepository.update(launchItem.id, { status: "SOLD" });
-
-      const collectible = await collectibleRepository.create({
-        collectionId: collection.id,
-        uniqueIdx: `${collection.contractAddress}i${launchItem.evmAssetId}`,
-        name: launchItem.name,
-        fileKey: launchItem.fileKey,
-      });
-
-      await orderRepository.update(orderId, {
-        paidAt: new Date(),
-        orderStatus: "DONE",
-      });
-
-      await purchaseRepository.create({
-        userId: user.id,
-        launchItemId: launchItem.id,
-      });
-
-      return { commitTxId: null, revealTxId: null, collectible };
-    } else if (layer?.layer === "FRACTAL" && layer.network === "TESTNET") {
-      const tokenData = {
-        address: user.address,
-        xpub: null,
-        opReturnValues: `data:${file.contentType};base64,${(
-          file.content as Buffer
-        ).toString("base64")}` as any,
-        assetType: ASSETTYPE.NFTOFFCHAIN,
-        supply: 1,
-        headline: "headline",
-        ticker: "test",
-      };
-      if (!order.fundingAddress || !order.privateKey)
-        throw new CustomError("No funding address & private key found.", 400);
-
-      const mintHexes = await mint(
-        tokenData,
-        order.fundingAddress,
-        order.privateKey,
-        true,
-        SERVICE_FEE_ADDRESS["FRACTAL"]["MAINNET"],
-        SERVICE_FEE["FRACTAL"]["MAINNET"],
-        order.feeRate,
-        "bc1pffk5397d7sns6mayud03nf3fxy4p04e3alhslr6epaq3a788tsuqkxg0rn", // TODO. Collection Owner address bolgoh
-        collection.poMintPrice
-      );
-
-      const commitTxId = await sendRawTransactionWithNode(
-        mintHexes!.commitTxHex
-      );
-      console.log(`Commit transaction sent: ${commitTxId}`);
-      const revealTxId = await sendRawTransactionWithNode(
-        mintHexes!.revealTxHex
-      );
-      console.log(`Reveal transaction sent: ${revealTxId}`);
-
-      if (collection && collection.id) {
-        if (collection?.type === "UNCONFIRMED" && order.collectionId)
-          await collectionRepository.update(order.collectionId, {
+        if (
+          (collection?.type === "UNCONFIRMED" ||
+            collection?.type === "LAUNCHED") &&
+          order.collectionId
+        )
+          await collectionRepository.update(trx, order.collectionId, {
             type: "MINTED",
           });
-      }
 
-      await orderRepository.update(orderId, {
-        paidAt: new Date(),
-        orderStatus: "DONE",
-      });
+        await launchItemRepository.update(trx, launchItem.id, {
+          status: "SOLD",
+        });
 
-      await launchItemRepository.update(launchItem.id, { status: "SOLD" });
+        const collectible = await collectibleRepository.create(trx, {
+          collectionId: collection.id,
+          uniqueIdx: `${collection.contractAddress}i${launchItem.evmAssetId}`,
+          name: launchItem.name,
+          fileKey: launchItem.fileKey,
+        });
 
-      const collectible = await collectibleRepository.create({
-        fileKey: launchItem.fileKey,
-        name: `${collection.name} #${collection.mintedAmount}`,
-        collectionId: collection.id,
-        uniqueIdx: `${revealTxId}i0`,
-      });
+        await orderRepository.update(trx, orderId, {
+          paidAt: new Date(),
+          orderStatus: "DONE",
+        });
 
-      await purchaseRepository.create({
-        userId: user.id,
-        launchItemId: launchItem.id,
-      });
+        await purchaseRepository.create(trx, {
+          userId: user.id,
+          launchItemId: launchItem.id,
+        });
 
-      return { commitTxId, revealTxId, collectible };
-    } else throw new CustomError("This layer is unsupported ATM.", 400);
+        return { commitTxId: null, revealTxId: null, collectible };
+      } else if (user.layer === "FRACTAL" && user.network === "TESTNET") {
+        const tokenData = {
+          address: user.address,
+          xpub: null,
+          opReturnValues: `data:${file.contentType};base64,${(
+            file.content as Buffer
+          ).toString("base64")}` as any,
+          assetType: ASSETTYPE.NFTOFFCHAIN,
+          supply: 1,
+          headline: "headline",
+          ticker: "test",
+        };
+        if (!order.fundingAddress || !order.privateKey)
+          throw new CustomError("No funding address & private key found.", 400);
+
+        const mintHexes = await mint(
+          tokenData,
+          order.fundingAddress,
+          order.privateKey,
+          true,
+          SERVICE_FEE_ADDRESS["FRACTAL"]["MAINNET"],
+          SERVICE_FEE["FRACTAL"]["MAINNET"],
+          order.feeRate,
+          "bc1pffk5397d7sns6mayud03nf3fxy4p04e3alhslr6epaq3a788tsuqkxg0rn", // TODO. Collection Owner address bolgoh
+          collection.poMintPrice
+        );
+
+        const commitTxId = await sendRawTransactionWithNode(
+          mintHexes!.commitTxHex
+        );
+        logger.info(`Commit transaction sent: ${commitTxId}`);
+        const revealTxId = await sendRawTransactionWithNode(
+          mintHexes!.revealTxHex
+        );
+        logger.info(`Reveal transaction sent: ${revealTxId}`);
+
+        if (collection && collection.id) {
+          if (collection?.type === "UNCONFIRMED" && order.collectionId)
+            await collectionRepository.update(trx, order.collectionId, {
+              type: "MINTED",
+            });
+        }
+
+        await orderRepository.update(trx, orderId, {
+          paidAt: new Date(),
+          orderStatus: "DONE",
+        });
+
+        await launchItemRepository.update(trx, launchItem.id, {
+          status: "SOLD",
+        });
+
+        const collectible = await collectibleRepository.create(trx, {
+          fileKey: launchItem.fileKey,
+          name: `${collection.name} #${collection.mintedAmount}`,
+          collectionId: collection.id,
+          uniqueIdx: `${revealTxId}i0`,
+        });
+
+        await purchaseRepository.create(trx, {
+          userId: user.id,
+          launchItemId: launchItem.id,
+        });
+
+        return { commitTxId, revealTxId, collectible };
+      } else throw new CustomError("This layer is unsupported ATM.", 400);
+    });
   },
 };
 

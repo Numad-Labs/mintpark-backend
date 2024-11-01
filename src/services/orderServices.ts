@@ -27,6 +27,7 @@ import {
 } from "../libs/uploadLimiter";
 import { FILE_COUNT_LIMIT } from "../libs/constants";
 import { serializeBigInt } from "../../blockchain/evm/utils";
+import { db } from "../utils/db";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
@@ -53,14 +54,15 @@ export const orderServices = {
     txid?: string
   ) => {
     if (files.length !== 1)
-      throw new Error("Collectible order must have one file.");
+      throw new CustomError("Collectible order must have one file.", 400);
 
     const user = await userRepository.getByIdWithLayer(userId);
-    if (!user) throw new Error("User not found.");
+    if (!user) throw new CustomError("User not found.", 400);
 
-    if (!collectionId) throw new Error("Collection id is required.");
+    if (!collectionId) throw new CustomError("Collection id is required.", 400);
     let collection = await collectionServices.getById(collectionId);
-    if (!collection || !collection.id) throw new Error("Collection not found.");
+    if (!collection || !collection.id)
+      throw new CustomError("Collection not found.", 400);
 
     const nftMetadatas: nftMetaData[] = [];
     let index = 0;
@@ -76,7 +78,7 @@ export const orderServices = {
     }
 
     if (user.layer === "CITREA" && user.network === "TESTNET") {
-      if (!txid) throw new Error("txid not found.");
+      if (!txid) throw new CustomError("txid not found.", 400);
       const transactionDetail = await confirmationService.getTransactionDetails(
         txid
       );
@@ -95,7 +97,7 @@ export const orderServices = {
         );
       }
 
-      await collectionRepository.update(collection.id, {
+      await collectionRepository.update(db, collection.id, {
         contractAddress: transactionDetail.deployedContractAddress,
       });
 
@@ -118,7 +120,7 @@ export const orderServices = {
         serviceFee = 0;
       let totalAmount = networkFee + serviceFee;
 
-      let order = await orderRepository.create({
+      let order = await orderRepository.create(db, {
         userId: userId,
         quantity: files.length,
         fundingAmount: totalAmount,
@@ -153,9 +155,9 @@ export const orderServices = {
       );
 
       if (files.length !== 1)
-        throw new Error("Collectible order must have one file.");
+        throw new CustomError("Collectible order must have one file.", 400);
 
-      let order = await orderRepository.create({
+      let order = await orderRepository.create(db, {
         userId: userId,
         quantity: files.length,
         fundingAddress: funder.address,
@@ -190,11 +192,12 @@ export const orderServices = {
     txid?: string
   ) => {
     const user = await userRepository.getByIdWithLayer(userId);
-    if (!user) throw new Error("User not found.");
+    if (!user) throw new CustomError("User not found.", 400);
 
-    if (!collectionId) throw new Error("Collection id is required.");
+    if (!collectionId) throw new CustomError("Collection id is required.", 400);
     let collection = await collectionServices.getById(collectionId);
-    if (!collection || !collection.id) throw new Error("Collection not found.");
+    if (!collection || !collection.id)
+      throw new CustomError("Collection not found.", 400);
 
     const totalBatches = Math.ceil(totalFileCount / FILE_COUNT_LIMIT);
     if (totalBatches < 1 || files.length < 1)
@@ -226,7 +229,7 @@ export const orderServices = {
     }
 
     if (user.layer === "CITREA" && user.network === "TESTNET") {
-      if (!txid) throw new Error("txid not found.");
+      if (!txid) throw new CustomError("txid not found.", 400);
       const transactionDetail = await confirmationService.getTransactionDetails(
         txid
       );
@@ -245,7 +248,7 @@ export const orderServices = {
         );
       }
 
-      await collectionRepository.update(collection.id, {
+      await collectionRepository.update(db, collection.id, {
         contractAddress: transactionDetail.deployedContractAddress,
       });
 
@@ -255,7 +258,7 @@ export const orderServices = {
 
       let order = await orderRepository.getByCollectionId(collection.id);
       if (!order) {
-        order = await orderRepository.create({
+        order = await orderRepository.create(db, {
           userId: userId,
           quantity: totalFileCount,
           fundingAmount: totalAmount,
@@ -317,17 +320,16 @@ export const orderServices = {
         feeRate
       );
 
-      console.log(estimatedFee);
-
       if (files.length < 1)
-        throw new Error(
-          "Collection order must have at least one collectible file."
+        throw new CustomError(
+          "Collection order must have at least one collectible file.",
+          400
         );
-      if (!collection) throw new Error("Collection not found.");
+      if (!collection) throw new CustomError("Collection not found.", 400);
 
       let order = await orderRepository.getByCollectionId(collection.id);
       if (!order) {
-        order = await orderRepository.create({
+        order = await orderRepository.create(db, {
           userId: userId,
           quantity: files.length,
           fundingAddress: funder.address,
@@ -381,7 +383,10 @@ export const orderServices = {
       throw new CustomError("Insufficient order items.", 400);
 
     if (issuer.layer === "CITREA") {
-      const collection = await collectionRepository.getById(order.collectionId);
+      const collection = await collectionRepository.getById(
+        db,
+        order.collectionId
+      );
 
       if (!collection?.contractAddress)
         throw new CustomError(
@@ -410,14 +415,14 @@ export const orderServices = {
     // If payment is confirmed, return true else false
     try {
       const order = await orderRepository.getById(orderId);
-      if (!order) throw new Error("Order not found.");
+      if (!order) throw new CustomError("Order not found.", 400);
       if (order.paidAt && order.orderStatus !== "PENDING") return true;
 
       const user = await userRepository.getByIdWithLayer(order.userId);
-      if (!user) throw new Error("User not found.");
+      if (!user) throw new CustomError("User not found.", 400);
 
       if (user.layer === "CITREA" && user.network === "TESTNET") {
-        if (!txid) throw new CustomError("txid is missing", 500);
+        if (!txid) throw new CustomError("txid is missing", 400);
 
         const transactionDetail =
           await confirmationService.getTransactionDetails(txid);
@@ -431,7 +436,7 @@ export const orderServices = {
 
         if (order.orderType === "COLLECTIBLE" || !order.collectionId) {
           order.paidAt = new Date();
-          await orderRepository.update(order.id, {
+          await orderRepository.update(db, order.id, {
             paidAt: order.paidAt,
             orderStatus: "DONE",
             txId: txid,
@@ -448,6 +453,7 @@ export const orderServices = {
         }
 
         const collection = await collectionRepository.getById(
+          db,
           order.collectionId
         );
         const orderItemCount = await orderItemRepository.getCountByCollectionId(
@@ -460,7 +466,7 @@ export const orderServices = {
           );
 
         order.paidAt = new Date();
-        await orderRepository.update(order.id, {
+        await orderRepository.update(db, order.id, {
           paidAt: order.paidAt,
           orderStatus: "DONE",
           txId: txid,
@@ -471,7 +477,7 @@ export const orderServices = {
         });
 
         if (collection?.type === "UNCONFIRMED")
-          await collectionRepository.update(order.collectionId, {
+          await collectionRepository.update(db, order.collectionId, {
             type: "MINTED",
             supply: Number(orderItemCount),
           });
@@ -505,7 +511,7 @@ export const orderServices = {
 
         if (totalAmount >= order.fundingAmount) {
           order.paidAt = new Date();
-          await orderRepository.update(order.id, {
+          await orderRepository.update(db, order.id, {
             paidAt: order.paidAt,
             orderStatus: "IN_QUEUE",
           });

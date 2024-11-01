@@ -61,7 +61,6 @@ export const launchController = {
       next(e);
     }
   },
-  //TODO. OPTIMIZE AND ROBUST THE REST OF THE CODES
   generateOrderForLaunchedCollection: async (
     req: AuthenticatedRequest,
     res: Response,
@@ -111,7 +110,7 @@ export const launchController = {
       const user = await userRepository.getById(req.user?.id!);
       if (!user || !user.address)
         throw new CustomError("User address not found from the token.", 400);
-      // Prepare transaction data
+
       const unsignedTx =
         await launchPadService.createLaunchpadContractFeeChange(
           collectionTxid,
@@ -137,20 +136,13 @@ export const launchController = {
     const { orderId, launchItemId, txid } = req.body;
 
     try {
-      const user = await userRepository.getById(req.user?.id!);
-      if (!user) throw new CustomError("User not found.", 404);
+      if (!req.user?.id) throw new CustomError("User not found.", 404);
       if (!orderId) throw new CustomError("OrderId is required as body.", 400);
-
-      const layer = await layerServices.getById(user.layerId!);
-      if (!layer) throw new CustomError("Layer not found.", 404);
-
-      if (layer.layer !== "FRACTAL" && layer.network !== "TESTNET")
-        throw new CustomError("Not supported for this layer yet.", 400);
 
       const mintHexes = await launchServices.mintPickedCollection(
         orderId,
         launchItemId,
-        user.id,
+        req.user?.id,
         txid
       );
       return res
@@ -160,22 +152,4 @@ export const launchController = {
       next(e);
     }
   },
-  // generateCitreaBuyHex: async (
-  //   req: AuthenticatedRequest,
-  //   res: Response,
-  //   next: NextFunction
-  // ) => {
-  //   try {
-  //     const { id } = req.params;
-
-  //     if (!req.user || !req.user.id)
-  //       throw new CustomError("wallet address not found", 400);
-
-  //     const result = await launchServices.generateCitreaBuyHex(id, req.user.id);
-
-  //     return res.status(200).json({ success: true, data: result });
-  //   } catch (e) {
-  //     next(e);
-  //   }
-  // },
 };

@@ -19,3 +19,8 @@ export const REDIS_KEYS = {
   getCollectionKey: (collectionId: string) =>
     `upload:collection:${collectionId}`,
 };
+
+export const sizeLimitConstants = {
+  jsonSizeLimit: 5 * 1024 * 1024, //5MB
+  formDataSizeLimit: "40mb",
+};

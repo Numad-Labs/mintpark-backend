@@ -9,12 +9,13 @@ import MarketplaceService from "../../blockchain/evm/services/marketplaceService
 import { userRepository } from "../repositories/userRepository";
 import { serializeBigInt } from "../../blockchain/evm/utils";
 import { collectionRepository } from "../repositories/collectionRepository";
+import { db } from "../utils/db";
 const tradingService = new TradingService(
   EVM_CONFIG.RPC_URL,
   EVM_CONFIG.MARKETPLACE_ADDRESS,
   new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
 );
-// import MarketplaceService from "./marketplaceService";
+
 const marketplaceService = new MarketplaceService(
   EVM_CONFIG.MARKETPLACE_ADDRESS
 );
@@ -27,10 +28,9 @@ export const listController = {
   ) => {
     try {
       const { initialOwner } = req.body;
-      console.log("🚀 ~ initialOwner:", initialOwner);
       const unsignedTx =
         await marketplaceService.getUnsignedDeploymentTransaction(initialOwner);
-      console.log("🚀 ~ unsignedTx:", unsignedTx);
+
       // Serialize BigInt values before sending the response
       const serializedTx = serializeBigInt(unsignedTx);
       res.json({ success: true, unsignedTransaction: serializedTx });
@@ -52,7 +52,7 @@ export const listController = {
       if (!collectionId)
         throw new CustomError("Please provide a collectionId.", 400);
 
-      const collection = await collectionRepository.getById(collectionId);
+      const collection = await collectionRepository.getById(db, collectionId);
       if (!collection || !collection.contractAddress)
         throw new CustomError("Please provide a valid collection.", 400);
 

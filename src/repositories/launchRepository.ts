@@ -1,9 +1,12 @@
-import { Insertable, Updateable } from "kysely";
+import { Insertable, Kysely, Transaction, Updateable } from "kysely";
 import { db } from "../utils/db";
-import { Launch } from "../types/db/types";
+import { DB, Launch } from "../types/db/types";
 
 export const launchRepository = {
-  create: async (data: Insertable<Launch>) => {
+  create: async (
+    db: Kysely<DB> | Transaction<DB>,
+    data: Insertable<Launch>
+  ) => {
     const launch = await db
       .insertInto("Launch")
       .values(data)
@@ -49,7 +52,10 @@ export const launchRepository = {
 
     return launch;
   },
-  getCountByLaunchId: async (launchId: string) => {
+  getCountByLaunchId: async (
+    db: Kysely<DB> | Transaction<DB>,
+    launchId: string
+  ) => {
     const result = await db
       .selectFrom("LaunchItem")
       .innerJoin("Launch", "Launch.id", "LaunchItem.launchId")

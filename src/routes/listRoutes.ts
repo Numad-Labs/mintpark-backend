@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authenticateToken } from "../middlewares/authenticateToken";
 import { listController } from "../controllers/listController";
+import { authorize } from "../middlewares/authorize";
 const listRouter = Router();
 
 listRouter.post("/", authenticateToken, listController.listCollectible);
@@ -12,6 +13,7 @@ listRouter.post(
 listRouter.post(
   "/deploy-contract",
   authenticateToken,
+  authorize("SUPER_ADMIN"),
   listController.createMarketplaceContractDeployment
 );
 
