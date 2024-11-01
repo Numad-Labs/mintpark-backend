@@ -23,6 +23,7 @@ import { collectionRepository } from "../repositories/collectionRepository";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import { LaunchItem } from "../types/db/types";
 import { redis } from "..";
+import { db } from "../utils/db";
 
 const cron = require("node-cron");
 
@@ -45,7 +46,9 @@ export function checkPaymentAndUpdateOrderStatus() {
         try {
           const isPaid = await orderServices.checkOrderisPaid(order.id);
           if (isPaid && order.orderStatus === "PENDING") {
-            await orderRepository.update(order.id, { orderStatus: "IN_QUEUE" });
+            await orderRepository.update(db, order.id, {
+              orderStatus: "IN_QUEUE",
+            });
             totalUpdated++;
           } else if (!isPaid && order.orderStatus === "PENDING") {
             const THREE_HOURS_IN_MS = 3 * 60 * 60 * 1000;
@@ -53,7 +56,7 @@ export function checkPaymentAndUpdateOrderStatus() {
               new Date(order.createdAt) <
               new Date(Date.now() - THREE_HOURS_IN_MS)
             ) {
-              await orderRepository.update(order.id, {
+              await orderRepository.update(db, order.id, {
                 orderStatus: "EXPIRED",
               });
               totalUpdated++;
@@ -126,10 +129,10 @@ export function mintingQueue() {
             }
           }
 
-          await orderRepository.update(order.id, { orderStatus: "DONE" });
+          await orderRepository.update(db, order.id, { orderStatus: "DONE" });
           console.log(`Order ${order.id} processed successfully`);
           if (order.collectionId)
-            await collectionRepository.update(order.collectionId, {
+            await collectionRepository.update(db, order.collectionId, {
               type: "MINTED",
             });
         });
@@ -223,14 +226,17 @@ async function mintOrderItem(orderItem: OrderItemDetails, order: any) {
     await orderItemRepository.update(orderItem.id, { status: "MINTED" });
 
     if (order.collectionId) {
-      const collection = await collectionRepository.getById(order.collectionId);
+      const collection = await collectionRepository.getById(
+        db,
+        order.collectionId
+      );
       if (!collection) throw new Error("Collection not found.");
 
       const collectible = await collectibleRepository.getByUniqueIdx(
         `${collection.name} #${collection.supply}`
       );
       if (!collectible) {
-        await collectibleRepository.create({
+        await collectibleRepository.create(db, {
           fileKey: orderItem.fileKey,
           name: `${collection.name} #${collection.supply}`,
           collectionId: collection.id,
@@ -238,7 +244,7 @@ async function mintOrderItem(orderItem: OrderItemDetails, order: any) {
         });
 
         collection.supply++;
-        await collectionRepository.update(collection.id, {
+        await collectionRepository.update(db, collection.id, {
           supply: collection.supply,
         });
       }
