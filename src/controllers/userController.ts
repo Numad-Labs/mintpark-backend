@@ -62,7 +62,7 @@ export const userController = {
       if (!refreshToken)
         throw new CustomError(`Please provide a refresh token.`, 400);
 
-      const tokens = verifyRefreshToken(refreshToken);
+      const tokens = await verifyRefreshToken(refreshToken);
 
       return res.status(200).json({
         success: true,

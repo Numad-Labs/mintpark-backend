@@ -4,37 +4,37 @@ import { listController } from "../controllers/listController";
 import { authorize } from "../middlewares/authorize";
 const listRouter = Router();
 
-listRouter.post("/", authenticateToken, listController.listCollectible);
+listRouter.post("/", authenticateToken(), listController.listCollectible);
 listRouter.post(
   "/approval",
-  authenticateToken,
+  authenticateToken(),
   listController.getApprovelTransactionOfTrading
 );
 listRouter.post(
   "/deploy-contract",
-  authenticateToken,
+  authenticateToken(),
   authorize("SUPER_ADMIN"),
   listController.createMarketplaceContractDeployment
 );
 
 listRouter.post(
   "/:id/confirm",
-  authenticateToken,
+  authenticateToken(),
   listController.confirmPendingList
 );
 listRouter.post(
   "/:id/generate-hex",
-  authenticateToken,
+  authenticateToken(),
   listController.generatePsbtHexToBuyListedCollectible
 );
 listRouter.post(
   "/:id/buy",
-  authenticateToken,
+  authenticateToken(),
   listController.buyListedCollectible
 );
 listRouter.get(
   "/:id/estimate-fee",
-  authenticateToken,
+  authenticateToken(),
   listController.getEstimatedFee
 );
 

@@ -1,65 +1,65 @@
-import { sign, verify } from "jsonwebtoken";
-import { Secret } from "jsonwebtoken";
+import { sign, verify, Secret } from "jsonwebtoken";
+import { config } from "../config/config";
 import jwt from "jsonwebtoken";
 import { CustomError } from "../exceptions/CustomError";
-import { config } from "../config/config";
-import { User } from "@prisma/client";
+import { ROLES } from "../types/db/enums";
+import { AuthenticatedUser } from "../../custom";
 
 const ACCESS_TOKEN_EXPIRATION_TIME = config.JWT_ACCESS_EXPIRATION_TIME;
 const REFRESH_TOKEN_EXPIRATION_TIME = config.JWT_REFRESH_EXPIRATION_TIME;
-const ACCESS_SECRET = config.JWT_ACCESS_SECRET;
-const REFRESH_SECRET = config.JWT_REFRESH_SECRET;
+const jwtAccessSecret: Secret = config.JWT_ACCESS_SECRET;
+const jwtRefreshSecret: Secret = config.JWT_REFRESH_SECRET;
 
-export function generateAccessToken(user: User) {
-  const jwtAccessSecret: Secret | undefined = ACCESS_SECRET;
-  if (!jwtAccessSecret) {
-    throw new Error("JWT_REFRESH_SECRET is not defined.");
-  }
-  return sign(
-    { id: user.id, address: user.address, xpub: user.xpub },
-    jwtAccessSecret,
-    {
-      expiresIn: ACCESS_TOKEN_EXPIRATION_TIME,
-    }
-  );
+type JwtPayload = {
+  id: string;
+  role: ROLES;
+};
+
+export function generateAccessToken(payload: JwtPayload) {
+  return sign({ id: payload.id, role: payload.role }, jwtAccessSecret, {
+    expiresIn: ACCESS_TOKEN_EXPIRATION_TIME,
+  });
 }
 
-export function generateRefreshToken(user: User) {
-  const jwtRefreshSecret: Secret | undefined = REFRESH_SECRET;
-  if (!jwtRefreshSecret) {
-    throw new Error("JWT_REFRESH_SECRET is not defined.");
-  }
-  return sign(
-    { id: user.id, address: user.address, xpub: user.xpub },
-    jwtRefreshSecret,
-    {
-      expiresIn: REFRESH_TOKEN_EXPIRATION_TIME,
-    }
-  );
+export function verifyRefreshToken(token: string): Promise<any> {
+  return new Promise((resolve, reject) => {
+    jwt.verify(token, jwtRefreshSecret, (err: any, payload: any) => {
+      if (err) {
+        reject(
+          new CustomError(`Either refresh token is invalid or expired.`, 401)
+        );
+      } else {
+        const tokens = generateTokens({ id: payload.id, role: payload.role });
+        resolve(tokens);
+      }
+    });
+  });
 }
 
-export function generateTokens(user: User) {
-  const accessToken = generateAccessToken(user);
-  const refreshToken = generateRefreshToken(user);
+export async function verifyAccessToken(token: string): Promise<any> {
+  return new Promise((resolve, reject) => {
+    jwt.verify(token, jwtAccessSecret, (err, decoded) => {
+      if (err)
+        reject(
+          new CustomError("Either access token is invalid or expired.", 401)
+        );
+      else resolve(decoded as AuthenticatedUser);
+    });
+  });
+}
+
+export function generateRefreshToken(payload: JwtPayload) {
+  return sign({ id: payload.id, role: payload.role }, jwtRefreshSecret, {
+    expiresIn: REFRESH_TOKEN_EXPIRATION_TIME,
+  });
+}
+
+export function generateTokens(payload: JwtPayload) {
+  const accessToken = generateAccessToken(payload);
+  const refreshToken = generateRefreshToken(payload);
 
   return {
     accessToken,
     refreshToken,
   };
-}
-
-export function verifyRefreshToken(token: string) {
-  let tokens;
-  const jwtRefreshSecret: Secret | undefined = REFRESH_SECRET;
-
-  if (!jwtRefreshSecret) {
-    throw new Error("JWT_REFRESH_SECRET is not defined.");
-  }
-
-  jwt.verify(token, jwtRefreshSecret, (err: any, user: any) => {
-    if (err) throw new CustomError("Invalid refresh token.", 401);
-    tokens = generateTokens(user);
-  });
-
-  return tokens;
 }

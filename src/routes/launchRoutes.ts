@@ -12,19 +12,19 @@ launchRouter.get(
 );
 launchRouter.post(
   "/collections/:collectionId/create-order",
-  authenticateToken,
+  authenticateToken(),
   authorize("SUPER_ADMIN"),
   launchController.generateOrderForLaunchedCollection
 );
 launchRouter.post(
   "/invoke-order",
-  authenticateToken,
+  authenticateToken(),
   authorize("SUPER_ADMIN"),
   launchController.invokeOrder
 );
 launchRouter.post(
   "/change-mintfee-transaction",
-  authenticateToken,
+  authenticateToken(),
   authorize("SUPER_ADMIN"),
   launchController.getUnsignedMintPriceChange
 );
