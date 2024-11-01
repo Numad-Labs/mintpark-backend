@@ -434,4 +434,19 @@ export const collectionRepository = {
 
     return collections;
   },
+  incrementCollectionSupplyById: async (
+    db: Kysely<DB> | Transaction<DB>,
+    id: string
+  ) => {
+    const collection = await db
+      .updateTable("Collection")
+      .set((eb) => ({ supply: eb("Collection.supply", "+", 1) }))
+      .where("Collection.id", "=", id)
+      .returningAll()
+      .executeTakeFirstOrThrow(
+        () => new Error("Could not increment the bonus current supply.")
+      );
+
+    return collection;
+  },
 };

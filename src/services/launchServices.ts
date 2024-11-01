@@ -144,7 +144,7 @@ export const launchServices = {
           collection.id,
           {
             type: "LAUNCHED",
-            supply: Number(launchItemCount) + launchItems.length,
+            supply: 0,
           }
         );
       }
@@ -352,6 +352,11 @@ export const launchServices = {
           userId: user.id,
           launchItemId: launchItem.id,
         });
+
+        await collectionRepository.incrementCollectionSupplyById(
+          trx,
+          collection.id
+        );
 
         return { commitTxId: null, revealTxId: null, collectible };
       } else if (user.layer === "FRACTAL" && user.network === "TESTNET") {

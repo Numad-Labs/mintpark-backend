@@ -98,7 +98,7 @@ export const orderItemRepository = {
         "Layer.layer",
       ])
       .where("Order.id", "=", orderId)
-      .where("OrderItem.status", "=", "PENDING")
+      .where("OrderItem.status", "=", "MINTED")
       .execute();
   },
   updateByOrderId: async (orderId: string, data: Updateable<OrderItem>) => {
