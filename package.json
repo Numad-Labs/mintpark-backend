@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "engines": {
+    "node": "20.12.0",
+    "npm": "10.5.0"
+  },
   "scripts": {
     "build": "tsc && copyfiles package.json dist",
     "dev": "nodemon --exec ts-node -P tsconfig.json src/index.ts",
