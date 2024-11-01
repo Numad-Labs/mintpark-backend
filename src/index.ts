@@ -23,6 +23,7 @@ import launchRouter from "./routes/launchRoutes";
 import nftRouter from "../blockchain/evm/routes/nftRoutes";
 import logger from "./config/winston";
 import { sizeLimitConstants } from "./libs/constants";
+import { rateLimiter } from "./middlewares/rateLimiter";
 
 export const redis = new Redis(config.REDIS_CONNECTION_STRING);
 
@@ -43,6 +44,7 @@ app.use(
     extended: true,
   })
 );
+app.use(rateLimiter);
 
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/layers", layerRouter);
