@@ -12,6 +12,7 @@ import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import NFTService from "../../blockchain/evm/services/nftService";
 import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
 import { EVMCollectibleService } from "../../blockchain/evm/services/evmIndexService";
+import { db } from "../utils/db";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
@@ -30,10 +31,10 @@ export const collectionServices = {
     file?: Express.Multer.File
   ) => {
     const user = await userRepository.getById(issuerId);
-    if (!user || !user.layerId) throw new Error("User not found.");
+    if (!user || !user.layerId) throw new CustomError("User not found.", 400);
 
     const layer = await layerRepository.getById(user.layerId);
-    if (!layer) throw new Error("User not found.");
+    if (!layer) throw new CustomError("User not found.", 400);
 
     data.layerId = user.layerId;
 
@@ -74,7 +75,7 @@ export const collectionServices = {
     return { collection, deployContractTxHex };
   },
   update: async (id: string, data: any) => {
-    const collection = await collectionRepository.update(id, data);
+    const collection = await collectionRepository.update(db, id, data);
 
     return collection;
   },
@@ -84,7 +85,7 @@ export const collectionServices = {
     return collection;
   },
   getById: async (id: string) => {
-    const collection = await collectionRepository.getById(id);
+    const collection = await collectionRepository.getById(db, id);
 
     return collection;
   },
@@ -101,7 +102,6 @@ export const collectionServices = {
   },
   getListedCollections: async (params: CollectionQueryParams) => {
     const collections = await collectionRepository.getListedCollections(params);
-    console.log("🚀 ~ getListedCollections: ~ collections:", collections);
 
     // Fetch owner counts for all collections in parallel
     const collectionsWithOwners = await Promise.all(

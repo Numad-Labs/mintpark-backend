@@ -21,10 +21,7 @@ export const collectionController = {
     next: NextFunction
   ) => {
     const userId = req.user?.id;
-    if (!userId) throw new CustomError("Cannot parse user from token", 401);
     const { name, creator, description, priceForLaunchpad } = req.body;
-    if (!name || !description)
-      throw new CustomError("Name and description are required.", 400);
     const logo = req.file as Express.Multer.File;
     const data = {
       name,
@@ -34,7 +31,12 @@ export const collectionController = {
       logoKey: null,
       layerId: null,
     };
+
     try {
+      if (!userId) throw new CustomError("Cannot parse user from token", 401);
+      if (!name || !description)
+        throw new CustomError("Name and description are required.", 400);
+
       const result = await collectionServices.create(
         data,
         userId,
@@ -72,8 +74,9 @@ export const collectionController = {
       totalFileCount,
     } = req.body;
     const { collectionId } = req.params;
+    const files = req.files as Express.Multer.File[];
+
     try {
-      const files = req.files as Express.Multer.File[];
       if (
         !POStartsAt ||
         !POEndsAt ||
@@ -110,7 +113,6 @@ export const collectionController = {
           wlEndsAt: WLEndsAt ? BigInt(WLEndsAt) : null,
           wlMaxMintPerWallet: WLMaxMintPerWallet || null,
           wlMintPrice: WLMintPrice || null,
-          // createdAt: launchedAt,
         },
         files,
         totalFileCount,

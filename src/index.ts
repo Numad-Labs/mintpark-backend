@@ -1,6 +1,5 @@
 import express, { Request, Response } from "express";
 import { config } from "./config/config";
-import bodyParser from "body-parser";
 import helmet from "helmet";
 import cors from "cors";
 import { Redis } from "ioredis";
@@ -22,6 +21,8 @@ import collectibleTraitRouter from "./routes/collectibleTraitRoutes";
 import listRouter from "./routes/listRoutes";
 import launchRouter from "./routes/launchRoutes";
 import nftRouter from "../blockchain/evm/routes/nftRoutes";
+import logger from "./config/winston";
+import { sizeLimitConstants } from "./libs/constants";
 
 export const redis = new Redis(config.REDIS_CONNECTION_STRING);
 
@@ -34,9 +35,14 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 app.use(cors());
-app.use(express.json());
 app.use(helmet());
-app.use(bodyParser.json());
+app.use(express.json({ limit: sizeLimitConstants.jsonSizeLimit }));
+app.use(
+  express.urlencoded({
+    limit: sizeLimitConstants.formDataSizeLimit,
+    extended: true,
+  })
+);
 
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/layers", layerRouter);
@@ -55,5 +61,5 @@ app.use(notFound);
 // mintingQueue();
 
 app.listen(config.PORT, () => {
-  console.log(`Server has started on port ${config.PORT}`);
+  logger.info(`Server has started on port ${config.PORT}`);
 });

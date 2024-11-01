@@ -1,10 +1,10 @@
-import { Insertable, Updateable } from "kysely";
+import { Insertable, Kysely, Transaction, Updateable } from "kysely";
 import { db } from "../utils/db";
-import { Order } from "../types/db/types";
+import { DB, Order } from "../types/db/types";
 import { LAYER, ORDER_STATUS, ORDER_TYPE } from "../types/db/enums";
 
 export const orderRepository = {
-  create: async (data: Insertable<Order>) => {
+  create: async (db: Kysely<DB> | Transaction<DB>, data: Insertable<Order>) => {
     const order = await db
       .insertInto("Order")
       .values(data)
@@ -13,7 +13,11 @@ export const orderRepository = {
 
     return order;
   },
-  update: async (id: string, data: Updateable<Order>) => {
+  update: async (
+    db: Kysely<DB> | Transaction<DB>,
+    id: string,
+    data: Updateable<Order>
+  ) => {
     const order = await db
       .updateTable("Order")
       .returningAll()

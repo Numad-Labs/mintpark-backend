@@ -1,9 +1,12 @@
-import { Updateable, Insertable } from "kysely";
-import { Purchase } from "../types/db/types";
+import { Updateable, Insertable, Kysely, Transaction } from "kysely";
+import { DB, Purchase } from "../types/db/types";
 import { db } from "../utils/db";
 
 export const purchaseRepository = {
-  create: async (data: Insertable<Purchase>) => {
+  create: async (
+    db: Kysely<DB> | Transaction<DB>,
+    data: Insertable<Purchase>
+  ) => {
     const purchase = await db
       .insertInto("Purchase")
       .values(data)

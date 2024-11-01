@@ -10,6 +10,7 @@ import { config } from "../../../src/config/config";
 import { LaunchConfig } from "../../../custom";
 import { createMetadataFromS3File } from "../../../src/utils/aws";
 import { launchItemRepository } from "../../../src/repositories/launchItemRepository";
+import { db } from "../../../src/utils/db";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
@@ -247,7 +248,7 @@ class LaunchpadService {
 
     console.log("🚀 ~ LaunchpadService ~ metadataURI:", metadataURI);
 
-    await launchItemRepository.update(winnerItem.id, {
+    await launchItemRepository.update(db, winnerItem.id, {
       ipfsUrl: metadataURI,
     });
 

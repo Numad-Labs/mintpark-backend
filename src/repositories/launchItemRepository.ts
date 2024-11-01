@@ -1,6 +1,6 @@
-import { Insertable, sql, Updateable } from "kysely";
+import { Insertable, Kysely, sql, Transaction, Updateable } from "kysely";
 import { db } from "../utils/db";
-import { LaunchItem } from "../types/db/types";
+import { DB, LaunchItem } from "../types/db/types";
 import { ON_HOLD_MINUTES } from "../libs/constants";
 
 export const launchItemRepository = {
@@ -15,7 +15,11 @@ export const launchItemRepository = {
 
     return launchItem;
   },
-  update: async (id: string, data: Updateable<LaunchItem>) => {
+  update: async (
+    db: Kysely<DB> | Transaction<DB>,
+    id: string,
+    data: Updateable<LaunchItem>
+  ) => {
     const launchItem = await db
       .updateTable("LaunchItem")
       .returningAll()
@@ -129,7 +133,11 @@ export const launchItemRepository = {
 
     return launchItem;
   },
-  setOnHoldById: async (id: string, buyerId: string) => {
+  setOnHoldById: async (
+    db: Kysely<DB> | Transaction<DB>,
+    id: string,
+    buyerId: string
+  ) => {
     const launchItem = await db
       .updateTable("LaunchItem")
       .set({ onHoldUntil: sql`NOW()`, onHoldBy: buyerId })
@@ -166,7 +174,10 @@ export const launchItemRepository = {
 
     return launchItem;
   },
-  bulkInsert: async (data: Insertable<LaunchItem>[]) => {
+  bulkInsert: async (
+    db: Kysely<DB> | Transaction<DB>,
+    data: Insertable<LaunchItem>[]
+  ) => {
     const launchItem = await db
       .insertInto("LaunchItem")
       .values(data)

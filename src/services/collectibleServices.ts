@@ -13,6 +13,7 @@ import { EVMCollectibleService } from "../../blockchain/evm/services/evmIndexSer
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
 import { orderRepository } from "../repositories/orderRepostory";
+import { db } from "../utils/db";
 
 const evmCollectibleService = new EVMCollectibleService(EVM_CONFIG.RPC_URL!);
 const confirmationService = new TransactionConfirmationService(
@@ -29,7 +30,7 @@ export const collectibleServices = {
     if (!user || !user.layerId) throw new CustomError("User not found.", 400);
 
     const layerType = await layerRepository.getById(user.layerId!);
-    if (!layerType) throw new Error("Layer not found.");
+    if (!layerType) throw new CustomError("Unsupported layer type.", 400);
 
     const uniqueIdxs: string[] = [];
 
@@ -69,8 +70,6 @@ export const collectibleServices = {
       //     })
       //   );
       if (collections?.length) {
-        console.log(`Found ${collections.length} CITREA collections`);
-
         // Filter valid collections
         const validCollections = collections
           .filter((c) => c.contractAddress)
@@ -87,9 +86,6 @@ export const collectibleServices = {
           tokenResults
         )) {
           if (tokenIds.length) {
-            console.log(
-              `Found ${tokenIds.length} tokens for contract: ${contractAddress}`
-            );
             const formattedTokens = tokenIds.map(
               (tokenId) => `${contractAddress}i${tokenId}`
             );
@@ -110,8 +106,6 @@ export const collectibleServices = {
         uniqueIdxs.push(inscriptionUtxo.inscriptions[0].inscriptionId);
       });
     }
-
-    console.log(`uniqueIdxs after ${uniqueIdxs}`);
 
     if (uniqueIdxs.length === 0)
       return {
@@ -170,9 +164,9 @@ export const collectibleServices = {
       ),
       listRepository.getActiveListCountByCollectionid(collectionId),
     ]);
-    console.log(listableCollectibles[0]);
+
     if (!listableCollectibles[0].contractAddress) {
-      throw new Error("collectible not found.");
+      throw new Error("Collectible with no contract address.");
     }
 
     const totalOwnerCount =
@@ -189,9 +183,10 @@ export const collectibleServices = {
 
   getActivityByCollectibleId: async (collectibleId: string) => {
     const collectible = await collectibleRepository.getById(collectibleId);
-    if (!collectible) throw new Error("collectible not found.");
+    if (!collectible) throw new CustomError("Collectible not found.", 400);
 
     const collection = await collectionRepository.getById(
+      db,
       collectible.collectionId
     );
     if (!collection) throw new CustomError("collection not found.", 400);

@@ -1,14 +1,16 @@
-import { Insertable, sql } from "kysely";
+import { Insertable, Kysely, sql, Transaction } from "kysely";
 import { db } from "../utils/db";
-import { Collectible } from "../types/db/types";
+import { Collectible, DB } from "../types/db/types";
 import {
   CollectibleQueryParams,
   traitFilter,
 } from "../controllers/collectibleController";
-import { EVMCollectibleService } from "../../blockchain/evm/services/evmIndexService";
 
 export const collectibleRepository = {
-  create: async (data: Insertable<Collectible>) => {
+  create: async (
+    db: Kysely<DB> | Transaction<DB>,
+    data: Insertable<Collectible>
+  ) => {
     const collectible = await db
       .insertInto("Collectible")
       .values(data)
@@ -45,20 +47,11 @@ export const collectibleRepository = {
     userId: string,
     collectionId?: string
   ) => {
-    console.log("Query parameters:", {
-      inscriptionIds,
-      userId,
-      collectionId,
-      params,
-    });
-
-    // Ensure inscriptionIds is an array and contains strings
     const cleanInscriptionIds = Array.isArray(inscriptionIds)
       ? inscriptionIds.map((id) => id.toString())
       : [];
 
     if (cleanInscriptionIds.length === 0) {
-      console.log("No inscription IDs provided");
       return [];
     }
 
@@ -140,12 +133,6 @@ export const collectibleRepository = {
 
       // Execute query and log results for debugging
       const collectibles = await query.execute();
-      console.log(`Found ${collectibles.length} collectibles`);
-
-      // Log the first few results for debugging
-      if (collectibles.length > 0) {
-        console.log("First collectible:", collectibles[0]);
-      }
 
       return collectibles;
     } catch (error) {

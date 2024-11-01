@@ -1,9 +1,9 @@
-import { Insertable, sql, Updateable } from "kysely";
+import { Insertable, Kysely, sql, Transaction, Updateable } from "kysely";
 import { db } from "../utils/db";
-import { List } from "../types/db/types";
+import { DB, List } from "../types/db/types";
 
 export const listRepository = {
-  create: async (data: Insertable<List>) => {
+  create: async (db: Kysely<DB> | Transaction<DB>, data: Insertable<List>) => {
     const list = await db
       .insertInto("List")
       .values(data)
@@ -23,7 +23,10 @@ export const listRepository = {
 
     return list;
   },
-  cancelPendingListingsByCollectibleId: async (collectibleId: string) => {
+  cancelPendingListingsByCollectibleId: async (
+    db: Kysely<DB> | Transaction<DB>,
+    collectibleId: string
+  ) => {
     const listings = await db
       .updateTable("List")
       .returningAll()
@@ -34,7 +37,10 @@ export const listRepository = {
 
     return listings;
   },
-  getLatestPendingListByCollectibleId: async (collectibleId: string) => {
+  getLatestPendingListByCollectibleId: async (
+    db: Kysely<DB> | Transaction<DB>,
+    collectibleId: string
+  ) => {
     const list = await db
       .selectFrom("List")
       .selectAll()
@@ -107,7 +113,11 @@ export const listRepository = {
 
     return list;
   },
-  update: async (id: string, data: Updateable<List>) => {
+  update: async (
+    db: Kysely<DB> | Transaction<DB>,
+    id: string,
+    data: Updateable<List>
+  ) => {
     const list = db
       .updateTable("List")
       .set(data)
