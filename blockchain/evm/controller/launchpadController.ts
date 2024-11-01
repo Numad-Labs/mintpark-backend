@@ -5,6 +5,7 @@ import { EVM_CONFIG } from "../evm-config";
 import LaunchpadService from "../services/launchpadService";
 import { serializeBigInt } from "../utils";
 import { ethers } from "ethers";
+import { db } from "../../../src/utils/db";
 // import { Launch } from "@prisma/client";
 // import { LaunchItem, Timestamp } from "../../../src/types/db/types";
 type LAUNCH_ITEM_STATUS = "ACTIVE" | "ON_HOLD" | "SOLD" | "CANCELLED";
@@ -177,7 +178,8 @@ export const getLaunchpadMintTransaction = async (
   const unsignedTx = await launchPadService.getUnsignedLaunchMintTransaction(
     launchItems,
     buyer,
-    collectionAddress
+    collectionAddress,
+    db
   );
   // Serialize BigInt values before sending the response
   const serializedTx = serializeBigInt(unsignedTx);

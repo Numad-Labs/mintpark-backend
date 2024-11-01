@@ -172,6 +172,8 @@ export const launchServices = {
     const launch = await launchRepository.getByCollectionId(collection.id);
     if (!launch) throw new CustomError("Launch not found.", 400);
 
+    console.log(launch);
+
     //TODO: add phase validation
     const userPurchaseCount =
       await purchaseRepository.getCountByUserIdAndLaunchId(launch.id, user.id);
@@ -212,7 +214,8 @@ export const launchServices = {
           await launchPadService.getUnsignedLaunchMintTransaction(
             pickedLaunchItem,
             user.address,
-            collection.contractAddress
+            collection.contractAddress,
+            trx
           );
 
         const serializedTx = serializeBigInt(unsignedTx);

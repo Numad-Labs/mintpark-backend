@@ -2,7 +2,7 @@ import { ethers } from "ethers";
 import { EVM_CONFIG } from "../evm-config";
 import MarketplaceService from "./marketplaceService";
 import NFTService from "./nftService";
-import { Launch, LaunchItem } from "../../../src/types/db/types";
+import { DB, Launch, LaunchItem } from "../../../src/types/db/types";
 import { CustomError } from "../../../src/exceptions/CustomError";
 import { TransactionConfirmationService } from "./transactionConfirmationService";
 import { PinataSDK } from "pinata-web3";
@@ -10,7 +10,7 @@ import { config } from "../../../src/config/config";
 import { LaunchConfig } from "../../../custom";
 import { createMetadataFromS3File } from "../../../src/utils/aws";
 import { launchItemRepository } from "../../../src/repositories/launchItemRepository";
-import { db } from "../../../src/utils/db";
+import { Kysely, Transaction } from "kysely";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
@@ -231,7 +231,8 @@ class LaunchpadService {
     // launch: Launchtype,
     winnerItem: any,
     buyer: string,
-    collectionAddress: string
+    collectionAddress: string,
+    db: Kysely<DB> | Transaction<DB>
   ): Promise<ethers.TransactionRequest> {
     const signer = await this.provider.getSigner();
 
