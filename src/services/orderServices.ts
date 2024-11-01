@@ -459,28 +459,11 @@ export const orderServices = {
         const orderItemCount = await orderItemRepository.getCountByCollectionId(
           order.collectionId
         );
-        if (Number(orderItemCount) < order.quantity)
-          throw new CustomError(
-            "Uploaded file count is lower than the quantity that was specified in the order.",
-            400
-          );
-
-        order.paidAt = new Date();
-        await orderRepository.update(db, order.id, {
-          paidAt: order.paidAt,
-          orderStatus: "DONE",
-          txId: txid,
-        });
 
         const orderItems = await orderItemRepository.updateByOrderId(order.id, {
           status: "MINTED",
+          txid: txid,
         });
-
-        if (collection?.type === "UNCONFIRMED")
-          await collectionRepository.update(db, order.collectionId, {
-            type: "MINTED",
-            supply: Number(orderItemCount),
-          });
 
         const collectibles: Insertable<Collectible>[] = [];
         for (const orderItem of orderItems) {
@@ -490,11 +473,27 @@ export const orderServices = {
               uniqueIdx: `${collection.contractAddress}i${orderItem.evmAssetId}`,
               name: orderItem.name,
               fileKey: orderItem.fileKey,
+              txid: orderItem.txid,
             });
           }
         }
 
         await collectibleRepository.bulkInsert(collectibles);
+
+        if (Number(orderItemCount) === order.quantity) {
+          order.paidAt = new Date();
+          await orderRepository.update(db, order.id, {
+            paidAt: order.paidAt,
+            orderStatus: "DONE",
+            txId: txid,
+          });
+
+          if (collection?.type === "UNCONFIRMED")
+            await collectionRepository.update(db, order.collectionId, {
+              type: "MINTED",
+              supply: Number(orderItemCount),
+            });
+        }
 
         return true;
       } else if (user.layer === "FRACTAL" && user.network === "TESTNET") {

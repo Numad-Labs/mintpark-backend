@@ -23,6 +23,7 @@ export type Collectible = {
   uniqueIdx: string;
   fileKey: string | null;
   createdAt: Generated<Timestamp>;
+  txid: string | null;
 };
 export type CollectibleTrait = {
   id: Generated<string>;
@@ -124,6 +125,7 @@ export type OrderItem = {
   ipfsUrl: string | null;
   metadata: unknown | null;
   status: Generated<ORDER_ITEM_STATUS>;
+  txid: string | null;
   evmAssetId: string | null;
   name: string | null;
 };

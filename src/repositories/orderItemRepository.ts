@@ -118,7 +118,6 @@ export const orderItemRepository = {
       .innerJoin("Order", "Order.id", "OrderItem.orderId")
       .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
       .where("Order.collectionId", "=", collectionId)
-      .where("OrderItem.status", "!=", "MINTED")
       .executeTakeFirst();
 
     return result?.count;

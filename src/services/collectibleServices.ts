@@ -184,25 +184,22 @@ export const collectibleServices = {
   getActivityByCollectibleId: async (collectibleId: string) => {
     const collectible = await collectibleRepository.getById(collectibleId);
     if (!collectible) throw new CustomError("Collectible not found.", 400);
+    if (!collectible.txid)
+      throw new CustomError("Collectible does not have txid.", 400);
 
     const collection = await collectionRepository.getById(
       db,
       collectible.collectionId
     );
     if (!collection) throw new CustomError("collection not found.", 400);
-
     if (!collection.contractAddress)
       throw new CustomError("contractAddress not found", 400);
 
-    const order = await orderRepository.getByCollectionId(collection.id);
-    if (!order) throw new CustomError("order not found.", 400);
-
-    if (!order.txId) throw new CustomError("txid not found in order.", 400);
-    const collectionAddress = collectible.uniqueIdx.split("i")[0];
+    // const collectionAddress = collectible.uniqueIdx.split("i")[0];
     const tokenId = collectible.uniqueIdx.split("i")[1];
 
     const transactionDetail = await confirmationService.getTransactionDetails(
-      order.txId
+      collectible.txid
     );
 
     const activities = await evmCollectibleService.getActivityByTokenId(

@@ -35,6 +35,7 @@ export const collectibleRepository = {
         "Collectible.collectionId",
         "Layer.layer",
         "Layer.network",
+        "Collectible.txid",
       ])
       .where("Collectible.id", "=", id)
       .executeTakeFirst();

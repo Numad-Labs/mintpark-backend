@@ -70,6 +70,7 @@ model OrderItem {
   ipfsUrl  String?
   metadata Json?
   status   ORDER_ITEM_STATUS @default(PENDING)
+  txid String?
 
   evmAssetId String?
   name       String?
@@ -175,6 +176,7 @@ model Collectible {
   uniqueIdx    String
   fileKey      String?
   createdAt    DateTime           @default(now())
+  txid         String?
   traits       CollectibleTrait[]
   list         List[]
 }

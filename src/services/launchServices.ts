@@ -339,6 +339,7 @@ export const launchServices = {
           uniqueIdx: `${collection.contractAddress}i${launchItem.evmAssetId}`,
           name: launchItem.name,
           fileKey: launchItem.fileKey,
+          txid: txid,
         });
 
         await orderRepository.update(trx, orderId, {
@@ -399,6 +400,7 @@ export const launchServices = {
         await orderRepository.update(trx, orderId, {
           paidAt: new Date(),
           orderStatus: "DONE",
+          txId: txid,
         });
 
         await launchItemRepository.update(trx, launchItem.id, {
@@ -410,6 +412,7 @@ export const launchServices = {
           name: `${collection.name} #${collection.mintedAmount}`,
           collectionId: collection.id,
           uniqueIdx: `${revealTxId}i0`,
+          txid: txid,
         });
 
         await purchaseRepository.create(trx, {
