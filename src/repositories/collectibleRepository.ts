@@ -128,7 +128,7 @@ export const collectibleRepository = {
           query = query.orderBy("CurrentList.listedAt", "desc");
           break;
         default:
-          query = query.orderBy("Collectible.createdAt", "desc");
+          query = query.orderBy("CurrentList.price", "asc");
       }
 
       // Execute query and log results for debugging
@@ -248,7 +248,7 @@ export const collectibleRepository = {
         query = query.orderBy("CurrentList.listedAt", "asc");
         break;
       default:
-        query = query.orderBy("Collectible.createdAt", "asc");
+        query = query.orderBy("CurrentList.price", "asc");
     }
 
     const collectibles = await query.execute();

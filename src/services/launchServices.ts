@@ -144,7 +144,7 @@ export const launchServices = {
           collection.id,
           {
             type: "LAUNCHED",
-            supply: launchItemCount,
+            supply: Number(launchItemCount) + launchItems.length,
           }
         );
       }
@@ -177,6 +177,14 @@ export const launchServices = {
       await purchaseRepository.getCountByUserIdAndLaunchId(launch.id, user.id);
     if (userPurchaseCount && userPurchaseCount >= launch.poMaxMintPerWallet)
       throw new CustomError("Wallet limit has been reached.", 400);
+
+    const userOnHoldItemCount =
+      await launchItemRepository.getOnHoldCountByLaunchIdAndUserId(
+        launch.id,
+        user.id
+      );
+    if (Number(userOnHoldItemCount) >= 3)
+      throw new CustomError("You have too many items reserved.", 400);
 
     const launchItem = await launchItemRepository.getRandomItemByLauchId(
       launch.id

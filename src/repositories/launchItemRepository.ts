@@ -174,6 +174,25 @@ export const launchItemRepository = {
 
     return launchItem;
   },
+  getOnHoldCountByLaunchIdAndUserId: async (
+    launchId: string,
+    userId: string
+  ) => {
+    const result = await db
+      .selectFrom("LaunchItem")
+      .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
+      .where("LaunchItem.launchId", "=", launchId)
+      .where("LaunchItem.status", "=", "ACTIVE")
+      .where("LaunchItem.onHoldBy", "=", userId)
+      .where((eb) =>
+        sql`${eb.ref(
+          "onHoldUntil"
+        )} < NOW() - INTERVAL '2 minute'`.$castTo<boolean>()
+      )
+      .executeTakeFirst();
+
+    return result?.count;
+  },
   bulkInsert: async (
     db: Kysely<DB> | Transaction<DB>,
     data: Insertable<LaunchItem>[]
@@ -182,9 +201,7 @@ export const launchItemRepository = {
       .insertInto("LaunchItem")
       .values(data)
       .returningAll()
-      .executeTakeFirstOrThrow(
-        () => new Error("Couldnt create the launch item.")
-      );
+      .execute();
 
     return launchItem;
   },
