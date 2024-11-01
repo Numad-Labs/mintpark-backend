@@ -19,7 +19,7 @@ export function createRateLimiter(options: RateLimiterOptions) {
     res: Response,
     next: NextFunction
   ) {
-    if (config.NODE_ENV !== "production") {
+    if (config.NODE_ENV === "test") {
       return next();
     }
 

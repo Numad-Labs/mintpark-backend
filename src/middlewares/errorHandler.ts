@@ -32,7 +32,7 @@ export function errorHandler(
     error: message,
   };
 
-  if (config.NODE_ENV !== "production") {
+  if (config.NODE_ENV !== "test") {
     errorResponse.stack = err.stack;
   }
 
