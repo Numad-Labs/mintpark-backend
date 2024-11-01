@@ -1,8 +1,14 @@
-import { Prisma, User } from "@prisma/client";
 import { Request } from "express";
 
-export interface AuthenticatedRequest extends Request {
-  user?: User;
+export interface AuthenticatedUser {
+  id: string;
+  role: ROLES;
+  iat: number;
+  exp: number;
+}
+
+interface AuthenticatedRequest extends Request {
+  user?: AuthenticatedUser;
 }
 
 export type tokenData = {

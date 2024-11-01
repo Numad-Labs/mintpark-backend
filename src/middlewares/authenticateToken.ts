@@ -1,35 +1,34 @@
-import { NextFunction, Request, Response } from "express";
-import { AuthenticatedRequest } from "../../custom";
-import jwt from "jsonwebtoken";
+import { NextFunction, Response } from "express";
+import { AuthenticatedRequest, AuthenticatedUser } from "../../custom";
 import { config } from "../config/config";
+import { CustomError } from "../exceptions/CustomError";
+import { verifyAccessToken } from "../utils/jwt";
 
-export const authenticateToken = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const jwtAuthSecret = config.JWT_ACCESS_SECRET;
-  const token = req.header("Authorization")?.split(" ")[1];
+export function authenticateToken() {
+  return async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const jwtAuthSecret = config.JWT_ACCESS_SECRET;
+      const authHeader = req.header("Authorization");
+      const token = authHeader?.split(" ")[1];
 
-  if (!jwtAuthSecret) {
-    return res.status(500).json({
-      success: false,
-      data: null,
-      message: "jwtAuthSecret is not defined.",
-    });
-  }
-  if (!token)
-    return res
-      .status(401)
-      .json({ success: false, data: null, message: "Authentication required" });
+      if (!jwtAuthSecret) {
+        throw new CustomError("Server configuration error.", 500);
+      }
 
-  jwt.verify(token, jwtAuthSecret, (err, user: any) => {
-    if (err)
-      return res
-        .status(401)
-        .json({ success: false, data: null, message: `Invalid token ${err}` });
+      if (!token) {
+        throw new CustomError("Authentication required.", 401);
+      }
 
-    req.user = user;
-    next();
-  });
-};
+      const user: AuthenticatedUser = await verifyAccessToken(token);
+
+      req.user = user;
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}

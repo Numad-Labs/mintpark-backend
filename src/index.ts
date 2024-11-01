@@ -54,8 +54,8 @@ app.use("/api/v1/lists", listRouter);
 app.use("/api/v1/launchpad", launchRouter);
 app.use("/api/v1/evm", nftRouter);
 
-app.use(errorHandler);
 app.use(notFound);
+app.use(errorHandler);
 
 // checkPaymentAndUpdateOrderStatus();
 // mintingQueue();
