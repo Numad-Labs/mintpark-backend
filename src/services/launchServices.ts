@@ -344,6 +344,7 @@ export const launchServices = {
         await orderRepository.update(trx, orderId, {
           paidAt: new Date(),
           orderStatus: "DONE",
+          txId: txid,
         });
 
         await purchaseRepository.create(trx, {
