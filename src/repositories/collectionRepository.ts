@@ -103,12 +103,11 @@ export const collectionRepository = {
     let query = db
       .selectFrom("Collection")
       .innerJoin("Launch", "Collection.id", "Launch.collectionId")
-      .select([
+      .select((eb) => [
         "Collection.id",
         "Collection.name",
         "Collection.creator",
         "Collection.description",
-        "Collection.supply",
         "Collection.type",
         "Collection.logoKey",
         "Collection.layerId",
@@ -129,6 +128,11 @@ export const collectionRepository = {
           WHERE "LaunchItem"."launchId" = "Launch"."id"
           AND "LaunchItem"."status" = 'SOLD'
         ), 0)`.as("mintedAmount"),
+        sql<number>`COALESCE((
+          SELECT COUNT(*)::integer
+          FROM "LaunchItem"
+          WHERE "LaunchItem"."launchId" = "Launch"."id"
+        ), 0)`.as("supply"),
       ])
       .where("Collection.layerId", "=", layerId)
       .where("Collection.type", "!=", "UNCONFIRMED")
@@ -178,7 +182,6 @@ export const collectionRepository = {
         "Collection.name",
         "Collection.creator",
         "Collection.description",
-        "Collection.supply",
         "Collection.type",
         "Collection.logoKey",
         "Collection.layerId",
@@ -200,6 +203,11 @@ export const collectionRepository = {
           AND "LaunchItem"."status" = 'SOLD'
         ), 0)`.as("mintedAmount"),
         "Collection.contractAddress",
+        sql<number>`COALESCE((
+          SELECT COUNT(*)::integer
+          FROM "LaunchItem"
+          WHERE "LaunchItem"."launchId" = "Launch"."id"
+        ), 0)`.as("supply"),
       ])
       .where("Collection.id", "=", id)
       .where("Launch.id", "is not", null)
