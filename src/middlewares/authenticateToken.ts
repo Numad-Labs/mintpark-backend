@@ -32,6 +32,8 @@ export function authenticateToken() {
       req.user = user;
       next();
     } catch (error) {
+      await delay(2000);
+
       // Handle specific JWT errors
       if (error instanceof TokenExpiredError) {
         next(new CustomError("Access token has expired.", 401));
@@ -49,4 +51,8 @@ export function authenticateToken() {
       next(new CustomError("Authentication failed.", 500));
     }
   };
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
