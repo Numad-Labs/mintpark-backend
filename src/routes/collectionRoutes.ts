@@ -8,7 +8,7 @@ const collectionRouter = Router();
 
 collectionRouter.post(
   "/",
-  authenticateToken(),
+  authenticateToken,
   authorize("SUPER_ADMIN"),
   parseFiles("logo", true),
   collectionController.create
@@ -16,7 +16,7 @@ collectionRouter.post(
 
 collectionRouter.post(
   "/:collectionId/launch",
-  authenticateToken(),
+  authenticateToken,
   authorize("SUPER_ADMIN"),
   parseFiles("files", false),
   collectionController.launchCollection
