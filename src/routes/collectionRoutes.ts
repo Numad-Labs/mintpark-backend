@@ -23,6 +23,6 @@ collectionRouter.post(
 );
 
 collectionRouter.get("/listed", collectionController.getListedCollections);
-collectionRouter.get("/:collectionId", collectionController.getById);
+collectionRouter.get("/:id", collectionController.getById);
 
 export = collectionRouter;
