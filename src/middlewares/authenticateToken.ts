@@ -3,6 +3,7 @@ import { AuthenticatedRequest, AuthenticatedUser } from "../../custom";
 import { config } from "../config/config";
 import { verifyAccessToken } from "../utils/jwt";
 import { CustomError } from "../exceptions/CustomError";
+import { JsonWebTokenError, TokenExpiredError } from "jsonwebtoken";
 
 export function authenticateToken() {
   return async (
@@ -23,13 +24,29 @@ export function authenticateToken() {
         throw new CustomError("Authentication required.", 401);
       }
 
-      const user = verifyAccessToken(token);
-      if (!user) throw new CustomError("Invalid access token.", 401);
+      const user = await verifyAccessToken(token, jwtAuthSecret);
+      if (!user) {
+        throw new CustomError("Invalid access token.", 401);
+      }
 
       req.user = user;
       next();
     } catch (error) {
-      next(error);
+      // Handle specific JWT errors
+      if (error instanceof TokenExpiredError) {
+        next(new CustomError("Access token has expired.", 401));
+        return;
+      }
+      if (error instanceof JsonWebTokenError) {
+        next(new CustomError("Invalid access token.", 401));
+        return;
+      }
+      if (error instanceof CustomError) {
+        next(error);
+        return;
+      }
+      // Handle unexpected errors
+      next(new CustomError("Authentication failed.", 500));
     }
   };
 }

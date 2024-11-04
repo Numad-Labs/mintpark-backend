@@ -1,4 +1,10 @@
-import { sign, verify, Secret, JsonWebTokenError } from "jsonwebtoken";
+import {
+  sign,
+  verify,
+  Secret,
+  JsonWebTokenError,
+  TokenExpiredError,
+} from "jsonwebtoken";
 import { config } from "../config/config";
 import jwt from "jsonwebtoken";
 import { CustomError } from "../exceptions/CustomError";
@@ -36,16 +42,24 @@ export function verifyRefreshToken(token: string): Promise<any> {
   });
 }
 
-export function verifyAccessToken(token: string) {
-  try {
-    const payload = jwt.verify(token, jwtAccessSecret);
-
-    return payload as AuthenticatedUser;
-  } catch (e) {
-    // if (e instanceof JsonWebTokenError) throw new CustomError(e., 401);
-
-    return false;
-  }
+export function verifyAccessToken(
+  token: string,
+  jwtAccessSecret: string
+): Promise<AuthenticatedUser | false> {
+  return new Promise((resolve) => {
+    try {
+      const payload = jwt.verify(token, jwtAccessSecret);
+      resolve(payload as AuthenticatedUser);
+    } catch (error) {
+      if (
+        error instanceof JsonWebTokenError ||
+        error instanceof TokenExpiredError
+      ) {
+        throw error; // Let the middleware handle specific JWT errors
+      }
+      resolve(false);
+    }
+  });
 }
 
 export function generateRefreshToken(payload: JwtPayload) {
