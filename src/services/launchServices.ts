@@ -171,8 +171,15 @@ export const launchServices = {
 
     const launch = await launchRepository.getByCollectionId(collection.id);
     if (!launch) throw new CustomError("Launch not found.", 400);
-
-    console.log(launch);
+    const currentUnixTimestamp = Date.now();
+    if (
+      BigInt(launch.poStartsAt) > BigInt(currentUnixTimestamp) ||
+      BigInt(launch.poEndsAt) < BigInt(currentUnixTimestamp)
+    )
+      throw new CustomError(
+        "Either launch has ended or has not started yet.",
+        400
+      );
 
     //TODO: add phase validation
     const userPurchaseCount =
