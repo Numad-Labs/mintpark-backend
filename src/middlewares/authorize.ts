@@ -7,15 +7,11 @@ import logger from "../config/winston";
 export function authorize(...roles: ROLES[]) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user || !req.user.role)
-      return res
-        .status(401)
-        .json({
-          success: false,
-          data: null,
-          message:
-            "Not authenticated or no role was provided for authorization.",
-        })
-        .end();
+      return res.status(401).json({
+        success: false,
+        data: null,
+        message: "Not authenticated or no role was provided for authorization.",
+      });
 
     if (!roles.includes(req.user.role))
       return res.status(401).json({
