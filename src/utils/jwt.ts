@@ -1,4 +1,4 @@
-import { sign, verify, Secret } from "jsonwebtoken";
+import { sign, verify, Secret, JsonWebTokenError } from "jsonwebtoken";
 import { config } from "../config/config";
 import jwt from "jsonwebtoken";
 import { CustomError } from "../exceptions/CustomError";
@@ -36,16 +36,16 @@ export function verifyRefreshToken(token: string): Promise<any> {
   });
 }
 
-export async function verifyAccessToken(token: string): Promise<any> {
-  return new Promise((resolve, reject) => {
-    jwt.verify(token, jwtAccessSecret, (err, decoded) => {
-      if (err)
-        reject(
-          new CustomError("Either access token is invalid or expired.", 401)
-        );
-      else resolve(decoded as AuthenticatedUser);
-    });
-  });
+export function verifyAccessToken(token: string) {
+  try {
+    const payload = jwt.verify(token, jwtAccessSecret);
+
+    return payload as AuthenticatedUser;
+  } catch (e) {
+    // if (e instanceof JsonWebTokenError) throw new CustomError(e., 401);
+
+    return false;
+  }
 }
 
 export function generateRefreshToken(payload: JwtPayload) {
