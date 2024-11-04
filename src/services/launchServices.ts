@@ -171,10 +171,11 @@ export const launchServices = {
 
     const launch = await launchRepository.getByCollectionId(collection.id);
     if (!launch) throw new CustomError("Launch not found.", 400);
-    const currentUnixTimestamp = Date.now();
+    const currentUnixTimestamp = Date.now() / 1000;
+
     if (
-      BigInt(launch.poStartsAt) > BigInt(currentUnixTimestamp) ||
-      BigInt(launch.poEndsAt) < BigInt(currentUnixTimestamp)
+      Number(launch.poStartsAt) > Number(currentUnixTimestamp) ||
+      Number(launch.poEndsAt) < Number(currentUnixTimestamp)
     )
       throw new CustomError(
         "Either launch has ended or has not started yet.",
