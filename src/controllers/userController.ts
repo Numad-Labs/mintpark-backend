@@ -7,6 +7,8 @@ import { userServices } from "../services/userServices";
 import { CustomError } from "../exceptions/CustomError";
 import { AuthenticatedRequest } from "../../custom";
 import { hideSensitiveData } from "../libs/hideDataHelper";
+import logger from "../config/winston";
+import { JsonWebTokenError, TokenExpiredError } from "jsonwebtoken";
 
 export const userController = {
   generateMessageToSign: async (
@@ -63,12 +65,29 @@ export const userController = {
         throw new CustomError(`Please provide a refresh token.`, 400);
 
       const tokens = await verifyRefreshToken(refreshToken);
+      if (!tokens) throw new CustomError(`Invalid token.`, 400);
 
       return res.status(200).json({
         success: true,
         data: tokens,
       });
     } catch (e) {
+      if (e instanceof TokenExpiredError)
+        return res.status(401).json({
+          success: false,
+          data: null,
+          error: "Refresh token has expired.",
+        });
+
+      if (e instanceof JsonWebTokenError)
+        return res
+          .status(401)
+          .json({
+            success: false,
+            data: null,
+            error: "Invalid refresh token.",
+          });
+
       next(e);
     }
   },

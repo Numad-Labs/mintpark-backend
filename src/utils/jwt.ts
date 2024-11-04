@@ -28,17 +28,21 @@ export function generateAccessToken(payload: JwtPayload) {
 }
 
 export function verifyRefreshToken(token: string): Promise<any> {
-  return new Promise((resolve, reject) => {
-    jwt.verify(token, jwtRefreshSecret, (err: any, payload: any) => {
-      if (err) {
-        reject(
-          new CustomError(`Either refresh token is invalid or expired.`, 401)
-        );
-      } else {
-        const tokens = generateTokens({ id: payload.id, role: payload.role });
-        resolve(tokens);
+  return new Promise((resolve) => {
+    try {
+      const payload = jwt.verify(token, jwtRefreshSecret) as AuthenticatedUser;
+      console.log(payload);
+      const tokens = generateTokens(payload);
+      resolve(tokens);
+    } catch (error) {
+      if (
+        error instanceof JsonWebTokenError ||
+        error instanceof TokenExpiredError
+      ) {
+        throw error;
       }
-    });
+      resolve(false);
+    }
   });
 }
 
@@ -55,7 +59,7 @@ export function verifyAccessToken(
         error instanceof JsonWebTokenError ||
         error instanceof TokenExpiredError
       ) {
-        throw error; // Let the middleware handle specific JWT errors
+        throw error;
       }
       resolve(false);
     }
