@@ -28,13 +28,17 @@ import {
 import { FILE_COUNT_LIMIT } from "../libs/constants";
 import { serializeBigInt } from "../../blockchain/evm/utils";
 import { db } from "../utils/db";
-
+import { TransactionValidationService } from "../../blockchain/evm/services/evmTransactionValidationService";
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
   EVM_CONFIG.MARKETPLACE_ADDRESS,
   new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
 );
 const confirmationService = new TransactionConfirmationService(
+  EVM_CONFIG.RPC_URL!
+);
+
+const transactionService = new TransactionValidationService(
   EVM_CONFIG.RPC_URL!
 );
 
@@ -456,6 +460,25 @@ export const orderServices = {
           db,
           order.collectionId
         );
+
+        if (!collection || !collection.contractAddress)
+          throw new CustomError(
+            "Collection or collection contract address not found.",
+            400
+          );
+
+        const isValid =
+          await transactionService.validateCollectionMintTransaction(
+            txid,
+            order.userId,
+            order.quantity,
+            collection.contractAddress
+          );
+
+        if (!isValid) {
+          throw new CustomError("Invalid transaction.", 400);
+        }
+
         const orderItemCount = await orderItemRepository.getCountByCollectionId(
           order.collectionId
         );

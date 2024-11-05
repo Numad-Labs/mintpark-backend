@@ -2,6 +2,8 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract, Signer } from "ethers";
 import { MPMNFT, MarketplaceContract } from "../typechain-types";
+import { TransactionValidationService } from "../services/evmTransactionValidationService";
+import { EVM_CONFIG } from "../evm-config";
 
 describe("MPMNFT", function () {
   let nftContract: MPMNFT;
@@ -270,7 +272,7 @@ describe("MPMNFT", function () {
   });
 });
 
-describe("SimpleMarketplace", function () {
+describe("MarketplaceContract", function () {
   let marketplace: MarketplaceContract;
   let nftContract: MPMNFT;
   let owner: Signer;
@@ -298,7 +300,7 @@ describe("SimpleMarketplace", function () {
 
     // Deploy Marketplace contract
     const MarketplaceFactory = await ethers.getContractFactory(
-      "SimpleMarketplace"
+      "MarketplaceContract"
     );
     marketplace = (await MarketplaceFactory.deploy()) as MarketplaceContract;
     await marketplace.waitForDeployment();
@@ -547,6 +549,223 @@ describe("SimpleMarketplace", function () {
         });
       const receipt = await tx.wait();
       console.log("Gas used for buying:", receipt?.gasUsed.toString());
+    });
+  });
+});
+
+describe("TransactionValidationService", function () {
+  let nftContract: MPMNFT;
+  let owner: any;
+  let minter: any;
+  let validationService: TransactionValidationService;
+  const MINT_FEE = ethers.parseEther("0.1");
+  const TOKEN_NAME = "Test NFT";
+  const TOKEN_SYMBOL = "TNFT";
+
+  beforeEach(async function () {
+    [owner, minter] = await ethers.getSigners();
+
+    // Deploy NFT contract
+    const NFTFactory = await ethers.getContractFactory("MPMNFT");
+    nftContract = (await NFTFactory.deploy(
+      await owner.getAddress(),
+      TOKEN_NAME,
+      TOKEN_SYMBOL,
+      MINT_FEE
+    )) as MPMNFT;
+    await nftContract.waitForDeployment();
+
+    // Initialize validation service with hardhat's provider URL
+    validationService = new TransactionValidationService(
+      "http://localhost:8545"
+    );
+  });
+
+  describe("Collection Mint Validation", function () {
+    it("Should validate successful single mint transaction", async function () {
+      // Perform single mint with correct fee
+      const tx = await nftContract
+        .connect(minter)
+        .mint(1, "uri1", { value: MINT_FEE });
+      const receipt = await tx.wait();
+
+      if (!receipt) return;
+
+      const isValid = await validationService.validateCollectionMintTransaction(
+        receipt.hash,
+        await minter.getAddress(),
+        1,
+        await nftContract.getAddress()
+      );
+
+      expect(isValid).to.be.true;
+    });
+
+    it("Should validate successful batch mint from owner", async function () {
+      // Check if owner is correctly set
+      const contractOwner = await nftContract.owner();
+      expect(contractOwner.toLowerCase()).to.equal(
+        (await owner.getAddress()).toLowerCase()
+      );
+
+      const quantity = 3;
+      const uris = ["uri1", "uri2", "uri3"];
+
+      // Perform batch mint as owner
+      const tx = await nftContract
+        .connect(owner)
+        .batchMint(await minter.getAddress(), quantity, uris);
+      const receipt = await tx.wait();
+
+      // Log relevant information for debugging
+      console.log("Transaction from:", tx.from);
+      console.log("Contract owner:", contractOwner);
+      console.log("Minter address:", await minter.getAddress());
+      if (!receipt) return;
+
+      // Validate the transaction
+      const isValid = await validationService.validateCollectionMintTransaction(
+        receipt.hash,
+        await minter.getAddress(),
+        quantity,
+        await nftContract.getAddress()
+      );
+
+      expect(isValid).to.be.true;
+    });
+
+    it("Should reject validation when quantity doesn't match", async function () {
+      // Mint single token
+      const tx = await nftContract
+        .connect(minter)
+        .mint(1, "uri1", { value: MINT_FEE });
+      const receipt = await tx.wait();
+      if (!receipt) return;
+
+      await expect(
+        validationService.validateCollectionMintTransaction(
+          receipt.hash,
+          await minter.getAddress(),
+          2, // Expected 2 but only minted 1
+          await nftContract.getAddress()
+        )
+      ).to.be.rejectedWith("Expected 2 mints, but found 1");
+    });
+
+    it("Should reject validation for wrong recipient", async function () {
+      // Owner mints to themselves instead of minter
+      const tx = await nftContract
+        .connect(owner)
+        .safeMint(await owner.getAddress(), 1, "uri1");
+      const receipt = await tx.wait();
+      if (!receipt) return;
+
+      await expect(
+        validationService.validateCollectionMintTransaction(
+          receipt.hash,
+          await minter.getAddress(), // Wrong recipient
+          1,
+          await nftContract.getAddress()
+        )
+      ).to.be.rejectedWith("Invalid mint: wrong recipient");
+    });
+
+    it("Should reject validation for insufficient payment", async function () {
+      // Try to mint with insufficient fee
+      const insufficientFee = MINT_FEE / BigInt(2);
+
+      try {
+        const tx = await nftContract
+          .connect(minter)
+          .mint(1, "uri1", { value: insufficientFee });
+        await tx.wait();
+        // Should not reach here
+        expect.fail("Transaction should have failed");
+      } catch (error: any) {
+        if (error.message.includes("Transaction should have failed")) {
+          throw error;
+        }
+        // Transaction failed as expected
+        expect(error.message).to.include("Insufficient payment");
+      }
+    });
+
+    it("Should handle non-existent transaction", async function () {
+      const fakeTxHash =
+        "0x1234567890123456789012345678901234567890123456789012345678901234";
+
+      await expect(
+        validationService.validateCollectionMintTransaction(
+          fakeTxHash,
+          await minter.getAddress(),
+          1,
+          await nftContract.getAddress()
+        )
+      ).to.be.rejectedWith("Transaction not found");
+    });
+
+    it("Should validate multiple consecutive mints", async function () {
+      // First mint
+      const tx1 = await nftContract
+        .connect(minter)
+        .mint(1, "uri1", { value: MINT_FEE });
+      const receipt1 = await tx1.wait();
+
+      // Second mint
+      const tx2 = await nftContract
+        .connect(minter)
+        .mint(2, "uri2", { value: MINT_FEE });
+      const receipt2 = await tx2.wait();
+
+      if (!receipt1) return;
+      if (!receipt2) return;
+
+      // Validate both transactions
+      const isValid1 =
+        await validationService.validateCollectionMintTransaction(
+          receipt1.hash,
+          await minter.getAddress(),
+          1,
+          await nftContract.getAddress()
+        );
+
+      const isValid2 =
+        await validationService.validateCollectionMintTransaction(
+          receipt2.hash,
+          await minter.getAddress(),
+          1,
+          await nftContract.getAddress()
+        );
+
+      expect(isValid1).to.be.true;
+      expect(isValid2).to.be.true;
+    });
+
+    it("Should validate payment for multiple mints", async function () {
+      const quantity = 2;
+      const totalFee = MINT_FEE * BigInt(quantity);
+
+      // Mint multiple tokens with correct total fee
+      const tx1 = await nftContract
+        .connect(minter)
+        .mint(1, "uri1", { value: MINT_FEE });
+      await tx1.wait();
+
+      const tx2 = await nftContract
+        .connect(minter)
+        .mint(2, "uri2", { value: MINT_FEE });
+      const receipt2 = await tx2.wait();
+
+      if (!receipt2) return;
+
+      const isValid = await validationService.validateCollectionMintTransaction(
+        receipt2.hash,
+        await minter.getAddress(),
+        1,
+        await nftContract.getAddress()
+      );
+
+      expect(isValid).to.be.true;
     });
   });
 });

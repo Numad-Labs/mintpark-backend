@@ -10,9 +10,9 @@ const config: HardhatUserConfig = {
   },
   paths: {
     // sources: "./contracts/v2",
-    tests: "./test",
-    cache: "./cache",
-    artifacts: "./artifacts",
+    tests: "./blockchain/evm/test",
+    cache: "./blockchain/evm/cache",
+    artifacts: "./blockchain/evm/artifacts",
   },
 };
 
