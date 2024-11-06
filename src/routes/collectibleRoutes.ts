@@ -17,4 +17,6 @@ collectibleRouter.get(
   collectibleControllers.getTokenActivity
 );
 
+collectibleRouter.put("/:id", collectibleControllers.update);
+
 export = collectibleRouter;

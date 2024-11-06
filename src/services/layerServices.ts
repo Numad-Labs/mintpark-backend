@@ -3,7 +3,12 @@ import { layerRepository } from "../repositories/layerRepository";
 import { LAYER, NETWORK } from "../types/db/enums";
 
 export const layerServices = {
-  create: async (name: string, layer: LAYER, network: NETWORK) => {
+  create: async (
+    name: string,
+    layer: LAYER,
+    network: NETWORK,
+    currencyId: string
+  ) => {
     const existingLayer = await layerRepository.getByName(name);
     if (existingLayer.length > 1)
       throw new CustomError("Layer already exists.", 400);
@@ -12,6 +17,7 @@ export const layerServices = {
       name,
       layer,
       network,
+      currencyId,
     });
 
     return newLayer;

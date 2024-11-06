@@ -9,7 +9,7 @@ import { CustomError } from "../exceptions/CustomError";
 
 export const layerController = {
   create: async (req: Request, res: Response, next: NextFunction) => {
-    const { layer, network } = req.body;
+    const { layer, network, currencyId } = req.body;
 
     try {
       if (!layer || !network)
@@ -18,7 +18,8 @@ export const layerController = {
       const newLayer = await layerServices.create(
         String(layer).toLowerCase(),
         layer.toUpperCase() as LAYER,
-        network as NETWORK
+        network as NETWORK,
+        currencyId
       );
 
       return res.status(201).json({ success: true, data: newLayer });

@@ -46,9 +46,15 @@ export type Collection = {
   iconUrl: string | null;
   inscriptionIcon: string | null;
   slug: string | null;
-  layerId: string | null;
+  layerId: string;
   contractAddress: string | null;
   createdAt: Generated<Timestamp>;
+};
+export type Currency = {
+  id: Generated<string>;
+  ticker: string;
+  price: Generated<number>;
+  updatedAt: Generated<Timestamp | null>;
 };
 export type Launch = {
   id: Generated<string>;
@@ -81,6 +87,7 @@ export type Layer = {
   name: string;
   layer: Generated<LAYER>;
   network: Generated<NETWORK>;
+  currencyId: string;
 };
 export type List = {
   id: Generated<string>;
@@ -141,7 +148,7 @@ export type Trait = {
 };
 export type User = {
   id: Generated<string>;
-  layerId: string | null;
+  layerId: string;
   address: string;
   pubkey: string | null;
   xpub: string | null;
@@ -157,6 +164,7 @@ export type DB = {
   Collectible: Collectible;
   CollectibleTrait: CollectibleTrait;
   Collection: Collection;
+  Currency: Currency;
   Launch: Launch;
   LaunchItem: LaunchItem;
   Layer: Layer;

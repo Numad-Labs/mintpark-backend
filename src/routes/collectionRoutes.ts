@@ -25,4 +25,6 @@ collectionRouter.post(
 collectionRouter.get("/listed", collectionController.getListedCollections);
 collectionRouter.get("/:id", collectionController.getById);
 
+collectionRouter.put("/:id", collectionController.update);
+
 export = collectionRouter;

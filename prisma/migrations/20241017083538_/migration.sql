@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE "LaunchItem" ALTER COLUMN "metadata" DROP NOT NULL,
-ALTER COLUMN "status" SET DEFAULT 'ACTIVE';
