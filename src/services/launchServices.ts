@@ -20,8 +20,8 @@ import { mint } from "../../blockchain/utxo/fractal/mint";
 import { sendRawTransactionWithNode } from "../../blockchain/utxo/fractal/libs";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import { CustomError } from "../exceptions/CustomError";
-import { Insertable } from "kysely";
-import { Collectible, LaunchItem } from "../types/db/types";
+import { Insertable, Updateable } from "kysely";
+import { Collectible, Launch, LaunchItem } from "../types/db/types";
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
 import LaunchpadService from "../../blockchain/evm/services/launchpadService";
@@ -131,6 +131,7 @@ export const launchServices = {
         forceReleaseSlot(collection.id);
         throw e;
       }
+      //TODO: metadata support
       launchItems = await launchItemRepository.bulkInsert(
         trx,
         insertableLaunchItems
@@ -215,7 +216,6 @@ export const launchServices = {
         );
 
         if (!collection) throw new CustomError("Collection not found.", 400);
-
         if (!collection.contractAddress)
           throw new Error("Collection with no contract address not found.");
 
@@ -227,6 +227,7 @@ export const launchServices = {
             trx
           );
 
+        //TODO: metadata support
         const serializedTx = serializeBigInt(unsignedTx);
         const singleMintTxHex = serializedTx;
 
@@ -343,6 +344,7 @@ export const launchServices = {
           status: "SOLD",
         });
 
+        //TODO: metadata support
         const collectible = await collectibleRepository.create(trx, {
           collectionId: collection.id,
           uniqueIdx: `${collection.contractAddress}i${launchItem.evmAssetId}`,
@@ -421,6 +423,7 @@ export const launchServices = {
           status: "SOLD",
         });
 
+        //TODO: metadata support
         const collectible = await collectibleRepository.create(trx, {
           fileKey: launchItem.fileKey,
           name: `${collection.name} #${collection.mintedAmount}`,
@@ -438,25 +441,27 @@ export const launchServices = {
       } else throw new CustomError("This layer is unsupported ATM.", 400);
     });
   },
-};
+  update: async (id: string, data: Updateable<Launch>, issuerId: string) => {
+    const issuer = await userRepository.getByIdWithLayer(issuerId);
+    if (!issuer) throw new CustomError("User not found.", 400);
 
-// async function createLaunchItems(
-//   launchId: string,
-//   nftMetadatas: nftMetaData[]
-// ): Promise<any[]> {
-//   return await Promise.all(
-//     nftMetadatas.map(async (metadata) => {
-//       const key = randomUUID();
-//       if (metadata.file) await uploadToS3(key, metadata.file);
-//       return await launchItemRepository.create({
-//         launchId,
-//         fileKey: key,
-//         evmAssetId: metadata.nftId,
-//         name: metadata.name,
-//       });
-//     })
-//   );
-// }
+    const launch = await launchRepository.getById(id);
+    if (!launch) throw new CustomError("Launch not found.", 400);
+    if (launch.ownerId !== issuerId)
+      throw new CustomError(
+        "You are not allowed to update this collection.",
+        400
+      );
+
+    if (issuer.layer === "CITREA") {
+      //update the data in the contract
+    }
+
+    const updatedLaunch = await launchRepository.update(id, data);
+
+    return updatedLaunch;
+  },
+};
 
 async function uploadFilesAndReturnLaunchItems(
   launchId: string,

@@ -301,6 +301,7 @@ export const orderServices = {
         throw e;
       }
 
+      //TODO: metadata support
       orderItems = await orderItemRepository.bulkInsert(insertableOrderItems);
 
       const isComplete = await updateProgress(collectionId);
@@ -354,6 +355,7 @@ export const orderServices = {
         throw e;
       }
 
+      //TODO: metadata support
       orderItems = await orderItemRepository.bulkInsert(insertableOrderItems);
 
       const isComplete = await updateProgress(collectionId);
@@ -398,6 +400,7 @@ export const orderServices = {
         .map((item) => item.ipfsUrl)
         .filter((url): url is string => url !== null);
 
+      //TODO: metadata support
       const unsignedTx = await nftService.getUnsignedBatchMintNFTTransaction(
         collection?.contractAddress,
         issuer.address,
@@ -478,6 +481,7 @@ export const orderServices = {
           }
         }
 
+        //TODO: metadata support
         await collectibleRepository.bulkInsert(collectibles);
 
         if (Number(orderItemCount) === order.quantity) {

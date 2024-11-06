@@ -14,6 +14,17 @@ export interface CollectionQueryParams {
   // pageSize?: string;
 }
 
+export interface updateCollection {
+  name?: string;
+  creator?: string;
+  description?: string;
+  discordUrl?: string;
+  twitterUrl?: string;
+  webUrl?: string;
+  slug?: string;
+  logoKey?: string;
+}
+
 export const collectionController = {
   create: async (
     req: AuthenticatedRequest,
@@ -90,10 +101,11 @@ export const collectionController = {
           "Please provide all required fields for white listed collection. (WLStartsAt, WLEndsAt, WLMintPrice, WLMaxMintPerWallet)",
           400
         );
-
       if ((POEndsAt && POStartsAt > POEndsAt) || WLStartsAt < WLEndsAt) {
         throw new CustomError("Start date must be before end date", 400);
       }
+      if (!req.user?.id)
+        throw new CustomError("Could not parse the id from the token.", 401);
 
       const launch = await launchServices.create(
         {
@@ -107,6 +119,7 @@ export const collectionController = {
           wlEndsAt: WLEndsAt ? BigInt(WLEndsAt) : null,
           wlMaxMintPerWallet: WLMaxMintPerWallet || null,
           wlMintPrice: WLMintPrice || null,
+          ownerId: req.user.id,
         },
         files,
         totalFileCount,
@@ -158,5 +171,47 @@ export const collectionController = {
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
-  ) => {},
+  ) => {
+    const { id } = req.params;
+    const { name, creator, description, discordUrl, twitterUrl, webUrl, slug } =
+      req.body;
+    const logo = req.file as Express.Multer.File;
+
+    try {
+      if (!req.user?.id)
+        throw new CustomError("Could not parse the id from the token.", 401);
+
+      const collection = await collectionServices.update(
+        id,
+        { name, creator, description, discordUrl, twitterUrl, webUrl, slug },
+        logo,
+        req.user.id
+      );
+
+      return res.status(200).json({ success: true, data: { collection } });
+    } catch (e) {
+      next(e);
+    }
+  },
+  listForEvm: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const { contractAddress } = req.body;
+
+    try {
+      if (!req.user?.id)
+        throw new CustomError("Could not parse the id from the token.", 401);
+
+      const result = await collectionServices.listForEvm(
+        contractAddress,
+        req.user.id
+      );
+
+      return res.status(200).json({ success: true, data: { result } });
+    } catch (e) {
+      next(e);
+    }
+  },
 };

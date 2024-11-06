@@ -2,10 +2,13 @@ import {
   collectionRepository,
   LaunchQueryParams,
 } from "../repositories/collectionRepository";
-import { uploadToS3 } from "../utils/aws";
+import { deleteFromS3, uploadToS3 } from "../utils/aws";
 import { randomUUID } from "crypto";
 import { userRepository } from "../repositories/userRepository";
-import { CollectionQueryParams } from "../controllers/collectionController";
+import {
+  CollectionQueryParams,
+  updateCollection,
+} from "../controllers/collectionController";
 import { layerRepository } from "../repositories/layerRepository";
 import { CustomError } from "../exceptions/CustomError";
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
@@ -13,6 +16,9 @@ import NFTService from "../../blockchain/evm/services/nftService";
 import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
 import { EVMCollectibleService } from "../../blockchain/evm/services/evmIndexService";
 import { db } from "../utils/db";
+import { Insertable, Updateable } from "kysely";
+import { Collection } from "../types/db/types";
+import { collectibleRepository } from "../repositories/collectibleRepository";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
@@ -74,11 +80,6 @@ export const collectionServices = {
 
     return { collection, deployContractTxHex };
   },
-  update: async (id: string, data: any) => {
-    const collection = await collectionRepository.update(db, id, data);
-
-    return collection;
-  },
   delete: async (id: string) => {
     const collection = await collectionRepository.delete(id);
 
@@ -137,5 +138,63 @@ export const collectionServices = {
       })
     );
     return collectionsWithOwners;
+  },
+  update: async (
+    id: string,
+    data: updateCollection,
+    file: Express.Multer.File,
+    issuerId: string
+  ) => {
+    const issuer = await userRepository.getByIdWithLayer(issuerId);
+    if (!issuer) throw new CustomError("User not found.", 400);
+
+    const collection = await collectionRepository.getById(db, id);
+    if (!collection) throw new CustomError("Collection not found.", 400);
+
+    if (file && collection.logoKey) {
+      await deleteFromS3(`restaurant/${collection.logoKey}`);
+    }
+
+    if (file) {
+      const randomKey = randomUUID();
+      await uploadToS3(`restaurant/${randomKey}`, file);
+
+      data.logoKey = randomKey;
+    }
+
+    if (issuer.layer === "CITREA") {
+      //update the data in the contract
+    } else if (issuer.layer === "FRACTAL") {
+      //update the collections REPO
+    }
+
+    const updatedCollection = await collectionRepository.update(db, id, data);
+
+    return updatedCollection;
+  },
+  listForEvm: async (contractAddress: string, issuerId: string) => {
+    const issuer = await userRepository.getByIdWithLayer(issuerId);
+    if (!issuer) throw new CustomError("User not found.", 400);
+
+    const isExistingCollection =
+      await collectionRepository.getByContractAddress(contractAddress);
+    if (isExistingCollection)
+      throw new CustomError("This collection has already been listed.", 400);
+
+    if (issuer.layer !== "CITREA")
+      throw new CustomError("Unsupported layer for this API.", 400);
+
+    //fetch nft details & insert them into the database
+    let collectionData: any;
+    const collection = await collectionRepository.create(collectionData);
+
+    let collectibleData: any;
+    const collectibles = await collectibleRepository.bulkInsert(
+      collectibleData
+    );
+
+    //TODO: metadata support
+
+    return { collectionData, collectibleData };
   },
 };

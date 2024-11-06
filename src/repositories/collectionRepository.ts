@@ -457,4 +457,13 @@ export const collectionRepository = {
 
     return collection;
   },
+  getByContractAddress: async (contractAddress: string) => {
+    const collection = await db
+      .selectFrom("Collection")
+      .selectAll()
+      .where("Collection.contractAddress", "=", contractAddress)
+      .executeTakeFirst();
+
+    return collection;
+  },
 };

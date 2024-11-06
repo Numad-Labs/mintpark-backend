@@ -65,10 +65,11 @@ export type Launch = {
   wlMintPrice: number | null;
   wlMaxMintPerWallet: number | null;
   poStartsAt: Generated<string>;
-  poEndsAt: Generated<string>;
+  poEndsAt: string | null;
   poMintPrice: number;
   poMaxMintPerWallet: number;
   createdAt: Generated<Timestamp>;
+  ownerId: string | null;
 };
 export type LaunchItem = {
   id: Generated<string>;
