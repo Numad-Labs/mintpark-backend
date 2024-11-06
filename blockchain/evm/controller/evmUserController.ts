@@ -27,7 +27,7 @@ export const userController = {
   },
 
   login: async (req: Request, res: Response, next: NextFunction) => {
-    const { address, signedMessage } = req.body;
+    const { address, signedMessage, layerId } = req.body;
     try {
       //todo custom error bolgoh
 
@@ -39,7 +39,8 @@ export const userController = {
       }
       const { user, tokens } = await userServices.login(
         address,
-        signedMessage
+        signedMessage,
+        layerId
         // xpub
       );
       return res.status(200).json({
