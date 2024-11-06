@@ -13,7 +13,6 @@ launchRouter.get(
 launchRouter.post(
   "/collections/:collectionId/create-order",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
   launchController.generateOrderForLaunchedCollection
 );
 launchRouter.post(

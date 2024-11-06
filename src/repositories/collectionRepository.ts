@@ -143,6 +143,7 @@ export const collectionRepository = {
         if (interval === "live") {
           return eb.or([
             eb("Launch.poEndsAt", ">", now.toString()),
+            eb("Launch.poEndsAt", "=", null),
             // eb.and([
             //   eb("Launch.wlStartsAt", "is not", null),
             //   eb("Launch.wlEndsAt", "is not", null),
