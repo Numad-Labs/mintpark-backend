@@ -18,7 +18,6 @@ launchRouter.post(
 launchRouter.post(
   "/invoke-order",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
   launchController.invokeOrder
 );
 launchRouter.post(
