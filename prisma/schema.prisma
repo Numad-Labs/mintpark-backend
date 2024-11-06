@@ -17,7 +17,7 @@ datasource db {
 model User {
   id         String       @id @default(dbgenerated("gen_random_uuid()"))
   layerId    String
-  layer      Layer       @relation(fields: [layerId], references: [id])
+  layer      Layer        @relation(fields: [layerId], references: [id])
   address    String       @unique
   pubkey     String?      @unique
   xpub       String?      @unique
@@ -26,6 +26,7 @@ model User {
   purchases  Purchase[]
   orders     Order[]
   LaunchItem LaunchItem[]
+  Launch     Launch[]
 }
 
 model Currency {
@@ -106,7 +107,7 @@ model Collection {
 
   contractAddress String?
   createdAt       DateTime      @default(now())
-  layer           Layer        @relation(fields: [layerId], references: [id])
+  layer           Layer         @relation(fields: [layerId], references: [id])
   launches        Launch[]
   orders          Order[]
   collectibles    Collectible[]
@@ -140,21 +141,24 @@ model LaunchItem {
 }
 
 model Launch {
-  id                 String       @id @default(dbgenerated("gen_random_uuid()"))
+  id                 String     @id @default(dbgenerated("gen_random_uuid()"))
   collectionId       String
-  collection         Collection   @relation(fields: [collectionId], references: [id])
+  collection         Collection @relation(fields: [collectionId], references: [id])
   isWhitelisted      Boolean
   wlStartsAt         BigInt?
   wlEndsAt           BigInt?
   wlMintPrice        Float?
   wlMaxMintPerWallet Int?
-  poStartsAt         BigInt       @default(0)
-  poEndsAt           BigInt       @default(0)
+  poStartsAt         BigInt     @default(0)
+  poEndsAt           BigInt?
   poMintPrice        Float
   poMaxMintPerWallet Int
-  createdAt          DateTime     @default(now())
-  launchItems        LaunchItem[]
-  wlAddresses        WlAddress[]
+  createdAt          DateTime   @default(now())
+
+  ownerId     String?
+  owner       User?         @relation(fields: [ownerId], references: [id])
+  launchItems LaunchItem[]
+  wlAddresses WlAddress[]
 }
 
 model WlAddress {

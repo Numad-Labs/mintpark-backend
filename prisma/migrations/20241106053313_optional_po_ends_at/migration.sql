@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Launch" ALTER COLUMN "poEndsAt" DROP NOT NULL,
+ALTER COLUMN "poEndsAt" DROP DEFAULT;

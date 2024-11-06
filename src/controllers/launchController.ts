@@ -10,6 +10,9 @@ import LaunchpadService from "../../blockchain/evm/services/launchpadService";
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
 import { serializeBigInt } from "../../blockchain/evm/utils";
+import { Updateable } from "kysely";
+import { Launch } from "../types/db/types";
+import { launchRepository } from "../repositories/launchRepository";
 
 export interface LaunchOfferType {
   offerType: "public" | "whitelist";
@@ -148,6 +151,24 @@ export const launchController = {
       return res
         .status(200)
         .json({ success: true, data: { mintHexes: mintHexes } });
+    } catch (e) {
+      next(e);
+    }
+  },
+  update: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const { id } = req.params;
+    const data: Updateable<Launch> = { ...req.body };
+
+    try {
+      if (!req.user?.id) throw new CustomError("User not found.", 404);
+
+      const launch = await launchServices.update(id, data, req.user.id);
+
+      return res.status(200).json({ success: true, data: { launch } });
     } catch (e) {
       next(e);
     }

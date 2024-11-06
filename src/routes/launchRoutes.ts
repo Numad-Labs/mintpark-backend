@@ -28,4 +28,5 @@ launchRouter.post(
   authorize("SUPER_ADMIN"),
   launchController.getUnsignedMintPriceChange
 );
+launchRouter.put("/:id", authenticateToken, launchController.update);
 export = launchRouter;
