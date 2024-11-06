@@ -16,7 +16,7 @@ export const userServices = {
 
     return message;
   },
-  login: async (address: string, signedMessage: string) => {
+  login: async (address: string, signedMessage: string, layerId: string) => {
     const nonce = await redis.get(`nonce:${address}`);
     if (!nonce) throw new CustomError("No recorded nonce found.", 400);
     const message = await generateMessage(address, nonce, "EVM");
@@ -26,7 +26,7 @@ export const userServices = {
 
     let user = await userRepository.getByAddress(address);
     if (!user) {
-      user = await userRepository.create({ address: address });
+      user = await userRepository.create({ address: address, layerId });
     }
 
     const tokens = generateTokens(user);
