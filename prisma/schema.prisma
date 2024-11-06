@@ -16,8 +16,8 @@ datasource db {
 
 model User {
   id         String       @id @default(dbgenerated("gen_random_uuid()"))
-  layerId    String?
-  layer      Layer?       @relation(fields: [layerId], references: [id])
+  layerId    String
+  layer      Layer       @relation(fields: [layerId], references: [id])
   address    String       @unique
   pubkey     String?      @unique
   xpub       String?      @unique
@@ -28,11 +28,23 @@ model User {
   LaunchItem LaunchItem[]
 }
 
+model Currency {
+  id        String    @id @default(dbgenerated("gen_random_uuid()"))
+  ticker    String    @unique
+  price     Float     @default(0)
+  updatedAt DateTime? @default(now())
+  Layer     Layer[]
+
+  @@index([ticker])
+}
+
 model Layer {
   id         String       @id @default(dbgenerated("gen_random_uuid()"))
   name       String
   layer      LAYER        @default(FRACTAL)
   network    NETWORK      @default(TESTNET)
+  currencyId String
+  currency   Currency     @relation(fields: [currencyId], references: [id])
   users      User[]
   Collection Collection[]
 }
@@ -70,7 +82,7 @@ model OrderItem {
   ipfsUrl  String?
   metadata Json?
   status   ORDER_ITEM_STATUS @default(PENDING)
-  txid String?
+  txid     String?
 
   evmAssetId String?
   name       String?
@@ -90,11 +102,11 @@ model Collection {
   iconUrl         String?
   inscriptionIcon String?
   slug            String?
-  layerId         String?
+  layerId         String
 
   contractAddress String?
   createdAt       DateTime      @default(now())
-  layer           Layer?        @relation(fields: [layerId], references: [id], onDelete: SetNull)
+  layer           Layer        @relation(fields: [layerId], references: [id])
   launches        Launch[]
   orders          Order[]
   collectibles    Collectible[]

@@ -77,13 +77,7 @@ export const collectionController = {
     const files = req.files as Express.Multer.File[];
 
     try {
-      if (
-        !POStartsAt ||
-        !POEndsAt ||
-        !POMintPrice ||
-        !POMaxMintPerWallet ||
-        !isWhiteListed
-      )
+      if (!POStartsAt || !POMintPrice || !POMaxMintPerWallet || !isWhiteListed)
         throw new CustomError(
           "Please provide all required fields. (POStartsAt, POEndsAt, POMintPrice, POMaxMintPerWallet, isWhiteListed)",
           400
@@ -97,7 +91,7 @@ export const collectionController = {
           400
         );
 
-      if (POStartsAt > POEndsAt || WLStartsAt < WLEndsAt) {
+      if ((POEndsAt && POStartsAt > POEndsAt) || WLStartsAt < WLEndsAt) {
         throw new CustomError("Start date must be before end date", 400);
       }
 
@@ -160,4 +154,9 @@ export const collectionController = {
       next(e);
     }
   },
+  update: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {},
 };

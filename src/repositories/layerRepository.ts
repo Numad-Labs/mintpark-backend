@@ -34,7 +34,15 @@ export const layerRepository = {
   getById: async (id: string) => {
     const layer = await db
       .selectFrom("Layer")
-      .selectAll()
+      .innerJoin("Currency", "Currency.id", "Layer.currencyId")
+      .select([
+        "Layer.id",
+        "Layer.layer",
+        "Layer.name",
+        "Layer.network",
+        "Currency.ticker",
+        "Currency.price",
+      ])
       .where("Layer.id", "=", id)
       .executeTakeFirst();
 

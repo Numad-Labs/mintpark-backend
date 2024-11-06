@@ -175,7 +175,8 @@ export const launchServices = {
 
     if (
       Number(launch.poStartsAt) > Number(currentUnixTimestamp) ||
-      Number(launch.poEndsAt) < Number(currentUnixTimestamp)
+      (launch.poEndsAt &&
+        Number(launch.poEndsAt) < Number(currentUnixTimestamp))
     )
       throw new CustomError(
         "Either launch has ended or has not started yet.",

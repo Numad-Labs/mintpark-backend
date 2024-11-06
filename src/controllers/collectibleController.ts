@@ -120,4 +120,9 @@ export const collectibleControllers = {
       next(error);
     }
   },
+  update: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {},
 };
