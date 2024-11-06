@@ -166,9 +166,9 @@ export const launchController = {
     try {
       if (!req.user?.id) throw new CustomError("User not found.", 404);
 
-      const launch = await launchServices.update(id, data, req.user.id);
+      const result = await launchServices.update(id, data, req.user.id);
 
-      return res.status(200).json({ success: true, data: { launch } });
+      return res.status(200).json({ success: true, data: { result } });
     } catch (e) {
       next(e);
     }

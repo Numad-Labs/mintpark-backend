@@ -453,13 +453,14 @@ export const launchServices = {
         400
       );
 
+    let updateTxHex;
     if (issuer.layer === "CITREA") {
       //update the data in the contract
     }
 
     const updatedLaunch = await launchRepository.update(id, data);
 
-    return updatedLaunch;
+    return { updatedLaunch, updateTxHex };
   },
 };
 
