@@ -105,7 +105,6 @@ export class TransactionValidationService {
   }
   async validateBuyTransaction(
     txid: string,
-    list: any,
     buyer: any,
     seller: any,
     nftContractAddress: string,
@@ -124,120 +123,48 @@ export class TransactionValidationService {
         throw new CustomError("Transaction failed", 400);
       }
 
-      // Get the marketplace contract
-      const marketplaceContract = new ethers.Contract(
-        EVM_CONFIG.MARKETPLACE_ADDRESS,
-        EVM_CONFIG.MARKETPLACE_ABI,
-        this.provider
-      );
-
-      // Get the NFT contract
-      const nftContract = new ethers.Contract(
-        nftContractAddress,
-        EVM_CONFIG.NFT_CONTRACT_ABI,
-        this.provider
-      );
-
-      // Verify ItemSold event
-      const saleEvents = txReceipt.logs.filter((log) => {
-        try {
-          return (
-            log.address.toLowerCase() ===
-              EVM_CONFIG.MARKETPLACE_ADDRESS.toLowerCase() &&
-            log.topics[0] ===
-              ethers.id("ItemSold(address,address,address,uint256,uint256)")
-          );
-        } catch {
-          return false;
-        }
-      });
-
-      if (saleEvents.length !== 1) {
-        throw new CustomError("Invalid sale event count", 400);
-      }
-
-      // Parse the sale event
-      const iface = new ethers.Interface(EVM_CONFIG.MARKETPLACE_ABI);
-      const parsedSaleEvent = iface.parseLog({
-        topics: saleEvents[0].topics,
-        data: saleEvents[0].data,
-      });
-
-      if (!parsedSaleEvent) {
-        throw new CustomError("Failed to parse sale event", 400);
-      }
-
-      // Verify seller address
-      if (
-        parsedSaleEvent.args[0].toLowerCase() !== seller.address.toLowerCase()
-      ) {
-        throw new CustomError("Invalid seller address", 400);
-      }
-
-      // Verify buyer address
-      if (
-        parsedSaleEvent.args[1].toLowerCase() !== buyer.address.toLowerCase()
-      ) {
-        throw new CustomError("Invalid buyer address", 400);
-      }
-
-      // Verify NFT contract address
-      if (
-        parsedSaleEvent.args[2].toLowerCase() !==
-        nftContractAddress.toLowerCase()
-      ) {
-        throw new CustomError("Invalid NFT contract address", 400);
-      }
-
-      // Verify token ID
-      if (parsedSaleEvent.args[3].toString() !== tokenId) {
-        throw new CustomError("Invalid token ID", 400);
-      }
-
-      // Verify price
-      const paidPrice = parsedSaleEvent.args[4].toString();
-      if (
-        paidPrice !== ethers.parseEther(expectedPrice.toString()).toString()
-      ) {
-        throw new CustomError("Price mismatch", 400);
-      }
-
       // Verify NFT transfer
+      const transferEventTopic = ethers.id("Transfer(address,address,uint256)");
       const transferEvents = txReceipt.logs.filter((log) => {
-        try {
-          return (
-            log.address.toLowerCase() === nftContractAddress.toLowerCase() &&
-            log.topics[0] === ethers.id("Transfer(address,address,uint256)")
-          );
-        } catch {
-          return false;
-        }
+        return (
+          log.address.toLowerCase() === nftContractAddress.toLowerCase() &&
+          log.topics[0] === transferEventTopic
+        );
       });
 
-      if (transferEvents.length !== 1) {
-        throw new CustomError("Invalid transfer event count", 400);
+      if (transferEvents.length === 0) {
+        throw new CustomError("No NFT transfer found", 400);
       }
 
       // Parse the transfer event
-      const nftIface = new ethers.Interface(EVM_CONFIG.NFT_CONTRACT_ABI);
-      const parsedTransferEvent = nftIface.parseLog({
+      const nftInterface = new ethers.Interface([
+        "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
+      ]);
+
+      const parsedTransfer = nftInterface.parseLog({
         topics: transferEvents[0].topics,
         data: transferEvents[0].data,
       });
 
-      if (!parsedTransferEvent) {
+      if (!parsedTransfer) {
         throw new CustomError("Failed to parse transfer event", 400);
       }
 
       // Verify transfer details
-      if (
-        parsedTransferEvent.args[0].toLowerCase() !==
-          seller.address.toLowerCase() ||
-        parsedTransferEvent.args[1].toLowerCase() !==
-          buyer.address.toLowerCase() ||
-        parsedTransferEvent.args[2].toString() !== tokenId
-      ) {
-        throw new CustomError("Invalid NFT transfer details", 400);
+      const transferredFrom = parsedTransfer.args[0].toLowerCase();
+      const transferredTo = parsedTransfer.args[1].toLowerCase();
+      const transferredTokenId = parsedTransfer.args[2].toString();
+
+      if (transferredFrom !== seller.address.toLowerCase()) {
+        throw new CustomError("Invalid seller address", 400);
+      }
+
+      if (transferredTo !== buyer.address.toLowerCase()) {
+        throw new CustomError("Invalid buyer address", 400);
+      }
+
+      if (transferredTokenId !== tokenId) {
+        throw new CustomError("Invalid token ID", 400);
       }
 
       // Verify payment amount
