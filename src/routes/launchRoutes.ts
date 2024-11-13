@@ -23,7 +23,7 @@ launchRouter.post(
 launchRouter.post(
   "/change-mintfee-transaction",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
+  // authorize("SUPER_ADMIN"),
   launchController.getUnsignedMintPriceChange
 );
 launchRouter.put("/:id", authenticateToken, launchController.update);
