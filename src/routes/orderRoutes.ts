@@ -9,7 +9,7 @@ const orderRouter = Router();
 orderRouter.post(
   "/collectible",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
+  // authorize("SUPER_ADMIN"),
   parseFiles("file", true),
   orderController.createCollectible
 );
@@ -17,7 +17,7 @@ orderRouter.post(
 orderRouter.post(
   "/collection",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
+  // authorize("SUPER_ADMIN"),
   parseFiles("files", false),
   orderController.createCollection
 );
@@ -25,7 +25,7 @@ orderRouter.post(
 orderRouter.post(
   "/collection/hex",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
+  // authorize("SUPER_ADMIN"),
   orderController.generateMintTxHex
 );
 
