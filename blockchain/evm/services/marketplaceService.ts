@@ -1,6 +1,22 @@
 import { ethers } from "ethers";
 import { EVM_CONFIG } from "../evm-config";
-import NFTService from "./nftService";
+
+interface CollectionConfig {
+  isActive: boolean;
+  publicMaxMint: number;
+  whitelistEndTime: number;
+  fcfsEndTime: number;
+  whitelistMaxMint: number;
+  fcfsMaxMint: number;
+  merkleRoot: string;
+}
+
+enum Phase {
+  INACTIVE = 0,
+  WHITELIST = 1,
+  FCFS = 2,
+  PUBLIC = 3,
+}
 
 class MarketplaceService {
   private marketplaceAddress: string;
@@ -11,7 +27,10 @@ class MarketplaceService {
     this.provider = new ethers.JsonRpcProvider(EVM_CONFIG.RPC_URL);
   }
 
-  async getUnsignedDeploymentTransaction(initialOwner: string) {
+  async getUnsignedDeploymentTransaction(
+    initialOwner: string,
+    marketplaceFee: number
+  ) {
     const signer = await this.provider.getSigner();
 
     const factory = new ethers.ContractFactory(
@@ -20,8 +39,10 @@ class MarketplaceService {
       signer
     );
 
-    const unsignedTx = await factory.getDeployTransaction();
-
+    const unsignedTx = await factory.getDeployTransaction(
+      initialOwner,
+      marketplaceFee
+    );
     return this.prepareUnsignedTransaction(unsignedTx, initialOwner);
   }
 
@@ -32,6 +53,51 @@ class MarketplaceService {
       EVM_CONFIG.MARKETPLACE_ABI,
       signer
     );
+  }
+
+  async registerCollectionTransaction(
+    nftContract: string,
+    publicMaxMint: number,
+    ownerAddress: string
+  ) {
+    const contract = await this.getEthersMarketplaceContract();
+    const unsignedTx = await contract.registerCollection.populateTransaction(
+      nftContract,
+      publicMaxMint
+    );
+    return this.prepareUnsignedTransaction(unsignedTx, ownerAddress);
+  }
+
+  async configureOptionalPhasesTransaction(
+    nftContract: string,
+    whitelistEndTime: number,
+    fcfsEndTime: number,
+    whitelistMaxMint: number,
+    fcfsMaxMint: number,
+    merkleRoot: string,
+    ownerAddress: string
+  ) {
+    const contract = await this.getEthersMarketplaceContract();
+    const unsignedTx =
+      await contract.configureOptionalPhases.populateTransaction(
+        nftContract,
+        whitelistEndTime,
+        fcfsEndTime,
+        whitelistMaxMint,
+        fcfsMaxMint,
+        merkleRoot
+      );
+    return this.prepareUnsignedTransaction(unsignedTx, ownerAddress);
+  }
+
+  async getCollectionConfig(nftContract: string): Promise<CollectionConfig> {
+    const contract = await this.getEthersMarketplaceContract();
+    return contract.getCollectionConfig(nftContract);
+  }
+
+  async getCurrentPhase(nftContract: string): Promise<Phase> {
+    const contract = await this.getEthersMarketplaceContract();
+    return contract.getCurrentPhase(nftContract);
   }
 
   async getListing(nftContract: string, tokenId: string) {
@@ -46,7 +112,7 @@ class MarketplaceService {
     sellerAddress: string
   ) {
     const contract = await this.getEthersMarketplaceContract();
-    const unsignedTx = await contract.listItem.populateTransaction(
+    const unsignedTx = await contract.createListing.populateTransaction(
       nftContract,
       tokenId,
       ethers.parseEther(price)
@@ -55,20 +121,28 @@ class MarketplaceService {
   }
 
   async buyListingTransaction(
-    nftContract: string,
-    tokenId: string,
+    listingId: number,
+    merkleProof: string[],
     price: string,
     buyerAddress: string
   ) {
     const contract = await this.getEthersMarketplaceContract();
-    const unsignedTx = await contract.buyItem.populateTransaction(
-      nftContract,
-      tokenId,
+    const unsignedTx = await contract.purchaseListing.populateTransaction(
+      listingId,
+      merkleProof,
       {
         value: ethers.parseEther(price),
       }
     );
     return this.prepareUnsignedTransaction(unsignedTx, buyerAddress);
+  }
+
+  async cancelListingTransaction(listingId: number, sellerAddress: string) {
+    const contract = await this.getEthersMarketplaceContract();
+    const unsignedTx = await contract.cancelListing.populateTransaction(
+      listingId
+    );
+    return this.prepareUnsignedTransaction(unsignedTx, sellerAddress);
   }
 
   async prepareUnsignedTransaction(

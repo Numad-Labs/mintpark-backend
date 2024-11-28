@@ -21,23 +21,27 @@ const marketplaceService = new MarketplaceService(
 );
 
 export const listController = {
-  // createMarketplaceContractDeployment: async (
-  //   req: Request,
-  //   res: Response,
-  //   next: NextFunction
-  // ) => {
-  //   try {
-  //     const { initialOwner } = req.body;
-  //     const unsignedTx =
-  //       await marketplaceService.getUnsignedDeploymentTransaction(initialOwner);
-  //     // Serialize BigInt values before sending the response
-  //     const serializedTx = serializeBigInt(unsignedTx);
-  //     res.json({ success: true, unsignedTransaction: serializedTx });
-  //   } catch (e) {
-  //     next(e);
-  //   }
-  // },
-  generateTradingApproval: async (
+  createMarketplaceContractDeployment: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { initialOwner, marketplaceFee } = req.body;
+      const unsignedTx =
+        await marketplaceService.getUnsignedDeploymentTransaction(
+          initialOwner,
+          marketplaceFee
+        );
+
+      // Serialize BigInt values before sending the response
+      const serializedTx = serializeBigInt(unsignedTx);
+      res.json({ success: true, unsignedTransaction: serializedTx });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getApprovelTransactionOfTrading: async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
@@ -62,6 +66,27 @@ export const listController = {
       return res
         .status(200)
         .json({ success: true, data: { approveTxHex: serializedTx } });
+    } catch (e) {
+      next(e);
+    }
+  },
+  checkRegistration: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { collectionAddress } = req.body;
+      if (!req.user?.id)
+        throw new CustomError("Could not retrieve id from the token.", 400);
+      const issuerId = req.user.id; // Assuming you have auth middleware
+
+      const result = await listServices.checkAndPrepareRegistration(
+        collectionAddress,
+        issuerId
+      );
+
+      res.status(200).json({ success: true, data: result });
     } catch (e) {
       next(e);
     }

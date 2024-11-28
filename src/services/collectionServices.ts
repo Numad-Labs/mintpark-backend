@@ -20,6 +20,7 @@ import { Insertable, Updateable } from "kysely";
 import { Collection } from "../types/db/types";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import { layerServices } from "./layerServices";
+import { serializeBigInt } from "../../blockchain/evm/utils";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
@@ -75,11 +76,7 @@ export const collectionServices = {
         name,
         priceForLaunchpad
       );
-      deployContractTxHex = JSON.parse(
-        JSON.stringify(unsignedTx, (_, value) =>
-          typeof value === "bigint" ? value.toString() : value
-        )
-      );
+      deployContractTxHex = serializeBigInt(unsignedTx);
     }
 
     const key = randomUUID();

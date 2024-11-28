@@ -8,6 +8,7 @@ import { bytecode as MARKETPLACE_CONTRACT_BYTECODE } from "../evm/artifacts/bloc
 const MARKETPLACE_ADDRESS = "0x68ab2c4aaeE229897aB30B4017dab8e36314e1a8";
 const RPC_URL = "https://rpc.testnet.citrea.xyz";
 const CHAIN_ID = 5115;
+const DEFAULT_PUBLIC_MAX_MINT = 10000;
 
 const EVM_CONFIG = {
   MARKETPLACE_ABI,
@@ -17,6 +18,7 @@ const EVM_CONFIG = {
   NFT_CONTRACT_ABI,
   NFT_CONTRACT_BYTECODE,
   CHAIN_ID,
+  DEFAULT_PUBLIC_MAX_MINT,
 };
 
 export { EVM_CONFIG };

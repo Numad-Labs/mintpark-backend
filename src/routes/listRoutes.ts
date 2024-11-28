@@ -11,6 +11,12 @@ listRouter.post(
   listController.generateTradingApproval
 );
 listRouter.post(
+  "/checkRegistration",
+  authenticateToken,
+  listController.checkRegistration
+);
+
+listRouter.post(
   "/deploy-contract",
   authenticateToken,
   authorize("SUPER_ADMIN"),
