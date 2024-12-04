@@ -59,3 +59,9 @@ export const ROLES = {
   SUPER_ADMIN: "SUPER_ADMIN",
 } as const;
 export type ROLES = (typeof ROLES)[keyof typeof ROLES];
+export const COLLECTIBLE_TYPE = {
+  IPFS: "IPFS",
+  RECURSIVE: "RECURSIVE",
+} as const;
+export type COLLECTIBLE_TYPE =
+  (typeof COLLECTIBLE_TYPE)[keyof typeof COLLECTIBLE_TYPE];

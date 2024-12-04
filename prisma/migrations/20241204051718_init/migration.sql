@@ -25,17 +25,29 @@ CREATE TYPE "NETWORK" AS ENUM ('MAINNET', 'TESTNET');
 -- CreateEnum
 CREATE TYPE "ROLES" AS ENUM ('USER', 'ADMIN', 'SUPER_ADMIN');
 
+-- CreateEnum
+CREATE TYPE "COLLECTIBLE_TYPE" AS ENUM ('IPFS', 'RECURSIVE');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
-    "layerId" TEXT NOT NULL,
+    "role" "ROLES" NOT NULL DEFAULT 'USER',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UserLayer" (
+    "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
     "address" TEXT NOT NULL,
     "pubkey" TEXT,
     "xpub" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "role" "ROLES" NOT NULL DEFAULT 'USER',
+    "userId" TEXT NOT NULL,
+    "layerId" TEXT NOT NULL,
 
-    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "UserLayer_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -156,10 +168,11 @@ CREATE TABLE "Launch" (
     "wlMintPrice" DOUBLE PRECISION,
     "wlMaxMintPerWallet" INTEGER,
     "poStartsAt" BIGINT NOT NULL DEFAULT 0,
-    "poEndsAt" BIGINT NOT NULL DEFAULT 0,
+    "poEndsAt" BIGINT,
     "poMintPrice" DOUBLE PRECISION NOT NULL,
     "poMaxMintPerWallet" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "ownerId" TEXT,
 
     CONSTRAINT "Launch_pkey" PRIMARY KEY ("id")
 );
@@ -226,13 +239,13 @@ CREATE TABLE "List" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_address_key" ON "User"("address");
+CREATE UNIQUE INDEX "UserLayer_address_key" ON "UserLayer"("address");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_pubkey_key" ON "User"("pubkey");
+CREATE UNIQUE INDEX "UserLayer_pubkey_key" ON "UserLayer"("pubkey");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_xpub_key" ON "User"("xpub");
+CREATE UNIQUE INDEX "UserLayer_xpub_key" ON "UserLayer"("xpub");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Currency_ticker_key" ON "Currency"("ticker");
@@ -241,7 +254,10 @@ CREATE UNIQUE INDEX "Currency_ticker_key" ON "Currency"("ticker");
 CREATE INDEX "Currency_ticker_idx" ON "Currency"("ticker");
 
 -- AddForeignKey
-ALTER TABLE "User" ADD CONSTRAINT "User_layerId_fkey" FOREIGN KEY ("layerId") REFERENCES "Layer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "UserLayer" ADD CONSTRAINT "UserLayer_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserLayer" ADD CONSTRAINT "UserLayer_layerId_fkey" FOREIGN KEY ("layerId") REFERENCES "Layer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Layer" ADD CONSTRAINT "Layer_currencyId_fkey" FOREIGN KEY ("currencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -275,6 +291,9 @@ ALTER TABLE "LaunchItem" ADD CONSTRAINT "LaunchItem_onHoldBy_fkey" FOREIGN KEY (
 
 -- AddForeignKey
 ALTER TABLE "Launch" ADD CONSTRAINT "Launch_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "Collection"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Launch" ADD CONSTRAINT "Launch_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "WlAddress" ADD CONSTRAINT "WlAddress_launchId_fkey" FOREIGN KEY ("launchId") REFERENCES "Launch"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

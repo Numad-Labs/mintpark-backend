@@ -14,6 +14,7 @@ import type {
   LAYER,
   NETWORK,
   ROLES,
+  COLLECTIBLE_TYPE,
 } from "./enums";
 
 export type Collectible = {
@@ -149,12 +150,17 @@ export type Trait = {
 };
 export type User = {
   id: Generated<string>;
-  layerId: string;
+  role: Generated<ROLES>;
+  createdAt: Generated<Timestamp>;
+};
+export type UserLayer = {
+  id: Generated<string>;
   address: string;
   pubkey: string | null;
   xpub: string | null;
   createdAt: Generated<Timestamp>;
-  role: Generated<ROLES>;
+  userId: string;
+  layerId: string;
 };
 export type WlAddress = {
   id: Generated<string>;
@@ -175,5 +181,6 @@ export type DB = {
   Purchase: Purchase;
   Trait: Trait;
   User: User;
+  UserLayer: UserLayer;
   WlAddress: WlAddress;
 };

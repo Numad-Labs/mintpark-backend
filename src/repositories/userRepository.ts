@@ -40,31 +40,46 @@ export const userRepository = {
 
     return user;
   },
-  getByAddress: async (address: string) => {
+  getByAddressAndLayerId: async (address: string, layerId: string) => {
     const user = await db
       .selectFrom("User")
-      .selectAll()
-      .where("User.address", "=", address)
+      .innerJoin("UserLayer", "UserLayer.userId", "User.id")
+      .innerJoin("Layer", "Layer.id", "UserLayer.layerId")
+      .select([
+        "User.id",
+        "User.role",
+        "User.createdAt",
+        "UserLayer.layerId",
+        "UserLayer.address",
+        "UserLayer.pubkey",
+        "UserLayer.xpub",
+        "Layer.layer",
+        "Layer.network",
+      ])
+      .where("UserLayer.address", "=", address)
+      .where("UserLayer.layerId", "=", layerId)
       .executeTakeFirst();
 
     return user;
   },
-  getByIdWithLayer: async (id: string) => {
+  getByIdAndLayerId: async (id: string, layerId: string) => {
     const user = await db
       .selectFrom("User")
-      .innerJoin("Layer", "Layer.id", "User.layerId")
+      .innerJoin("UserLayer", "UserLayer.userId", "User.id")
+      .innerJoin("Layer", "Layer.id", "UserLayer.layerId")
       .select([
         "User.id",
-        "User.address",
-        "User.pubkey",
-        "User.xpub",
         "User.role",
         "User.createdAt",
-        "User.layerId",
+        "UserLayer.layerId",
+        "UserLayer.address",
+        "UserLayer.pubkey",
+        "UserLayer.xpub",
         "Layer.layer",
         "Layer.network",
       ])
       .where("User.id", "=", id)
+      .where("UserLayer.layerId", "=", layerId)
       .executeTakeFirst();
 
     return user;

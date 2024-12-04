@@ -57,6 +57,70 @@ export const userController = {
       next(e);
     }
   },
+  linkAccount: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const { address, signedMessage, pubkey, layerId } = req.body;
+
+    try {
+      if (!address || !signedMessage || !layerId)
+        throw new CustomError(
+          "Please provide a wallet address, signedMessage and layerId.",
+          400
+        );
+      if (!req.user?.id)
+        throw new CustomError("Could not parse id from the token.", 401);
+
+      const result = await userServices.linkAccount(
+        req.user.id,
+        address,
+        pubkey,
+        signedMessage,
+        layerId
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
+  linkAccountToAnotherUser: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const { address, signedMessage, pubkey, layerId } = req.body;
+
+    try {
+      if (!address || !signedMessage || !layerId)
+        throw new CustomError(
+          "Please provide a wallet address, signedMessage and layerId.",
+          400
+        );
+      if (!req.user?.id)
+        throw new CustomError("Could not parse id from the token.", 401);
+
+      const result = await userServices.linkAccountToAnotherUser(
+        req.user.id,
+        address,
+        pubkey,
+        signedMessage,
+        layerId
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
   refreshToken: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const refreshToken = req.body.refreshToken;
@@ -80,78 +144,29 @@ export const userController = {
         });
 
       if (e instanceof JsonWebTokenError)
-        return res
-          .status(401)
-          .json({
-            success: false,
-            data: null,
-            error: "Invalid refresh token.",
-          });
+        return res.status(401).json({
+          success: false,
+          data: null,
+          error: "Invalid refresh token.",
+        });
 
-      next(e);
-    }
-  },
-  update: async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    const { id } = req.params;
-    const data: Updateable<User> = { ...req.body };
-
-    try {
-      if (!req.user?.id)
-        throw new CustomError("Could not retrieve id from the token.", 400);
-
-      const user = await userServices.update(id, data, req.user.id);
-
-      return res.status(200).json({ success: true, data: user });
-    } catch (e) {
-      next(e);
-    }
-  },
-  delete: async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    const { id } = req.params;
-
-    try {
-      if (!req.user?.id)
-        throw new CustomError("Could not retrieve id from the token.", 400);
-
-      const user = await userServices.delete(id, req.user.id);
-
-      return res.status(200).json({ success: true, data: user });
-    } catch (e) {
       next(e);
     }
   },
   getById: async (req: Request, res: Response, next: NextFunction) => {
     const { id } = req.params;
+    const { layerId } = req.query;
 
     try {
-      const user = await userRepository.getById(id);
+      if (!layerId) throw new CustomError("Please provide a layerId.", 400);
+
+      const user = await userRepository.getByIdAndLayerId(
+        id,
+        layerId.toString()
+      );
       if (!user) return res.status(200).json({ success: true, data: null });
 
-      const sanitizedUser = await hideSensitiveData(user, ["pubkey", "xpub"]);
-
-      return res.status(200).json({ success: true, data: sanitizedUser });
-    } catch (e) {
-      next(e);
-    }
-  },
-  getByAddress: async (req: Request, res: Response, next: NextFunction) => {
-    const { address } = req.body;
-
-    try {
-      const user = await userRepository.getByAddress(address);
-      if (!user) return res.status(200).json({ success: true, data: null });
-
-      const sanitizedUser = await hideSensitiveData(user, ["pubkey", "xpub"]);
-
-      return res.status(200).json({ success: true, data: sanitizedUser });
+      return res.status(200).json({ success: true, data: user });
     } catch (e) {
       next(e);
     }

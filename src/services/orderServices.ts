@@ -56,13 +56,16 @@ export const orderServices = {
     if (files.length !== 1)
       throw new CustomError("Collectible order must have one file.", 400);
 
-    const user = await userRepository.getByIdWithLayer(userId);
-    if (!user) throw new CustomError("User not found.", 400);
-
     if (!collectionId) throw new CustomError("Collection id is required.", 400);
     let collection = await collectionServices.getById(collectionId);
     if (!collection || !collection.id)
       throw new CustomError("Collection not found.", 400);
+
+    const user = await userRepository.getByIdAndLayerId(
+      userId,
+      collection.layerId
+    );
+    if (!user) throw new CustomError("User not found.", 400);
 
     const nftMetadatas: nftMetaData[] = [];
     let index = 0;
@@ -191,13 +194,16 @@ export const orderServices = {
     collectionId?: string,
     txid?: string
   ) => {
-    const user = await userRepository.getByIdWithLayer(userId);
-    if (!user) throw new CustomError("User not found.", 400);
-
     if (!collectionId) throw new CustomError("Collection id is required.", 400);
     let collection = await collectionServices.getById(collectionId);
     if (!collection || !collection.id)
       throw new CustomError("Collection not found.", 400);
+
+    const user = await userRepository.getByIdAndLayerId(
+      userId,
+      collection.layerId
+    );
+    if (!user) throw new CustomError("User not found.", 400);
 
     const totalBatches = Math.ceil(totalFileCount / FILE_COUNT_LIMIT);
     if (totalBatches < 1 || files.length < 1)
@@ -371,8 +377,12 @@ export const orderServices = {
     const order = await orderRepository.getById(orderId);
     return order;
   },
-  generateMintTxHex: async (orderId: string, issuerId: string) => {
-    const issuer = await userRepository.getByIdWithLayer(issuerId);
+  generateMintTxHex: async (
+    orderId: string,
+    layerId: string,
+    issuerId: string
+  ) => {
+    const issuer = await userRepository.getByIdAndLayerId(issuerId, layerId);
     if (!issuer) throw new CustomError("No user found.", 400);
 
     const order = await orderRepository.getById(orderId);
@@ -413,7 +423,7 @@ export const orderServices = {
       return { order, batchMintTxHex };
     } else throw new Error("This layer is unsupported ATM.");
   },
-  checkOrderisPaid: async (orderId: string, txid?: string) => {
+  checkOrderisPaid: async (orderId: string, layerId: string, txid?: string) => {
     // Check payment status
     // If payment is confirmed, return true else false
     try {
@@ -421,7 +431,10 @@ export const orderServices = {
       if (!order) throw new CustomError("Order not found.", 400);
       if (order.paidAt && order.orderStatus !== "PENDING") return true;
 
-      const user = await userRepository.getByIdWithLayer(order.userId);
+      const user = await userRepository.getByIdAndLayerId(
+        order.userId,
+        layerId
+      );
       if (!user) throw new CustomError("User not found.", 400);
 
       if (user.layer === "CITREA" && user.network === "TESTNET") {

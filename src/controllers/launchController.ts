@@ -64,24 +64,30 @@ export const launchController = {
       next(e);
     }
   },
-  generateOrderForLaunchedCollection: async (
+  generateBuyOrderForLaunchedCollection: async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {
     const { collectionId } = req.params;
-    const { feeRate, launchOfferType } = req.body;
+    const { feeRate, launchOfferType, layerId } = req.body;
 
     try {
-      const user = await userRepository.getById(req.user?.id!);
-      if (!user) throw new CustomError("User not found.", 404);
+      if (!req.user?.id)
+        throw new CustomError("Could not parse the id from the token.", 400);
+      if (!layerId) throw new CustomError("Please provide a layerId.", 404);
       if (!collectionId)
         throw new CustomError("CollectionId is required as param.", 400);
       if (!feeRate) throw new CustomError("Fee rate is required.", 400);
 
-      const layer = await layerServices.getById(user.layerId!);
-      if (!layer) throw new CustomError("Layer not found.", 404);
+      const user = await userRepository.getByIdAndLayerId(
+        req.user?.id,
+        layerId
+      );
+      if (!user) throw new CustomError("User not found.", 404);
 
+      const layer = await layerServices.getById(user.layerId);
+      if (!layer) throw new CustomError("Layer not found.", 404);
       if (layer.layer !== "FRACTAL" && layer.network !== "TESTNET")
         throw new CustomError("Not supported for this layer yet.", 400);
 
@@ -101,16 +107,21 @@ export const launchController = {
       next(e);
     }
   },
-  getUnsignedMintPriceChange: async (
+  generateUnsignedMintPriceChangeTx: async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {
     try {
       const { collectionTxid, mintFee } = req.body.data;
+      const { layerId } = req.body;
+
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
-      const user = await userRepository.getById(req.user?.id!);
+      const user = await userRepository.getByIdAndLayerId(
+        req.user?.id,
+        layerId
+      );
       if (!user || !user.address)
         throw new CustomError("User address not found from the token.", 400);
 
@@ -155,22 +166,22 @@ export const launchController = {
       next(e);
     }
   },
-  update: async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    const { id } = req.params;
-    const data: Updateable<Launch> = { ...req.body };
+  // update: async (
+  //   req: AuthenticatedRequest,
+  //   res: Response,
+  //   next: NextFunction
+  // ) => {
+  //   const { id } = req.params;
+  //   const data: Updateable<Launch> = { ...req.body };
 
-    try {
-      if (!req.user?.id) throw new CustomError("User not found.", 404);
+  //   try {
+  //     if (!req.user?.id) throw new CustomError("User not found.", 404);
 
-      const result = await launchServices.update(id, data, req.user.id);
+  //     const result = await launchServices.update(id, data, req.user.id);
 
-      return res.status(200).json({ success: true, data: { result } });
-    } catch (e) {
-      next(e);
-    }
-  },
+  //     return res.status(200).json({ success: true, data: { result } });
+  //   } catch (e) {
+  //     next(e);
+  //   }
+  // },
 };

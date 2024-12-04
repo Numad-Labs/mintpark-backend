@@ -13,7 +13,7 @@ launchRouter.get(
 launchRouter.post(
   "/collections/:collectionId/create-order",
   authenticateToken,
-  launchController.generateOrderForLaunchedCollection
+  launchController.generateBuyOrderForLaunchedCollection
 );
 launchRouter.post(
   "/invoke-order",
@@ -24,7 +24,7 @@ launchRouter.post(
   "/change-mintfee-transaction",
   authenticateToken,
   // authorize("SUPER_ADMIN"),
-  launchController.getUnsignedMintPriceChange
+  launchController.generateUnsignedMintPriceChangeTx
 );
-launchRouter.put("/:id", authenticateToken, launchController.update);
+// launchRouter.put("/:id", authenticateToken, launchController.update);
 export = launchRouter;

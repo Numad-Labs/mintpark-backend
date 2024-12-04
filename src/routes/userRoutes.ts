@@ -5,10 +5,12 @@ const userRouter = Router();
 
 userRouter.post("/generate-message", userController.generateMessageToSign);
 userRouter.post("/login", userController.login);
-userRouter.post("/refreshToken", userController.refreshToken);
-// userRouter.put("/:id", authenticateToken, userController.update);
-// userRouter.delete("/:id", authenticateToken, userController.delete);
+userRouter.post("/link-account", userController.linkAccount);
+userRouter.post(
+  "/link-account-to-another-user",
+  userController.linkAccountToAnotherUser
+);
+userRouter.post("/refresh-token", userController.refreshToken);
 userRouter.get("/:id", userController.getById);
-userRouter.get("/", userController.getByAddress);
 
 export = userRouter;

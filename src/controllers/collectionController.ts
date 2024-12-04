@@ -32,7 +32,7 @@ export const collectionController = {
     next: NextFunction
   ) => {
     const userId = req.user?.id;
-    const { name, creator, description, priceForLaunchpad } = req.body;
+    const { name, creator, description, priceForLaunchpad, layerId } = req.body;
     const logo = req.file as Express.Multer.File;
     const data = {
       name,
@@ -40,7 +40,7 @@ export const collectionController = {
       description,
       supply: 0,
       logoKey: null,
-      layerId: null,
+      layerId,
     };
 
     try {
@@ -167,51 +167,51 @@ export const collectionController = {
       next(e);
     }
   },
-  update: async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    const { id } = req.params;
-    const { name, creator, description, discordUrl, twitterUrl, webUrl, slug } =
-      req.body;
-    const logo = req.file as Express.Multer.File;
+  // update: async (
+  //   req: AuthenticatedRequest,
+  //   res: Response,
+  //   next: NextFunction
+  // ) => {
+  //   const { id } = req.params;
+  //   const { name, creator, description, discordUrl, twitterUrl, webUrl, slug } =
+  //     req.body;
+  //   const logo = req.file as Express.Multer.File;
 
-    try {
-      if (!req.user?.id)
-        throw new CustomError("Could not parse the id from the token.", 401);
+  //   try {
+  //     if (!req.user?.id)
+  //       throw new CustomError("Could not parse the id from the token.", 401);
 
-      const collection = await collectionServices.update(
-        id,
-        { name, creator, description, discordUrl, twitterUrl, webUrl, slug },
-        logo,
-        req.user.id
-      );
+  //     const collection = await collectionServices.update(
+  //       id,
+  //       { name, creator, description, discordUrl, twitterUrl, webUrl, slug },
+  //       logo,
+  //       req.user.id
+  //     );
 
-      return res.status(200).json({ success: true, data: { collection } });
-    } catch (e) {
-      next(e);
-    }
-  },
-  listForEvm: async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    const { contractAddress } = req.body;
+  //     return res.status(200).json({ success: true, data: { collection } });
+  //   } catch (e) {
+  //     next(e);
+  //   }
+  // },
+  // listForEvm: async (
+  //   req: AuthenticatedRequest,
+  //   res: Response,
+  //   next: NextFunction
+  // ) => {
+  //   const { contractAddress } = req.body;
 
-    try {
-      if (!req.user?.id)
-        throw new CustomError("Could not parse the id from the token.", 401);
+  //   try {
+  //     if (!req.user?.id)
+  //       throw new CustomError("Could not parse the id from the token.", 401);
 
-      const result = await collectionServices.listForEvm(
-        contractAddress,
-        req.user.id
-      );
+  //     const result = await collectionServices.listForEvm(
+  //       contractAddress,
+  //       req.user.id
+  //     );
 
-      return res.status(200).json({ success: true, data: { result } });
-    } catch (e) {
-      next(e);
-    }
-  },
+  //     return res.status(200).json({ success: true, data: { result } });
+  //   } catch (e) {
+  //     next(e);
+  //   }
+  // },
 };

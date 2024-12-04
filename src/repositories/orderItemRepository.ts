@@ -53,49 +53,47 @@ export const orderItemRepository = {
 
     return orderItem;
   },
-  getById: async (id: string): Promise<OrderItemDetails | null> => {
+  getById: async (id: string) => {
     const result = await db
       .selectFrom("Order")
       .innerJoin("OrderItem", "Order.id", "OrderItem.orderId")
       .innerJoin("User", "Order.userId", "User.id")
-      .innerJoin("Layer", "User.layerId", "Layer.id")
+      // .innerJoin("Layer", "User.layerId", "Layer.id")
       .select([
         "OrderItem.id as id",
         "OrderItem.orderId as orderId",
         "User.id as userId",
-        "User.address as userAddress",
         "OrderItem.fileKey",
         "OrderItem.metadata",
         "OrderItem.metadata",
         "OrderItem.ipfsUrl",
         "OrderItem.status",
-        "Layer.id as layerId",
-        "Layer.network",
-        "Layer.layer",
+        // "Layer.id as layerId",
+        // "Layer.network",
+        // "Layer.layer",
       ])
       .where("OrderItem.id", "=", id)
       .executeTakeFirst();
 
     return result || null;
   },
-  getByOrderId: async (orderId: string): Promise<OrderItemDetails[]> => {
+  getByOrderId: async (orderId: string) => {
     return await db
       .selectFrom("Order")
       .innerJoin("OrderItem", "Order.id", "OrderItem.orderId")
       .innerJoin("User", "Order.userId", "User.id")
-      .innerJoin("Layer", "User.layerId", "Layer.id")
+      // .innerJoin("Layer", "User.layerId", "Layer.id")
       .select([
         "OrderItem.id as id",
         "OrderItem.orderId as orderId",
         "User.id as userId",
-        "User.address as userAddress",
         "OrderItem.fileKey",
         "OrderItem.metadata",
         "OrderItem.status",
         "OrderItem.ipfsUrl",
-        "Layer.id as layerId",
-        "Layer.network",
-        "Layer.layer",
+        // "Layer.id as layerId",
+        // "Layer.network",
+        // "Layer.layer",
       ])
       .where("Order.id", "=", orderId)
       // .where("OrderItem.status", "=", "MINTED")

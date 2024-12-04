@@ -14,12 +14,12 @@ collectionRouter.post(
   collectionController.create
 );
 
-collectionRouter.post(
-  "/list-evm",
-  authenticateToken,
-  authorize("SUPER_ADMIN"),
-  collectionController.listForEvm
-);
+// collectionRouter.post(
+//   "/list-evm",
+//   authenticateToken,
+//   authorize("SUPER_ADMIN"),
+//   collectionController.listForEvm
+// );
 
 collectionRouter.post(
   "/:collectionId/launch",
@@ -32,11 +32,11 @@ collectionRouter.post(
 collectionRouter.get("/listed", collectionController.getListedCollections);
 collectionRouter.get("/:id", collectionController.getById);
 
-collectionRouter.put(
-  "/:id",
-  authenticateToken,
-  parseFiles("logo", true),
-  collectionController.update
-);
+// collectionRouter.put(
+//   "/:id",
+//   authenticateToken,
+//   parseFiles("logo", true),
+//   collectionController.update
+// );
 
 export = collectionRouter;

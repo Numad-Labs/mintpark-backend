@@ -15,18 +15,30 @@ datasource db {
 }
 
 model User {
-  id         String       @id @default(dbgenerated("gen_random_uuid()"))
-  layerId    String
-  layer      Layer        @relation(fields: [layerId], references: [id])
-  address    String       @unique
-  pubkey     String?      @unique
-  xpub       String?      @unique
-  createdAt  DateTime     @default(now())
-  role       ROLES        @default(USER)
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  role      ROLES    @default(USER)
+  createdAt DateTime @default(now())
+
   purchases  Purchase[]
   orders     Order[]
   LaunchItem LaunchItem[]
   Launch     Launch[]
+  UserLayer  UserLayer[]
+}
+
+model UserLayer {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  address   String   @unique
+  pubkey    String?  @unique
+  xpub      String?  @unique
+  createdAt DateTime @default(now())
+
+  userId  String
+  user    User   @relation(fields: [userId], references: [id])
+  layerId String
+  layer   Layer  @relation(fields: [layerId], references: [id])
+
+  @@unique([address, layerId])
 }
 
 model Currency {
@@ -46,8 +58,8 @@ model Layer {
   network    NETWORK      @default(TESTNET)
   currencyId String
   currency   Currency     @relation(fields: [currencyId], references: [id])
-  users      User[]
   Collection Collection[]
+  UserLayer  UserLayer[]
 }
 
 model Order {
@@ -156,7 +168,7 @@ model Launch {
   createdAt          DateTime   @default(now())
 
   ownerId     String?
-  owner       User?         @relation(fields: [ownerId], references: [id])
+  owner       User?        @relation(fields: [ownerId], references: [id])
   launchItems LaunchItem[]
   wlAddresses WlAddress[]
 }
@@ -271,4 +283,9 @@ enum ROLES {
   USER
   ADMIN
   SUPER_ADMIN
+}
+
+enum COLLECTIBLE_TYPE {
+  IPFS
+  RECURSIVE
 }

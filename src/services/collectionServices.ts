@@ -30,18 +30,16 @@ const evmCollectibleService = new EVMCollectibleService(EVM_CONFIG.RPC_URL!);
 
 export const collectionServices = {
   create: async (
-    data: any,
+    data: Insertable<Collection>,
     issuerId: string,
     name: string,
     priceForLaunchpad: number,
     file?: Express.Multer.File
   ) => {
-    const user = await userRepository.getById(issuerId);
+    if (!data.layerId) throw new CustomError("Please provide a layerId.", 400);
+
+    const user = await userRepository.getByIdAndLayerId(issuerId, data.layerId);
     if (!user || !user.layerId) throw new CustomError("User not found.", 400);
-
-    const layer = await layerRepository.getById(user.layerId);
-    if (!layer) throw new CustomError("User not found.", 400);
-
     data.layerId = user.layerId;
 
     /*
@@ -51,13 +49,13 @@ export const collectionServices = {
     */
 
     if (
-      (layer.layer !== "CITREA" && layer.layer !== "FRACTAL") ||
-      layer.network !== "TESTNET"
+      (user.layer !== "CITREA" && user.layer !== "FRACTAL") ||
+      user.network !== "TESTNET"
     )
       throw new CustomError("This layer is unsupported for now.", 400);
 
     let deployContractTxHex = null;
-    if (layer.layer === "CITREA" && layer.network === "TESTNET") {
+    if (user.layer === "CITREA" && user.network === "TESTNET") {
       const unsignedTx = await nftService.getUnsignedDeploymentTransaction(
         user.address,
         name,
@@ -141,62 +139,62 @@ export const collectionServices = {
 
     return collections;
   },
-  update: async (
-    id: string,
-    data: updateCollection,
-    file: Express.Multer.File,
-    issuerId: string
-  ) => {
-    const issuer = await userRepository.getByIdWithLayer(issuerId);
-    if (!issuer) throw new CustomError("User not found.", 400);
+  // update: async (
+  //   id: string,
+  //   data: updateCollection,
+  //   file: Express.Multer.File,
+  //   issuerId: string
+  // ) => {
+  //   const issuer = await userRepository.getByIdWithLayer(issuerId);
+  //   if (!issuer) throw new CustomError("User not found.", 400);
 
-    const collection = await collectionRepository.getById(db, id);
-    if (!collection) throw new CustomError("Collection not found.", 400);
+  //   const collection = await collectionRepository.getById(db, id);
+  //   if (!collection) throw new CustomError("Collection not found.", 400);
 
-    if (file && collection.logoKey) {
-      await deleteFromS3(`restaurant/${collection.logoKey}`);
-    }
+  //   if (file && collection.logoKey) {
+  //     await deleteFromS3(`collection/${collection.logoKey}`);
+  //   }
 
-    if (file) {
-      const randomKey = randomUUID();
-      await uploadToS3(`restaurant/${randomKey}`, file);
+  //   if (file) {
+  //     const randomKey = randomUUID();
+  //     await uploadToS3(`collection/${randomKey}`, file);
 
-      data.logoKey = randomKey;
-    }
+  //     data.logoKey = randomKey;
+  //   }
 
-    if (issuer.layer === "CITREA") {
-      //update the data in the contract
-    } else if (issuer.layer === "FRACTAL") {
-      //update the collections REPO
-    }
+  //   if (issuer.layer === "CITREA") {
+  //     //update the data in the contract
+  //   } else if (issuer.layer === "FRACTAL") {
+  //     //update the collections REPO
+  //   }
 
-    const updatedCollection = await collectionRepository.update(db, id, data);
+  //   const updatedCollection = await collectionRepository.update(db, id, data);
 
-    return updatedCollection;
-  },
-  listForEvm: async (contractAddress: string, issuerId: string) => {
-    const issuer = await userRepository.getByIdWithLayer(issuerId);
-    if (!issuer) throw new CustomError("User not found.", 400);
+  //   return updatedCollection;
+  // },
+  // listForEvm: async (contractAddress: string, issuerId: string) => {
+  //   const issuer = await userRepository.getByIdWithLayer(issuerId);
+  //   if (!issuer) throw new CustomError("User not found.", 400);
 
-    const isExistingCollection =
-      await collectionRepository.getByContractAddress(contractAddress);
-    if (isExistingCollection)
-      throw new CustomError("This collection has already been listed.", 400);
+  //   const isExistingCollection =
+  //     await collectionRepository.getByContractAddress(contractAddress);
+  //   if (isExistingCollection)
+  //     throw new CustomError("This collection has already been listed.", 400);
 
-    if (issuer.layer !== "CITREA")
-      throw new CustomError("Unsupported layer for this API.", 400);
+  //   if (issuer.layer !== "CITREA")
+  //     throw new CustomError("Unsupported layer for this API.", 400);
 
-    //fetch nft details & insert them into the database
-    let collectionData: any;
-    const collection = await collectionRepository.create(collectionData);
+  //   //fetch nft details & insert them into the database
+  //   let collectionData: any;
+  //   const collection = await collectionRepository.create(collectionData);
 
-    let collectibleData: any;
-    const collectibles = await collectibleRepository.bulkInsert(
-      collectibleData
-    );
+  //   let collectibleData: any;
+  //   const collectibles = await collectibleRepository.bulkInsert(
+  //     collectibleData
+  //   );
 
-    //TODO: metadata support
+  //   //TODO: metadata support
 
-    return { collectionData, collectibleData };
-  },
+  //   return { collectionData, collectibleData };
+  // },
 };

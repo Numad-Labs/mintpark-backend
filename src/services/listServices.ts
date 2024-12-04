@@ -56,9 +56,6 @@ export const listServices = {
     issuerId: string,
     txid?: string
   ) => {
-    const issuer = await userRepository.getById(issuerId);
-    if (!issuer) throw new CustomError("User not found.", 400);
-
     const collectible = await collectibleRepository.getById(collectibleId);
     if (!collectible || !collectible.collectionId)
       throw new CustomError("Collectible not found.", 400);
@@ -67,8 +64,13 @@ export const listServices = {
       db,
       collectible?.collectionId
     );
+    if (!collection) throw new CustomError("Collectible not found.", 400);
 
-    if (!collectible) throw new CustomError("Collectible not found.", 400);
+    const issuer = await userRepository.getByIdAndLayerId(
+      issuerId,
+      collection.layerId
+    );
+    if (!issuer) throw new CustomError("User not found.", 400);
 
     let list;
 
@@ -263,16 +265,24 @@ export const listServices = {
       return sanitizedList;
     });
   },
-  generateBuyPsbtHex: async (id: string, feeRate: number, issuerId: string) => {
+  generateBuyTxHex: async (
+    id: string,
+    layerId: string,
+    feeRate: number,
+    issuerId: string
+  ) => {
     const list = await listRepository.getById(id);
     if (!list) throw new CustomError("No list found.", 400);
     if (list.status !== "ACTIVE")
       throw new CustomError("This list is could not be bought.", 400);
 
-    const seller = await userRepository.getById(list.sellerId);
+    const seller = await userRepository.getByIdAndLayerId(
+      list.sellerId,
+      layerId
+    );
     if (!seller) throw new CustomError("Seller not found.", 400);
 
-    const buyer = await userRepository.getById(issuerId);
+    const buyer = await userRepository.getByIdAndLayerId(issuerId, layerId);
     if (!buyer) throw new CustomError("User not found.", 400);
     // if (buyer.address === seller.address)
     //   throw new CustomError("You cannot buy your own listing.", 400);
@@ -340,37 +350,38 @@ export const listServices = {
       return txHex;
     } else throw new CustomError("Unsupported layer.", 400);
   },
-  updateListedCollectible: async (id: string, issuerId: string) => {
-    const list = await listRepository.getById(id);
-    if (!list) throw new CustomError("No list found.", 400);
-    const buyer = await userRepository.getById(issuerId);
-    if (!buyer) throw new CustomError("User not found.", 400);
-    const marketplaceContract =
-      await marketplaceService.getEthersMarketplaceContract();
+  // updateListedCollectible: async (id: string, issuerId: string) => {
+  //   const list = await listRepository.getById(id);
+  //   if (!list) throw new CustomError("No list found.", 400);
+  //   const buyer = await userRepository.getById(issuerId);
+  //   if (!buyer) throw new CustomError("User not found.", 400);
+  //   const marketplaceContract =
+  //     await marketplaceService.getEthersMarketplaceContract();
 
-    const txHex = await marketplaceContract.buyFromListing.populateTransaction(
-      list.uniqueIdx.split("i")[1],
-      buyer.address,
-      1,
-      ethers.ZeroAddress, // ETH as currency
-      ethers.parseEther(list.price.toString()) // Price from metadata
-    );
-    const unsignedHex = await nftService.prepareUnsignedTransaction(
-      txHex,
-      buyer.address
-    );
+  //   const txHex = await marketplaceContract.buyFromListing.populateTransaction(
+  //     list.uniqueIdx.split("i")[1],
+  //     buyer.address,
+  //     1,
+  //     ethers.ZeroAddress, // ETH as currency
+  //     ethers.parseEther(list.price.toString()) // Price from metadata
+  //   );
+  //   const unsignedHex = await nftService.prepareUnsignedTransaction(
+  //     txHex,
+  //     buyer.address
+  //   );
 
-    const serializedTx = serializeBigInt(unsignedHex);
+  //   const serializedTx = serializeBigInt(unsignedHex);
 
-    return serializedTx;
-  },
+  //   return serializedTx;
+  // },
   buyListedCollectible: async (
     id: string,
+    layerId: string,
     hex: string,
     issuerId: string,
     txid?: string
   ) => {
-    const buyer = await userRepository.getById(issuerId);
+    const buyer = await userRepository.getByIdAndLayerId(issuerId, layerId);
     if (!buyer) throw new CustomError("User not found.", 400);
 
     const list = await listRepository.getById(id);
@@ -378,7 +389,10 @@ export const listServices = {
     if (list.status !== "ACTIVE")
       throw new CustomError("This list is could not be bought.", 400);
 
-    const seller = await userRepository.getById(issuerId);
+    const seller = await userRepository.getByIdAndLayerId(
+      list.sellerId,
+      layerId
+    );
     if (!seller) throw new CustomError("Seller not found.", 400);
 
     return await db.transaction().execute(async (trx) => {

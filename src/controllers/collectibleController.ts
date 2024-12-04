@@ -20,6 +20,7 @@ export interface CollectibleQueryParams {
   isListed: boolean;
   collectionIds?: string[];
   traits?: string[];
+  layerId: string;
 }
 
 export const collectibleControllers = {
@@ -29,7 +30,7 @@ export const collectibleControllers = {
     next: NextFunction
   ) => {
     try {
-      const { isListed = false, orderBy, orderDirection } = req.query;
+      const { isListed = false, orderBy, orderDirection, layerId } = req.query;
       const collectionIds = req.query.collectionIds as string[];
       const { userId } = req.params;
 
@@ -40,6 +41,7 @@ export const collectibleControllers = {
         orderBy,
         orderDirection,
         collectionIds,
+        layerId,
       });
 
       return res.status(200).json({
@@ -57,7 +59,7 @@ export const collectibleControllers = {
   ) => {
     try {
       const { collectionId } = req.params;
-      const { orderBy, orderDirection, isListed = false } = req.query;
+      const { orderBy, orderDirection, isListed = false, layerId } = req.query;
       const traits: string[] = req.query.traits as string[];
 
       const result =
@@ -68,6 +70,7 @@ export const collectibleControllers = {
             orderDirection,
             isListed,
             traits,
+            layerId,
           }
         );
 
@@ -83,7 +86,6 @@ export const collectibleControllers = {
       next(e);
     }
   },
-
   getCollectibleById: async (
     req: Request,
     res: Response,

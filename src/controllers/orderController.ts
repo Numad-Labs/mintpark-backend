@@ -86,12 +86,14 @@ export const orderController = {
     next: NextFunction
   ) => {
     try {
-      const { orderId } = req.body;
-      if (!req.user) throw new CustomError("Cannot parse user from token", 401);
-      if (!orderId) throw new CustomError("Cannot parse orderId", 401);
+      const { orderId, layerId } = req.body;
+      if (!req.user) throw new CustomError("Cannot parse user from token", 400);
+      if (!orderId) throw new CustomError("Cannot parse orderId", 400);
+      if (!layerId) throw new CustomError("Cannot parse orderId", 400);
 
       const { order, batchMintTxHex } = await orderServices.generateMintTxHex(
         orderId,
+        layerId,
         req.user.id
       );
       const sanitazedOrder = hideSensitiveData(order, ["privateKey"]);
@@ -151,7 +153,11 @@ export const orderController = {
   ) => {
     try {
       const { orderId } = req.params;
-      const { txid } = req.query;
+      const { txid, layerId } = req.query;
+
+      if (!req.user?.id)
+        throw new CustomError("Could not parse id from the token.", 401);
+      if (!layerId) throw new CustomError("Please provide a layerId.", 400);
 
       const order = await orderServices.getById(orderId);
       if (!order) throw new CustomError("Order not found", 404);
@@ -162,8 +168,10 @@ export const orderController = {
 
       const isPaid = await orderServices.checkOrderisPaid(
         order.id,
+        layerId.toString(),
         txid?.toString()
       );
+
       return res.status(200).json({
         success: true,
         data: {

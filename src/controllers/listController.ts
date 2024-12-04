@@ -38,16 +38,18 @@ export const listController = {
       next(e);
     }
   },
-  getApprovelTransactionOfTrading: async (
+  generateTradingApproval: async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {
     try {
-      const { collectionId } = req.body;
+      const { collectionId, layerId } = req.body;
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
-      const user = await userRepository.getById(req.user.id);
+      if (!layerId) throw new CustomError("Please provide a layerId.", 400);
+
+      const user = await userRepository.getByIdAndLayerId(req.user.id, layerId);
       if (!user) throw new CustomError("User not found", 400);
       if (!collectionId)
         throw new CustomError("Please provide a collectionId.", 400);
@@ -119,21 +121,24 @@ export const listController = {
       next(e);
     }
   },
-  generatePsbtHexToBuyListedCollectible: async (
+  generateTxHexToBuyListedCollectible: async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {
     try {
       const { id } = req.params;
-      let { feeRate } = req.body;
+      let { feeRate, layerId } = req.body;
+
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
+      if (layerId) throw new CustomError("Invalid layerId.", 400);
       if (feeRate < 1) throw new CustomError("Invalid fee rate.", 400);
       if (!feeRate) feeRate = 1;
 
-      const txHex = await listServices.generateBuyPsbtHex(
+      const txHex = await listServices.generateBuyTxHex(
         id,
+        layerId,
         feeRate,
         req.user.id
       );

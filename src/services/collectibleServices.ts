@@ -25,8 +25,7 @@ export const collectibleServices = {
     userId: string,
     params: CollectibleQueryParams
   ) => {
-    const user = await userRepository.getById(userId);
-
+    const user = await userRepository.getByIdAndLayerId(userId, params.layerId);
     if (!user || !user.layerId) throw new CustomError("User not found.", 400);
 
     const layerType = await layerRepository.getById(user.layerId!);

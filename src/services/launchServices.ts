@@ -159,16 +159,16 @@ export const launchServices = {
     feeRate: number,
     launchOfferType: LaunchOfferType
   ) => {
-    const user = await userRepository.getById(issuerId);
-    if (!user) throw new CustomError("User not found.", 400);
-
-    const layer = await layerRepository.getById(user.layerId!);
-    if (!layer) throw new CustomError("Layer not found.", 400);
-
     const collection = await collectionRepository.getLaunchedCollectionById(
       collectionId
     );
     if (!collection) throw new CustomError("Collection not found.", 400);
+
+    const user = await userRepository.getByIdAndLayerId(
+      issuerId,
+      collection.layerId
+    );
+    if (!user) throw new CustomError("User not found.", 400);
 
     const launch = await launchRepository.getByCollectionId(collection.id);
     if (!launch) throw new CustomError("Launch not found.", 400);
@@ -209,7 +209,7 @@ export const launchServices = {
       );
       const file = await getObjectFromS3(pickedLaunchItem.fileKey);
 
-      if (layer.layer === "CITREA" && layer.network === "TESTNET") {
+      if (user.layer === "CITREA" && user.network === "TESTNET") {
         const collection = await collectionRepository.getById(
           trx,
           collectionId
@@ -251,15 +251,15 @@ export const launchServices = {
           launchedItem: pickedLaunchItem,
           singleMintTxHex,
         };
-      } else if (layer.layer === "FRACTAL" && layer.network === "TESTNET") {
+      } else if (user.layer === "FRACTAL" && user.network === "TESTNET") {
         const { estimatedFee } = getEstimatedFee(
           [(file.content as Buffer).length],
           [file.contentType!.length],
-          SERVICE_FEE[layer.layer][layer.network],
+          SERVICE_FEE[user.layer][user.network],
           feeRate,
           collection.poMintPrice
         );
-        const funder = createFundingAddress(layer.layer, layer.network);
+        const funder = createFundingAddress(user.layer, user.network);
 
         const order = await orderRepository.create(trx, {
           userId: issuerId,
@@ -286,10 +286,6 @@ export const launchServices = {
     issuerId: string,
     txid: string
   ) => {
-    const user = await userRepository.getByIdWithLayer(issuerId);
-    if (!user) throw new CustomError("User not found.", 400);
-    if (!user.layerId) throw new CustomError("Layer not found.", 400);
-
     const order = await orderRepository.getById(orderId);
     if (!order) throw new CustomError("Order not found.", 400);
     if (order.userId !== issuerId)
@@ -301,6 +297,13 @@ export const launchServices = {
       order.collectionId!
     );
     if (!collection) throw new CustomError("Collection not found.", 400);
+
+    const user = await userRepository.getByIdAndLayerId(
+      issuerId,
+      collection.layerId
+    );
+    if (!user) throw new CustomError("User not found.", 400);
+    if (!user.layerId) throw new CustomError("Layer not found.", 400);
 
     const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
       launchItemId
@@ -441,27 +444,27 @@ export const launchServices = {
       } else throw new CustomError("This layer is unsupported ATM.", 400);
     });
   },
-  update: async (id: string, data: Updateable<Launch>, issuerId: string) => {
-    const issuer = await userRepository.getByIdWithLayer(issuerId);
-    if (!issuer) throw new CustomError("User not found.", 400);
+  // update: async (id: string, data: Updateable<Launch>, issuerId: string) => {
+  //   const issuer = await userRepository.getByIdWithLayer(issuerId);
+  //   if (!issuer) throw new CustomError("User not found.", 400);
 
-    const launch = await launchRepository.getById(id);
-    if (!launch) throw new CustomError("Launch not found.", 400);
-    if (launch.ownerId !== issuerId)
-      throw new CustomError(
-        "You are not allowed to update this collection.",
-        400
-      );
+  //   const launch = await launchRepository.getById(id);
+  //   if (!launch) throw new CustomError("Launch not found.", 400);
+  //   if (launch.ownerId !== issuerId)
+  //     throw new CustomError(
+  //       "You are not allowed to update this collection.",
+  //       400
+  //     );
 
-    let updateTxHex;
-    if (issuer.layer === "CITREA") {
-      //update the data in the contract
-    }
+  //   let updateTxHex;
+  //   if (issuer.layer === "CITREA") {
+  //     //update the data in the contract
+  //   }
 
-    const updatedLaunch = await launchRepository.update(id, data);
+  //   const updatedLaunch = await launchRepository.update(id, data);
 
-    return { updatedLaunch, updateTxHex };
-  },
+  //   return { updatedLaunch, updateTxHex };
+  // },
 };
 
 async function uploadFilesAndReturnLaunchItems(

@@ -8,7 +8,7 @@ listRouter.post("/", authenticateToken, listController.listCollectible);
 listRouter.post(
   "/approval",
   authenticateToken,
-  listController.getApprovelTransactionOfTrading
+  listController.generateTradingApproval
 );
 listRouter.post(
   "/deploy-contract",
@@ -25,7 +25,7 @@ listRouter.post(
 listRouter.post(
   "/:id/generate-hex",
   authenticateToken,
-  listController.generatePsbtHexToBuyListedCollectible
+  listController.generateTxHexToBuyListedCollectible
 );
 listRouter.post(
   "/:id/buy",
