@@ -19,6 +19,7 @@ import { db } from "../utils/db";
 import { Insertable, Updateable } from "kysely";
 import { Collection } from "../types/db/types";
 import { collectibleRepository } from "../repositories/collectibleRepository";
+import { layerServices } from "./layerServices";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
@@ -31,30 +32,42 @@ const evmCollectibleService = new EVMCollectibleService(EVM_CONFIG.RPC_URL!);
 export const collectionServices = {
   create: async (
     data: Insertable<Collection>,
-    issuerId: string,
     name: string,
     priceForLaunchpad: number,
-    file?: Express.Multer.File
+    file: Express.Multer.File,
+    issuerId: string,
+    userLayerId: string
   ) => {
+    if (data.type === "SYNTHETIC")
+      throw new CustomError(
+        "You cannot directly create synthetic collection.",
+        400
+      );
+    if (!data.type)
+      throw new CustomError("Please provide a collection type.", 400);
+
     if (!data.layerId) throw new CustomError("Please provide a layerId.", 400);
+    const layer = await layerServices.checkIfSupportedLayerOrThrow(
+      data.layerId
+    );
 
-    const user = await userRepository.getByIdAndLayerId(issuerId, data.layerId);
-    if (!user || !user.layerId) throw new CustomError("User not found.", 400);
-    data.layerId = user.layerId;
+    const user = await userRepository.getByUserLayerId(userLayerId);
+    if (!user) throw new CustomError("User not found.", 400);
+    if (user.id !== issuerId)
+      throw new CustomError(
+        "You are not allowed to create for this user.",
+        400
+      );
+    if (user.layer !== layer.layer || user.network !== layer.network)
+      throw new CustomError(
+        "You cannot create collection for this layerId with the current active account.",
+        400
+      );
 
-    /*
-      if user.layer is citrea, generate hex to deploy contract
+    let deployContractTxHex = null,
+      ordinalCollection = null,
+      l2Collection = null;
 
-      return that hex with the createdCollection
-    */
-
-    if (
-      (user.layer !== "CITREA" && user.layer !== "FRACTAL") ||
-      user.network !== "TESTNET"
-    )
-      throw new CustomError("This layer is unsupported for now.", 400);
-
-    let deployContractTxHex = null;
     if (user.layer === "CITREA" && user.network === "TESTNET") {
       const unsignedTx = await nftService.getUnsignedDeploymentTransaction(
         user.address,
@@ -69,14 +82,31 @@ export const collectionServices = {
       );
     }
 
-    if (file) {
-      const key = randomUUID();
-      await uploadToS3(key, file);
-      data.logoKey = key;
-    }
-    const collection = await collectionRepository.create(data);
+    const key = randomUUID();
+    await uploadToS3(key, file);
+    data.logoKey = key;
 
-    return { collection, deployContractTxHex };
+    if (data.type === "INSCRIPTION" || data.type === "RECURSIVE_INSCRIPTION") {
+      ordinalCollection = await collectionRepository.create({
+        ...data,
+        status: "UNCONFIRMED",
+      });
+
+      l2Collection = await collectionRepository.create({
+        ...data,
+        type: "SYNTHETIC",
+        status: "UNCONFIRMED",
+        parentCollectionId: ordinalCollection.id,
+      });
+    } else if (data.type === "IPFS") {
+      l2Collection = await collectionRepository.create({
+        ...data,
+        type: "IPFS",
+        status: "UNCONFIRMED",
+      });
+    }
+
+    return { ordinalCollection, l2Collection, deployContractTxHex };
   },
   delete: async (id: string) => {
     const collection = await collectionRepository.delete(id);

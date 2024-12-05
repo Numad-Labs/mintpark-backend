@@ -1,8 +1,6 @@
 export const ORDER_TYPE = {
-  TOKEN: "TOKEN",
-  COLLECTIBLE: "COLLECTIBLE",
-  COLLECTION: "COLLECTION",
-  LAUNCH: "LAUNCH",
+  MINT: "MINT",
+  LAUNCH_BUY: "LAUNCH_BUY",
 } as const;
 export type ORDER_TYPE = (typeof ORDER_TYPE)[keyof typeof ORDER_TYPE];
 export const ORDER_STATUS = {
@@ -21,20 +19,28 @@ export const ORDER_ITEM_STATUS = {
 } as const;
 export type ORDER_ITEM_STATUS =
   (typeof ORDER_ITEM_STATUS)[keyof typeof ORDER_ITEM_STATUS];
-export const COLLECTION_TYPE = {
+export const COLLECTION_STATUS = {
   UNCONFIRMED: "UNCONFIRMED",
-  LAUNCHED: "LAUNCHED",
-  MINTED: "MINTED",
+  CONFIRMED: "CONFIRMED",
+} as const;
+export type COLLECTION_STATUS =
+  (typeof COLLECTION_STATUS)[keyof typeof COLLECTION_STATUS];
+export const COLLECTION_TYPE = {
+  INSCRIPTION: "INSCRIPTION",
+  RECURSIVE_INSCRIPTION: "RECURSIVE_INSCRIPTION",
+  IPFS: "IPFS",
+  SYNTHETIC: "SYNTHETIC",
 } as const;
 export type COLLECTION_TYPE =
   (typeof COLLECTION_TYPE)[keyof typeof COLLECTION_TYPE];
-export const LIST_STATUS = {
-  PENDING: "PENDING",
-  ACTIVE: "ACTIVE",
-  SOLD: "SOLD",
-  CANCELLED: "CANCELLED",
+export const COLLECTIBLE_STATUS = {
+  UNCONFIRMED: "UNCONFIRMED",
+  CONFIRMED: "CONFIRMED",
+  BURNED: "BURNED",
+  LOCKED: "LOCKED",
 } as const;
-export type LIST_STATUS = (typeof LIST_STATUS)[keyof typeof LIST_STATUS];
+export type COLLECTIBLE_STATUS =
+  (typeof COLLECTIBLE_STATUS)[keyof typeof COLLECTIBLE_STATUS];
 export const LAUNCH_ITEM_STATUS = {
   ACTIVE: "ACTIVE",
   SOLD: "SOLD",
@@ -42,6 +48,13 @@ export const LAUNCH_ITEM_STATUS = {
 } as const;
 export type LAUNCH_ITEM_STATUS =
   (typeof LAUNCH_ITEM_STATUS)[keyof typeof LAUNCH_ITEM_STATUS];
+export const LIST_STATUS = {
+  PENDING: "PENDING",
+  ACTIVE: "ACTIVE",
+  SOLD: "SOLD",
+  CANCELLED: "CANCELLED",
+} as const;
+export type LIST_STATUS = (typeof LIST_STATUS)[keyof typeof LIST_STATUS];
 export const LAYER = {
   BITCOIN: "BITCOIN",
   FRACTAL: "FRACTAL",
@@ -59,9 +72,3 @@ export const ROLES = {
   SUPER_ADMIN: "SUPER_ADMIN",
 } as const;
 export type ROLES = (typeof ROLES)[keyof typeof ROLES];
-export const COLLECTIBLE_TYPE = {
-  IPFS: "IPFS",
-  RECURSIVE: "RECURSIVE",
-} as const;
-export type COLLECTIBLE_TYPE =
-  (typeof COLLECTIBLE_TYPE)[keyof typeof COLLECTIBLE_TYPE];

@@ -90,16 +90,16 @@ export const orderRepository = {
 
   //   return orders;
   // },
-  getInQueueOrders: async (layer: LAYER) => {
-    const orders = await db
-      .selectFrom("Order")
-      .selectAll()
-      .where("Order.orderStatus", "=", ORDER_STATUS.IN_QUEUE)
-      .where("Order.orderType", "!=", ORDER_TYPE.LAUNCH) //TODO. Make it for launch too
-      .execute();
+  // getInQueueOrders: async (layer: LAYER) => {
+  //   const orders = await db
+  //     .selectFrom("Order")
+  //     .selectAll()
+  //     .where("Order.orderStatus", "=", ORDER_STATUS.IN_QUEUE)
+  //     .where("Order.orderType", "!=", ORDER_TYPE.LAUNCH) //TODO. Make it for launch too
+  //     .execute();
 
-    return orders;
-  },
+  //   return orders;
+  // },
   getByCollectionId: async (collectionId: string) => {
     const order = await db
       .selectFrom("Order")

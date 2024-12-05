@@ -8,48 +8,57 @@ import type {
   ORDER_TYPE,
   ORDER_STATUS,
   ORDER_ITEM_STATUS,
+  COLLECTION_STATUS,
   COLLECTION_TYPE,
-  LIST_STATUS,
+  COLLECTIBLE_STATUS,
   LAUNCH_ITEM_STATUS,
+  LIST_STATUS,
   LAYER,
   NETWORK,
   ROLES,
-  COLLECTIBLE_TYPE,
 } from "./enums";
 
 export type Collectible = {
   id: Generated<string>;
-  name: string | null;
-  collectionId: string;
-  uniqueIdx: string;
+  name: string;
   fileKey: string | null;
+  cid: string | null;
+  uniqueIdx: string;
+  metadata: unknown | null;
+  status: Generated<COLLECTIBLE_STATUS>;
   createdAt: Generated<Timestamp>;
-  txid: string | null;
+  mintingTxId: string | null;
+  lockingAddress: string | null;
+  lockingPrivateKey: string | null;
+  parentCollectibleId: string | null;
+  collectionId: string;
 };
 export type CollectibleTrait = {
   id: Generated<string>;
+  zIndex: number;
+  createdAt: Generated<Timestamp>;
   collectibleId: string;
-  traitId: string;
-  value: string;
-  rarity: number;
+  traitValueId: string;
 };
 export type Collection = {
   id: Generated<string>;
   name: string;
   creator: string | null;
   description: string;
-  logoKey: string | null;
-  supply: number;
-  type: Generated<COLLECTION_TYPE>;
   discordUrl: string | null;
   twitterUrl: string | null;
   websiteUrl: string | null;
   iconUrl: string | null;
   inscriptionIcon: string | null;
   slug: string | null;
-  layerId: string;
+  logoKey: string | null;
+  supply: number;
   contractAddress: string | null;
+  type: Generated<COLLECTION_TYPE>;
+  status: Generated<COLLECTION_STATUS>;
   createdAt: Generated<Timestamp>;
+  layerId: string;
+  parentCollectionId: string | null;
 };
 export type Currency = {
   id: Generated<string>;
@@ -74,14 +83,15 @@ export type Launch = {
 };
 export type LaunchItem = {
   id: Generated<string>;
-  launchId: string;
   fileKey: string;
   ipfsUrl: string | null;
   metadata: unknown | null;
   status: Generated<LAUNCH_ITEM_STATUS>;
   evmAssetId: string | null;
-  name: string | null;
+  name: string;
   onHoldUntil: Timestamp | null;
+  mintingTxId: string | null;
+  launchId: string;
   onHoldBy: string | null;
 };
 export type Layer = {
@@ -109,15 +119,10 @@ export type List = {
 };
 export type Order = {
   id: Generated<string>;
-  userId: string;
-  collectionId: string | null;
-  quantity: number;
   feeRate: Generated<number>;
   fundingAddress: string | null;
-  networkFee: number;
-  serviceFee: number;
   fundingAmount: number;
-  txId: string | null;
+  fundingTxId: string | null;
   privateKey: string | null;
   createdAt: Generated<Timestamp>;
   paidAt: Timestamp | null;
@@ -125,18 +130,19 @@ export type Order = {
   expiredAt: Timestamp | null;
   orderType: Generated<ORDER_TYPE>;
   orderStatus: Generated<ORDER_STATUS>;
+  userId: string;
+  userLayerId: string;
+  collectionId: string | null;
+  launchItemId: string | null;
   purchaseId: string | null;
 };
 export type OrderItem = {
   id: Generated<string>;
-  orderId: string;
-  fileKey: string;
-  ipfsUrl: string | null;
-  metadata: unknown | null;
+  mintedTxId: string | null;
+  createdAt: Generated<Timestamp>;
   status: Generated<ORDER_ITEM_STATUS>;
-  txid: string | null;
-  evmAssetId: string | null;
-  name: string | null;
+  orderId: string;
+  collectibleId: string;
 };
 export type Purchase = {
   id: Generated<string>;
@@ -144,9 +150,20 @@ export type Purchase = {
   launchItemId: string;
   purchasedAt: Generated<Timestamp>;
 };
-export type Trait = {
+export type TraitType = {
   id: Generated<string>;
   name: string;
+  createdAt: Generated<Timestamp>;
+  collectionId: string;
+};
+export type TraitValue = {
+  id: Generated<string>;
+  value: string;
+  inscriptionId: string;
+  fileKey: string;
+  createdAt: Generated<Timestamp>;
+  mintedAt: Generated<Timestamp>;
+  traitTypeId: string;
 };
 export type User = {
   id: Generated<string>;
@@ -179,7 +196,8 @@ export type DB = {
   Order: Order;
   OrderItem: OrderItem;
   Purchase: Purchase;
-  Trait: Trait;
+  TraitType: TraitType;
+  TraitValue: TraitValue;
   User: User;
   UserLayer: UserLayer;
   WlAddress: WlAddress;

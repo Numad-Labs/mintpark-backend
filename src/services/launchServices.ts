@@ -144,7 +144,6 @@ export const launchServices = {
           trx,
           collection.id,
           {
-            type: "LAUNCHED",
             supply: 0,
           }
         );
@@ -155,9 +154,10 @@ export const launchServices = {
   },
   generateOrderForLaunchedCollection: async (
     collectionId: string,
-    issuerId: string,
     feeRate: number,
-    launchOfferType: LaunchOfferType
+    launchOfferType: LaunchOfferType,
+    issuerId: string,
+    userLayerId: string
   ) => {
     const collection = await collectionRepository.getLaunchedCollectionById(
       collectionId
@@ -238,12 +238,10 @@ export const launchServices = {
         const order = await orderRepository.create(trx, {
           userId: issuerId,
           collectionId: collectionId,
-          quantity: 1,
           feeRate,
-          orderType: "LAUNCH",
-          serviceFee: serviceFee,
-          networkFee: networkFee,
+          orderType: "LAUNCH_BUY",
           fundingAmount: fundingAmount,
+          userLayerId: "",
         });
 
         return {
@@ -264,12 +262,10 @@ export const launchServices = {
         const order = await orderRepository.create(trx, {
           userId: issuerId,
           collectionId: collectionId,
-          quantity: 1,
           feeRate,
-          orderType: "LAUNCH",
-          serviceFee: estimatedFee.serviceFee,
-          networkFee: estimatedFee.networkFee,
+          orderType: "LAUNCH_BUY",
           fundingAmount: estimatedFee.totalAmount,
+          userLayerId,
         });
 
         return {
@@ -334,17 +330,14 @@ export const launchServices = {
           );
         }
 
-        if (
-          (collection?.type === "UNCONFIRMED" ||
-            collection?.type === "LAUNCHED") &&
-          order.collectionId
-        )
+        if (collection.status === "UNCONFIRMED" && order.collectionId)
           await collectionRepository.update(trx, order.collectionId, {
-            type: "MINTED",
+            status: "CONFIRMED",
           });
 
         await launchItemRepository.update(trx, launchItem.id, {
           status: "SOLD",
+          mintingTxId: txid,
         });
 
         //TODO: metadata support
@@ -353,13 +346,13 @@ export const launchServices = {
           uniqueIdx: `${collection.contractAddress}i${launchItem.evmAssetId}`,
           name: launchItem.name,
           fileKey: launchItem.fileKey,
-          txid: txid,
+          mintingTxId: txid,
         });
 
         await orderRepository.update(trx, orderId, {
           paidAt: new Date(),
           orderStatus: "DONE",
-          txId: txid,
+          mintedAt: txid,
         });
 
         await purchaseRepository.create(trx, {
@@ -410,20 +403,20 @@ export const launchServices = {
         logger.info(`Reveal transaction sent: ${revealTxId}`);
 
         if (collection && collection.id) {
-          if (collection?.type === "UNCONFIRMED" && order.collectionId)
+          if (collection?.status === "UNCONFIRMED" && order.collectionId)
             await collectionRepository.update(trx, order.collectionId, {
-              type: "MINTED",
+              status: "CONFIRMED",
             });
         }
 
         await orderRepository.update(trx, orderId, {
           paidAt: new Date(),
           orderStatus: "DONE",
-          txId: txid,
         });
 
         await launchItemRepository.update(trx, launchItem.id, {
           status: "SOLD",
+          mintingTxId: txid,
         });
 
         //TODO: metadata support
@@ -432,7 +425,7 @@ export const launchServices = {
           name: `${collection.name} #${collection.mintedAmount}`,
           collectionId: collection.id,
           uniqueIdx: `${revealTxId}i0`,
-          txid: txid,
+          mintingTxId: txid,
         });
 
         await purchaseRepository.create(trx, {
@@ -477,7 +470,7 @@ async function uploadFilesAndReturnLaunchItems(
       if (metadata.file) await uploadToS3(key, metadata.file);
       return {
         launchId,
-        fileKey: key,
+        fileKey: key.toString(),
         evmAssetId: metadata.nftId,
         name: metadata.name,
       };

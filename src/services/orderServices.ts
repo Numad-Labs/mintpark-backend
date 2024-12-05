@@ -40,7 +40,7 @@ const confirmationService = new TransactionConfirmationService(
 
 export interface nftMetaData {
   nftId: string | null;
-  name: string | null;
+  name: string;
   file: Express.Multer.File | null;
   ipfsUri: string | null;
 }
@@ -48,6 +48,7 @@ export interface nftMetaData {
 export const orderServices = {
   createCollectible: async (
     userId: string,
+    userLayerId: string,
     feeRate: number,
     files: Express.Multer.File[],
     collectionId?: string,
@@ -125,12 +126,10 @@ export const orderServices = {
 
       let order = await orderRepository.create(db, {
         userId: userId,
-        quantity: files.length,
         fundingAmount: totalAmount,
-        networkFee: networkFee,
-        serviceFee: serviceFee,
-        orderType: "COLLECTIBLE",
+        orderType: "MINT",
         feeRate: feeRate,
+        userLayerId,
       });
 
       let insertableOrderItem = await uploadToS3AndReturnOrderItems(
@@ -162,14 +161,12 @@ export const orderServices = {
 
       let order = await orderRepository.create(db, {
         userId: userId,
-        quantity: files.length,
         fundingAddress: funder.address,
         fundingAmount: estimatedFee.totalAmount,
-        networkFee: estimatedFee.networkFee,
-        serviceFee: estimatedFee.serviceFee,
         privateKey: funder.privateKey,
-        orderType: "COLLECTIBLE",
+        orderType: "MINT",
         feeRate: feeRate,
+        userLayerId,
       });
 
       if (!order.id) throw new CustomError("No order id was found.", 400);
@@ -188,6 +185,7 @@ export const orderServices = {
   },
   createCollection: async (
     userId: string,
+    userLayerId: string,
     feeRate: number,
     files: Express.Multer.File[],
     totalFileCount: number,
@@ -266,13 +264,11 @@ export const orderServices = {
       if (!order) {
         order = await orderRepository.create(db, {
           userId: userId,
-          quantity: totalFileCount,
           fundingAmount: totalAmount,
-          networkFee: networkFee,
-          serviceFee: serviceFee,
-          orderType: "COLLECTION",
+          orderType: "MINT",
           collectionId: collection.id,
           feeRate: feeRate,
+          userLayerId,
         });
       }
 
@@ -300,7 +296,7 @@ export const orderServices = {
         ]);
 
         insertableOrderItems.forEach((metadata, index) => {
-          metadata.ipfsUrl = nftUrls[index];
+          metadata. = nftUrls[index];
         });
       } catch (e) {
         forceReleaseSlot(collectionId);
@@ -570,9 +566,6 @@ async function uploadToS3AndReturnOrderItems(
       if (metadata.file) await uploadToS3(key, metadata.file);
       return {
         orderId,
-        fileKey: key,
-        name: metadata.name,
-        evmAssetId: metadata.nftId,
       };
     })
   );

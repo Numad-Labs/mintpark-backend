@@ -238,12 +238,6 @@ export class EVMCollectibleService {
   async getCollectibleDetails(collectionId: string, tokenIds: string[]) {
     const collectibles = await db
       .selectFrom("Collectible")
-      .leftJoin(
-        "CollectibleTrait",
-        "CollectibleTrait.collectibleId",
-        "Collectible.id"
-      )
-      .leftJoin("Trait", "Trait.id", "CollectibleTrait.traitId")
       .leftJoin("List", (join) =>
         join
           .on("List.collectibleId", "=", "Collectible.id")
@@ -251,13 +245,9 @@ export class EVMCollectibleService {
       )
       .select([
         "Collectible.id",
-        "Collectible.name",
         "Collectible.uniqueIdx",
         "Collectible.fileKey",
         "Collectible.collectionId",
-        "Trait.name as traitName",
-        "CollectibleTrait.value",
-        "CollectibleTrait.rarity",
         "List.price",
       ])
       .where("Collectible.collectionId", "=", collectionId)

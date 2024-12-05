@@ -84,15 +84,15 @@ export const collectionRepository = {
 
     return collection;
   },
-  getUnconfirmedCollections: async () => {
-    const collections = await db
-      .selectFrom("Collection")
-      .selectAll()
-      .where("Collection.type", "=", "UNCONFIRMED")
-      .execute();
+  // getUnconfirmedCollections: async () => {
+  //   const collections = await db
+  //     .selectFrom("Collection")
+  //     .selectAll()
+  //     .where("Collection.type", "=", "UNCONFIRMED")
+  //     .execute();
 
-    return collections;
-  },
+  //   return collections;
+  // },
   getAllLaunchedCollectionsByLayerId: async ({
     layerId,
     interval,
@@ -135,7 +135,7 @@ export const collectionRepository = {
         ), 0)`.as("supply"),
       ])
       .where("Collection.layerId", "=", layerId)
-      .where("Collection.type", "!=", "UNCONFIRMED")
+      .where("Collection.status", "!=", "UNCONFIRMED")
       .where("Launch.id", "is not", null);
 
     if (interval !== "all") {
@@ -186,6 +186,7 @@ export const collectionRepository = {
         "Collection.type",
         "Collection.logoKey",
         "Collection.layerId",
+        "Collection.status",
         "Launch.id as launchId",
         "Launch.wlStartsAt",
         "Launch.wlEndsAt",
@@ -317,7 +318,7 @@ export const collectionRepository = {
         "Collection.slug",
       ])
       .where("Collection.layerId", "=", params.layerId)
-      .where("Collection.type", "=", "MINTED");
+      .where("Collection.status", "=", "CONFIRMED");
 
     const direction = params.orderDirection === "lowest" ? "asc" : "desc";
     if (params.orderBy && params.orderDirection) {
@@ -401,7 +402,7 @@ export const collectionRepository = {
         "Collection.inscriptionIcon",
         "Collection.slug",
       ])
-      .where("Collection.type", "=", "MINTED")
+      .where("Collection.status", "=", "CONFIRMED")
       .where("Collection.id", "=", id)
       .executeTakeFirst();
 
@@ -438,7 +439,7 @@ export const collectionRepository = {
       .selectAll()
       .where("Layer.layer", "=", layer)
       .where("Collection.contractAddress", "is not", null)
-      .where("Collection.type", "=", "MINTED")
+      .where("Collection.status", "=", "CONFIRMED")
       .execute();
 
     return collections;

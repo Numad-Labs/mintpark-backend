@@ -35,7 +35,7 @@ export const collectibleRepository = {
         "Collectible.collectionId",
         "Layer.layer",
         "Layer.network",
-        "Collectible.txid",
+        "Collectible.mintingTxId",
       ])
       .where("Collectible.id", "=", id)
       .executeTakeFirst();
@@ -213,30 +213,30 @@ export const collectibleRepository = {
     if (params.isListed)
       query = query.where("CurrentList.status", "=", "ACTIVE");
 
-    if (traitsFilters.length > 0) {
-      query = query.where((eb) =>
-        eb.exists(
-          eb
-            .selectFrom("CollectibleTrait")
-            .innerJoin("Trait", "Trait.id", "CollectibleTrait.traitId")
-            .whereRef("CollectibleTrait.collectibleId", "=", "Collectible.id")
-            .where((eb) =>
-              eb.or(
-                traitsFilters.map((traitFilter) =>
-                  eb.and([
-                    sql`lower(${eb.ref("Trait.name")}) = lower(${
-                      traitFilter.name
-                    })`.$castTo<boolean>(),
-                    sql`lower(${eb.ref("CollectibleTrait.value")}) = lower(${
-                      traitFilter.value
-                    })`.$castTo<boolean>(),
-                  ])
-                )
-              )
-            )
-        )
-      );
-    }
+    // if (traitsFilters.length > 0) {
+    //   query = query.where((eb) =>
+    //     eb.exists(
+    //       eb
+    //         .selectFrom("CollectibleTrait")
+    //         .innerJoin("Trait", "Trait.id", "CollectibleTrait.traitId")
+    //         .whereRef("CollectibleTrait.collectibleId", "=", "Collectible.id")
+    //         .where((eb) =>
+    //           eb.or(
+    //             traitsFilters.map((traitFilter) =>
+    //               eb.and([
+    //                 sql`lower(${eb.ref("Trait.name")}) = lower(${
+    //                   traitFilter.name
+    //                 })`.$castTo<boolean>(),
+    //                 sql`lower(${eb.ref("CollectibleTrait.value")}) = lower(${
+    //                   traitFilter.value
+    //                 })`.$castTo<boolean>(),
+    //               ])
+    //             )
+    //           )
+    //         )
+    //     )
+    //   );
+    // }
 
     switch (params.orderBy) {
       case "price":
