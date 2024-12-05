@@ -6,13 +6,13 @@ import { authorize } from "../middlewares/authorize";
 
 const collectionRouter = Router();
 
-collectionRouter.post(
+/* collectionRouter.post(
   "/",
   authenticateToken,
   // authorize("SUPER_ADMIN"),
   parseFiles("logo", true),
   collectionController.create
-);
+); */
 
 // collectionRouter.post(
 //   "/list-evm",
@@ -21,7 +21,7 @@ collectionRouter.post(
 //   collectionController.listForEvm
 // );
 
-collectionRouter.post(
+/* collectionRouter.post(
   "/:collectionId/launch",
   authenticateToken,
   // authorize("SUPER_ADMIN"),
@@ -30,7 +30,7 @@ collectionRouter.post(
 );
 
 collectionRouter.get("/listed", collectionController.getListedCollections);
-collectionRouter.get("/:id", collectionController.getById);
+collectionRouter.get("/:id", collectionController.getById); */
 
 // collectionRouter.put(
 //   "/:id",

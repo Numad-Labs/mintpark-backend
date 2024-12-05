@@ -5,12 +5,23 @@ const userRouter = Router();
 
 userRouter.post("/generate-message", userController.generateMessageToSign);
 userRouter.post("/login", userController.login);
-userRouter.post("/link-account", userController.linkAccount);
+userRouter.post("/link-account", authenticateToken, userController.linkAccount);
 userRouter.post(
   "/link-account-to-another-user",
+  authenticateToken,
   userController.linkAccountToAnotherUser
 );
 userRouter.post("/refresh-token", userController.refreshToken);
-userRouter.get("/:id", userController.getById);
+
+userRouter.get(
+  "/:userLayerId/userLayer",
+  authenticateToken,
+  userController.getByUserLayerId
+);
+userRouter.get(
+  "/:id/accounts",
+  authenticateToken,
+  userController.getAccountsByUserId
+);
 
 export = userRouter;

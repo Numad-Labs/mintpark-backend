@@ -3,7 +3,7 @@ import { collectibleControllers } from "../controllers/collectibleController";
 
 const collectibleRouter = Router();
 
-collectibleRouter.get(
+/* collectibleRouter.get(
   "/:userId/listable",
   collectibleControllers.getListableCollectibles
 );
@@ -17,6 +17,6 @@ collectibleRouter.get(
   collectibleControllers.getTokenActivity
 );
 
-collectibleRouter.put("/:id", collectibleControllers.update);
+collectibleRouter.put("/:id", collectibleControllers.update); */
 
 export = collectibleRouter;

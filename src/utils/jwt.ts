@@ -31,7 +31,7 @@ export function verifyRefreshToken(token: string): Promise<any> {
   return new Promise((resolve) => {
     try {
       const payload = jwt.verify(token, jwtRefreshSecret) as AuthenticatedUser;
-      console.log(payload);
+
       const tokens = generateTokens(payload);
       resolve(tokens);
     } catch (error) {

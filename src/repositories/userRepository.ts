@@ -84,4 +84,46 @@ export const userRepository = {
 
     return user;
   },
+  getByUserLayerId: async (userLayerId: string) => {
+    const user = await db
+      .selectFrom("User")
+      .innerJoin("UserLayer", "UserLayer.userId", "User.id")
+      .innerJoin("Layer", "Layer.id", "UserLayer.layerId")
+      .select([
+        "User.id",
+        "User.role",
+        "User.createdAt",
+        "UserLayer.layerId",
+        "UserLayer.address",
+        "UserLayer.pubkey",
+        "UserLayer.xpub",
+        "Layer.layer",
+        "Layer.network",
+      ])
+      .where("UserLayer.id", "=", userLayerId)
+      .executeTakeFirst();
+
+    return user;
+  },
+  getAccountsByUserId: async (userId: string) => {
+    const accounts = await db
+      .selectFrom("User")
+      .innerJoin("UserLayer", "UserLayer.userId", "User.id")
+      .innerJoin("Layer", "Layer.id", "UserLayer.layerId")
+      .select([
+        "User.id",
+        "User.role",
+        "User.createdAt",
+        "UserLayer.layerId",
+        "UserLayer.address",
+        "UserLayer.pubkey",
+        "UserLayer.xpub",
+        "Layer.layer",
+        "Layer.network",
+      ])
+      .where("UserLayer.userId", "=", userId)
+      .execute();
+
+    return accounts;
+  },
 };

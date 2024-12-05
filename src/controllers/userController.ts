@@ -7,7 +7,6 @@ import { userServices } from "../services/userServices";
 import { CustomError } from "../exceptions/CustomError";
 import { AuthenticatedRequest } from "../../custom";
 import { hideSensitiveData } from "../libs/hideDataHelper";
-import logger from "../config/winston";
 import { JsonWebTokenError, TokenExpiredError } from "jsonwebtoken";
 
 export const userController = {
@@ -39,7 +38,7 @@ export const userController = {
           400
         );
 
-      const { user, tokens } = await userServices.login(
+      const { user, tokens, userLayer } = await userServices.login(
         address,
         pubkey,
         signedMessage,
@@ -50,6 +49,7 @@ export const userController = {
         success: true,
         data: {
           user: user,
+          userLayer,
           auth: tokens,
         },
       });
@@ -153,20 +153,45 @@ export const userController = {
       next(e);
     }
   },
-  getById: async (req: Request, res: Response, next: NextFunction) => {
-    const { id } = req.params;
-    const { layerId } = req.query;
+  getByUserLayerId: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const { userLayerId } = req.params;
 
     try {
-      if (!layerId) throw new CustomError("Please provide a layerId.", 400);
+      const user = await userRepository.getByUserLayerId(userLayerId);
 
-      const user = await userRepository.getByIdAndLayerId(
-        id,
-        layerId.toString()
-      );
+      if (user?.id !== req.user?.id)
+        throw new CustomError("You are not allowed to fetch this data.", 400);
       if (!user) return res.status(200).json({ success: true, data: null });
 
-      return res.status(200).json({ success: true, data: user });
+      return res.status(200).json({ success: true, data: { user } });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getAccountsByUserId: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const { id } = req.params;
+
+    try {
+      if (req.user?.id !== id)
+        throw new CustomError("You are not allowed to fetch this data.", 400);
+
+      const accounts = await userRepository.getAccountsByUserId(id);
+      if (!accounts) return res.status(200).json({ success: true, data: null });
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          accounts,
+        },
+      });
     } catch (e) {
       next(e);
     }

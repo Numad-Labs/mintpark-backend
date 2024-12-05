@@ -10,12 +10,13 @@ import { verifySignedMessage as fractalVerifySignedMessage } from "../../blockch
 import { layerRepository } from "../repositories/layerRepository";
 import { verifySignedMessage as citreaVerifySignedMessage } from "../../blockchain/evm/utils";
 import { userLayerRepository } from "../repositories/userLayerRepository";
+import { verifyMessage as bitcoinVerifySignedMessage } from "@unisat/wallet-utils";
 
 export const userServices = {
   generateMessageToSign: async (address: string) => {
     const nonce = generateNonce();
     const message = generateMessage(address, nonce);
-    await redis.set(`nonce:${address}`, nonce, "EX", 300);
+    await redis.set(`nonce:${address}`, nonce, "EX", 30000);
 
     return message;
   },
@@ -40,13 +41,11 @@ export const userServices = {
         address
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
-    }
-    if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
-      const isValid = await fractalVerifySignedMessage(
-        message,
-        signedMessage,
+    } else if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
+      const isValid = await bitcoinVerifySignedMessage(
         pubkey,
-        layerId
+        message,
+        signedMessage
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     } else throw new CustomError("Unsupported layer.", 400);
@@ -56,7 +55,12 @@ export const userServices = {
 
     if (!isExistingUserLayer) {
       let user = await userRepository.create({ role: "USER" });
-      let userLayer = await userLayerRepository;
+      let userLayer = await userLayerRepository.create({
+        address,
+        userId: user.id,
+        layerId,
+        pubkey,
+      });
 
       const tokens = generateTokens(user);
       return { user, userLayer, tokens };
@@ -95,19 +99,28 @@ export const userServices = {
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     }
     if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
-      const isValid = await fractalVerifySignedMessage(
-        message,
-        signedMessage,
+      const isValid = await bitcoinVerifySignedMessage(
         pubkey,
-        layerId
+        message,
+        signedMessage
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     } else throw new CustomError("Unsupported layer.", 400);
 
     const isExistingUserLayer =
       await userLayerRepository.getByAddressAndLayerId(address, layerId);
-    if (isExistingUserLayer)
-      return { user, userLayer: null, hasAlreadyBeenLinked: false };
+    if (isExistingUserLayer && isExistingUserLayer.userId === userId)
+      return {
+        user,
+        userLayer: isExistingUserLayer,
+        hasAlreadyBeenLinkedToAnotherUser: false,
+      };
+    else if (isExistingUserLayer)
+      return {
+        user,
+        userLayer: null,
+        hasAlreadyBeenLinkedToAnotherUser: true,
+      };
 
     let userLayer = await userLayerRepository.create({
       address,
@@ -115,7 +128,7 @@ export const userServices = {
       layerId,
     });
 
-    return { user, userLayer, hasAlreadyBeenLinked: false };
+    return { user, userLayer, hasAlreadyBeenLinkedToAnotherUser: false };
   },
   linkAccountToAnotherUser: async (
     userId: string,
@@ -144,11 +157,10 @@ export const userServices = {
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     }
     if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
-      const isValid = await fractalVerifySignedMessage(
-        message,
-        signedMessage,
+      const isValid = await bitcoinVerifySignedMessage(
         pubkey,
-        layerId
+        message,
+        signedMessage
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     } else throw new CustomError("Unsupported layer.", 400);
@@ -157,12 +169,17 @@ export const userServices = {
       await userLayerRepository.getByAddressAndLayerId(address, layerId);
     if (!isExistingUserLayer)
       throw new CustomError("This account has not been linked yet.", 400);
+    if (isExistingUserLayer.userId === userId)
+      throw new CustomError(
+        "This account has already been linked to you.",
+        400
+      );
 
     let userLayer = await userLayerRepository.updateUserIdById(
       isExistingUserLayer.id,
       userId
     );
 
-    return { user, userLayer, hasAlreadyBeenLinked: false };
+    return { user, userLayer };
   },
 };

@@ -5,7 +5,7 @@ import { authorize } from "../middlewares/authorize";
 
 const launchRouter = Router();
 
-launchRouter.get("/", launchController.getAllLaunchedCollectionsByLayerId);
+/* launchRouter.get("/", launchController.getAllLaunchedCollectionsByLayerId);
 launchRouter.get(
   "/collections/:collectionId",
   launchController.getLaunchedCollectionById
@@ -25,6 +25,6 @@ launchRouter.post(
   authenticateToken,
   // authorize("SUPER_ADMIN"),
   launchController.generateUnsignedMintPriceChangeTx
-);
+); */
 // launchRouter.put("/:id", authenticateToken, launchController.update);
 export = launchRouter;
