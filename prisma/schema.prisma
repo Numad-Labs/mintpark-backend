@@ -34,10 +34,11 @@ model UserLayer {
   createdAt DateTime @default(now())
 
   userId  String
-  user    User    @relation(fields: [userId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
   layerId String
-  layer   Layer   @relation(fields: [layerId], references: [id])
+  layer   Layer    @relation(fields: [layerId], references: [id])
   Order   Order[]
+  Launch  Launch[]
 
   @@unique([address, layerId])
 }
@@ -76,7 +77,7 @@ model Order {
   mintedAt  DateTime?
   expiredAt DateTime?
 
-  orderType   ORDER_TYPE   @default(MINT)
+  orderType   ORDER_TYPE   @default(MINT_COLLECTIBLE)
   orderStatus ORDER_STATUS @default(PENDING)
 
   userId       String
@@ -100,9 +101,11 @@ model OrderItem {
   status     ORDER_ITEM_STATUS @default(PENDING)
 
   orderId       String
-  order         Order       @relation(fields: [orderId], references: [id])
-  collectibleId String
-  collectible   Collectible @relation(fields: [collectibleId], references: [id])
+  order         Order        @relation(fields: [orderId], references: [id])
+  collectibleId String?
+  collectible   Collectible? @relation(fields: [collectibleId], references: [id])
+  traitValueId  String?
+  traitValue    TraitValue?  @relation(fields: [traitValueId], references: [id])
 }
 
 model Collection {
@@ -137,14 +140,14 @@ model Collection {
 }
 
 model Collectible {
-  id        String             @id @default(dbgenerated("gen_random_uuid()"))
-  name      String
-  fileKey   String?
-  cid       String?
-  uniqueIdx String
-  metadata  Json?
-  status    COLLECTIBLE_STATUS @default(UNCONFIRMED)
-  createdAt DateTime           @default(now())
+  id          String             @id @default(dbgenerated("gen_random_uuid()"))
+  name        String
+  fileKey     String?
+  cid         String?
+  uniqueIdx   String?
+  metadata    Json?
+  status      COLLECTIBLE_STATUS @default(UNCONFIRMED)
+  createdAt   DateTime           @default(now())
   mintingTxId String?
 
   lockingAddress    String?
@@ -159,11 +162,13 @@ model Collectible {
   OrderItem         OrderItem[]
   List              List[]
   CollectibleTrait  CollectibleTrait[]
+  LaunchItem        LaunchItem[]
 }
 
 model TraitType {
   id        String   @id @default(dbgenerated("gen_random_uuid()"))
   name      String
+  zIndex    Int
   createdAt DateTime @default(now())
 
   collectionId String
@@ -174,7 +179,7 @@ model TraitType {
 model TraitValue {
   id            String   @id @default(dbgenerated("gen_random_uuid()"))
   value         String
-  inscriptionId String
+  inscriptionId String?
   fileKey       String
   createdAt     DateTime @default(now())
   mintedAt      DateTime @default(now())
@@ -182,11 +187,11 @@ model TraitValue {
   traitTypeId      String
   traitType        TraitType          @relation(fields: [traitTypeId], references: [id])
   CollectibleTrait CollectibleTrait[]
+  OrderItem        OrderItem[]
 }
 
 model CollectibleTrait {
   id        String   @id @default(dbgenerated("gen_random_uuid()"))
-  zIndex    Int
   createdAt DateTime @default(now())
 
   collectibleId String
@@ -196,43 +201,45 @@ model CollectibleTrait {
 }
 
 model Launch {
-  id                 String     @id @default(dbgenerated("gen_random_uuid()"))
+  id                 String        @id @default(dbgenerated("gen_random_uuid()"))
   collectionId       String
-  collection         Collection @relation(fields: [collectionId], references: [id])
+  collection         Collection    @relation(fields: [collectionId], references: [id])
   isWhitelisted      Boolean
   wlStartsAt         BigInt?
   wlEndsAt           BigInt?
   wlMintPrice        Float?
   wlMaxMintPerWallet Int?
-  poStartsAt         BigInt     @default(0)
+  poStartsAt         BigInt        @default(0)
   poEndsAt           BigInt?
   poMintPrice        Float
   poMaxMintPerWallet Int
-  createdAt          DateTime   @default(now())
+  createdAt          DateTime      @default(now())
+  status             LAUNCH_STATUS @default(UNCONFIRMED)
 
   ownerId     String?
-  owner       User?        @relation(fields: [ownerId], references: [id])
+  owner       User?     @relation(fields: [ownerId], references: [id])
+  userLayerId String
+  userLayer   UserLayer @relation(fields: [userLayerId], references: [id])
+
   launchItems LaunchItem[]
   wlAddresses WlAddress[]
 }
 
 model LaunchItem {
-  id        String             @id @default(dbgenerated("gen_random_uuid()"))
-  fileKey   String
-  ipfsUrl   String?
-  metadata  Json?
-  status    LAUNCH_ITEM_STATUS @default(ACTIVE)
-  
-  evmAssetId  String?
-  name        String
+  id     String             @id @default(dbgenerated("gen_random_uuid()"))
+  status LAUNCH_ITEM_STATUS @default(ACTIVE)
+
   onHoldUntil DateTime?
   mintingTxId String?
 
-  launchId  String
-  launch    Launch             @relation(fields: [launchId], references: [id])
-  onHoldBy    String?
-  User        User?     @relation(fields: [onHoldBy], references: [id])
-  Order       Order[]
+  launchId      String
+  launch        Launch      @relation(fields: [launchId], references: [id])
+  collectibleId String
+  collectible   Collectible @relation(fields: [collectibleId], references: [id])
+  onHoldBy      String?
+  User          User?       @relation(fields: [onHoldBy], references: [id])
+
+  Order     Order[]
   purchases Purchase[]
 }
 
@@ -272,7 +279,8 @@ model List {
 }
 
 enum ORDER_TYPE {
-  MINT
+  MINT_COLLECTIBLE
+  MINT_TRAIT
   LAUNCH_BUY
 }
 
@@ -308,6 +316,11 @@ enum COLLECTIBLE_STATUS {
   CONFIRMED
   BURNED
   LOCKED
+}
+
+enum LAUNCH_STATUS {
+  UNCONFIRMED
+  CONFIRMED
 }
 
 enum LAUNCH_ITEM_STATUS {

@@ -1,6 +1,8 @@
 import { getInscriptionUtxosByAddress } from "../../blockchain/utxo/fractal/libs";
 import {
   CollectibleQueryParams,
+  ipfsNftParams,
+  recursiveInscriptionParams,
   traitFilter,
 } from "../controllers/collectibleController";
 import { CustomError } from "../exceptions/CustomError";
@@ -14,6 +16,14 @@ import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
 import { orderRepository } from "../repositories/orderRepostory";
 import { db } from "../utils/db";
+import { randomUUID } from "crypto";
+import { uploadToS3 } from "../utils/aws";
+import { Insertable } from "kysely";
+import { Collectible, CollectibleTrait, OrderItem } from "../types/db/types";
+import { orderItemRepository } from "../repositories/orderItemRepository";
+import { traitValueRepository } from "../repositories/traitValueRepository";
+import { collectibleTraitRepository } from "../repositories/collectibleTraitRepository";
+import { param } from "../routes/userRoutes";
 
 const evmCollectibleService = new EVMCollectibleService(EVM_CONFIG.RPC_URL!);
 const confirmationService = new TransactionConfirmationService(
@@ -23,24 +33,24 @@ const confirmationService = new TransactionConfirmationService(
 export const collectibleServices = {
   getListableCollectibles: async (
     userId: string,
+    userLayerId: string,
     params: CollectibleQueryParams
   ) => {
-    const user = await userRepository.getByIdAndLayerId(userId, params.layerId);
-    if (!user || !user.layerId) throw new CustomError("User not found.", 400);
+    const user = await userRepository.getByUserLayerId(userLayerId);
+    if (!user) throw new CustomError("User not found.", 400);
+    if (user.id !== userId) throw new CustomError("User not found.", 400);
+    // if (user.layerId !== params.layerId)
+    //   throw new CustomError("Differing layerId.", 400);
 
     const layerType = await layerRepository.getById(user.layerId!);
     if (!layerType) throw new CustomError("Unsupported layer type.", 400);
-
     const uniqueIdxs: string[] = [];
-
     if (layerType.layer === "CITREA" && layerType.network === "TESTNET") {
       const collections = await collectionRepository.getCollectionsByLayer(
-        "CITREA"
+        user.layerId
       );
-
       // if (collections?.length) {
       //   console.log(`Found ${collections.length} CITREA collections`);
-
       //   // Filter valid collections and process them in parallel
       //   const validCollections = collections.filter((c) => c.contractAddress);
       //   const tokenResults = await Promise.all(
@@ -50,9 +60,7 @@ export const collectibleServices = {
       //           collection.contractAddress!,
       //           user.address
       //         );
-
       //         if (!tokenIds?.length) return [];
-
       //         console.log(
       //           `Found ${tokenIds.length} tokens for contract: ${collection.contractAddress}`
       //         );
@@ -73,13 +81,11 @@ export const collectibleServices = {
         const validCollections = collections
           .filter((c) => c.contractAddress)
           .map((c) => c.contractAddress!);
-
         // Process collections in batches using the new method
         const tokenResults = await evmCollectibleService.processCollections(
           validCollections,
           user.address
         );
-
         // Convert the results into the required format
         for (const [contractAddress, tokenIds] of Object.entries(
           tokenResults
@@ -92,14 +98,12 @@ export const collectibleServices = {
           }
         }
       }
-
       // return uniqueIdxs;
     } else if (layerType.layer === "FRACTAL") {
       const inscriptionUtxos = await getInscriptionUtxosByAddress(
         user.address,
         true
       );
-
       inscriptionUtxos.map((inscriptionUtxo) => {
         inscriptionUtxo.inscriptions[0].inscriptionId;
         uniqueIdxs.push(inscriptionUtxo.inscriptions[0].inscriptionId);
@@ -133,7 +137,6 @@ export const collectibleServices = {
         uniqueIdxs
       ),
     ]);
-
     const listedCount = Number(listedCountResult?.activeListCount ?? 0);
     const totalCount = Number(totalCountResult?.count ?? 0);
 
@@ -154,7 +157,6 @@ export const collectibleServices = {
         const [name, value] = trait.split(":");
         return { name, value };
       });
-
     const [listableCollectibles, countResult] = await Promise.all([
       collectibleRepository.getListableCollectiblesByCollectionId(
         collectionId,
@@ -163,7 +165,6 @@ export const collectibleServices = {
       ),
       listRepository.getActiveListCountByCollectionid(collectionId),
     ]);
-
     if (!listableCollectibles[0].contractAddress) {
       throw new Error("Collectible with no contract address.");
     }
@@ -179,12 +180,13 @@ export const collectibleServices = {
       // totalOwnerCount,
     };
   },
-
   getActivityByCollectibleId: async (collectibleId: string) => {
     const collectible = await collectibleRepository.getById(collectibleId);
     if (!collectible) throw new CustomError("Collectible not found.", 400);
-    if (!collectible.txid)
+    if (!collectible.mintingTxId)
       throw new CustomError("Collectible does not have txid.", 400);
+    if (!collectible.uniqueIdx)
+      throw new CustomError("Collectible does not have unique index.", 400);
 
     const collection = await collectionRepository.getById(
       db,
@@ -193,14 +195,11 @@ export const collectibleServices = {
     if (!collection) throw new CustomError("collection not found.", 400);
     if (!collection.contractAddress)
       throw new CustomError("contractAddress not found", 400);
-
     // const collectionAddress = collectible.uniqueIdx.split("i")[0];
     const tokenId = collectible.uniqueIdx.split("i")[1];
-
     const transactionDetail = await confirmationService.getTransactionDetails(
-      collectible.txid
+      collectible.mintingTxId
     );
-
     const activities = await evmCollectibleService.getActivityByTokenId(
       collection.contractAddress,
       tokenId,
@@ -208,5 +207,206 @@ export const collectibleServices = {
     );
 
     return activities;
+  },
+  createInscriptions: async (
+    collectionId: string,
+    names: string[],
+    files: Express.Multer.File[]
+  ) => {
+    const fileKeys = await Promise.all(
+      files.map(async (file) => {
+        const key = randomUUID().toString();
+        if (file) await uploadToS3(key, file);
+        return {
+          key,
+        };
+      })
+    );
+    const collectiblesData: Insertable<Collectible>[] = [];
+    for (let i = 0; i < fileKeys.length; i++)
+      collectiblesData.push({
+        name: names[i],
+        fileKey: fileKeys[i].key,
+        collectionId,
+      });
+    const collectibles = await collectibleRepository.bulkInsert(
+      collectiblesData
+    );
+
+    return collectibles;
+  },
+  createInscriptionAndOrderItemInBatch: async (
+    userId: string,
+    collectionId: string,
+    names: string[],
+    files: Express.Multer.File[]
+  ) => {
+    const collection = await collectionRepository.getById(db, collectionId);
+    if (collection?.type !== "INSCRIPTION")
+      throw new CustomError("Invalid collection type.", 400);
+
+    const order = await orderRepository.getByCollectionId(collectionId);
+    if (order?.userId !== userId)
+      throw new CustomError(
+        "You are not allowed to create trait value for this collection.",
+        400
+      );
+
+    //TODO: Add validation to check if order.fundingAddress was funded(>=order.fundingAmount) or not
+    const isPaid = true;
+    if (!isPaid)
+      throw new CustomError("Fee has not been transferred yet.", 400);
+
+    const collectibles = await collectibleServices.createInscriptions(
+      collectionId,
+      names,
+      files
+    );
+
+    const orderItemsData: Insertable<OrderItem>[] = [];
+    for (let i = 0; i < collectibles.length; i++)
+      orderItemsData.push({
+        collectibleId: collectibles[i].id,
+        orderId: order.id,
+      });
+    const orderItems = await orderItemRepository.bulkInsert(orderItemsData);
+
+    return { collectibles, orderItems };
+  },
+  createRecursiveInscriptions: async (
+    collectionId: string,
+    data: recursiveInscriptionParams[]
+  ) => {
+    const collectiblesData: Insertable<Collectible>[] = [];
+    const collectibleTraitData: Insertable<CollectibleTrait>[] = [];
+    for (let i = 0; i < data.length; i++) {
+      let collectibleId = randomUUID().toString();
+      collectiblesData.push({
+        id: collectibleId,
+        name: data[i].name,
+        collectionId,
+      });
+
+      data[i].traits.forEach(async (trait) => {
+        const traitValue =
+          await traitValueRepository.getByNameValueAndCollectionId(
+            trait.type,
+            trait.value,
+            collectionId
+          );
+
+        if (!traitValue)
+          throw new CustomError("Unregistered trait value.", 400);
+
+        collectibleTraitData.push({
+          collectibleId,
+          traitValueId: traitValue?.id,
+        });
+      });
+    }
+
+    const collectibles = await collectibleRepository.bulkInsert(
+      collectiblesData
+    );
+    const collectibleTraits = await collectibleTraitRepository.bulkInsert(
+      collectibleTraitData
+    );
+
+    return { collectibles, collectibleTraits };
+  },
+  createRecursiveInscriptionAndOrderItemInBatch: async (
+    userId: string,
+    collectionId: string,
+    data: recursiveInscriptionParams[]
+  ) => {
+    const collection = await collectionRepository.getById(db, collectionId);
+    if (collection?.type !== "RECURSIVE_INSCRIPTION")
+      throw new CustomError("Invalid collection type.", 400);
+
+    const order = await orderRepository.getByCollectionId(collectionId);
+    if (order?.userId !== userId)
+      throw new CustomError(
+        "You are not allowed to create trait value for this collection.",
+        400
+      );
+
+    //TODO: Add validation to check if order.fundingAddress was funded(>=order.fundingAmount) or not
+    const isPaid = true;
+    if (!isPaid)
+      throw new CustomError("Fee has not been transferred yet.", 400);
+
+    const result = await collectibleServices.createRecursiveInscriptions(
+      collectionId,
+      data
+    );
+
+    const orderItemsData: Insertable<OrderItem>[] = [];
+    for (let i = 0; i < result.collectibles.length; i++)
+      orderItemsData.push({
+        collectibleId: result.collectibles[i].id,
+        orderId: order.id,
+      });
+    const orderItems = await orderItemRepository.bulkInsert(orderItemsData);
+
+    return {
+      collectibles: result.collectibles,
+      collectibleTraits: result.collectibleTraits,
+      orderItems,
+    };
+  },
+  createIpfsNfts: async (collectionId: string, data: ipfsNftParams[]) => {
+    const collectiblesData: Insertable<Collectible>[] = [];
+    for (let i = 0; i < data.length; i++) {
+      //TODO: data[i].cid validation?
+      const isValidCid = true;
+      if (!isValidCid) throw new CustomError("Invalid cid.", 400);
+
+      collectiblesData.push({
+        name: data[i].name,
+        cid: data[i].cid,
+        collectionId,
+      });
+    }
+    const collectibles = await collectibleRepository.bulkInsert(
+      collectiblesData
+    );
+
+    return collectibles;
+  },
+  createIpfsNftAndOrderItemInBatch: async (
+    userId: string,
+    collectionId: string,
+    data: ipfsNftParams[]
+  ) => {
+    const collection = await collectionRepository.getById(db, collectionId);
+    if (collection?.type !== "IPFS")
+      throw new CustomError("Invalid collection type.", 400);
+
+    const order = await orderRepository.getByCollectionId(collectionId);
+    if (order?.userId !== userId)
+      throw new CustomError(
+        "You are not allowed to create trait value for this collection.",
+        400
+      );
+
+    //TODO: Add validation to check if order.fundingAddress was funded(>=order.fundingAmount) or not
+    const isPaid = true;
+    if (!isPaid)
+      throw new CustomError("Fee has not been transferred yet.", 400);
+
+    const collectibles = await collectibleServices.createIpfsNfts(
+      collectionId,
+      data
+    );
+
+    const orderItemsData: Insertable<OrderItem>[] = [];
+    for (let i = 0; i < collectibles.length; i++)
+      orderItemsData.push({
+        collectibleId: collectibles[i].id,
+        orderId: order.id,
+      });
+    const orderItems = await orderItemRepository.bulkInsert(orderItemsData);
+
+    return { collectibles, orderItems };
   },
 };

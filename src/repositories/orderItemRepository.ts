@@ -63,14 +63,9 @@ export const orderItemRepository = {
         "OrderItem.id as id",
         "OrderItem.orderId as orderId",
         "User.id as userId",
-        "OrderItem.fileKey",
-        "OrderItem.metadata",
-        "OrderItem.metadata",
-        "OrderItem.ipfsUrl",
         "OrderItem.status",
-        // "Layer.id as layerId",
-        // "Layer.network",
-        // "Layer.layer",
+        "Order.collectionId",
+        "OrderItem.collectibleId",
       ])
       .where("OrderItem.id", "=", id)
       .executeTakeFirst();
@@ -87,13 +82,8 @@ export const orderItemRepository = {
         "OrderItem.id as id",
         "OrderItem.orderId as orderId",
         "User.id as userId",
-        "OrderItem.fileKey",
-        "OrderItem.metadata",
-        "OrderItem.status",
-        "OrderItem.ipfsUrl",
-        // "Layer.id as layerId",
-        // "Layer.network",
-        // "Layer.layer",
+        "Order.collectionId",
+        "OrderItem.collectibleId",
       ])
       .where("Order.id", "=", orderId)
       // .where("OrderItem.status", "=", "MINTED")

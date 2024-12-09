@@ -23,6 +23,16 @@ export interface CollectibleQueryParams {
   layerId: string;
 }
 
+export interface recursiveInscriptionParams {
+  name: string;
+  traits: [{ type: string; value: string }];
+}
+
+export interface ipfsNftParams {
+  name: string;
+  cid: string;
+}
+
 export const collectibleControllers = {
   // getListableCollectibles: async (
   //   req: Request<{ userId: string }, {}, {}, CollectibleQueryParams>,
@@ -117,4 +127,112 @@ export const collectibleControllers = {
   //   res: Response,
   //   next: NextFunction
   // ) => {},
+  createInscriptionInBatch: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user?.id)
+        throw new CustomError("Could not parse the id from the token.", 400);
+
+      const { collectionId } = req.body;
+      const names: string[] = Array.isArray(req.body.names)
+        ? req.body.names
+        : req.body.names
+        ? [req.body.names]
+        : [];
+      const files: Express.Multer.File[] = req.files as Express.Multer.File[];
+
+      if (names.length === 0)
+        throw new CustomError("Please provide the names.", 400);
+      if (files.length === 0)
+        throw new CustomError("Please provide the files.", 400);
+      if (files.length > 10)
+        throw new CustomError("You cannot provide more than 10 files.", 400);
+      if (files.length !== names.length)
+        throw new CustomError("Differing number of names & files found.", 400);
+
+      const result =
+        await collectibleServices.createInscriptionAndOrderItemInBatch(
+          req.user.id,
+          collectionId,
+          names,
+          files
+        );
+
+      return res.status(200).json({ success: true, data: result });
+    } catch (e) {
+      next(e);
+    }
+  },
+  createRecursiveInscriptionInBatch: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user?.id)
+        throw new CustomError("Could not parse the id from the token.", 400);
+
+      const { collectionId } = req.body;
+      const data: recursiveInscriptionParams[] = Array.isArray(req.body.data)
+        ? req.body.data
+        : req.body.data
+        ? [req.body.data]
+        : [];
+      if (data.length === 0)
+        throw new CustomError("Please provide the data.", 400);
+      if (data.length > 10)
+        throw new CustomError(
+          "You cannot provide more than 10 elements of data.",
+          400
+        );
+
+      const result =
+        await collectibleServices.createRecursiveInscriptionAndOrderItemInBatch(
+          req.user.id,
+          collectionId,
+          data
+        );
+
+      return res.status(200).json({ success: true, data: result });
+    } catch (e) {
+      next(e);
+    }
+  },
+  createIpfsNftInBatch: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user?.id)
+        throw new CustomError("Could not parse the id from the token.", 400);
+
+      const { collectionId } = req.body;
+      const data: ipfsNftParams[] = Array.isArray(req.body.data)
+        ? req.body.data
+        : req.body.data
+        ? [req.body.data]
+        : [];
+      if (data.length === 0)
+        throw new CustomError("Please provide the data.", 400);
+      if (data.length > 10)
+        throw new CustomError(
+          "You cannot provide more than 10 elements of data.",
+          400
+        );
+
+      const result = await collectibleServices.createIpfsNftAndOrderItemInBatch(
+        req.user.id,
+        collectionId,
+        data
+      );
+
+      return res.status(200).json({ success: true, data: result });
+    } catch (e) {
+      next(e);
+    }
+  },
 };

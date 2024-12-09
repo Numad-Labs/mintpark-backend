@@ -41,51 +41,72 @@ export const orderController = {
   //     next(e);
   //   }
   // },
-  // createCollection: async (
-  //   req: AuthenticatedRequest,
-  //   res: Response,
-  //   next: NextFunction
-  // ) => {
-  //   try {
-  //     if (!req.user) throw new CustomError("Cannot parse user from token", 401);
-  //     const { collectionId, feeRate, txid, totalFileCount, userLayerId } =
-  //       req.body;
-  //     if (!feeRate)
-  //       throw new CustomError("Order type and fee rate are required.", 400);
-  //     if (!collectionId)
-  //       throw new CustomError(
-  //         "CollectionId is required when creating order for collection.",
-  //         400
-  //       );
-  //     if (!userLayerId)
-  //       throw new CustomError(
-  //         "userLayerId is required when creating order for collection.",
-  //         400
-  //       );
-  //     if (!totalFileCount)
-  //       throw new CustomError(
-  //         "totalFileCount is required when creating order for collection.",
-  //         400
-  //       );
-  //     const files = req.files as Express.Multer.File[];
-  //     const { order, orderItems } = await orderServices.createCollection(
-  //       req.user.id,
-  //       userLayerId,
-  //       Number(feeRate),
-  //       files,
-  //       totalFileCount,
-  //       collectionId,
-  //       txid
-  //     );
-  //     const sanitazedOrder = hideSensitiveData(order, ["privateKey"]);
-  //     return res.status(200).json({
-  //       success: true,
-  //       data: { order: sanitazedOrder, orderItems: orderItems },
-  //     });
-  //   } catch (e) {
-  //     next(e);
-  //   }
-  // },
+  createMintOrder: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const {
+        collectionId,
+        feeRate,
+        txid,
+        userLayerId,
+        totalFileSize,
+        totalTraitCount,
+      } = req.body;
+
+      if (!req.user?.id)
+        throw new CustomError("Cannot parse user from token", 401);
+      if (!feeRate)
+        throw new CustomError("Order type and fee rate are required.", 400);
+      if (!collectionId)
+        throw new CustomError(
+          "CollectionId is required when creating mint order.",
+          400
+        );
+      if (!userLayerId)
+        throw new CustomError(
+          "userLayerId is required when creating order for collection.",
+          400
+        );
+
+      const { order } = await orderServices.createMintOrder(
+        req.user.id,
+        userLayerId,
+        totalFileSize,
+        totalTraitCount,
+        Number(feeRate),
+        collectionId,
+        txid
+      );
+      const sanitazedOrder = hideSensitiveData(order, ["privateKey"]);
+
+      return res.status(200).json({
+        success: true,
+        data: { order: sanitazedOrder },
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
+  invokeOrderForMinting: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user?.id)
+        throw new CustomError("Cannot parse user from token", 401);
+      const { id } = req.params;
+
+      const order = await orderServices.invokeOrderForMinting(req.user.id, id);
+
+      return res.status(200).json({ success: true, data: { order } });
+    } catch (e) {
+      next(e);
+    }
+  },
   // generateMintTxHex: async (
   //   req: AuthenticatedRequest,
   //   res: Response,

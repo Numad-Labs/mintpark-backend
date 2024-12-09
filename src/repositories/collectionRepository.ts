@@ -432,12 +432,12 @@ export const collectionRepository = {
 
     return collections;
   },
-  getCollectionsByLayer: async (layer: LAYER) => {
+  getCollectionsByLayer: async (layerId: string) => {
     let collections = db
       .selectFrom("Collection")
       .innerJoin("Layer", "Layer.id", "Collection.layerId")
       .selectAll()
-      .where("Layer.layer", "=", layer)
+      .where("Layer.id", "=", layerId)
       .where("Collection.contractAddress", "is not", null)
       .where("Collection.status", "=", "CONFIRMED")
       .execute();

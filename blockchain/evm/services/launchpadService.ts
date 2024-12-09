@@ -249,9 +249,10 @@ class LaunchpadService {
 
     console.log("🚀 ~ LaunchpadService ~ metadataURI:", metadataURI);
 
-    await launchItemRepository.update(db, winnerItem.id, {
-      ipfsUrl: metadataURI,
-    });
+    //TODO: FIX DG
+    // await launchItemRepository.update(db, winnerItem.id, {
+    //   ipfsUrl: metadataURI,
+    // });
 
     const nftContract = new ethers.Contract(
       collectionAddress,
@@ -278,8 +279,10 @@ class LaunchpadService {
   }
 
   private generateTokenId(items: LaunchItem[]): number {
+    //TODO: FIX DG
     const existingIds = items
-      .map((item) => item.evmAssetId)
+      // .map((item) => item.evmAssetId)
+      .map((item) => item.launchId)
       .filter((id): id is string => id !== null)
       .map((id) => parseInt(id));
 

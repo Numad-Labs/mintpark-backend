@@ -24,6 +24,7 @@ import nftRouter from "../blockchain/evm/routes/nftRoutes";
 import logger from "./config/winston";
 import { sizeLimitConstants } from "./libs/constants";
 import { rateLimiter } from "./middlewares/rateLimiter";
+import { db } from "./utils/db";
 
 export const redis = new Redis(config.REDIS_CONNECTION_STRING);
 
@@ -64,4 +65,9 @@ app.use(errorHandler);
 
 app.listen(config.PORT, () => {
   logger.info(`Server has started on port ${config.PORT}`);
+});
+
+process.on("SIGTERM", () => {
+  db.destroy();
+  redis.disconnect();
 });

@@ -1,4 +1,4 @@
-import { Insertable, Kysely, sql, Transaction } from "kysely";
+import { Insertable, Kysely, sql, Transaction, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { Collectible, DB } from "../types/db/types";
 import {
@@ -21,6 +21,22 @@ export const collectibleRepository = {
 
     return collectible;
   },
+  update: async (
+    db: Kysely<DB> | Transaction<DB>,
+    id: string,
+    data: Updateable<Collectible>
+  ) => {
+    const collectible = await db
+      .updateTable("Collectible")
+      .set(data)
+      .returningAll()
+      .where("Collectible.id", "=", id)
+      .executeTakeFirstOrThrow(
+        () => new Error("Could not update the collectible.")
+      );
+
+    return collectible;
+  },
   getById: async (id: string) => {
     const collectible = await db
       .selectFrom("Collectible")
@@ -33,9 +49,13 @@ export const collectibleRepository = {
         "Collectible.createdAt",
         "Collectible.fileKey",
         "Collectible.collectionId",
+        "Collectible.cid",
+        "Collectible.metadata",
+        "Collectible.status",
+        "Collectible.parentCollectibleId",
+        "Collectible.mintingTxId",
         "Layer.layer",
         "Layer.network",
-        "Collectible.mintingTxId",
       ])
       .where("Collectible.id", "=", id)
       .executeTakeFirst();

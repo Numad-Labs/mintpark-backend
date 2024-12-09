@@ -6,6 +6,13 @@ import { authorize } from "../middlewares/authorize";
 
 const orderRouter = Router();
 
+orderRouter.post("/", authenticateToken, orderController.createMintOrder);
+orderRouter.post(
+  "/:id/invoke-mint",
+  authenticateToken,
+  orderController.invokeOrderForMinting
+);
+
 /* orderRouter.post(
   "/collectible",
   authenticateToken,

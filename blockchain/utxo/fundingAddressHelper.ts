@@ -1,12 +1,12 @@
 import * as bitcoin from "bitcoinjs-lib";
 import { ECPairFactory } from "ecpair";
 import * as ecc from "tiny-secp256k1";
-import { LAYER } from "../../src/types/db/enums";
+import { LAYER, NETWORK } from "../../src/types/db/enums";
 
 bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);
 
-export function createFundingAddress(layerType: LAYER, network: string) {
+export function createFundingAddress(layerType: LAYER, network: NETWORK) {
   let selectedNetwork;
 
   switch (layerType) {

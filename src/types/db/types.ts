@@ -11,6 +11,7 @@ import type {
   COLLECTION_STATUS,
   COLLECTION_TYPE,
   COLLECTIBLE_STATUS,
+  LAUNCH_STATUS,
   LAUNCH_ITEM_STATUS,
   LIST_STATUS,
   LAYER,
@@ -23,7 +24,7 @@ export type Collectible = {
   name: string;
   fileKey: string | null;
   cid: string | null;
-  uniqueIdx: string;
+  uniqueIdx: string | null;
   metadata: unknown | null;
   status: Generated<COLLECTIBLE_STATUS>;
   createdAt: Generated<Timestamp>;
@@ -35,7 +36,6 @@ export type Collectible = {
 };
 export type CollectibleTrait = {
   id: Generated<string>;
-  zIndex: number;
   createdAt: Generated<Timestamp>;
   collectibleId: string;
   traitValueId: string;
@@ -79,19 +79,17 @@ export type Launch = {
   poMintPrice: number;
   poMaxMintPerWallet: number;
   createdAt: Generated<Timestamp>;
+  status: Generated<LAUNCH_STATUS>;
   ownerId: string | null;
+  userLayerId: string;
 };
 export type LaunchItem = {
   id: Generated<string>;
-  fileKey: string;
-  ipfsUrl: string | null;
-  metadata: unknown | null;
   status: Generated<LAUNCH_ITEM_STATUS>;
-  evmAssetId: string | null;
-  name: string;
   onHoldUntil: Timestamp | null;
   mintingTxId: string | null;
   launchId: string;
+  collectibleId: string;
   onHoldBy: string | null;
 };
 export type Layer = {
@@ -142,7 +140,8 @@ export type OrderItem = {
   createdAt: Generated<Timestamp>;
   status: Generated<ORDER_ITEM_STATUS>;
   orderId: string;
-  collectibleId: string;
+  collectibleId: string | null;
+  traitValueId: string | null;
 };
 export type Purchase = {
   id: Generated<string>;
@@ -153,13 +152,14 @@ export type Purchase = {
 export type TraitType = {
   id: Generated<string>;
   name: string;
+  zIndex: number;
   createdAt: Generated<Timestamp>;
   collectionId: string;
 };
 export type TraitValue = {
   id: Generated<string>;
   value: string;
-  inscriptionId: string;
+  inscriptionId: string | null;
   fileKey: string;
   createdAt: Generated<Timestamp>;
   mintedAt: Generated<Timestamp>;

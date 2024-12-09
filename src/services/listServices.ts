@@ -108,6 +108,12 @@ export const listServices = {
             );
           }
         }
+
+        if (!collectible.uniqueIdx)
+          throw new CustomError(
+            "Collectible with no unique index cannot be listed.",
+            400
+          );
         const tokenId = collectible.uniqueIdx.split("i")[1];
 
         // Create listing transaction
@@ -141,6 +147,11 @@ export const listServices = {
 
         return { sanitizedList, preparedListingTx: serializedTx };
       } else if (collectible.layer === "FRACTAL") {
+        if (!collectible.uniqueIdx)
+          throw new CustomError(
+            "Collectible with no unique index cannot be listed.",
+            400
+          );
         const inscription = await getInscriptionInfo(collectible.uniqueIdx);
         if (!inscription)
           throw new CustomError(
@@ -232,6 +243,11 @@ export const listServices = {
 
         return sanitizedList;
       } else if (list.layer === "FRACTAL") {
+        if (!list.uniqueIdx)
+          throw new CustomError(
+            "Collectible with no unique index cannot be listed.",
+            400
+          );
         const inscription = await getInscriptionInfo(list.uniqueIdx);
         if (!inscription)
           throw new CustomError(
@@ -295,6 +311,11 @@ export const listServices = {
         list.collectibleId
       );
       if (!collectible) throw new CustomError("Collectible not found", 400);
+      if (!collectible.uniqueIdx)
+        throw new CustomError(
+          "Collectible with no unique index cannot be listed.",
+          400
+        );
 
       const listingData = await marketplaceContract.getListing(
         collectible.uniqueIdx.split("i")[0],
@@ -430,18 +451,18 @@ export const listServices = {
       } else throw new CustomError("Unsupported layer.", 400);
     });
   },
-  estimateFee: async (id: string, feeRate: number) => {
-    const list = await listRepository.getById(id);
-    if (!list) throw new CustomError("Listing not found.", 400);
+  // estimateFee: async (id: string, feeRate: number) => {
+  //   const list = await listRepository.getById(id);
+  //   if (!list) throw new CustomError("Listing not found.", 400);
 
-    const inscribedAmount = list.inscribedAmount || 546;
+  //   const inscribedAmount = list.inscribedAmount || 546;
 
-    const estimation = await estimateBuyPsbtRequiredAmount(
-      list.price,
-      inscribedAmount,
-      feeRate
-    );
+  //   const estimation = await estimateBuyPsbtRequiredAmount(
+  //     list.price,
+  //     inscribedAmount,
+  //     feeRate
+  //   );
 
-    return estimation;
-  },
+  //   return estimation;
+  // },
 };

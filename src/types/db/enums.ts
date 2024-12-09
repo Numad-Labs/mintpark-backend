@@ -1,5 +1,6 @@
 export const ORDER_TYPE = {
-  MINT: "MINT",
+  MINT_COLLECTIBLE: "MINT_COLLECTIBLE",
+  MINT_TRAIT: "MINT_TRAIT",
   LAUNCH_BUY: "LAUNCH_BUY",
 } as const;
 export type ORDER_TYPE = (typeof ORDER_TYPE)[keyof typeof ORDER_TYPE];
@@ -41,6 +42,11 @@ export const COLLECTIBLE_STATUS = {
 } as const;
 export type COLLECTIBLE_STATUS =
   (typeof COLLECTIBLE_STATUS)[keyof typeof COLLECTIBLE_STATUS];
+export const LAUNCH_STATUS = {
+  UNCONFIRMED: "UNCONFIRMED",
+  CONFIRMED: "CONFIRMED",
+} as const;
+export type LAUNCH_STATUS = (typeof LAUNCH_STATUS)[keyof typeof LAUNCH_STATUS];
 export const LAUNCH_ITEM_STATUS = {
   ACTIVE: "ACTIVE",
   SOLD: "SOLD",

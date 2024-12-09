@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { collectibleControllers } from "../controllers/collectibleController";
+import { authenticateToken } from "../middlewares/authenticateToken";
+import { parseFiles } from "../middlewares/fileParser";
 
 const collectibleRouter = Router();
 
@@ -18,5 +20,24 @@ collectibleRouter.get(
 );
 
 collectibleRouter.put("/:id", collectibleControllers.update); */
+
+collectibleRouter.post(
+  "/inscription",
+  authenticateToken,
+  parseFiles("files", false),
+  collectibleControllers.createInscriptionInBatch
+);
+collectibleRouter.post(
+  "/recursive-inscription",
+  authenticateToken,
+  parseFiles("files", false),
+  collectibleControllers.createInscriptionInBatch
+);
+collectibleRouter.post(
+  "/ipfs",
+  authenticateToken,
+  parseFiles("files", false),
+  collectibleControllers.createInscriptionInBatch
+);
 
 export = collectibleRouter;
