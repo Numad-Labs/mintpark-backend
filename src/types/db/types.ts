@@ -43,7 +43,7 @@ export type CollectibleTrait = {
 export type Collection = {
   id: Generated<string>;
   name: string;
-  creator: string | null;
+  creatorName: string | null;
   description: string;
   discordUrl: string | null;
   twitterUrl: string | null;
@@ -58,6 +58,8 @@ export type Collection = {
   status: Generated<COLLECTION_STATUS>;
   createdAt: Generated<Timestamp>;
   layerId: string;
+  creatorId: string | null;
+  creatorUserLayerId: string | null;
   parentCollectionId: string | null;
 };
 export type Currency = {
@@ -80,8 +82,8 @@ export type Launch = {
   poMaxMintPerWallet: number;
   createdAt: Generated<Timestamp>;
   status: Generated<LAUNCH_STATUS>;
-  ownerId: string | null;
   userLayerId: string;
+  userId: string | null;
 };
 export type LaunchItem = {
   id: Generated<string>;
@@ -176,6 +178,8 @@ export type UserLayer = {
   pubkey: string | null;
   xpub: string | null;
   createdAt: Generated<Timestamp>;
+  isActive: Generated<boolean>;
+  deactivatedAt: Timestamp | null;
   userId: string;
   layerId: string;
 };

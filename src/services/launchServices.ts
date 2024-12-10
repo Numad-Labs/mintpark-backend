@@ -60,17 +60,17 @@ export const launchServices = {
     if (!collection) throw new CustomError("Invalid collectionId.", 400);
     if (collection?.type === "SYNTHETIC")
       throw new CustomError("Invalid collection type.", 400);
+    if (collection.creatorId !== userId)
+      throw new CustomError("You are not the creator of this collection.", 400);
 
     const layerType = await layerRepository.getById(collection.layerId);
     if (!layerType) throw new CustomError("Layer not found.", 400);
 
-    const userLayer = await userRepository.getByUserLayerId(userLayerId);
-    if (!userLayer) throw new CustomError("Invalid user layer.", 400);
-    if (
-      userLayer.id !== userId ||
-      data.ownerId !== userId ||
-      data.userLayerId !== userLayerId
-    )
+    const user = await userRepository.getByUserLayerId(userLayerId);
+    if (!user) throw new CustomError("Invalid user layer.", 400);
+    if (!user?.isActive)
+      throw new CustomError("This account is deactivated.", 400);
+    if (user.id !== userId || data.userLayerId !== userLayerId)
       throw new CustomError(
         "You are not allowed to create launch for this account.",
         400
@@ -147,18 +147,11 @@ export const launchServices = {
     const collection = await collectionRepository.getById(db, collectionId);
     if (collection?.type !== "INSCRIPTION")
       throw new CustomError("Invalid collection type.", 400);
+    if (collection.creatorId !== userId)
+      throw new CustomError("You are not the creator of this collection.", 400);
 
     const launch = await launchRepository.getByCollectionId(collectionId);
-    if (launch?.ownerId !== userId)
-      throw new CustomError(
-        "You are not allowed to create trait value for this collection.",
-        400
-      );
-
-    //TODO: Add validation to check if order.fundingAddress was funded(>=order.fundingAmount) or not
-    const isPaid = true;
-    if (!isPaid)
-      throw new CustomError("Fee has not been transferred yet.", 400);
+    if (!launch) throw new CustomError("Launch not found.", 400);
 
     const collectibles = await collectibleServices.createInscriptions(
       collectionId,
@@ -193,13 +186,11 @@ export const launchServices = {
     const collection = await collectionRepository.getById(db, collectionId);
     if (collection?.type !== "RECURSIVE_INSCRIPTION")
       throw new CustomError("Invalid collection type.", 400);
+    if (collection.creatorId !== userId)
+      throw new CustomError("You are not the creator of this collection.", 400);
 
     const launch = await launchRepository.getByCollectionId(collectionId);
-    if (launch?.ownerId !== userId)
-      throw new CustomError(
-        "You are not allowed to create trait value for this collection.",
-        400
-      );
+    if (!launch) throw new CustomError("Launch not found.", 400);
 
     //TODO: Add validation to check if order.fundingAddress was funded(>=order.fundingAmount) or not
     const isPaid = true;
@@ -244,18 +235,11 @@ export const launchServices = {
     const collection = await collectionRepository.getById(db, collectionId);
     if (collection?.type !== "IPFS")
       throw new CustomError("Invalid collection type.", 400);
+    if (collection.creatorId !== userId)
+      throw new CustomError("You are not the creator of this collection.", 400);
 
     const launch = await launchRepository.getByCollectionId(collectionId);
-    if (launch?.ownerId !== userId)
-      throw new CustomError(
-        "You are not allowed to create trait value for this collection.",
-        400
-      );
-
-    //TODO: Add validation to check if order.fundingAddress was funded(>=order.fundingAmount) or not
-    const isPaid = true;
-    if (!isPaid)
-      throw new CustomError("Fee has not been transferred yet.", 400);
+    if (!launch) throw new CustomError("Launch not found.", 400);
 
     const collectibles = await collectibleServices.createIpfsNfts(
       collectionId,
@@ -293,6 +277,8 @@ export const launchServices = {
         "You are not allowed to buy from this account.",
         400
       );
+    if (!user?.isActive)
+      throw new CustomError("This account is deactivated.", 400);
 
     const launch = await launchRepository.getById(id);
     if (!launch) throw new CustomError("Launch not found.", 400);
@@ -388,6 +374,8 @@ export const launchServices = {
         "You are not allowed to buy from this account.",
         400
       );
+    if (!user?.isActive)
+      throw new CustomError("This account is deactivated.", 400);
 
     const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
       launchItemId

@@ -99,13 +99,14 @@ export const userRepository = {
         "UserLayer.xpub",
         "Layer.layer",
         "Layer.network",
+        "UserLayer.isActive",
       ])
       .where("UserLayer.id", "=", userLayerId)
       .executeTakeFirst();
 
     return user;
   },
-  getAccountsByUserId: async (userId: string) => {
+  getActiveAccountsByUserId: async (userId: string) => {
     const accounts = await db
       .selectFrom("User")
       .innerJoin("UserLayer", "UserLayer.userId", "User.id")
@@ -122,6 +123,7 @@ export const userRepository = {
         "Layer.network",
       ])
       .where("UserLayer.userId", "=", userId)
+      .where("UserLayer.isActive", "=", true)
       .execute();
 
     return accounts;

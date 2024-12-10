@@ -24,6 +24,7 @@ model User {
   LaunchItem LaunchItem[]
   Launch     Launch[]
   UserLayer  UserLayer[]
+  Collection Collection[]
 }
 
 model UserLayer {
@@ -32,15 +33,18 @@ model UserLayer {
   pubkey    String?  @unique
   xpub      String?  @unique
   createdAt DateTime @default(now())
+  isActive Boolean @default(true)
+  deactivatedAt DateTime?
 
-  userId  String
-  user    User     @relation(fields: [userId], references: [id])
-  layerId String
-  layer   Layer    @relation(fields: [layerId], references: [id])
-  Order   Order[]
-  Launch  Launch[]
+  userId     String
+  user       User         @relation(fields: [userId], references: [id])
+  layerId    String
+  layer      Layer        @relation(fields: [layerId], references: [id])
+  Order      Order[]
+  Launch     Launch[]
+  Collection Collection[]
 
-  @@unique([address, layerId])
+  @@unique([address, layerId, deactivatedAt])
 }
 
 model Currency {
@@ -111,7 +115,7 @@ model OrderItem {
 model Collection {
   id              String  @id @default(dbgenerated("gen_random_uuid()"))
   name            String
-  creator         String?
+  creatorName     String?
   description     String
   discordUrl      String?
   twitterUrl      String?
@@ -129,6 +133,10 @@ model Collection {
 
   layerId            String
   layer              Layer       @relation(fields: [layerId], references: [id])
+  creatorId          String?
+  creator            User?       @relation(fields: [creatorId], references: [id])
+  creatorUserLayerId String?
+  creatorUserLayer   UserLayer?  @relation(fields: [creatorUserLayerId], references: [id])
   parentCollectionId String?
   parentCollection   Collection? @relation("ParentChild", fields: [parentCollectionId], references: [id])
 
@@ -216,13 +224,13 @@ model Launch {
   createdAt          DateTime      @default(now())
   status             LAUNCH_STATUS @default(UNCONFIRMED)
 
-  ownerId     String?
-  owner       User?     @relation(fields: [ownerId], references: [id])
   userLayerId String
   userLayer   UserLayer @relation(fields: [userLayerId], references: [id])
 
   launchItems LaunchItem[]
   wlAddresses WlAddress[]
+  User        User?        @relation(fields: [userId], references: [id])
+  userId      String?
 }
 
 model LaunchItem {

@@ -165,6 +165,8 @@ export const userController = {
 
       if (user?.id !== req.user?.id)
         throw new CustomError("You are not allowed to fetch this data.", 400);
+      if (!user?.isActive)
+        throw new CustomError("This account is deactivated.", 400);
       if (!user) return res.status(200).json({ success: true, data: null });
 
       return res.status(200).json({ success: true, data: { user } });
@@ -183,8 +185,9 @@ export const userController = {
       if (req.user?.id !== id)
         throw new CustomError("You are not allowed to fetch this data.", 400);
 
-      const accounts = await userRepository.getAccountsByUserId(id);
-      if (!accounts) return res.status(200).json({ success: true, data: null });
+      const accounts = await userRepository.getActiveAccountsByUserId(id);
+      if (accounts.length)
+        return res.status(200).json({ success: true, data: null });
 
       return res.status(200).json({
         success: true,

@@ -14,10 +14,10 @@ export const userLayerRepository = {
 
     return userLayer;
   },
-  updateUserIdById: async (id: string, userId: string) => {
+  deactivateById: async (id: string) => {
     const userLayer = await db
       .updateTable("UserLayer")
-      .set({ userId })
+      .set({ isActive: false, deactivatedAt: new Date() })
       .returningAll()
       .where("UserLayer.id", "=", id)
       .executeTakeFirstOrThrow(
@@ -26,6 +26,18 @@ export const userLayerRepository = {
 
     return userLayer;
   },
+  // updateUserIdById: async (id: string, userId: string) => {
+  //   const userLayer = await db
+  //     .updateTable("UserLayer")
+  //     .set({ userId })
+  //     .returningAll()
+  //     .where("UserLayer.id", "=", id)
+  //     .executeTakeFirstOrThrow(
+  //       () => new Error("Could not update the userLayer.")
+  //     );
+
+  //   return userLayer;
+  // },
   getByAddressAndLayerId: async (address: string, layerId: string) => {
     const userLayer = await db
       .selectFrom("UserLayer")

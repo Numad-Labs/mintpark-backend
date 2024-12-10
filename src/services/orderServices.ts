@@ -197,14 +197,31 @@ export const orderServices = {
     txid?: string
   ) => {
     if (!collectionId) throw new CustomError("Collection id is required.", 400);
-    let collection = await collectionServices.getById(collectionId);
-    if (!collection || !collection.id)
-      throw new CustomError("Collection not found.", 400);
+    const collection = await collectionServices.getById(collectionId);
+    if (!collection) throw new CustomError("Collection not found.", 400);
     if (collection.type === "SYNTHETIC")
       throw new CustomError(
         "You cannot create mint order for synthetic collection.",
         400
       );
+    if (collection.creatorId !== userId)
+      throw new CustomError("You are not the creator of this collection.", 400);
+
+    let childCollection;
+    if (collection.type !== "IPFS") {
+      childCollection =
+        await collectionRepository.getChildCollectionByParentCollectionId(
+          collection.id
+        );
+      if (!childCollection)
+        throw new CustomError("Child collection not found.", 400);
+    }
+
+    const hasExistingOrder = await orderRepository.getByCollectionId(
+      collection.id
+    );
+    if (hasExistingOrder)
+      throw new CustomError("This collection already has existing order.", 400);
 
     const user = await userRepository.getByUserLayerId(userLayerId);
     if (user?.id !== userId)
@@ -212,6 +229,8 @@ export const orderServices = {
         "You are not allowed to create order for this account.",
         400
       );
+    if (!user?.isActive)
+      throw new CustomError("This account is deactivated.", 400);
     await layerServices.checkIfSupportedLayerOrThrow(user.layerId);
 
     if (user.layer === "CITREA" && user.network === "TESTNET") {
@@ -268,9 +287,21 @@ export const orderServices = {
         );
       }
 
-      await collectionRepository.update(db, collection.id, {
-        contractAddress: transactionDetail.deployedContractAddress,
-      });
+      if (collection.type === "IPFS") {
+        await collectionRepository.update(db, collection.id, {
+          contractAddress: transactionDetail.deployedContractAddress,
+        });
+      } else {
+        if (!childCollection)
+          throw new CustomError(
+            "Child collection must be recorded for this operation.",
+            400
+          );
+
+        await collectionRepository.update(db, childCollection.id, {
+          contractAddress: transactionDetail.deployedContractAddress,
+        });
+      }
     }
 
     let inscriptionFee = 0,

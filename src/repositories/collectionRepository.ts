@@ -106,7 +106,6 @@ export const collectionRepository = {
       .select((eb) => [
         "Collection.id",
         "Collection.name",
-        "Collection.creator",
         "Collection.description",
         "Collection.type",
         "Collection.logoKey",
@@ -181,7 +180,6 @@ export const collectionRepository = {
       .select([
         "Collection.id",
         "Collection.name",
-        "Collection.creator",
         "Collection.description",
         "Collection.type",
         "Collection.logoKey",
@@ -296,7 +294,6 @@ export const collectionRepository = {
       .select(({ eb }) => [
         "Collection.id",
         "Collection.name",
-        "Collection.creator",
         "Collection.description",
         "Collection.supply",
         "Collection.type",
@@ -382,7 +379,6 @@ export const collectionRepository = {
       .select(({ eb }) => [
         "Collection.id",
         "Collection.name",
-        "Collection.creator",
         "Collection.description",
         "Collection.supply",
         "Collection.type",
@@ -464,6 +460,16 @@ export const collectionRepository = {
       .selectFrom("Collection")
       .selectAll()
       .where("Collection.contractAddress", "=", contractAddress)
+      .executeTakeFirst();
+
+    return collection;
+  },
+  getChildCollectionByParentCollectionId: async (collectionId: string) => {
+    const collection = await db
+      .selectFrom("Collection")
+      .selectAll()
+      .where("Collection.parentCollectionId", "=", collectionId)
+      .where("Collection.type", "=", "SYNTHETIC")
       .executeTakeFirst();
 
     return collection;

@@ -43,8 +43,6 @@ export const collectionServices = {
         "You cannot directly create synthetic collection.",
         400
       );
-    if (!data.type)
-      throw new CustomError("Please provide a collection type.", 400);
 
     if (!data.layerId) throw new CustomError("Please provide a layerId.", 400);
     const layer = await layerServices.checkIfSupportedLayerOrThrow(
@@ -58,6 +56,8 @@ export const collectionServices = {
         "You are not allowed to create for this user.",
         400
       );
+    if (!user?.isActive)
+      throw new CustomError("This account is deactivated.", 400);
     if (user.layer !== layer.layer || user.network !== layer.network)
       throw new CustomError(
         "You cannot create collection for this layerId with the current active account.",
@@ -90,6 +90,8 @@ export const collectionServices = {
       ordinalCollection = await collectionRepository.create({
         ...data,
         status: "UNCONFIRMED",
+        creatorId: user.id,
+        creatorUserLayerId: userLayerId,
       });
 
       l2Collection = await collectionRepository.create({
@@ -97,12 +99,16 @@ export const collectionServices = {
         type: "SYNTHETIC",
         status: "UNCONFIRMED",
         parentCollectionId: ordinalCollection.id,
+        creatorId: user.id,
+        creatorUserLayerId: userLayerId,
       });
     } else if (data.type === "IPFS") {
       l2Collection = await collectionRepository.create({
         ...data,
         type: "IPFS",
         status: "UNCONFIRMED",
+        creatorId: user.id,
+        creatorUserLayerId: userLayerId,
       });
     }
 

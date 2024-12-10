@@ -22,9 +22,9 @@ export const userServices = {
   },
   login: async (
     address: string,
-    pubkey: string,
     signedMessage: string,
-    layerId: string
+    layerId: string,
+    pubkey?: string
   ) => {
     const nonce = await redis.get(`nonce:${address}`);
     if (!nonce) throw new CustomError("No recorded nonce found.", 400);
@@ -42,6 +42,12 @@ export const userServices = {
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     } else if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
+      if (!pubkey)
+        throw new CustomError(
+          "Pubkey must be provided for this operation.",
+          400
+        );
+
       const isValid = await bitcoinVerifySignedMessage(
         pubkey,
         message,
@@ -75,9 +81,9 @@ export const userServices = {
   linkAccount: async (
     userId: string,
     address: string,
-    pubkey: string,
     signedMessage: string,
-    layerId: string
+    layerId: string,
+    pubkey?: string
   ) => {
     const user = await userRepository.getById(userId);
     if (!user) throw new CustomError("User not found.", 400);
@@ -99,6 +105,12 @@ export const userServices = {
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     }
     if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
+      if (!pubkey)
+        throw new CustomError(
+          "Pubkey must be provided for this operation.",
+          400
+        );
+
       const isValid = await bitcoinVerifySignedMessage(
         pubkey,
         message,
@@ -126,6 +138,7 @@ export const userServices = {
       address,
       userId,
       layerId,
+      pubkey,
     });
 
     return { user, userLayer, hasAlreadyBeenLinkedToAnotherUser: false };
@@ -133,9 +146,9 @@ export const userServices = {
   linkAccountToAnotherUser: async (
     userId: string,
     address: string,
-    pubkey: string,
     signedMessage: string,
-    layerId: string
+    layerId: string,
+    pubkey?: string
   ) => {
     const user = await userRepository.getById(userId);
     if (!user) throw new CustomError("User not found.", 400);
@@ -157,6 +170,12 @@ export const userServices = {
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     }
     if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
+      if (!pubkey)
+        throw new CustomError(
+          "Pubkey must be provided for this operation.",
+          400
+        );
+
       const isValid = await bitcoinVerifySignedMessage(
         pubkey,
         message,
@@ -175,10 +194,13 @@ export const userServices = {
         400
       );
 
-    let userLayer = await userLayerRepository.updateUserIdById(
-      isExistingUserLayer.id,
-      userId
-    );
+    await userLayerRepository.deactivateById(isExistingUserLayer.id);
+    const userLayer = await userLayerRepository.create({
+      address,
+      userId,
+      layerId,
+      pubkey,
+    });
 
     return { user, userLayer };
   },

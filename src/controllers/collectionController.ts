@@ -56,6 +56,14 @@ export const collectionController = {
       if (!userId) throw new CustomError("Cannot parse user from token", 401);
       if (!name || !description)
         throw new CustomError("Name and description are required.", 400);
+      if (!logo) throw new CustomError("Logo file must be provided.", 400);
+      if (!data.type) throw new CustomError("Invalid collection type.", 400);
+      if (
+        !["SYNTHETIC", "IPFS", "INSCRIPTION", "RECURSIVE_INSCRIPTION"].includes(
+          data.type
+        )
+      )
+        throw new CustomError("Invalid collection type.", 400);
 
       const { ordinalCollection, l2Collection, deployContractTxHex } =
         await collectionServices.create(
