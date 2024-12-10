@@ -3,14 +3,12 @@ import { TraitType } from "../types/db/types";
 import { db } from "../utils/db";
 
 export const traitTypeRepository = {
-  create: async (data: Insertable<TraitType>) => {
+  bulkInsert: async (data: Insertable<TraitType>[]) => {
     const traitType = await db
       .insertInto("TraitType")
       .values(data)
       .returningAll()
-      .executeTakeFirstOrThrow(
-        () => new Error("Couldn't create the trait type.")
-      );
+      .execute();
 
     return traitType;
   },

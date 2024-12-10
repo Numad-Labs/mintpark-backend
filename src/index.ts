@@ -25,6 +25,7 @@ import logger from "./config/winston";
 import { sizeLimitConstants } from "./libs/constants";
 import { rateLimiter } from "./middlewares/rateLimiter";
 import { db } from "./utils/db";
+import traitValueRouter from "./routes/traitValueRoutes";
 
 export const redis = new Redis(config.REDIS_CONNECTION_STRING);
 
@@ -51,6 +52,7 @@ app.use("/api/v1/users", userRouter);
 app.use("/api/v1/layers", layerRouter);
 app.use("/api/v1/orders", orderRouter);
 app.use("/api/v1/collections", collectionRouter);
+app.use("/api/v1/trait-values", traitValueRouter);
 app.use("/api/v1/collectibles", collectibleRouter);
 app.use("/api/v1/collectible-traits", collectibleTraitRouter);
 app.use("/api/v1/lists", listRouter);
