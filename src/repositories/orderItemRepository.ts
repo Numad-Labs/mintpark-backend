@@ -100,7 +100,7 @@ export const orderItemRepository = {
 
     return orderItems;
   },
-  getCountByCollectionId: async (collectionId: string) => {
+  getOrderItemCountByCollectionId: async (collectionId: string) => {
     const result = await db
       .selectFrom("OrderItem")
       .innerJoin("Order", "Order.id", "OrderItem.orderId")

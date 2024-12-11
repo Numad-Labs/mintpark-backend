@@ -19,7 +19,12 @@ import { db } from "../utils/db";
 import { randomUUID } from "crypto";
 import { uploadToS3 } from "../utils/aws";
 import { Insertable } from "kysely";
-import { Collectible, CollectibleTrait, OrderItem } from "../types/db/types";
+import {
+  Collectible,
+  CollectibleTrait,
+  Collection,
+  OrderItem,
+} from "../types/db/types";
 import { orderItemRepository } from "../repositories/orderItemRepository";
 import { traitValueRepository } from "../repositories/traitValueRepository";
 import { collectibleTraitRepository } from "../repositories/collectibleTraitRepository";
@@ -289,7 +294,7 @@ export const collectibleServices = {
         collectionId,
       });
 
-      data[i].traits.forEach(async (trait) => {
+      for (const trait of data[i].traits) {
         const traitValue =
           await traitValueRepository.getByNameValueAndCollectionId(
             trait.type,
@@ -302,9 +307,9 @@ export const collectibleServices = {
 
         collectibleTraitData.push({
           collectibleId,
-          traitValueId: traitValue?.id,
+          traitValueId: traitValue.id,
         });
-      });
+      }
     }
 
     const collectibles = await collectibleRepository.bulkInsert(
@@ -356,7 +361,11 @@ export const collectibleServices = {
       orderItems,
     };
   },
-  createIpfsNfts: async (collectionId: string, data: ipfsNftParams[]) => {
+  createIpfsNfts: async (
+    collection: { id: string; contractAddress: string | null },
+    startIndex: number,
+    data: ipfsNftParams[]
+  ) => {
     const collectiblesData: Insertable<Collectible>[] = [];
     for (let i = 0; i < data.length; i++) {
       //TODO: data[i].cid validation?
@@ -366,7 +375,9 @@ export const collectibleServices = {
       collectiblesData.push({
         name: data[i].name,
         cid: data[i].cid,
-        collectionId,
+        collectionId: collection.id,
+        uniqueIdx:
+          collection.contractAddress + "i" + (startIndex + i).toString(),
       });
     }
     const collectibles = await collectibleRepository.bulkInsert(
@@ -396,8 +407,11 @@ export const collectibleServices = {
     if (!isPaid)
       throw new CustomError("Fee has not been transferred yet.", 400);
 
+    const existingCollectibleCount =
+      await orderItemRepository.getOrderItemCountByCollectionId(collection.id);
     const collectibles = await collectibleServices.createIpfsNfts(
-      collectionId,
+      collection,
+      Number(existingCollectibleCount),
       data
     );
 

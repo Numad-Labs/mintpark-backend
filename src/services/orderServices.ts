@@ -199,7 +199,7 @@ export const orderServices = {
     if (!collectionId) throw new CustomError("Collection id is required.", 400);
     const collection = await collectionServices.getById(collectionId);
     if (!collection) throw new CustomError("Collection not found.", 400);
-    if (collection.type === "SYNTHETIC")
+    if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
       throw new CustomError(
         "You cannot create mint order for synthetic collection.",
         400
@@ -414,10 +414,15 @@ export const orderServices = {
     if (!isPaid)
       throw new CustomError("Fee has not been transferred yet.", 400);
 
+    await orderItemRepository.updateByOrderId(order.id, { status: "IN_QUEUE" });
+    const updatedOrder = await orderRepository.update(db, order.id, {
+      orderStatus: "IN_QUEUE",
+    });
+
     //TODO: Enqueue orderId to the minting queue,
     // if collection.type === 'RECURSIVE_INSCRIPTION', then invoke the trait minting first
 
-    return order;
+    return { order: updatedOrder };
   },
   // getByUserId: async (userId: string) => {
   //   const orders = await orderRepository.getByUserId(userId);

@@ -28,12 +28,12 @@ model User {
 }
 
 model UserLayer {
-  id        String   @id @default(dbgenerated("gen_random_uuid()"))
-  address   String   @unique
-  pubkey    String?  @unique
-  xpub      String?  @unique
-  createdAt DateTime @default(now())
-  isActive Boolean @default(true)
+  id            String    @id @default(dbgenerated("gen_random_uuid()"))
+  address       String    @unique
+  pubkey        String?   @unique
+  xpub          String?   @unique
+  createdAt     DateTime  @default(now())
+  isActive      Boolean   @default(true)
   deactivatedAt DateTime?
 
   userId     String
@@ -217,7 +217,7 @@ model Launch {
   wlEndsAt           BigInt?
   wlMintPrice        Float?
   wlMaxMintPerWallet Int?
-  poStartsAt         BigInt        @default(0)
+  poStartsAt         BigInt
   poEndsAt           BigInt?
   poMintPrice        Float
   poMaxMintPerWallet Int

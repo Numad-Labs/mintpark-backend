@@ -78,7 +78,7 @@ export const launchRepository = {
       .select((eb) => [
         "Collection.id",
         "Collection.name",
-        "Collection.creator",
+        "Collection.creatorName",
         "Collection.description",
         "Collection.type",
         "Collection.logoKey",
@@ -152,7 +152,7 @@ export const launchRepository = {
       .select([
         "Collection.id",
         "Collection.name",
-        "Collection.creator",
+        "Collection.creatorName",
         "Collection.description",
         "Collection.type",
         "Collection.logoKey",

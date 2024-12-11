@@ -30,14 +30,12 @@ collectibleRouter.post(
 collectibleRouter.post(
   "/recursive-inscription",
   authenticateToken,
-  parseFiles("files", false),
-  collectibleControllers.createInscriptionInBatch
+  collectibleControllers.createRecursiveInscriptionInBatch
 );
 collectibleRouter.post(
   "/ipfs",
   authenticateToken,
-  parseFiles("files", false),
-  collectibleControllers.createInscriptionInBatch
+  collectibleControllers.createIpfsNftInBatch
 );
 
 export = collectibleRouter;

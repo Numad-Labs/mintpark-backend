@@ -34,14 +34,14 @@ export const launchController = {
       if (!req.user?.id)
         throw new CustomError("Cannot parse user from token", 401);
 
-      const data: Insertable<Launch> = { ...req.body };
-      const { txid, userLayerId, totalFileSize, feeRate } = req.body;
+      const data: Insertable<Launch> = { ...req.body.data };
+      const { txid, totalFileSize, feeRate } = req.body;
 
-      if (!txid || !userLayerId) throw new CustomError("Invalid input.", 400);
+      if (!txid || !data.userLayerId)
+        throw new CustomError("Invalid input.", 400);
 
       const { launch, order } = await launchServices.create(
         req.user.id,
-        userLayerId,
         data,
         txid,
         totalFileSize,
@@ -63,10 +63,11 @@ export const launchController = {
         throw new CustomError("Could not parse the id from the token.", 400);
 
       const { collectionId, isLastBatch } = req.body;
-      const names: string[] = Array.isArray(req.body.names)
-        ? req.body.names
-        : req.body.names
-        ? [req.body.names]
+      const parsedJsonData = JSON.parse(req.body.names);
+      const names: string[] = Array.isArray(parsedJsonData)
+        ? parsedJsonData
+        : parsedJsonData
+        ? [parsedJsonData]
         : [];
       const files: Express.Multer.File[] = req.files as Express.Multer.File[];
 
@@ -192,7 +193,6 @@ export const launchController = {
       if (!req.user?.id)
         throw new CustomError("Could not parse the id from the token.", 400);
 
-      const { id } = req.params;
       const { userLayerId, launchItemId, txid, orderId } = req.body;
 
       const result = await launchServices.confirmMint(

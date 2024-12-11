@@ -25,7 +25,7 @@ export interface CollectibleQueryParams {
 
 export interface recursiveInscriptionParams {
   name: string;
-  traits: [{ type: string; value: string }];
+  traits: { type: string; value: string }[];
 }
 
 export interface ipfsNftParams {
@@ -137,10 +137,11 @@ export const collectibleControllers = {
         throw new CustomError("Could not parse the id from the token.", 400);
 
       const { collectionId } = req.body;
-      const names: string[] = Array.isArray(req.body.names)
-        ? req.body.names
-        : req.body.names
-        ? [req.body.names]
+      const parsedJsonData = JSON.parse(req.body.names);
+      const names: string[] = Array.isArray(parsedJsonData)
+        ? parsedJsonData
+        : parsedJsonData
+        ? [parsedJsonData]
         : [];
       const files: Express.Multer.File[] = req.files as Express.Multer.File[];
 
@@ -176,6 +177,7 @@ export const collectibleControllers = {
         throw new CustomError("Could not parse the id from the token.", 400);
 
       const { collectionId } = req.body;
+      console.log(req.body.data);
       const data: recursiveInscriptionParams[] = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data

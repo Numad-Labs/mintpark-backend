@@ -76,7 +76,7 @@ export type Launch = {
   wlEndsAt: string | null;
   wlMintPrice: number | null;
   wlMaxMintPerWallet: number | null;
-  poStartsAt: Generated<string>;
+  poStartsAt: string;
   poEndsAt: string | null;
   poMintPrice: number;
   poMaxMintPerWallet: number;

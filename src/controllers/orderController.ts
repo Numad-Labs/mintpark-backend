@@ -100,7 +100,10 @@ export const orderController = {
         throw new CustomError("Cannot parse user from token", 401);
       const { id } = req.params;
 
-      const order = await orderServices.invokeOrderForMinting(req.user.id, id);
+      const { order } = await orderServices.invokeOrderForMinting(
+        req.user.id,
+        id
+      );
 
       return res.status(200).json({ success: true, data: { order } });
     } catch (e) {

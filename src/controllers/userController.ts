@@ -40,9 +40,9 @@ export const userController = {
 
       const { user, tokens, userLayer } = await userServices.login(
         address,
-        pubkey,
         signedMessage,
-        layerId
+        layerId,
+        pubkey
       );
 
       return res.status(200).json({
@@ -76,9 +76,9 @@ export const userController = {
       const result = await userServices.linkAccount(
         req.user.id,
         address,
-        pubkey,
         signedMessage,
-        layerId
+        layerId,
+        pubkey
       );
 
       return res.status(200).json({
@@ -108,9 +108,9 @@ export const userController = {
       const result = await userServices.linkAccountToAnotherUser(
         req.user.id,
         address,
-        pubkey,
         signedMessage,
-        layerId
+        layerId,
+        pubkey
       );
 
       return res.status(200).json({

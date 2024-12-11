@@ -24,7 +24,7 @@ import { Insertable, Updateable } from "kysely";
 import { Collectible, Launch, LaunchItem } from "../types/db/types";
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
-// import LaunchpadService from "../../blockchain/evm/services/launchpadService";
+import LaunchpadService from "../../blockchain/evm/services/launchpadService";
 import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
 import { FILE_COUNT_LIMIT } from "../libs/constants";
 import { db } from "../utils/db";
@@ -34,11 +34,12 @@ import {
   recursiveInscriptionParams,
 } from "../controllers/collectibleController";
 import { collectibleServices } from "./collectibleServices";
+import { serializeBigInt } from "../../blockchain/evm/utils";
 
-// const launchPadService = new LaunchpadService(
-//   EVM_CONFIG.RPC_URL,
-//   new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
-// );
+const launchPadService = new LaunchpadService(
+  EVM_CONFIG.RPC_URL,
+  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
+);
 
 const confirmationService = new TransactionConfirmationService(
   EVM_CONFIG.RPC_URL!
@@ -47,7 +48,6 @@ const confirmationService = new TransactionConfirmationService(
 export const launchServices = {
   create: async (
     userId: string,
-    userLayerId: string,
     data: Insertable<Launch>,
     txid: string,
     totalFileSize?: number,
@@ -58,21 +58,49 @@ export const launchServices = {
       data.collectionId
     );
     if (!collection) throw new CustomError("Invalid collectionId.", 400);
-    if (collection?.type === "SYNTHETIC")
+    if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
       throw new CustomError("Invalid collection type.", 400);
     if (collection.creatorId !== userId)
       throw new CustomError("You are not the creator of this collection.", 400);
 
+    let childCollection;
+    if (collection.type !== "IPFS") {
+      childCollection =
+        await collectionRepository.getChildCollectionByParentCollectionId(
+          collection.id
+        );
+      if (!childCollection)
+        throw new CustomError("Child collection not found.", 400);
+    }
+
     const layerType = await layerRepository.getById(collection.layerId);
     if (!layerType) throw new CustomError("Layer not found.", 400);
 
-    const user = await userRepository.getByUserLayerId(userLayerId);
+    const user = await userRepository.getByUserLayerId(data.userLayerId);
     if (!user) throw new CustomError("Invalid user layer.", 400);
     if (!user?.isActive)
       throw new CustomError("This account is deactivated.", 400);
-    if (user.id !== userId || data.userLayerId !== userLayerId)
+    if (user.id !== userId || data.userLayerId !== data.userLayerId)
       throw new CustomError(
         "You are not allowed to create launch for this account.",
+        400
+      );
+
+    const hasExistingOrder = await orderRepository.getByCollectionId(
+      collection.id
+    );
+    if (hasExistingOrder)
+      throw new CustomError(
+        "This collection already has existing mint order.",
+        400
+      );
+
+    const hasExistingLaunch = await launchRepository.getByCollectionId(
+      collection.id
+    );
+    if (hasExistingLaunch)
+      throw new CustomError(
+        "This collection already has existing launch.",
         400
       );
 
@@ -95,9 +123,21 @@ export const launchServices = {
         );
       }
 
-      await collectionRepository.update(db, collection.id, {
-        contractAddress: transactionDetail.deployedContractAddress,
-      });
+      if (collection.type === "IPFS") {
+        await collectionRepository.update(db, collection.id, {
+          contractAddress: transactionDetail.deployedContractAddress,
+        });
+      } else {
+        if (!childCollection)
+          throw new CustomError(
+            "Child collection must be recorded for this operation.",
+            400
+          );
+
+        await collectionRepository.update(db, childCollection.id, {
+          contractAddress: transactionDetail.deployedContractAddress,
+        });
+      }
     }
 
     let order;
@@ -129,7 +169,8 @@ export const launchServices = {
         orderType: "MINT_COLLECTIBLE",
         collectionId: collection.id,
         feeRate: feeRate,
-        userLayerId,
+        userLayerId: data.userLayerId,
+        createdAt: new Date().toISOString(),
       });
     }
 
@@ -152,6 +193,8 @@ export const launchServices = {
 
     const launch = await launchRepository.getByCollectionId(collectionId);
     if (!launch) throw new CustomError("Launch not found.", 400);
+    if (launch.status === "CONFIRMED")
+      throw new CustomError("This launch has already been confirmed.", 400);
 
     const collectibles = await collectibleServices.createInscriptions(
       collectionId,
@@ -191,6 +234,8 @@ export const launchServices = {
 
     const launch = await launchRepository.getByCollectionId(collectionId);
     if (!launch) throw new CustomError("Launch not found.", 400);
+    if (launch.status === "CONFIRMED")
+      throw new CustomError("This launch has already been confirmed.", 400);
 
     //TODO: Add validation to check if order.fundingAddress was funded(>=order.fundingAmount) or not
     const isPaid = true;
@@ -215,9 +260,9 @@ export const launchServices = {
 
     if (isLastBatch) {
       //TODO: ADD LAUNCHITEM.COUNT > 0 VALIDATION
-      await launchRepository.update(launch.id, { status: "CONFIRMED" });
-      //TODO: CREATE INVOKE THE RECURSIVE TRAIT MINTING
-      // GET ORDERID BY THE LAUNCH.COLLECTIONID
+      // await launchRepository.update(launch.id, { status: "CONFIRMED" });
+      //TODO: INVOKE THE RECURSIVE TRAIT MINTING, GET ORDERID BY THE LAUNCH.COLLECTIONID
+      // CONFIRM THE LAUNCH AFTER MINTING THE LAST TRAIT OF THE COLLECTION
     }
 
     return {
@@ -240,9 +285,14 @@ export const launchServices = {
 
     const launch = await launchRepository.getByCollectionId(collectionId);
     if (!launch) throw new CustomError("Launch not found.", 400);
+    if (launch.status === "CONFIRMED")
+      throw new CustomError("This launch has already been confirmed.", 400);
 
+    const existingLaunchItemCount =
+      await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
     const collectibles = await collectibleServices.createIpfsNfts(
-      collectionId,
+      collection,
+      Number(existingLaunchItemCount),
       data
     );
 
@@ -287,7 +337,7 @@ export const launchServices = {
       launch.collectionId
     );
     if (!collection) throw new CustomError("Collection not found.", 400);
-    if (collection.type === "SYNTHETIC")
+    if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
       throw new CustomError("You cannot buy the item of this collection.", 400);
 
     //TODO: add phase validation
@@ -317,7 +367,7 @@ export const launchServices = {
     );
     if (!collectible) throw new CustomError("Collectible not found.", 400);
 
-    let unsignedTx, order;
+    let singleMintTxHex, order;
     if (
       collection.type === "INSCRIPTION" ||
       collection.type === "RECURSIVE_INSCRIPTION"
@@ -327,6 +377,10 @@ export const launchServices = {
           "You must provide fee rate for this operation.",
           400
         );
+
+      if (collection.type === "RECURSIVE_INSCRIPTION") {
+        //TODO: Validate if all traits of the collection has already been minted or not
+      }
 
       const funder = await createFundingAddress("BITCOIN", "TESTNET");
       const serviceFee = 0;
@@ -346,17 +400,18 @@ export const launchServices = {
       if (!collection.contractAddress)
         throw new Error("Collection with no contract address not found.");
 
-      //TODO: method for generating mint transaction tx by pickedLaunchItem.collectible.cid
-      unsignedTx = null;
-      // unsignedTx = await launchPadService.getUnsignedLaunchMintTransaction(
-      //   collectible,
-      //   user.address,
-      //   collection.contractAddress,
-      //   db
-      // );
+      //TODO: refactor this method for generating mint transaction tx by pickedLaunchItem.collectible.cid
+      const unsignedTx =
+        await launchPadService.getUnsignedLaunchMintTransaction(
+          collectible,
+          user.address,
+          collection.contractAddress,
+          db
+        );
+      singleMintTxHex = serializeBigInt(unsignedTx);
     }
 
-    return { launchItem: pickedLaunchItem, order, unsignedTx };
+    return { launchItem: pickedLaunchItem, order, singleMintTxHex };
   },
   confirmMint: async (
     userId: string,
@@ -397,7 +452,7 @@ export const launchServices = {
       launch.collectionId
     );
     if (!collection) throw new CustomError("Collection not found.", 400);
-    if (collection.type === "SYNTHETIC")
+    if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
       throw new CustomError("You cannot buy the item of this collection.", 400);
 
     if (
@@ -409,6 +464,10 @@ export const launchServices = {
           "You must provide orderId for this operation.",
           400
         );
+
+      if (collection.type === "RECURSIVE_INSCRIPTION") {
+        //TODO: Validate if all traits of the collection has already been minted or not
+      }
 
       //TODO: Add validation to check if order.fundingAddress was funded(>=order.fundingAmount) or not
       const isPaid = true;
@@ -432,12 +491,6 @@ export const launchServices = {
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
-          500
-        );
-      }
-      if (!transactionDetail.deployedContractAddress) {
-        throw new CustomError(
-          "Transaction does not contain deployed contract address.",
           500
         );
       }
