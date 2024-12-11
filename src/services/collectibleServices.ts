@@ -169,15 +169,15 @@ export const collectibleServices = {
       throw new Error("Collectible with no contract address.");
     }
 
-    const totalOwnerCount =
-      await evmCollectibleService.getCollectionOwnersCount(
-        listableCollectibles[0].contractAddress
-      );
+    // const totalOwnerCount =
+    //   await evmCollectibleService.getCollectionOwnersCount(
+    //     listableCollectibles[0].contractAddress
+    //   );
 
     return {
       listableCollectibles,
       activeListCount: countResult?.activeListCount ?? 0,
-      totalOwnerCount,
+      // totalOwnerCount,
     };
   },
 
@@ -207,6 +207,7 @@ export const collectibleServices = {
       tokenId,
       transactionDetail.blockNumber
     );
+
     return activities;
   },
 };
