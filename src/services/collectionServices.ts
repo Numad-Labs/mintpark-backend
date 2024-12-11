@@ -104,40 +104,42 @@ export const collectionServices = {
   getListedCollections: async (params: CollectionQueryParams) => {
     const collections = await collectionRepository.getListedCollections(params);
 
-    // Fetch owner counts for all collections in parallel
-    const collectionsWithOwners = await Promise.all(
-      collections.map(async (collection) => {
-        try {
-          if (collection.contractAddress) {
-            const totalOwnerCount =
-              await evmCollectibleService.getCollectionOwnersCount(
-                collection.contractAddress
-              );
+    // // Fetch owner counts for all collections in parallel
+    // const collectionsWithOwners = await Promise.all(
+    //   collections.map(async (collection) => {
+    //     try {
+    //       if (collection.contractAddress) {
+    //         const totalOwnerCount =
+    //           await evmCollectibleService.getCollectionOwnersCount(
+    //             collection.contractAddress
+    //           );
 
-            return {
-              ...collection,
-              totalOwnerCount,
-            };
-          } else {
-            return {
-              ...collection,
-              totalOwnerCount: 0,
-            };
-          }
-        } catch (error) {
-          console.error(
-            `Failed to fetch owner count for collection ${collection.id}:`,
-            error
-          );
-          // Return 0 or null if we fail to fetch the count
-          return {
-            ...collection,
-            totalOwnerCount: 0,
-          };
-        }
-      })
-    );
-    return collectionsWithOwners;
+    //         return {
+    //           ...collection,
+    //           totalOwnerCount,
+    //         };
+    //       } else {
+    //         return {
+    //           ...collection,
+    //           totalOwnerCount: 0,
+    //         };
+    //       }
+    //     } catch (error) {
+    //       console.error(
+    //         `Failed to fetch owner count for collection ${collection.id}:`,
+    //         error
+    //       );
+    //       // Return 0 or null if we fail to fetch the count
+    //       return {
+    //         ...collection,
+    //         totalOwnerCount: 0,
+    //       };
+    //     }
+    //   })
+    // );
+    // return collectionsWithOwners;
+
+    return collections;
   },
   update: async (
     id: string,
