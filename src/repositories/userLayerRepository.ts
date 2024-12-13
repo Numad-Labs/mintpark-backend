@@ -17,7 +17,7 @@ export const userLayerRepository = {
   deactivateById: async (id: string) => {
     const userLayer = await db
       .updateTable("UserLayer")
-      .set({ isActive: false, deactivatedAt: new Date() })
+      .set({ isActive: false, deactivatedAt: new Date().toISOString() })
       .returningAll()
       .where("UserLayer.id", "=", id)
       .executeTakeFirstOrThrow(

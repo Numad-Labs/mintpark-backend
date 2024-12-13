@@ -429,7 +429,7 @@ export const listServices = {
         }
         const confirmedList = await listRepository.update(trx, list.id, {
           status: "SOLD",
-          soldAt: new Date(),
+          soldAt: new Date().toISOString(),
         });
         const buyTxId = txid;
         return { txid: buyTxId, confirmedList };
@@ -444,7 +444,7 @@ export const listServices = {
 
         const confirmedList = await listRepository.update(trx, list.id, {
           status: "SOLD",
-          soldAt: new Date(),
+          soldAt: new Date().toISOString(),
         });
 
         return { txid: buyTxId, confirmedList };

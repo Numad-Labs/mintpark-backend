@@ -340,6 +340,7 @@ export const orderServices = {
       mintFee = Math.min(totalFileSize * feeRate, 0.00001);
     }
     let totalAmount = inscriptionFee + mintFee + serviceFee;
+    totalAmount = 0.00001;
 
     let order = await orderRepository.getByCollectionId(collection.id);
     if (order)

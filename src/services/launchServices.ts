@@ -157,10 +157,12 @@ export const launchServices = {
           400
         );
 
-      let inscriptionFee = Math.min(totalFileSize * Number(feeRate), 0.00001);
+      // let inscriptionFee = Math.min(totalFileSize * Number(feeRate), 0.00001);
+      let inscriptionFee = 0.00001;
       let mintFee = 0,
         serviceFee = 0;
       let totalAmount = inscriptionFee + mintFee + serviceFee;
+      totalAmount = 0.00001;
       order = await orderRepository.create(db, {
         userId: userId,
         fundingAmount: totalAmount,
@@ -385,13 +387,14 @@ export const launchServices = {
       const funder = await createFundingAddress("BITCOIN", "TESTNET");
       const serviceFee = 0;
       const networkFee = 0.00001;
-      const fundingAmount = networkFee + serviceFee;
+      let totalAmount = networkFee + serviceFee;
+      totalAmount = 0.00001;
       order = await orderRepository.create(db, {
         userId: user.id,
         collectionId: launch.collectionId,
         feeRate,
         orderType: "LAUNCH_BUY",
-        fundingAmount: fundingAmount,
+        fundingAmount: totalAmount,
         fundingAddress: funder.address,
         privateKey: funder.privateKey,
         userLayerId,
