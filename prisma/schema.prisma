@@ -102,6 +102,7 @@ model OrderItem {
   id         String            @id @default(dbgenerated("gen_random_uuid()"))
   mintedTxId String?
   createdAt  DateTime          @default(now())
+  type       ORDER_ITEM_TYPE
   status     ORDER_ITEM_STATUS @default(PENDING)
 
   orderId       String
@@ -288,7 +289,7 @@ model List {
 
 enum ORDER_TYPE {
   MINT_COLLECTIBLE
-  MINT_TRAIT
+  MINT_RECURSIVE_COLLECTIBLE
   LAUNCH_BUY
 }
 
@@ -297,6 +298,11 @@ enum ORDER_STATUS {
   IN_QUEUE
   DONE
   EXPIRED
+}
+
+enum ORDER_ITEM_TYPE {
+  COLLECTIBLE
+  TRAIT
 }
 
 enum ORDER_ITEM_STATUS {

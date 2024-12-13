@@ -30,4 +30,14 @@ export const traitValueRepository = {
 
     return traitValue;
   },
+  getByCollectionId: async (collectionId: string) => {
+    const traitValues = await db
+      .selectFrom("TraitValue")
+      .innerJoin("TraitType", "TraitType.id", "TraitValue.traitTypeId")
+      .select(["TraitValue.id"])
+      .where("TraitType.collectionId", "=", collectionId)
+      .execute();
+
+    return traitValues;
+  },
 };

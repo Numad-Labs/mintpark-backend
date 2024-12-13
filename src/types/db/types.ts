@@ -7,6 +7,7 @@ export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 import type {
   ORDER_TYPE,
   ORDER_STATUS,
+  ORDER_ITEM_TYPE,
   ORDER_ITEM_STATUS,
   COLLECTION_STATUS,
   COLLECTION_TYPE,
@@ -140,6 +141,7 @@ export type OrderItem = {
   id: Generated<string>;
   mintedTxId: string | null;
   createdAt: Generated<Timestamp>;
+  type: ORDER_ITEM_TYPE;
   status: Generated<ORDER_ITEM_STATUS>;
   orderId: string;
   collectibleId: string | null;

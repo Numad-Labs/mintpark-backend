@@ -30,6 +30,7 @@ import { serializeBigInt } from "../../blockchain/evm/utils";
 import { db } from "../utils/db";
 import { userLayerRepository } from "../repositories/userLayerRepository";
 import { layerServices } from "./layerServices";
+import { traitValueRepository } from "../repositories/traitValueRepository";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
@@ -396,6 +397,7 @@ export const orderServices = {
   },
   invokeOrderForMinting: async (userId: string, id: string) => {
     const order = await orderRepository.getById(id);
+    if (!order) throw new CustomError("Order not found.", 400);
     if (!order?.collectionId)
       throw new CustomError("Order does not have collectionId.", 400);
     if (order?.userId !== userId)
@@ -419,6 +421,22 @@ export const orderServices = {
     const updatedOrder = await orderRepository.update(db, order.id, {
       orderStatus: "IN_QUEUE",
     });
+
+    const orderItems: Insertable<OrderItem>[] = [];
+    if (collection.type === "RECURSIVE_INSCRIPTION") {
+      const traitValues = await traitValueRepository.getByCollectionId(
+        collection.id
+      );
+
+      for (let i = 0; i < traitValues.length; i++)
+        orderItems.push({
+          orderId: order.id,
+          traitValueId: traitValues[i].id,
+          type: "TRAIT",
+        });
+
+      await orderItemRepository.bulkInsert(orderItems);
+    }
 
     //TODO: Enqueue orderId to the minting queue,
     // if collection.type === 'RECURSIVE_INSCRIPTION', then invoke the trait minting first

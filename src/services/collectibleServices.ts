@@ -275,6 +275,7 @@ export const collectibleServices = {
       orderItemsData.push({
         collectibleId: collectibles[i].id,
         orderId: order.id,
+        type: "COLLECTIBLE",
       });
     const orderItems = await orderItemRepository.bulkInsert(orderItemsData);
 
@@ -352,6 +353,7 @@ export const collectibleServices = {
       orderItemsData.push({
         collectibleId: result.collectibles[i].id,
         orderId: order.id,
+        type: "COLLECTIBLE",
       });
     const orderItems = await orderItemRepository.bulkInsert(orderItemsData);
 
@@ -420,6 +422,7 @@ export const collectibleServices = {
       orderItemsData.push({
         collectibleId: collectibles[i].id,
         orderId: order.id,
+        type: "COLLECTIBLE",
       });
     const orderItems = await orderItemRepository.bulkInsert(orderItemsData);
 

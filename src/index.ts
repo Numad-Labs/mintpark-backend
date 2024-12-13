@@ -20,12 +20,16 @@ import collectibleRouter from "./routes/collectibleRoutes";
 import collectibleTraitRouter from "./routes/collectibleTraitRoutes";
 import listRouter from "./routes/listRoutes";
 import launchRouter from "./routes/launchRoutes";
-import nftRouter from "../blockchain/evm/routes/nftRoutes";
+// import nftRouter from "../blockchain/evm/routes/nftRoutes";
 import logger from "./config/winston";
 import { sizeLimitConstants } from "./libs/constants";
 import { rateLimiter } from "./middlewares/rateLimiter";
 import { db } from "./utils/db";
 import traitValueRouter from "./routes/traitValueRoutes";
+import { version } from "../package.json";
+import { SQSConsumer } from "./queue/sqsConsumer";
+import { processMessage } from "./services/messageProcessingService";
+import { SQSProducer } from "./queue/sqsProducer";
 
 export const redis = new Redis(config.REDIS_CONNECTION_STRING);
 
@@ -33,7 +37,7 @@ const app = express();
 
 app.get("/", (req: Request, res: Response) => {
   res.status(200).json({
-    message: "API - 👋🌎🌍🌏",
+    message: `API ${version} - 👋🌎🌍🌏`,
   });
 });
 
@@ -57,10 +61,22 @@ app.use("/api/v1/collectibles", collectibleRouter);
 app.use("/api/v1/collectible-traits", collectibleTraitRouter);
 app.use("/api/v1/lists", listRouter);
 app.use("/api/v1/launchpad", launchRouter);
-app.use("/api/v1/evm", nftRouter);
+// app.use("/api/v1/evm", nftRouter);
 
 app.use(notFound);
 app.use(errorHandler);
+
+const consumer = new SQSConsumer(
+  "eu-central-1",
+  "https://sqs.eu-central-1.amazonaws.com/992382532523/test-queue"
+);
+logger.info("Starting SQS consumer...");
+consumer.start(processMessage);
+
+export const producer = new SQSProducer(
+  "us-east-1",
+  "https://sqs.us-east-1.amazonaws.com/your-account-id/your-queue-name"
+);
 
 // checkPaymentAndUpdateOrderStatus();
 // mintingQueue();

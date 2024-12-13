@@ -16,6 +16,8 @@ const envSchema = z.object({
   AWS_S3_ACCESS_KEY: z.string(),
   AWS_S3_SECRET_KEY: z.string(),
   AWS_S3_BUCKET_NAME: z.string(),
+  AWS_SQS_ACCESS_KEY: z.string(),
+  AWS_SQS_SECRET_KEY: z.string(),
   ENCRYPTION_ALGORITHM: z.string(),
   ENCRYPTION_SECRET: z.string(),
   ENCRYPTION_IV: z.string(),

@@ -1,6 +1,6 @@
 export const ORDER_TYPE = {
   MINT_COLLECTIBLE: "MINT_COLLECTIBLE",
-  MINT_TRAIT: "MINT_TRAIT",
+  MINT_RECURSIVE_COLLECTIBLE: "MINT_RECURSIVE_COLLECTIBLE",
   LAUNCH_BUY: "LAUNCH_BUY",
 } as const;
 export type ORDER_TYPE = (typeof ORDER_TYPE)[keyof typeof ORDER_TYPE];
@@ -11,6 +11,12 @@ export const ORDER_STATUS = {
   EXPIRED: "EXPIRED",
 } as const;
 export type ORDER_STATUS = (typeof ORDER_STATUS)[keyof typeof ORDER_STATUS];
+export const ORDER_ITEM_TYPE = {
+  COLLECTIBLE: "COLLECTIBLE",
+  TRAIT: "TRAIT",
+} as const;
+export type ORDER_ITEM_TYPE =
+  (typeof ORDER_ITEM_TYPE)[keyof typeof ORDER_ITEM_TYPE];
 export const ORDER_ITEM_STATUS = {
   PENDING: "PENDING",
   IN_QUEUE: "IN_QUEUE",
