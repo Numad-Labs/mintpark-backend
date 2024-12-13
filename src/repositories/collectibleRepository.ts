@@ -54,6 +54,7 @@ export const collectibleRepository = {
         "Collectible.status",
         "Collectible.parentCollectibleId",
         "Collectible.mintingTxId",
+        "Collectible.nftId",
         "Layer.layer",
         "Layer.network",
       ])

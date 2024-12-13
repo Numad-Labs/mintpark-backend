@@ -198,9 +198,12 @@ export const launchServices = {
     if (launch.status === "CONFIRMED")
       throw new CustomError("This launch has already been confirmed.", 400);
 
+    const existingLaunchItemCount =
+      await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
     const collectibles = await collectibleServices.createInscriptions(
       collectionId,
       names,
+      Number(existingLaunchItemCount),
       files
     );
 
@@ -244,8 +247,11 @@ export const launchServices = {
     if (!isPaid)
       throw new CustomError("Fee has not been transferred yet.", 400);
 
+    const existingLaunchItemCount =
+      await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
     const result = await collectibleServices.createRecursiveInscriptions(
       collectionId,
+      Number(existingLaunchItemCount),
       data
     );
 

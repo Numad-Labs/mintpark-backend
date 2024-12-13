@@ -154,6 +154,7 @@ model Collectible {
   fileKey     String?
   cid         String?
   uniqueIdx   String?
+  nftId       String
   metadata    Json?
   status      COLLECTIBLE_STATUS @default(UNCONFIRMED)
   createdAt   DateTime           @default(now())
@@ -192,6 +193,9 @@ model TraitValue {
   fileKey       String
   createdAt     DateTime @default(now())
   mintedAt      DateTime @default(now())
+
+  lockingAddress    String?
+  lockingPrivateKey String?
 
   traitTypeId      String
   traitType        TraitType          @relation(fields: [traitTypeId], references: [id])

@@ -59,9 +59,8 @@ export const launchRepository = {
   ) => {
     const result = await db
       .selectFrom("LaunchItem")
-      .innerJoin("Launch", "Launch.id", "LaunchItem.launchId")
       .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
-      .where("Launch.id", "=", launchId)
+      .where("LaunchItem.launchId", "=", launchId)
       .executeTakeFirst();
 
     return result?.count;

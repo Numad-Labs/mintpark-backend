@@ -218,6 +218,7 @@ export const collectibleServices = {
   createInscriptions: async (
     collectionId: string,
     names: string[],
+    startIndex: number,
     files: Express.Multer.File[]
   ) => {
     const fileKeys = await Promise.all(
@@ -235,6 +236,7 @@ export const collectibleServices = {
         name: names[i],
         fileKey: fileKeys[i].key,
         collectionId,
+        nftId: (startIndex + i).toString(),
       });
     const collectibles = await collectibleRepository.bulkInsert(
       collectiblesData
@@ -264,9 +266,12 @@ export const collectibleServices = {
     if (!isPaid)
       throw new CustomError("Fee has not been transferred yet.", 400);
 
+    const existingCollectibleCount =
+      await orderItemRepository.getOrderItemCountByCollectionId(collection.id);
     const collectibles = await collectibleServices.createInscriptions(
       collectionId,
       names,
+      Number(existingCollectibleCount),
       files
     );
 
@@ -283,6 +288,7 @@ export const collectibleServices = {
   },
   createRecursiveInscriptions: async (
     collectionId: string,
+    startIndex: number,
     data: recursiveInscriptionParams[]
   ) => {
     const collectiblesData: Insertable<Collectible>[] = [];
@@ -293,6 +299,7 @@ export const collectibleServices = {
         id: collectibleId,
         name: data[i].name,
         collectionId,
+        nftId: (startIndex + i).toString(),
       });
 
       for (const trait of data[i].traits) {
@@ -343,8 +350,11 @@ export const collectibleServices = {
     if (!isPaid)
       throw new CustomError("Fee has not been transferred yet.", 400);
 
+    const existingCollectibleCount =
+      await orderItemRepository.getOrderItemCountByCollectionId(collection.id);
     const result = await collectibleServices.createRecursiveInscriptions(
       collectionId,
+      Number(existingCollectibleCount),
       data
     );
 
@@ -380,6 +390,7 @@ export const collectibleServices = {
         collectionId: collection.id,
         uniqueIdx:
           collection.contractAddress + "i" + (startIndex + i).toString(),
+        nftId: (startIndex + i).toString(),
       });
     }
     const collectibles = await collectibleRepository.bulkInsert(

@@ -26,6 +26,7 @@ export type Collectible = {
   fileKey: string | null;
   cid: string | null;
   uniqueIdx: string | null;
+  nftId: string;
   metadata: unknown | null;
   status: Generated<COLLECTIBLE_STATUS>;
   createdAt: Generated<Timestamp>;
@@ -167,6 +168,8 @@ export type TraitValue = {
   fileKey: string;
   createdAt: Generated<Timestamp>;
   mintedAt: Generated<Timestamp>;
+  lockingAddress: string | null;
+  lockingPrivateKey: string | null;
   traitTypeId: string;
 };
 export type User = {

@@ -3,6 +3,7 @@ import { db } from "../utils/db";
 import { OrderItem } from "../types/db/types";
 import { create } from "domain";
 import { LAYER, NETWORK } from "../types/db/enums";
+import { ORDER_ITEM_TYPE } from "@prisma/client";
 
 export interface OrderItemDetails {
   id: string;
@@ -118,5 +119,18 @@ export const orderItemRepository = {
       .execute();
 
     return orderItems;
+  },
+  getInQueueOrderItemByOrderIdAndType: async (
+    orderId: string,
+    type: ORDER_ITEM_TYPE
+  ) => {
+    const orderItem = await db
+      .selectFrom("OrderItem")
+      .selectAll()
+      .where("OrderItem.status", "=", "IN_QUEUE")
+      .where("OrderItem.type", "=", type)
+      .executeTakeFirst();
+
+    return orderItem;
   },
 };
