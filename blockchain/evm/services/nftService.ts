@@ -86,61 +86,45 @@ class NFTService {
     inscriptionId: string
   ): Promise<string> {
     try {
+      // Create minter wallet
       const minterWallet = new ethers.Wallet(
         config.VAULT_PRIVATE_KEY,
         this.provider
       );
+
       // Get the contract interface
       const contract = new ethers.Contract(
         collectionAddress,
         EVM_CONFIG.NFT_CONTRACT_ABI,
-        minterWallet
-      );
-      logger.info(`Contract owner: ${await contract.owner()}`);
-      const minterAddress = await contract.minterAddress();
-      logger.info(`🚀 ~ NFTService ~ minterAddress: ${minterAddress}`);
-
-      // Prepare the mint transaction data
-      const mintData = contract.interface.encodeFunctionData("mint", [
-        recipient,
-        inscriptionId,
-      ]);
-
-      // Estimate the transaction fee
-      const estimatedFee = await this.fundingService.estimateTransactionFee(
-        collectionAddress,
-        "0",
-        mintData
+        minterWallet // Contract is already connected to minterWallet
       );
 
-      logger.info(`Estimated minting fee: ${estimatedFee.estimatedFee} ETH`);
+      // Get and verify addresses
+      const contractMinterAddress = await contract.minterAddress();
+      console.log(
+        "Contract's authorized minter address:",
+        contractMinterAddress
+      );
+      console.log("Wallet address being used:", minterWallet.address);
 
-      // Now mint using the minter's wallet
+      // Verify the wallet address matches the contract's minter address
+      if (
+        contractMinterAddress.toLowerCase() !==
+        minterWallet.address.toLowerCase()
+      ) {
+        throw new CustomError(
+          `Wallet address (${minterWallet.address}) does not match contract's minter address (${contractMinterAddress})`,
+          400
+        );
+      }
+
+      // Mint directly using the contract instance (which is already connected to minterWallet)
       const tx = await contract.mint(recipient, inscriptionId);
       const receipt = await tx.wait();
 
-      if (!receipt) {
-        throw new CustomError("Transaction failed to confirm", 500);
-      }
-
-      if (receipt.status === 0) {
+      if (!receipt || receipt.status === 0) {
         throw new CustomError("Transaction failed during execution", 500);
       }
-
-      // // Verify the mint was successful by checking for the appropriate event
-      // const mintEvent = receipt.logs
-      //   .map((log) => {
-      //     try {
-      //       return contract.interface.parseLog(log);
-      //     } catch {
-      //       return null;
-      //     }
-      //   })
-      //   .find((event) => event?.name === "InscriptionMinted");
-
-      // if (!mintEvent) {
-      //   throw new CustomError("Mint event not found in transaction logs", 500);
-      // }
 
       return receipt.hash;
     } catch (error) {
