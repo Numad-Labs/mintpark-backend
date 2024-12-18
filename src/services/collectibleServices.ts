@@ -1,4 +1,3 @@
-import { getInscriptionUtxosByAddress } from "../../blockchain/utxo/fractal/libs";
 import {
   CollectibleQueryParams,
   ipfsNftParams,
@@ -29,6 +28,7 @@ import { orderItemRepository } from "../repositories/orderItemRepository";
 import { traitValueRepository } from "../repositories/traitValueRepository";
 import { collectibleTraitRepository } from "../repositories/collectibleTraitRepository";
 import { param } from "../routes/userRoutes";
+import { getBalance } from "../blockchain/bitcoin/libs";
 
 const evmCollectibleService = new EVMCollectibleService(EVM_CONFIG.RPC_URL!);
 const confirmationService = new TransactionConfirmationService(
@@ -106,7 +106,7 @@ export const collectibleServices = {
         }
       }
       // return uniqueIdxs;
-    } else if (layerType.layer === "FRACTAL") {
+    } /* else if (layerType.layer === "FRACTAL") {
       const inscriptionUtxos = await getInscriptionUtxosByAddress(
         user.address,
         true
@@ -115,7 +115,7 @@ export const collectibleServices = {
         inscriptionUtxo.inscriptions[0].inscriptionId;
         uniqueIdxs.push(inscriptionUtxo.inscriptions[0].inscriptionId);
       });
-    }
+    } */
 
     if (uniqueIdxs.length === 0)
       return {
@@ -261,10 +261,11 @@ export const collectibleServices = {
         "You are not allowed to create trait value for this collection.",
         400
       );
+    if (!order.fundingAddress)
+      throw new CustomError("Invalid order with undefined address.", 400);
 
-    //TODO: Add validation to check if order.fundingAddress was funded(>=order.fundingAmount) or not
-    const isPaid = true;
-    if (!isPaid)
+    const balance = await getBalance(order.fundingAddress);
+    if (balance < order.fundingAmount)
       throw new CustomError("Fee has not been transferred yet.", 400);
 
     const existingCollectibleCount =
@@ -347,9 +348,11 @@ export const collectibleServices = {
         400
       );
 
-    //TODO: Add validation to check if order.fundingAddress was funded(>=order.fundingAmount) or not
-    const isPaid = true;
-    if (!isPaid)
+    if (!order.fundingAddress)
+      throw new CustomError("Invalid order with undefined address.", 400);
+
+    const balance = await getBalance(order.fundingAddress);
+    if (balance < order.fundingAmount)
       throw new CustomError("Fee has not been transferred yet.", 400);
 
     const existingCollectibleCount =
@@ -417,10 +420,11 @@ export const collectibleServices = {
         "You are not allowed to create trait value for this collection.",
         400
       );
+    if (!order.fundingAddress)
+      throw new CustomError("Invalid order with undefined address.", 400);
 
-    //TODO: Add validation to check if order.fundingAddress was funded(>=order.fundingAmount) or not
-    const isPaid = true;
-    if (!isPaid)
+    const balance = await getBalance(order.fundingAddress);
+    if (balance < order.fundingAmount)
       throw new CustomError("Fee has not been transferred yet.", 400);
 
     const existingCollectibleCount =

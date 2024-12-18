@@ -7,17 +7,7 @@ import { userRepository } from "../repositories/userRepository";
 import { LaunchOfferType } from "../controllers/launchController";
 import { nftMetaData, orderServices } from "./orderServices";
 import { orderRepository } from "../repositories/orderRepostory";
-import { createFundingAddress } from "../../blockchain/utxo/fundingAddressHelper";
 import { layerRepository } from "../repositories/layerRepository";
-import {
-  ASSETTYPE,
-  SERVICE_FEE,
-  SERVICE_FEE_ADDRESS,
-} from "../../blockchain/utxo/constants";
-import { getEstimatedFee } from "../../blockchain/utxo/calculateRequiredAmount";
-import { purchaseRepository } from "../repositories/purchaseRepository";
-import { mint } from "../../blockchain/utxo/fractal/mint";
-import { sendRawTransactionWithNode } from "../../blockchain/utxo/fractal/libs";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import { CustomError } from "../exceptions/CustomError";
 import { Insertable, Updateable } from "kysely";
@@ -35,6 +25,14 @@ import {
 } from "../controllers/collectibleController";
 import { collectibleServices } from "./collectibleServices";
 import { serializeBigInt } from "../../blockchain/evm/utils";
+import { createFundingAddress } from "../blockchain/bitcoin/createFundingAddress";
+import { purchaseRepository } from "../repositories/purchaseRepository";
+import { getEstimatedFee } from "../blockchain/bitcoin/libs";
+import { GetObjectCommandOutput } from "@aws-sdk/client-s3";
+import {
+  COMMIT_TX_SIZE,
+  REVEAL_TX_SIZE,
+} from "../blockchain/bitcoin/constants";
 
 const launchPadService = new LaunchpadService(
   EVM_CONFIG.RPC_URL,
@@ -51,6 +49,7 @@ export const launchServices = {
     data: Insertable<Launch>,
     txid: string,
     totalFileSize?: number,
+    totalTraitCount?: number,
     feeRate?: number
   ) => {
     const collection = await collectionRepository.getById(
@@ -150,19 +149,21 @@ export const launchServices = {
           400
         );
 
-      const funder = createFundingAddress("BITCOIN", "TESTNET");
-      if (!totalFileSize)
+      const funder = createFundingAddress("TESTNET");
+      if (!totalFileSize || !totalTraitCount)
         throw new CustomError(
           "Please provide an totalFileSize or totalTraitCount",
           400
         );
 
       // let inscriptionFee = Math.min(totalFileSize * Number(feeRate), 0.00001);
-      let inscriptionFee = 0.00001;
-      let mintFee = 0,
-        serviceFee = 0;
-      let totalAmount = inscriptionFee + mintFee + serviceFee;
-      totalAmount = 0.00001;
+      let networkFee =
+        getEstimatedFee([10], [totalFileSize], 0, feeRate, 0).estimatedFee
+          .totalAmount +
+        feeRate * (COMMIT_TX_SIZE + REVEAL_TX_SIZE) * totalTraitCount;
+      let serviceFee = 0;
+      let totalAmount = networkFee + serviceFee;
+
       order = await orderRepository.create(db, {
         userId: userId,
         fundingAmount: totalAmount,
@@ -389,15 +390,29 @@ export const launchServices = {
           400
         );
 
+      let networkFee: number = 546,
+        file;
       if (collection.type === "RECURSIVE_INSCRIPTION") {
         //TODO: Validate if all traits of the collection has already been minted or not
+        //networkFee = calculateRecursiveInscriptionGasFee(traitCount: number)
       }
 
-      const funder = await createFundingAddress("BITCOIN", "TESTNET");
+      if (collection.type === "INSCRIPTION" && collectible.fileKey) {
+        file = await getObjectFromS3(collectible.fileKey);
+        networkFee =
+          getEstimatedFee(
+            [Number(file.contentType?.length)],
+            [Number(file.contentLength)],
+            0,
+            feeRate,
+            0
+          ).estimatedFee.totalAmount +
+          feeRate * (COMMIT_TX_SIZE + REVEAL_TX_SIZE);
+      }
+
+      const funder = await createFundingAddress("TESTNET");
       const serviceFee = 0;
-      const networkFee = 0.00001;
       let totalAmount = networkFee + serviceFee;
-      totalAmount = 0.00001;
       order = await orderRepository.create(db, {
         userId: user.id,
         collectionId: launch.collectionId,

@@ -54,6 +54,7 @@ export const orderController = {
         userLayerId,
         totalFileSize,
         totalTraitCount,
+        totalCollectibleCount,
       } = req.body;
 
       if (!req.user?.id)
@@ -76,6 +77,7 @@ export const orderController = {
         userLayerId,
         totalFileSize,
         totalTraitCount,
+        totalCollectibleCount,
         Number(feeRate),
         collectionId,
         txid

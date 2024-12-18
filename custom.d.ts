@@ -11,14 +11,9 @@ interface AuthenticatedRequest extends Request {
   user?: AuthenticatedUser;
 }
 
-export type tokenData = {
-  xpub: string | null;
+export type inscriptionData = {
   address: string;
   opReturnValues: any[];
-  assetType: number;
-  headline: string;
-  ticker: string;
-  supply: number;
 };
 
 // export type collectionData = {
@@ -86,3 +81,15 @@ export interface LaunchConfig {
   wlPrice?: string;
   wlMaxPerWallet?: number;
 }
+
+export type mempoolUtxo = {
+  txid: string;
+  vout: number;
+  status: {
+    confirmed: boolean;
+    block_height?: number;
+    block_hash?: string;
+    block_time?: number;
+  };
+  value: number;
+};
