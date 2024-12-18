@@ -14,15 +14,17 @@ import {
   ipfsNftParams,
   recursiveInscriptionParams,
 } from "./collectibleController";
+import { userRepository } from "../repositories/userRepository";
+import LaunchpadService from "../../blockchain/evm/services/launchpadService";
 
 export interface LaunchOfferType {
   offerType: "public" | "whitelist";
 }
 
-// const launchPadService = new LaunchpadService(
-//   EVM_CONFIG.RPC_URL,
-//   new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
-// );
+const launchPadService = new LaunchpadService(
+  EVM_CONFIG.RPC_URL,
+  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
+);
 
 export const launchController = {
   create: async (
@@ -295,37 +297,34 @@ export const launchController = {
   //     next(e);
   //   }
   // },
-  // generateUnsignedMintPriceChangeTx: async (
-  //   req: AuthenticatedRequest,
-  //   res: Response,
-  //   next: NextFunction
-  // ) => {
-  //   try {
-  //     const { collectionTxid, mintFee } = req.body.data;
-  //     const { layerId } = req.body;
-  //     if (!req.user?.id)
-  //       throw new CustomError("Could not retrieve id from the token.", 400);
-  //     const user = await userRepository.getByIdAndLayerId(
-  //       req.user?.id,
-  //       layerId
-  //     );
-  //     if (!user || !user.address)
-  //       throw new CustomError("User address not found from the token.", 400);
-  //     const unsignedTx =
-  //       await launchPadService.createLaunchpadContractFeeChange(
-  //         collectionTxid,
-  //         user.address,
-  //         mintFee
-  //       );
-  //     const serializedTx = serializeBigInt(unsignedTx);
-  //     return res.status(200).json({
-  //       success: true,
-  //       data: { singleMintTxHex: serializedTx },
-  //     });
-  //   } catch (e) {
-  //     next(e);
-  //   }
-  // },
+  generateUnsignedMintPriceChangeTx: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { collectionTxid, mintFee } = req.body.data;
+      const { userLayerId } = req.body;
+      if (!req.user?.id)
+        throw new CustomError("Could not retrieve id from the token.", 400);
+      const user = await userRepository.getByUserLayerId(userLayerId);
+      if (!user || !user.address || user.id !== userLayerId)
+        throw new CustomError("User address not found from the token.", 400);
+      const unsignedTx =
+        await launchPadService.createLaunchpadContractFeeChange(
+          collectionTxid,
+          user.address,
+          mintFee
+        );
+      const serializedTx = serializeBigInt(unsignedTx);
+      return res.status(200).json({
+        success: true,
+        data: { singleMintTxHex: serializedTx },
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
   // invokeOrder: async (
   //   req: AuthenticatedRequest,
   //   res: Response,

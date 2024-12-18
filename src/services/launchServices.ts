@@ -382,24 +382,24 @@ export const launchServices = {
     if (userPurchaseCount && userPurchaseCount >= launch.poMaxMintPerWallet)
       throw new CustomError("Wallet limit has been reached.", 400);
 
-    const userOnHoldItemCount =
-      await launchItemRepository.getOnHoldCountByLaunchIdAndUserId(
-        launch.id,
-        user.id
-      );
-    if (Number(userOnHoldItemCount) >= 3)
-      throw new CustomError("You have too many items reserved.", 400);
+    // const userOnHoldItemCount =
+    //   await launchItemRepository.getOnHoldCountByLaunchIdAndUserId(
+    //     launch.id,
+    //     user.id
+    //   );
+    // if (Number(userOnHoldItemCount) >= 3)
+    //   throw new CustomError("You have too many items reserved.", 400);
 
     const launchItem = await launchItemRepository.getRandomItemByLauchId(
       launch.id
     );
-    const pickedLaunchItem = await launchItemRepository.setOnHoldById(
-      db,
-      launchItem.id,
-      user.id
-    );
+    // const pickedLaunchItem = await launchItemRepository.setOnHoldById(
+    //   db,
+    //   launchItem.id,
+    //   user.id
+    // );
     const collectible = await collectibleRepository.getById(
-      pickedLaunchItem.collectibleId
+      launchItem.collectibleId
     );
     if (!collectible) throw new CustomError("Collectible not found.", 400);
 
@@ -462,7 +462,7 @@ export const launchServices = {
       singleMintTxHex = serializeBigInt(unsignedTx);
     }
 
-    return { launchItem: pickedLaunchItem, order, singleMintTxHex };
+    return { launchItem: launchItem, order, singleMintTxHex };
   },
   confirmMint: async (
     userId: string,
@@ -483,20 +483,23 @@ export const launchServices = {
     if (!user?.isActive)
       throw new CustomError("This account is deactivated.", 400);
 
-    const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
-      launchItemId
-    );
-    if (!isLaunchItemOnHold)
-      throw new CustomError("Launch item not found.", 400);
-    if (isLaunchItemOnHold.status === "SOLD")
-      throw new CustomError("Launch item has already been sold.", 400);
-    if (isLaunchItemOnHold && isLaunchItemOnHold.onHoldBy !== user.id)
-      throw new CustomError(
-        "This launch item is currently reserved to another user.",
-        400
-      );
+    // const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
+    //   launchItemId
+    // );
+    // if (!isLaunchItemOnHold)
+    //   throw new CustomError("Launch item not found.", 400);
+    // if (isLaunchItemOnHold.status === "SOLD")
+    //   throw new CustomError("Launch item has already been sold.", 400);
+    // if (isLaunchItemOnHold && isLaunchItemOnHold.onHoldBy !== user.id)
+    //   throw new CustomError(
+    //     "This launch item is currently reserved to another user.",
+    //     400
+    //   );
 
-    const launch = await launchRepository.getById(isLaunchItemOnHold.launchId);
+    const launchItem = await launchItemRepository.getById(launchItemId);
+    if (!launchItem) throw new CustomError("Launch item not found.", 400);
+
+    const launch = await launchRepository.getById(launchItem.launchId);
     if (!launch) throw new CustomError("Launch not found.", 400);
     if (launch.status === "UNCONFIRMED")
       throw new CustomError("Unconfirmed launch.", 400);
@@ -510,7 +513,7 @@ export const launchServices = {
       throw new CustomError("You cannot buy the item of this collection.", 400);
 
     const parentCollectible = await collectibleRepository.getById(
-      isLaunchItemOnHold.collectibleId
+      launchItem.collectibleId
     );
     if (!parentCollectible)
       throw new CustomError("Collectible not found.", 400);
@@ -658,9 +661,9 @@ export const launchServices = {
         status: "CONFIRMED",
       });
 
-    const launchItem = await launchItemRepository.update(
+    const soldLaunchItem = await launchItemRepository.update(
       db,
-      isLaunchItemOnHold.id,
+      launchItem.id,
       {
         status: "SOLD",
       }
@@ -671,7 +674,7 @@ export const launchServices = {
 
     await purchaseRepository.create(db, {
       userId: user.id,
-      launchItemId: launchItem.id,
+      launchItemId: soldLaunchItem.id,
     });
 
     return { launchItem, collectible: parentCollectible };

@@ -21,12 +21,12 @@ launchRouter.get(
 //   authenticateToken,
 //   launchController.invokeOrder
 // );
-// launchRouter.post(
-//   "/change-mintfee-transaction",
-//   authenticateToken,
-//   // authorize("SUPER_ADMIN"),
-//   launchController.generateUnsignedMintPriceChangeTx
-// );
+launchRouter.post(
+  "/change-mintfee-transaction",
+  authenticateToken,
+  // authorize("SUPER_ADMIN"),
+  launchController.generateUnsignedMintPriceChangeTx
+);
 // launchRouter.put("/:id", authenticateToken, launchController.update);
 
 launchRouter.post("/", authenticateToken, launchController.create);
