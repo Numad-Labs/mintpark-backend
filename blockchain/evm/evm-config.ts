@@ -1,5 +1,5 @@
-import { abi as NFT_CONTRACT_ABI } from "../evm/artifacts/blockchain/evm/contracts/MPMNFT.sol/MPMNFT.json";
-import { bytecode as NFT_CONTRACT_BYTECODE } from "../evm/artifacts/blockchain/evm/contracts/MPMNFT.sol/MPMNFT.json";
+import { abi as NFT_CONTRACT_ABI } from "../evm/artifacts/blockchain/evm/contracts/SyntethicNFT.sol/InscriptionNFT.json";
+import { bytecode as NFT_CONTRACT_BYTECODE } from "../evm/artifacts/blockchain/evm/contracts/SyntethicNFT.sol/InscriptionNFT.json";
 // import { abi as MARKETPLACE_ABI } from "../evm/artifacts/blockchain/evm/contracts/MarketplaceContract.sol/MarketplaceContract.json";
 // import { bytecode as MARKETPLACE_CONTRACT_BYTECODE } from "../evm/artifacts/blockchain/evm/contracts/MarketplaceContract.sol/MarketplaceContract.json";
 import { abi as MARKETPLACE_ABI } from "../evm/artifacts/blockchain/evm/contracts/MarketplaceWithPhase.sol/MarketplaceWithPhase.json";

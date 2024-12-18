@@ -24,7 +24,7 @@ const confirmationController = new TransactionConfirmationController(
 const nftRouter = express.Router();
 
 nftRouter.post("/deploy-collection", getDeploymentTransaction);
-nftRouter.post("/mint", parseFiles("image", true), getMintNFTTransaction);
+// nftRouter.post("/mint", parseFiles("image", true), getMintNFTTransaction);
 // nftRouter.post(
 //   "/mint-batch",
 //   parseFiles("images", false),

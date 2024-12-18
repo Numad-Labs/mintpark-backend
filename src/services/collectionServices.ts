@@ -21,6 +21,7 @@ import { Collection } from "../types/db/types";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import { layerServices } from "./layerServices";
 import { serializeBigInt } from "../../blockchain/evm/utils";
+import { config } from "../config/config";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
@@ -72,9 +73,7 @@ export const collectionServices = {
     if (user.layer === "CITREA" && user.network === "TESTNET") {
       const unsignedTx = await nftService.getUnsignedDeploymentTransaction(
         user.address,
-        name
-        // name,
-        // priceForLaunchpad
+        config.VAULT_ADDRESS
       );
       deployContractTxHex = serializeBigInt(unsignedTx);
     }
