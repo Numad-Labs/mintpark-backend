@@ -3,8 +3,9 @@ pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
-contract InscriptionNFT is ERC721, Ownable {
+contract InscriptionNFT is ERC721, Ownable, ERC721Enumerable {
   // Authorized minter (your backend service address)
   address public minterAddress;
 
@@ -55,5 +56,31 @@ contract InscriptionNFT is ERC721, Ownable {
   function setMinter(address newMinter) external onlyOwner {
     require(newMinter != address(0), "Invalid minter address");
     minterAddress = newMinter;
+  }
+
+  // Override required functions
+  function tokenURI(
+    uint256 tokenId
+  ) public view override(ERC721) returns (string memory) {
+    return super.tokenURI(tokenId);
+  }
+
+  function supportsInterface(
+    bytes4 interfaceId
+  ) public view override(ERC721, ERC721Enumerable) returns (bool) {
+    return super.supportsInterface(interfaceId);
+  }
+  function _update(
+    address to,
+    uint256 tokenId,
+    address auth
+  ) internal override(ERC721, ERC721Enumerable) returns (address) {
+    return super._update(to, tokenId, auth);
+  }
+  function _increaseBalance(
+    address account,
+    uint128 value
+  ) internal override(ERC721, ERC721Enumerable) {
+    super._increaseBalance(account, value);
   }
 }
