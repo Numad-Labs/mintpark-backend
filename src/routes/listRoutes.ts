@@ -8,7 +8,7 @@ const listRouter = Router();
 listRouter.post(
   "/approval",
   authenticateToken,
-  listController.generateTradingApproval
+  listController.generateApprovelTransactionOfTrading
 );
 listRouter.post(
   "/checkRegistration",
@@ -37,11 +37,12 @@ listRouter.post(
   "/:id/buy",
   authenticateToken,
   listController.buyListedCollectible
-);
-listRouter.get(
-  "/:id/estimate-fee",
-  authenticateToken,
-  listController.getEstimatedFee
 ); */
+
+// listRouter.get(
+//   "/:id/estimate-fee",
+//   authenticateToken,
+//   listController.getEstimatedFee
+// );
 
 export = listRouter;

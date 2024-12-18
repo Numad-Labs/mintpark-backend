@@ -1,11 +1,5 @@
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
-import {
-  generateBuyPsbtHex,
-  validateSignAndBroadcastBuyPsbtHex,
-} from "../../blockchain/utxo/fractal/buyPsbt";
-import { getInscriptionInfo } from "../../blockchain/utxo/fractal/libs";
-import { createFundingAddress } from "../../blockchain/utxo/fundingAddressHelper";
 import { CustomError } from "../exceptions/CustomError";
 import {
   LISTING_SERVICE_FEE_PERCENTAGE,
@@ -42,9 +36,10 @@ const nftService = new NFTService(
 export const listServices = {
   checkAndPrepareRegistration: async (
     collectionAddress: string,
-    issuerId: string
+    issuerId: string,
+    userLayerId: string
   ) => {
-    const issuer = await userRepository.getById(issuerId);
+    const issuer = await userRepository.getByUserLayerId(userLayerId);
     if (!issuer) throw new CustomError("User not found.", 400);
 
     // Check if collection is registered
@@ -77,7 +72,6 @@ export const listServices = {
       isRegistered: true,
     };
   },
-
   listCollectible: async (
     price: number,
     collectibleId: string,
@@ -93,6 +87,11 @@ export const listServices = {
       collectible?.collectionId
     );
     if (!collection) throw new CustomError("Collectible not found.", 400);
+    if (
+      collection.type === "INSCRIPTION" ||
+      collection.type === "RECURSIVE_INSCRIPTION"
+    )
+      throw new CustomError("This collection type is not supported.", 400);
 
     const issuer = await userRepository.getByIdAndLayerId(
       issuerId,

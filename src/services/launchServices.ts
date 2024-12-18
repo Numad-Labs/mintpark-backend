@@ -34,6 +34,8 @@ import {
   REVEAL_TX_SIZE,
 } from "../blockchain/bitcoin/constants";
 import NFTService from "../../blockchain/evm/services/nftService";
+import { inscribe } from "../blockchain/bitcoin/inscribe";
+import { sendRawTransaction } from "../blockchain/bitcoin/sendTransaction";
 
 const launchPadService = new LaunchpadService(
   EVM_CONFIG.RPC_URL,
@@ -69,19 +71,6 @@ export const launchServices = {
     if (collection.creatorId !== userId)
       throw new CustomError("You are not the creator of this collection.", 400);
 
-    let childCollection;
-    if (collection.type !== "IPFS") {
-      childCollection =
-        await collectionRepository.getChildCollectionByParentCollectionId(
-          collection.id
-        );
-      if (!childCollection)
-        throw new CustomError("Child collection not found.", 400);
-    }
-
-    const layerType = await layerRepository.getById(collection.layerId);
-    if (!layerType) throw new CustomError("Layer not found.", 400);
-
     const user = await userRepository.getByUserLayerId(data.userLayerId);
     if (!user) throw new CustomError("Invalid user layer.", 400);
     if (!user?.isActive)
@@ -110,7 +99,23 @@ export const launchServices = {
         400
       );
 
-    if (layerType.layer === "CITREA" && layerType.network === "TESTNET") {
+    if (
+      collection.type === "INSCRIPTION" ||
+      collection.type === "RECURSIVE_INSCRIPTION"
+    ) {
+      const childCollection =
+        await collectionRepository.getChildCollectionByParentCollectionId(
+          collection.id
+        );
+      if (!childCollection)
+        throw new CustomError(
+          "Child collection must be recorded for this operation.",
+          400
+        );
+
+      const layerType = await layerRepository.getById(childCollection.layerId);
+      if (!layerType) throw new CustomError("Layer not found.", 400);
+
       //TODO: add validation to check if userId is the creator of the collection
       if (!txid) throw new CustomError("txid not found.", 400);
       const transactionDetail = await confirmationService.getTransactionDetails(
@@ -129,21 +134,30 @@ export const launchServices = {
         );
       }
 
-      if (collection.type === "IPFS") {
-        await collectionRepository.update(db, collection.id, {
-          contractAddress: transactionDetail.deployedContractAddress,
-        });
-      } else {
-        if (!childCollection)
-          throw new CustomError(
-            "Child collection must be recorded for this operation.",
-            400
-          );
-
-        await collectionRepository.update(db, childCollection.id, {
-          contractAddress: transactionDetail.deployedContractAddress,
-        });
+      await collectionRepository.update(db, childCollection.id, {
+        contractAddress: transactionDetail.deployedContractAddress,
+      });
+    } else if (collection.type === "IPFS") {
+      if (!txid) throw new CustomError("txid not found.", 400);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
+      if (transactionDetail.status !== 1) {
+        throw new CustomError(
+          "Transaction not confirmed. Please try again.",
+          500
+        );
       }
+      if (!transactionDetail.deployedContractAddress) {
+        throw new CustomError(
+          "Transaction does not contain deployed contract address.",
+          500
+        );
+      }
+
+      await collectionRepository.update(db, collection.id, {
+        contractAddress: transactionDetail.deployedContractAddress,
+      });
     }
 
     let order;
@@ -351,6 +365,9 @@ export const launchServices = {
 
     const launch = await launchRepository.getById(id);
     if (!launch) throw new CustomError("Launch not found.", 400);
+    if (launch.status === "UNCONFIRMED")
+      throw new CustomError("Unconfirmed launch.", 400);
+
     const collection = await collectionRepository.getById(
       db,
       launch.collectionId
@@ -481,6 +498,9 @@ export const launchServices = {
 
     const launch = await launchRepository.getById(isLaunchItemOnHold.launchId);
     if (!launch) throw new CustomError("Launch not found.", 400);
+    if (launch.status === "UNCONFIRMED")
+      throw new CustomError("Unconfirmed launch.", 400);
+
     const collection = await collectionRepository.getById(
       db,
       launch.collectionId
@@ -494,6 +514,8 @@ export const launchServices = {
     );
     if (!parentCollectible)
       throw new CustomError("Collectible not found.", 400);
+    if (!parentCollectible.fileKey)
+      throw new CustomError("Collectible file key not found.", 400);
 
     if (
       collection.type === "INSCRIPTION" ||
@@ -527,19 +549,41 @@ export const launchServices = {
 
       const order = await orderRepository.getById(verification.orderId);
       if (!order) throw new CustomError("Order not found.", 400);
-      if (!order.fundingAddress)
-        throw new CustomError("Invalid order with undefined address.", 400);
+      if (!order.fundingAddress || !order.privateKey)
+        throw new CustomError(
+          "Order has invalid funding address and private key.",
+          400
+        );
 
       const balance = await getBalance(order.fundingAddress);
       if (balance < order.fundingAmount)
         throw new CustomError("Fee has not been transferred yet.", 400);
 
       //TODO: inscribe L1 ordinals by order.privateKey, mint L2 synthetic asset by vault
-      const revealTxId = "";
-      const inscriptionId = revealTxId + "i0";
+      const vault = await createFundingAddress("TESTNET");
+      const file = await getObjectFromS3(parentCollectible.fileKey);
+      const inscriptionData = {
+        address: vault.address,
+        opReturnValues: `data:${file.contentType};base64,${(
+          file.content as Buffer
+        ).toString("base64")}` as any,
+      };
+      const { commitTxHex, revealTxHex } = await inscribe(
+        inscriptionData,
+        order.fundingAddress,
+        order.privateKey,
+        true,
+        order.feeRate
+      );
+      const commitTxResult = await sendRawTransaction(commitTxHex);
+      if (!commitTxResult)
+        throw new CustomError("Could not broadcast the commit tx.", 400);
+      const revealTxResult = await sendRawTransaction(revealTxHex);
+      if (!revealTxResult)
+        throw new CustomError("Could not broadcast the reveal tx.", 400);
+      const inscriptionId = revealTxResult + "i0";
 
       let mintTxId = "";
-
       try {
         // Mint the NFT with the inscription ID
         mintTxId = await nftService.mintWithInscriptionId(
@@ -574,12 +618,18 @@ export const launchServices = {
 
       await collectibleRepository.update(db, parentCollectible.id, {
         mintingTxId: mintTxId,
+        status: "CONFIRMED",
       });
 
       await collectionRepository.incrementCollectionSupplyById(
         db,
         L2Collection.id
       );
+
+      if (L2Collection.status === "UNCONFIRMED")
+        await collectionRepository.update(db, L2Collection.id, {
+          status: "CONFIRMED",
+        });
     } else if (collection.type === "IPFS") {
       if (!verification?.txid)
         throw new CustomError(
@@ -600,8 +650,6 @@ export const launchServices = {
 
     await collectionRepository.incrementCollectionSupplyById(db, collection.id);
 
-    if (launch.status === "UNCONFIRMED")
-      await launchRepository.update(launch.id, { status: "CONFIRMED" });
     if (collection.status === "UNCONFIRMED")
       await collectionRepository.update(db, collection.id, {
         status: "CONFIRMED",

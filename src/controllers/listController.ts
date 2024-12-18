@@ -1,7 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { AuthenticatedRequest } from "../../custom";
 import { CustomError } from "../exceptions/CustomError";
-import { MAX_SATOSHI_AMOUNT } from "../../blockchain/utxo/constants";
 import { listServices } from "../services/listServices";
 import TradingService from "../../blockchain/evm/services/tradingService";
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
@@ -10,6 +9,7 @@ import { userRepository } from "../repositories/userRepository";
 import { serializeBigInt } from "../../blockchain/evm/utils";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { db } from "../utils/db";
+import { MAX_SATOSHI_AMOUNT } from "../blockchain/bitcoin/constants";
 const tradingService = new TradingService(
   EVM_CONFIG.RPC_URL,
   EVM_CONFIG.MARKETPLACE_ADDRESS,
@@ -41,7 +41,7 @@ export const listController = {
       next(e);
     }
   },
-  getApprovelTransactionOfTrading: async (
+  generateApprovelTransactionOfTrading: async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
@@ -76,14 +76,16 @@ export const listController = {
     next: NextFunction
   ) => {
     try {
-      const { collectionAddress } = req.body;
+      const { collectionAddress, userLayerId } = req.body;
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
+      if (!userLayerId) throw new CustomError("Invalid userLayerId.", 400);
       const issuerId = req.user.id; // Assuming you have auth middleware
 
       const result = await listServices.checkAndPrepareRegistration(
         collectionAddress,
-        issuerId
+        issuerId,
+        userLayerId
       );
 
       res.status(200).json({ success: true, data: result });
