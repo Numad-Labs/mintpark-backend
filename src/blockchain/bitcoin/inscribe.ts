@@ -26,8 +26,8 @@ export async function inscribe(
 ) {
   const address = fundingAddress;
 
-  let network = bitcoin.networks.bitcoin;
-  if (!isTestNet) network = bitcoin.networks.testnet;
+  let network = bitcoin.networks.testnet;
+  if (!isTestNet) network = bitcoin.networks.bitcoin;
 
   const keyPair = ECPair.fromPrivateKey(Buffer.from(fundingPrivateKey, "hex"), {
     network,

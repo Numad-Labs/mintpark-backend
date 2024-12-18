@@ -74,8 +74,8 @@ logger.info("Starting SQS consumer...");
 consumer.start(processMessage);
 
 export const producer = new SQSProducer(
-  "us-east-1",
-  "https://sqs.us-east-1.amazonaws.com/your-account-id/your-queue-name"
+  "eu-central-1",
+  "https://sqs.eu-central-1.amazonaws.com/992382532523/test-queue"
 );
 
 // checkPaymentAndUpdateOrderStatus();

@@ -19,7 +19,8 @@ export const orderIdSchema = z.string().uuid();
 
 export async function processMessage(message: Message) {
   if (!message.Body) throw new CustomError("Invalid message body.", 400);
-  const isValidMessage = orderIdSchema.safeParse(message.Body);
+  const parsedMessage = JSON.parse(message.Body);
+  const isValidMessage = orderIdSchema.safeParse(parsedMessage);
   if (!isValidMessage.success)
     throw new CustomError(`Invalid orderId: ${message.Body}`, 400);
 
@@ -94,10 +95,10 @@ export async function processMessage(message: Message) {
       true,
       order.feeRate
     );
-    const commitTxResult = sendRawTransaction(commitTxHex);
+    const commitTxResult = await sendRawTransaction(commitTxHex);
     if (!commitTxResult)
       throw new CustomError("Could not broadcast the commit tx.", 400);
-    const inscriptionId = sendRawTransaction(revealTxHex);
+    const inscriptionId = await sendRawTransaction(revealTxHex);
     if (!inscriptionId)
       throw new CustomError("Could not broadcast the reveal tx.", 400);
 
@@ -108,6 +109,7 @@ export async function processMessage(message: Message) {
       lockingAddress: vault.address,
       lockingPrivateKey: vault.privateKey,
       mintingTxId: mintTxId,
+      uniqueIdx: inscriptionId + "i0",
     });
 
     const l2Collectible = await collectibleRepository.create(db, {
