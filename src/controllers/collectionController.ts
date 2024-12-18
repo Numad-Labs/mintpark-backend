@@ -87,107 +87,43 @@ export const collectionController = {
       next(e);
     }
   },
-  // launchCollection: async (
-  //   req: AuthenticatedRequest,
-  //   res: Response,
-  //   next: NextFunction
-  // ) => {
-  //   const {
-  //     POStartsAt,
-  //     POEndsAt,
-  //     POMintPrice,
-  //     POMaxMintPerWallet,
-  //     isWhiteListed,
-  //     WLStartsAt,
-  //     WLEndsAt,
-  //     WLMintPrice,
-  //     WLMaxMintPerWallet,
-  //     txid,
-  //     totalFileCount,
-  //   } = req.body;
-  //   const { collectionId } = req.params;
-  //   const files = req.files as Express.Multer.File[];
+  getById: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
 
-  //   try {
-  //     if (!POStartsAt || !POMintPrice || !POMaxMintPerWallet || !isWhiteListed)
-  //       throw new CustomError(
-  //         "Please provide all required fields. (POStartsAt, POEndsAt, POMintPrice, POMaxMintPerWallet, isWhiteListed)",
-  //         400
-  //       );
-  //     if (
-  //       isWhiteListed === "true" &&
-  //       (!WLStartsAt || !WLEndsAt || !WLMintPrice || !WLMaxMintPerWallet)
-  //     )
-  //       throw new CustomError(
-  //         "Please provide all required fields for white listed collection. (WLStartsAt, WLEndsAt, WLMintPrice, WLMaxMintPerWallet)",
-  //         400
-  //       );
-  //     if ((POEndsAt && POStartsAt > POEndsAt) || WLStartsAt < WLEndsAt) {
-  //       throw new CustomError("Start date must be before end date", 400);
-  //     }
-  //     if (!req.user?.id)
-  //       throw new CustomError("Could not parse the id from the token.", 401);
+      const collection = await collectionRepository.getByIdWithDetails(id);
+      if (!collection) throw new CustomError("Collection not found", 404);
 
-  //     const launch = await launchServices.create(
-  //       {
-  //         collectionId,
-  //         poStartsAt: BigInt(POStartsAt),
-  //         poEndsAt: BigInt(POEndsAt),
-  //         poMintPrice: POMintPrice,
-  //         poMaxMintPerWallet: POMaxMintPerWallet,
-  //         isWhitelisted: isWhiteListed,
-  //         wlStartsAt: WLStartsAt ? BigInt(WLStartsAt) : null,
-  //         wlEndsAt: WLEndsAt ? BigInt(WLEndsAt) : null,
-  //         wlMaxMintPerWallet: WLMaxMintPerWallet || null,
-  //         wlMintPrice: WLMintPrice || null,
-  //         ownerId: req.user.id,
-  //       },
-  //       files,
-  //       totalFileCount,
-  //       txid
-  //     );
-  //     return res.status(200).json({ success: true, data: launch });
-  //   } catch (e) {
-  //     next(e);
-  //   }
-  // },
-  // getById: async (req: Request, res: Response, next: NextFunction) => {
-  //   try {
-  //     const { id } = req.params;
+      return res.status(200).json({ success: true, data: collection });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getListedCollections: async (
+    req: Request<{}, {}, {}, CollectionQueryParams>,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { layerId, interval, orderBy, orderDirection } = req.query;
+      // const page = parseInt(req.query.page || "1", 10);
+      // const pageSize = parseInt(req.query.pageSize || "10", 10);
+      // const offset = (page - 1) * pageSize;
 
-  //     const collection = await collectionRepository.getByIdWithDetails(id);
-  //     if (!collection) throw new CustomError("Collection not found", 404);
+      if (!layerId) throw new CustomError("You must specify the layer.", 400);
 
-  //     return res.status(200).json({ success: true, data: collection });
-  //   } catch (e) {
-  //     next(e);
-  //   }
-  // },
-  // getListedCollections: async (
-  //   req: Request<{}, {}, {}, CollectionQueryParams>,
-  //   res: Response,
-  //   next: NextFunction
-  // ) => {
-  //   try {
-  //     const { layerId, interval, orderBy, orderDirection } = req.query;
-  //     // const page = parseInt(req.query.page || "1", 10);
-  //     // const pageSize = parseInt(req.query.pageSize || "10", 10);
-  //     // const offset = (page - 1) * pageSize;
+      const result = await collectionServices.getListedCollections({
+        layerId,
+        interval,
+        orderBy,
+        orderDirection,
+      });
 
-  //     if (!layerId) throw new CustomError("You must specify the layer.", 400);
-
-  //     const result = await collectionServices.getListedCollections({
-  //       layerId,
-  //       interval,
-  //       orderBy,
-  //       orderDirection,
-  //     });
-
-  //     return res.status(200).json({ success: true, data: result });
-  //   } catch (e) {
-  //     next(e);
-  //   }
-  // },
+      return res.status(200).json({ success: true, data: result });
+    } catch (e) {
+      next(e);
+    }
+  },
   // update: async (
   //   req: AuthenticatedRequest,
   //   res: Response,

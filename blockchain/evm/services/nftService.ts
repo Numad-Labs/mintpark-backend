@@ -5,6 +5,7 @@ import MarketplaceService from "./marketplaceService";
 import { PinataSDK, PinResponse } from "pinata-web3";
 import { FundingAddressService } from "./fundingAddress";
 import { CustomError } from "../../../src/exceptions/CustomError";
+import logger from "../../../src/config/winston";
 
 interface UploadResult {
   metadataURI: string;
@@ -95,9 +96,9 @@ class NFTService {
         EVM_CONFIG.NFT_CONTRACT_ABI,
         minterWallet
       );
-      console.log("Contract owner:", await contract.owner());
+      logger.info(`Contract owner: ${await contract.owner()}`);
       const minterAddress = await contract.minterAddress();
-      console.log("🚀 ~ NFTService ~ minterAddress:", minterAddress);
+      logger.info(`🚀 ~ NFTService ~ minterAddress: ${minterAddress}`);
 
       // Prepare the mint transaction data
       const mintData = contract.interface.encodeFunctionData("mint", [
@@ -112,7 +113,7 @@ class NFTService {
         mintData
       );
 
-      console.log(`Estimated minting fee: ${estimatedFee.estimatedFee} ETH`);
+      logger.info(`Estimated minting fee: ${estimatedFee.estimatedFee} ETH`);
 
       // Now mint using the minter's wallet
       const tx = await contract.mint(recipient, inscriptionId);

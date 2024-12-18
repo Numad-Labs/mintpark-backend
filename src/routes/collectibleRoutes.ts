@@ -5,10 +5,10 @@ import { parseFiles } from "../middlewares/fileParser";
 
 const collectibleRouter = Router();
 
-/* collectibleRouter.get(
-  "/:userId/listable",
-  collectibleControllers.getListableCollectibles
-);
+// collectibleRouter.get(
+//   "/:userId/listable",
+//   collectibleControllers.getListableCollectibles
+// );
 collectibleRouter.get(
   "/:collectionId/collection/listable",
   collectibleControllers.getListableCollectiblesByCollectionId
@@ -19,7 +19,7 @@ collectibleRouter.get(
   collectibleControllers.getTokenActivity
 );
 
-collectibleRouter.put("/:id", collectibleControllers.update); */
+// collectibleRouter.put("/:id", collectibleControllers.update);
 
 collectibleRouter.post(
   "/inscription",

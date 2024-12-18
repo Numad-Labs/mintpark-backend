@@ -21,16 +21,8 @@ collectionRouter.post(
 //   collectionController.listForEvm
 // );
 
-/* collectionRouter.post(
-  "/:collectionId/launch",
-  authenticateToken,
-  // authorize("SUPER_ADMIN"),
-  parseFiles("files", false),
-  collectionController.launchCollection
-);
-
 collectionRouter.get("/listed", collectionController.getListedCollections);
-collectionRouter.get("/:id", collectionController.getById); */
+collectionRouter.get("/:id", collectionController.getById);
 
 // collectionRouter.put(
 //   "/:id",

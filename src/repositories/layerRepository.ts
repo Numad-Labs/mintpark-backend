@@ -1,6 +1,7 @@
 import { Insertable, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { Layer } from "../types/db/types";
+import { NETWORK } from "../types/db/enums";
 
 export const layerRepository = {
   create: async (data: Insertable<Layer>) => {
@@ -61,5 +62,15 @@ export const layerRepository = {
     const layers = await db.selectFrom("Layer").selectAll().execute();
 
     return layers;
+  },
+  getBitcoin: async (network: NETWORK) => {
+    const layer = await db
+      .selectFrom("Layer")
+      .selectAll()
+      .where("Layer.layer", "=", "BITCOIN")
+      .where("Layer.network", "=", network)
+      .executeTakeFirstOrThrow();
+
+    return layer;
   },
 };
