@@ -31,18 +31,21 @@ const nftService = new NFTService(
 
 export const listServices = {
   checkAndPrepareRegistration: async (
-    collectionAddress: string,
+    collectionId: string,
     issuerId: string,
     userLayerId: string
   ) => {
     const issuer = await userRepository.getByUserLayerId(userLayerId);
     if (!issuer) throw new CustomError("User not found.", 400);
 
+    const collection = await collectionRepository.getById(db, collectionId);
+    if (!collection) throw new CustomError("Collection not found.", 400);
+
     // Check if collection is registered
     let isRegistered = false;
     try {
       const collectionConfig = await marketplaceService.getCollectionConfig(
-        collectionAddress
+        collection.contractAddress as string
       );
       isRegistered = collectionConfig?.isActive || false;
     } catch (error) {
@@ -53,7 +56,7 @@ export const listServices = {
     if (!isRegistered) {
       // Prepare registration transaction
       const registerTx = await marketplaceService.registerCollectionTransaction(
-        collectionAddress,
+        collection.contractAddress as string,
         EVM_CONFIG.DEFAULT_PUBLIC_MAX_MINT,
         issuer.address
       );
