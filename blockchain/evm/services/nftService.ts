@@ -36,8 +36,8 @@ class NFTService {
   }
 
   async getUnsignedDeploymentTransaction(
-    minterAddress: string,
-    initialOwner: string
+    initialOwner: string,
+    minterAddress: string
   ) {
     const signer = await this.provider.getSigner();
     const factory = new ethers.ContractFactory(
