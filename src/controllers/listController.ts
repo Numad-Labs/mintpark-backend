@@ -151,15 +151,15 @@ export const listController = {
   ) => {
     try {
       const { id } = req.params;
-      let { feeRate, layerId } = req.body;
+      let { feeRate, userLayerId } = req.body;
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
-      if (layerId) throw new CustomError("Invalid layerId.", 400);
+      if (!userLayerId) throw new CustomError("Invalid layerId.", 400);
       if (feeRate < 1) throw new CustomError("Invalid fee rate.", 400);
       if (!feeRate) feeRate = 1;
       const txHex = await listServices.generateBuyTxHex(
         id,
-        layerId,
+        userLayerId,
         feeRate,
         req.user.id
       );

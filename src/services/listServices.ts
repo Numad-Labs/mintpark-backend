@@ -324,7 +324,7 @@ export const listServices = {
   },
   generateBuyTxHex: async (
     id: string,
-    layerId: string,
+    userLayerId: string,
     feeRate: number,
     issuerId: string
   ) => {
@@ -333,13 +333,10 @@ export const listServices = {
     if (list.status !== "ACTIVE")
       throw new CustomError("This list is could not be bought.", 400);
 
-    const seller = await userRepository.getByIdAndLayerId(
-      list.sellerId,
-      layerId
-    );
-    if (!seller) throw new CustomError("Seller not found.", 400);
+    // const seller = await userRepository.getByUserLayerId(list.);
+    // if (!seller) throw new CustomError("Seller not found.", 400);
 
-    const buyer = await userRepository.getByIdAndLayerId(issuerId, layerId);
+    const buyer = await userRepository.getByUserLayerId(userLayerId);
     if (!buyer) throw new CustomError("User not found.", 400);
     // if (buyer.address === seller.address)
     //   throw new CustomError("You cannot buy your own listing.", 400);
