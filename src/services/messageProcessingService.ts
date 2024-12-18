@@ -65,6 +65,7 @@ export async function processMessage(message: Message) {
     logger.info(
       `Minted INSCRIPTION: ${orderItem?.collectibleId} Funded by: ${order.fundingAddress}`
     );
+    let inscriptionId = "dulguunuud udku gargaj ugnu!";
     logger.info(`Minted NFT funded by VAULT`);
     let mintTxId = "";
 

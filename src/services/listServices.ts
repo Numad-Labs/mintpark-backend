@@ -1,6 +1,5 @@
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
-import { estimateBuyPsbtRequiredAmount } from "../../blockchain/utxo/calculateRequiredAmount";
 import {
   generateBuyPsbtHex,
   validateSignAndBroadcastBuyPsbtHex,

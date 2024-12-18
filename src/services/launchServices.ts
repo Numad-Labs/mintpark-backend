@@ -188,6 +188,7 @@ export const launchServices = {
     isLastBatch: boolean
   ) => {
     const collection = await collectionRepository.getById(db, collectionId);
+    if (!collection) throw new CustomError("Invalid collectionId.", 400);
     if (collection?.type !== "INSCRIPTION")
       throw new CustomError("Invalid collection type.", 400);
     if (collection.creatorId !== userId)
@@ -232,6 +233,7 @@ export const launchServices = {
     isLastBatch: boolean
   ) => {
     const collection = await collectionRepository.getById(db, collectionId);
+    if (!collection) throw new CustomError("Invalid collectionId.", 400);
     if (collection?.type !== "RECURSIVE_INSCRIPTION")
       throw new CustomError("Invalid collection type.", 400);
     if (collection.creatorId !== userId)
@@ -286,6 +288,7 @@ export const launchServices = {
     isLastBatch: boolean
   ) => {
     const collection = await collectionRepository.getById(db, collectionId);
+    if (!collection) throw new CustomError("Invalid collectionId.", 400);
     if (collection?.type !== "IPFS")
       throw new CustomError("Invalid collection type.", 400);
     if (collection.creatorId !== userId)

@@ -251,6 +251,7 @@ export const collectibleServices = {
     files: Express.Multer.File[]
   ) => {
     const collection = await collectionRepository.getById(db, collectionId);
+    if (!collection) throw new CustomError("Invalid collectionId.", 400);
     if (collection?.type !== "INSCRIPTION")
       throw new CustomError("Invalid collection type.", 400);
 
@@ -335,6 +336,7 @@ export const collectibleServices = {
     data: recursiveInscriptionParams[]
   ) => {
     const collection = await collectionRepository.getById(db, collectionId);
+    if (!collection) throw new CustomError("Invalid collectionId.", 400);
     if (collection?.type !== "RECURSIVE_INSCRIPTION")
       throw new CustomError("Invalid collection type.", 400);
 
@@ -405,6 +407,7 @@ export const collectibleServices = {
     data: ipfsNftParams[]
   ) => {
     const collection = await collectionRepository.getById(db, collectionId);
+    if (!collection) throw new CustomError("Invalid collectionId.", 400);
     if (collection?.type !== "IPFS")
       throw new CustomError("Invalid collection type.", 400);
 
