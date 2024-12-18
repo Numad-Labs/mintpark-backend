@@ -7,10 +7,14 @@ export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 import type {
   ORDER_TYPE,
   ORDER_STATUS,
+  ORDER_ITEM_TYPE,
   ORDER_ITEM_STATUS,
+  COLLECTION_STATUS,
   COLLECTION_TYPE,
-  LIST_STATUS,
+  COLLECTIBLE_STATUS,
+  LAUNCH_STATUS,
   LAUNCH_ITEM_STATUS,
+  LIST_STATUS,
   LAYER,
   NETWORK,
   ROLES,
@@ -18,37 +22,47 @@ import type {
 
 export type Collectible = {
   id: Generated<string>;
-  name: string | null;
-  collectionId: string;
-  uniqueIdx: string;
+  name: string;
   fileKey: string | null;
+  cid: string | null;
+  uniqueIdx: string | null;
+  nftId: string;
+  metadata: unknown | null;
+  status: Generated<COLLECTIBLE_STATUS>;
   createdAt: Generated<Timestamp>;
-  txid: string | null;
+  mintingTxId: string | null;
+  lockingAddress: string | null;
+  lockingPrivateKey: string | null;
+  parentCollectibleId: string | null;
+  collectionId: string;
 };
 export type CollectibleTrait = {
   id: Generated<string>;
+  createdAt: Generated<Timestamp>;
   collectibleId: string;
-  traitId: string;
-  value: string;
-  rarity: number;
+  traitValueId: string;
 };
 export type Collection = {
   id: Generated<string>;
   name: string;
-  creator: string | null;
+  creatorName: string | null;
   description: string;
-  logoKey: string | null;
-  supply: number;
-  type: Generated<COLLECTION_TYPE>;
   discordUrl: string | null;
   twitterUrl: string | null;
   websiteUrl: string | null;
   iconUrl: string | null;
   inscriptionIcon: string | null;
   slug: string | null;
-  layerId: string;
+  logoKey: string | null;
+  supply: number;
   contractAddress: string | null;
+  type: Generated<COLLECTION_TYPE>;
+  status: Generated<COLLECTION_STATUS>;
   createdAt: Generated<Timestamp>;
+  layerId: string;
+  creatorId: string | null;
+  creatorUserLayerId: string | null;
+  parentCollectionId: string | null;
 };
 export type Currency = {
   id: Generated<string>;
@@ -64,23 +78,22 @@ export type Launch = {
   wlEndsAt: string | null;
   wlMintPrice: number | null;
   wlMaxMintPerWallet: number | null;
-  poStartsAt: Generated<string>;
+  poStartsAt: string;
   poEndsAt: string | null;
   poMintPrice: number;
   poMaxMintPerWallet: number;
   createdAt: Generated<Timestamp>;
-  ownerId: string | null;
+  status: Generated<LAUNCH_STATUS>;
+  userLayerId: string;
+  userId: string | null;
 };
 export type LaunchItem = {
   id: Generated<string>;
-  launchId: string;
-  fileKey: string;
-  ipfsUrl: string | null;
-  metadata: unknown | null;
   status: Generated<LAUNCH_ITEM_STATUS>;
-  evmAssetId: string | null;
-  name: string | null;
   onHoldUntil: Timestamp | null;
+  mintingTxId: string | null;
+  launchId: string;
+  collectibleId: string;
   onHoldBy: string | null;
 };
 export type Layer = {
@@ -108,15 +121,10 @@ export type List = {
 };
 export type Order = {
   id: Generated<string>;
-  userId: string;
-  collectionId: string | null;
-  quantity: number;
   feeRate: Generated<number>;
   fundingAddress: string | null;
-  networkFee: number;
-  serviceFee: number;
   fundingAmount: number;
-  txId: string | null;
+  fundingTxId: string | null;
   privateKey: string | null;
   createdAt: Generated<Timestamp>;
   paidAt: Timestamp | null;
@@ -124,18 +132,21 @@ export type Order = {
   expiredAt: Timestamp | null;
   orderType: Generated<ORDER_TYPE>;
   orderStatus: Generated<ORDER_STATUS>;
+  userId: string;
+  userLayerId: string;
+  collectionId: string | null;
+  launchItemId: string | null;
   purchaseId: string | null;
 };
 export type OrderItem = {
   id: Generated<string>;
-  orderId: string;
-  fileKey: string;
-  ipfsUrl: string | null;
-  metadata: unknown | null;
+  mintedTxId: string | null;
+  createdAt: Generated<Timestamp>;
+  type: ORDER_ITEM_TYPE;
   status: Generated<ORDER_ITEM_STATUS>;
-  txid: string | null;
-  evmAssetId: string | null;
-  name: string | null;
+  orderId: string;
+  collectibleId: string | null;
+  traitValueId: string | null;
 };
 export type Purchase = {
   id: Generated<string>;
@@ -143,18 +154,39 @@ export type Purchase = {
   launchItemId: string;
   purchasedAt: Generated<Timestamp>;
 };
-export type Trait = {
+export type TraitType = {
   id: Generated<string>;
   name: string;
+  zIndex: number;
+  createdAt: Generated<Timestamp>;
+  collectionId: string;
+};
+export type TraitValue = {
+  id: Generated<string>;
+  value: string;
+  inscriptionId: string | null;
+  fileKey: string;
+  createdAt: Generated<Timestamp>;
+  mintedAt: Generated<Timestamp>;
+  lockingAddress: string | null;
+  lockingPrivateKey: string | null;
+  traitTypeId: string;
 };
 export type User = {
   id: Generated<string>;
-  layerId: string;
+  role: Generated<ROLES>;
+  createdAt: Generated<Timestamp>;
+};
+export type UserLayer = {
+  id: Generated<string>;
   address: string;
   pubkey: string | null;
   xpub: string | null;
   createdAt: Generated<Timestamp>;
-  role: Generated<ROLES>;
+  isActive: Generated<boolean>;
+  deactivatedAt: Timestamp | null;
+  userId: string;
+  layerId: string;
 };
 export type WlAddress = {
   id: Generated<string>;
@@ -173,7 +205,9 @@ export type DB = {
   Order: Order;
   OrderItem: OrderItem;
   Purchase: Purchase;
-  Trait: Trait;
+  TraitType: TraitType;
+  TraitValue: TraitValue;
   User: User;
+  UserLayer: UserLayer;
   WlAddress: WlAddress;
 };

@@ -2,15 +2,20 @@ import { ethers } from "ethers";
 import { EVM_CONFIG } from "../evm-config";
 import MarketplaceService from "./marketplaceService";
 import NFTService from "./nftService";
-import { DB, Launch, LaunchItem } from "../../../src/types/db/types";
+import {
+  Collectible,
+  DB,
+  Launch,
+  LaunchItem,
+} from "../../../src/types/db/types";
 import { CustomError } from "../../../src/exceptions/CustomError";
 import { TransactionConfirmationService } from "./transactionConfirmationService";
-import { PinataSDK } from "pinata-web3";
+import { PinataSDK, PinResponse } from "pinata-web3";
 import { config } from "../../../src/config/config";
 import { LaunchConfig } from "../../../custom";
 import { createMetadataFromS3File } from "../../../src/utils/aws";
 import { launchItemRepository } from "../../../src/repositories/launchItemRepository";
-import { Kysely, Transaction } from "kysely";
+import { Insertable, Kysely, Transaction } from "kysely";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
@@ -229,29 +234,44 @@ class LaunchpadService {
 
   async getUnsignedLaunchMintTransaction(
     // launch: Launchtype,
-    winnerItem: any,
+    /* winnerItem: any, */
+    pickedCollectible: Insertable<Collectible>,
     buyer: string,
     collectionAddress: string,
     db: Kysely<DB> | Transaction<DB>
   ): Promise<ethers.TransactionRequest> {
+    //TODO: REFACTOR DG
+    if (!pickedCollectible.cid || !pickedCollectible.uniqueIdx)
+      throw new CustomError(
+        "Collectible with invalid cid or unique index.",
+        400
+      );
+
     const signer = await this.provider.getSigner();
 
     // Generate tokenId if not already set
-    const tokenId = winnerItem.evmAssetId
+    /*     const tokenId = winnerItem.evmAssetId
       ? parseInt(winnerItem.evmAssetId)
-      : this.generateTokenId(winnerItem);
+      : this.generateTokenId(winnerItem); */
 
-    const metadataURI = await createMetadataFromS3File(
+    const tokenId = BigInt(pickedCollectible.uniqueIdx.split("i")[1]);
+
+    /*     const metadataURI = await createMetadataFromS3File(
       winnerItem.fileKey,
       winnerItem.name || "Unnamed NFT",
       this.storage
+    ); */
+
+    const metadataURI = await this.generateMetadataFromCid(
+      pickedCollectible.name,
+      pickedCollectible.cid
     );
 
     console.log("🚀 ~ LaunchpadService ~ metadataURI:", metadataURI);
 
-    await launchItemRepository.update(db, winnerItem.id, {
-      ipfsUrl: metadataURI,
-    });
+    // await launchItemRepository.update(db, winnerItem.id, {
+    //   ipfsUrl: metadataURI,
+    // });
 
     const nftContract = new ethers.Contract(
       collectionAddress,
@@ -279,7 +299,8 @@ class LaunchpadService {
 
   private generateTokenId(items: LaunchItem[]): number {
     const existingIds = items
-      .map((item) => item.evmAssetId)
+      /*  .map((item) => item.evmAssetId) */
+      .map((item) => item.launchId)
       .filter((id): id is string => id !== null)
       .map((id) => parseInt(id));
 
@@ -288,6 +309,21 @@ class LaunchpadService {
     }
 
     return Math.max(...existingIds) + 1;
+  }
+
+  async generateMetadataFromCid(name: string, cid: string) {
+    // Create metadata object
+    const metadata = {
+      name: name || "Unnamed NFT",
+      image: `ipfs://${cid}`,
+    };
+
+    // Upload metadata to IPFS
+    const metadataResponse: PinResponse = await this.storage.upload.json(
+      metadata
+    );
+
+    return `ipfs://${metadataResponse.IpfsHash}`;
   }
 }
 

@@ -1,4 +1,4 @@
-import { Insertable, Kysely, sql, Transaction } from "kysely";
+import { Insertable, Kysely, sql, Transaction, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { Collectible, DB } from "../types/db/types";
 import {
@@ -21,6 +21,22 @@ export const collectibleRepository = {
 
     return collectible;
   },
+  update: async (
+    db: Kysely<DB> | Transaction<DB>,
+    id: string,
+    data: Updateable<Collectible>
+  ) => {
+    const collectible = await db
+      .updateTable("Collectible")
+      .set(data)
+      .returningAll()
+      .where("Collectible.id", "=", id)
+      .executeTakeFirstOrThrow(
+        () => new Error("Could not update the collectible.")
+      );
+
+    return collectible;
+  },
   getById: async (id: string) => {
     const collectible = await db
       .selectFrom("Collectible")
@@ -33,9 +49,14 @@ export const collectibleRepository = {
         "Collectible.createdAt",
         "Collectible.fileKey",
         "Collectible.collectionId",
+        "Collectible.cid",
+        "Collectible.metadata",
+        "Collectible.status",
+        "Collectible.parentCollectibleId",
+        "Collectible.mintingTxId",
+        "Collectible.nftId",
         "Layer.layer",
         "Layer.network",
-        "Collectible.txid",
       ])
       .where("Collectible.id", "=", id)
       .executeTakeFirst();
@@ -213,30 +234,30 @@ export const collectibleRepository = {
     if (params.isListed)
       query = query.where("CurrentList.status", "=", "ACTIVE");
 
-    if (traitsFilters.length > 0) {
-      query = query.where((eb) =>
-        eb.exists(
-          eb
-            .selectFrom("CollectibleTrait")
-            .innerJoin("Trait", "Trait.id", "CollectibleTrait.traitId")
-            .whereRef("CollectibleTrait.collectibleId", "=", "Collectible.id")
-            .where((eb) =>
-              eb.or(
-                traitsFilters.map((traitFilter) =>
-                  eb.and([
-                    sql`lower(${eb.ref("Trait.name")}) = lower(${
-                      traitFilter.name
-                    })`.$castTo<boolean>(),
-                    sql`lower(${eb.ref("CollectibleTrait.value")}) = lower(${
-                      traitFilter.value
-                    })`.$castTo<boolean>(),
-                  ])
-                )
-              )
-            )
-        )
-      );
-    }
+    // if (traitsFilters.length > 0) {
+    //   query = query.where((eb) =>
+    //     eb.exists(
+    //       eb
+    //         .selectFrom("CollectibleTrait")
+    //         .innerJoin("Trait", "Trait.id", "CollectibleTrait.traitId")
+    //         .whereRef("CollectibleTrait.collectibleId", "=", "Collectible.id")
+    //         .where((eb) =>
+    //           eb.or(
+    //             traitsFilters.map((traitFilter) =>
+    //               eb.and([
+    //                 sql`lower(${eb.ref("Trait.name")}) = lower(${
+    //                   traitFilter.name
+    //                 })`.$castTo<boolean>(),
+    //                 sql`lower(${eb.ref("CollectibleTrait.value")}) = lower(${
+    //                   traitFilter.value
+    //                 })`.$castTo<boolean>(),
+    //               ])
+    //             )
+    //           )
+    //         )
+    //     )
+    //   );
+    // }
 
     switch (params.orderBy) {
       case "price":

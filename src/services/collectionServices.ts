@@ -19,6 +19,8 @@ import { db } from "../utils/db";
 import { Insertable, Updateable } from "kysely";
 import { Collection } from "../types/db/types";
 import { collectibleRepository } from "../repositories/collectibleRepository";
+import { layerServices } from "./layerServices";
+import { serializeBigInt } from "../../blockchain/evm/utils";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
@@ -30,55 +32,84 @@ const evmCollectibleService = new EVMCollectibleService(EVM_CONFIG.RPC_URL!);
 
 export const collectionServices = {
   create: async (
-    data: any,
-    issuerId: string,
+    data: Insertable<Collection>,
     name: string,
     priceForLaunchpad: number,
-    file?: Express.Multer.File
+    file: Express.Multer.File,
+    issuerId: string,
+    userLayerId: string
   ) => {
-    const user = await userRepository.getById(issuerId);
-    if (!user || !user.layerId) throw new CustomError("User not found.", 400);
+    if (data.type === "SYNTHETIC")
+      throw new CustomError(
+        "You cannot directly create synthetic collection.",
+        400
+      );
 
-    const layer = await layerRepository.getById(user.layerId);
-    if (!layer) throw new CustomError("User not found.", 400);
+    if (!data.layerId) throw new CustomError("Please provide a layerId.", 400);
+    const layer = await layerServices.checkIfSupportedLayerOrThrow(
+      data.layerId
+    );
 
-    data.layerId = user.layerId;
+    const user = await userRepository.getByUserLayerId(userLayerId);
+    if (!user) throw new CustomError("User not found.", 400);
+    if (user.id !== issuerId)
+      throw new CustomError(
+        "You are not allowed to create for this user.",
+        400
+      );
+    if (!user?.isActive)
+      throw new CustomError("This account is deactivated.", 400);
+    if (user.layer !== layer.layer || user.network !== layer.network)
+      throw new CustomError(
+        "You cannot create collection for this layerId with the current active account.",
+        400
+      );
 
-    /*
-      if user.layer is citrea, generate hex to deploy contract
+    let deployContractTxHex = null,
+      ordinalCollection = null,
+      l2Collection = null;
 
-      return that hex with the createdCollection
-    */
-
-    if (
-      (layer.layer !== "CITREA" && layer.layer !== "FRACTAL") ||
-      layer.network !== "TESTNET"
-    )
-      throw new CustomError("This layer is unsupported for now.", 400);
-
-    let deployContractTxHex = null;
-    if (layer.layer === "CITREA" && layer.network === "TESTNET") {
+    if (user.layer === "CITREA" && user.network === "TESTNET") {
       const unsignedTx = await nftService.getUnsignedDeploymentTransaction(
         user.address,
         name,
         name,
         priceForLaunchpad
       );
-      deployContractTxHex = JSON.parse(
-        JSON.stringify(unsignedTx, (_, value) =>
-          typeof value === "bigint" ? value.toString() : value
-        )
-      );
+      deployContractTxHex = serializeBigInt(unsignedTx);
     }
 
-    if (file) {
-      const key = randomUUID();
-      await uploadToS3(key, file);
-      data.logoKey = key;
-    }
-    const collection = await collectionRepository.create(data);
+    const key = randomUUID();
+    await uploadToS3(key, file);
+    data.logoKey = key;
 
-    return { collection, deployContractTxHex };
+    if (data.type === "INSCRIPTION" || data.type === "RECURSIVE_INSCRIPTION") {
+      ordinalCollection = await collectionRepository.create({
+        ...data,
+        status: "UNCONFIRMED",
+        creatorId: user.id,
+        creatorUserLayerId: userLayerId,
+      });
+
+      l2Collection = await collectionRepository.create({
+        ...data,
+        type: "SYNTHETIC",
+        status: "UNCONFIRMED",
+        parentCollectionId: ordinalCollection.id,
+        creatorId: user.id,
+        creatorUserLayerId: userLayerId,
+      });
+    } else if (data.type === "IPFS") {
+      l2Collection = await collectionRepository.create({
+        ...data,
+        type: "IPFS",
+        status: "UNCONFIRMED",
+        creatorId: user.id,
+        creatorUserLayerId: userLayerId,
+      });
+    }
+
+    return { ordinalCollection, l2Collection, deployContractTxHex };
   },
   delete: async (id: string) => {
     const collection = await collectionRepository.delete(id);
@@ -141,62 +172,62 @@ export const collectionServices = {
 
     return collections;
   },
-  update: async (
-    id: string,
-    data: updateCollection,
-    file: Express.Multer.File,
-    issuerId: string
-  ) => {
-    const issuer = await userRepository.getByIdWithLayer(issuerId);
-    if (!issuer) throw new CustomError("User not found.", 400);
+  // update: async (
+  //   id: string,
+  //   data: updateCollection,
+  //   file: Express.Multer.File,
+  //   issuerId: string
+  // ) => {
+  //   const issuer = await userRepository.getByIdWithLayer(issuerId);
+  //   if (!issuer) throw new CustomError("User not found.", 400);
 
-    const collection = await collectionRepository.getById(db, id);
-    if (!collection) throw new CustomError("Collection not found.", 400);
+  //   const collection = await collectionRepository.getById(db, id);
+  //   if (!collection) throw new CustomError("Collection not found.", 400);
 
-    if (file && collection.logoKey) {
-      await deleteFromS3(`restaurant/${collection.logoKey}`);
-    }
+  //   if (file && collection.logoKey) {
+  //     await deleteFromS3(`collection/${collection.logoKey}`);
+  //   }
 
-    if (file) {
-      const randomKey = randomUUID();
-      await uploadToS3(`restaurant/${randomKey}`, file);
+  //   if (file) {
+  //     const randomKey = randomUUID();
+  //     await uploadToS3(`collection/${randomKey}`, file);
 
-      data.logoKey = randomKey;
-    }
+  //     data.logoKey = randomKey;
+  //   }
 
-    if (issuer.layer === "CITREA") {
-      //update the data in the contract
-    } else if (issuer.layer === "FRACTAL") {
-      //update the collections REPO
-    }
+  //   if (issuer.layer === "CITREA") {
+  //     //update the data in the contract
+  //   } else if (issuer.layer === "FRACTAL") {
+  //     //update the collections REPO
+  //   }
 
-    const updatedCollection = await collectionRepository.update(db, id, data);
+  //   const updatedCollection = await collectionRepository.update(db, id, data);
 
-    return updatedCollection;
-  },
-  listForEvm: async (contractAddress: string, issuerId: string) => {
-    const issuer = await userRepository.getByIdWithLayer(issuerId);
-    if (!issuer) throw new CustomError("User not found.", 400);
+  //   return updatedCollection;
+  // },
+  // listForEvm: async (contractAddress: string, issuerId: string) => {
+  //   const issuer = await userRepository.getByIdWithLayer(issuerId);
+  //   if (!issuer) throw new CustomError("User not found.", 400);
 
-    const isExistingCollection =
-      await collectionRepository.getByContractAddress(contractAddress);
-    if (isExistingCollection)
-      throw new CustomError("This collection has already been listed.", 400);
+  //   const isExistingCollection =
+  //     await collectionRepository.getByContractAddress(contractAddress);
+  //   if (isExistingCollection)
+  //     throw new CustomError("This collection has already been listed.", 400);
 
-    if (issuer.layer !== "CITREA")
-      throw new CustomError("Unsupported layer for this API.", 400);
+  //   if (issuer.layer !== "CITREA")
+  //     throw new CustomError("Unsupported layer for this API.", 400);
 
-    //fetch nft details & insert them into the database
-    let collectionData: any;
-    const collection = await collectionRepository.create(collectionData);
+  //   //fetch nft details & insert them into the database
+  //   let collectionData: any;
+  //   const collection = await collectionRepository.create(collectionData);
 
-    let collectibleData: any;
-    const collectibles = await collectibleRepository.bulkInsert(
-      collectibleData
-    );
+  //   let collectibleData: any;
+  //   const collectibles = await collectibleRepository.bulkInsert(
+  //     collectibleData
+  //   );
 
-    //TODO: metadata support
+  //   //TODO: metadata support
 
-    return { collectionData, collectibleData };
-  },
+  //   return { collectionData, collectibleData };
+  // },
 };

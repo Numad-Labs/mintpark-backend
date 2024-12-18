@@ -15,18 +15,36 @@ datasource db {
 }
 
 model User {
-  id         String       @id @default(dbgenerated("gen_random_uuid()"))
-  layerId    String
-  layer      Layer        @relation(fields: [layerId], references: [id])
-  address    String       @unique
-  pubkey     String?      @unique
-  xpub       String?      @unique
-  createdAt  DateTime     @default(now())
-  role       ROLES        @default(USER)
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  role      ROLES    @default(USER)
+  createdAt DateTime @default(now())
+
   purchases  Purchase[]
   orders     Order[]
   LaunchItem LaunchItem[]
   Launch     Launch[]
+  UserLayer  UserLayer[]
+  Collection Collection[]
+}
+
+model UserLayer {
+  id            String    @id @default(dbgenerated("gen_random_uuid()"))
+  address       String    @unique
+  pubkey        String?   @unique
+  xpub          String?   @unique
+  createdAt     DateTime  @default(now())
+  isActive      Boolean   @default(true)
+  deactivatedAt DateTime?
+
+  userId     String
+  user       User         @relation(fields: [userId], references: [id])
+  layerId    String
+  layer      Layer        @relation(fields: [layerId], references: [id])
+  Order      Order[]
+  Launch     Launch[]
+  Collection Collection[]
+
+  @@unique([address, layerId, deactivatedAt])
 }
 
 model Currency {
@@ -46,71 +64,196 @@ model Layer {
   network    NETWORK      @default(TESTNET)
   currencyId String
   currency   Currency     @relation(fields: [currencyId], references: [id])
-  users      User[]
   Collection Collection[]
+  UserLayer  UserLayer[]
 }
 
 model Order {
-  id             String       @id @default(dbgenerated("gen_random_uuid()"))
-  userId         String
-  user           User         @relation(fields: [userId], references: [id])
-  collectionId   String?
-  collection     Collection?  @relation(fields: [collectionId], references: [id])
-  quantity       Int
-  feeRate        Float        @default(1)
+  id             String  @id @default(dbgenerated("gen_random_uuid()"))
+  feeRate        Float   @default(1)
   fundingAddress String?
-  networkFee     Float
-  serviceFee     Float
   fundingAmount  Float
-  txId           String?
+  fundingTxId    String?
   privateKey     String?
-  createdAt      DateTime     @default(now())
-  paidAt         DateTime?
-  mintedAt       DateTime?
-  expiredAt      DateTime?
-  orderType      ORDER_TYPE   @default(COLLECTIBLE)
-  orderStatus    ORDER_STATUS @default(PENDING)
-  orderItems     OrderItem[]
-  purchase       Purchase?    @relation(fields: [purchaseId], references: [id])
-  purchaseId     String?
+
+  createdAt DateTime  @default(now())
+  paidAt    DateTime?
+  mintedAt  DateTime?
+  expiredAt DateTime?
+
+  orderType   ORDER_TYPE   @default(MINT_COLLECTIBLE)
+  orderStatus ORDER_STATUS @default(PENDING)
+
+  userId       String
+  user         User        @relation(fields: [userId], references: [id])
+  userLayerId  String
+  userLayer    UserLayer   @relation(fields: [userLayerId], references: [id])
+  collectionId String?
+  collection   Collection? @relation(fields: [collectionId], references: [id])
+  launchItemId String?
+  launchItem   LaunchItem? @relation(fields: [launchItemId], references: [id], onDelete: Cascade)
+  Purchase     Purchase?   @relation(fields: [purchaseId], references: [id])
+  purchaseId   String?
+
+  orderItems OrderItem[]
 }
 
 model OrderItem {
-  id       String            @id @default(dbgenerated("gen_random_uuid()"))
-  orderId  String
-  order    Order             @relation(fields: [orderId], references: [id])
-  fileKey  String
-  ipfsUrl  String?
-  metadata Json?
-  status   ORDER_ITEM_STATUS @default(PENDING)
-  txid     String?
+  id         String            @id @default(dbgenerated("gen_random_uuid()"))
+  mintedTxId String?
+  createdAt  DateTime          @default(now())
+  type       ORDER_ITEM_TYPE
+  status     ORDER_ITEM_STATUS @default(PENDING)
 
-  evmAssetId String?
-  name       String?
+  orderId       String
+  order         Order        @relation(fields: [orderId], references: [id])
+  collectibleId String?
+  collectible   Collectible? @relation(fields: [collectibleId], references: [id])
+  traitValueId  String?
+  traitValue    TraitValue?  @relation(fields: [traitValueId], references: [id])
 }
 
 model Collection {
-  id              String          @id @default(dbgenerated("gen_random_uuid()"))
+  id              String  @id @default(dbgenerated("gen_random_uuid()"))
   name            String
-  creator         String?
+  creatorName     String?
   description     String
-  logoKey         String?
-  supply          Int
-  type            COLLECTION_TYPE @default(UNCONFIRMED)
   discordUrl      String?
   twitterUrl      String?
   websiteUrl      String?
   iconUrl         String?
   inscriptionIcon String?
   slug            String?
-  layerId         String
+  logoKey         String?
+  supply          Int
 
   contractAddress String?
-  createdAt       DateTime      @default(now())
-  layer           Layer         @relation(fields: [layerId], references: [id])
-  launches        Launch[]
-  orders          Order[]
-  collectibles    Collectible[]
+  type            COLLECTION_TYPE   @default(RECURSIVE_INSCRIPTION)
+  status          COLLECTION_STATUS @default(UNCONFIRMED)
+  createdAt       DateTime          @default(now())
+
+  layerId            String
+  layer              Layer       @relation(fields: [layerId], references: [id])
+  creatorId          String?
+  creator            User?       @relation(fields: [creatorId], references: [id])
+  creatorUserLayerId String?
+  creatorUserLayer   UserLayer?  @relation(fields: [creatorUserLayerId], references: [id])
+  parentCollectionId String?
+  parentCollection   Collection? @relation("ParentChild", fields: [parentCollectionId], references: [id])
+
+  launches         Launch[]
+  orders           Order[]
+  collectibles     Collectible[]
+  childCollections Collection[]  @relation("ParentChild")
+  TraitType        TraitType[]
+}
+
+model Collectible {
+  id          String             @id @default(dbgenerated("gen_random_uuid()"))
+  name        String
+  fileKey     String?
+  cid         String?
+  uniqueIdx   String?
+  nftId       String
+  metadata    Json?
+  status      COLLECTIBLE_STATUS @default(UNCONFIRMED)
+  createdAt   DateTime           @default(now())
+  mintingTxId String?
+
+  lockingAddress    String?
+  lockingPrivateKey String?
+
+  parentCollectibleId String?
+  parentCollectible   Collectible? @relation("ParentChild", fields: [parentCollectibleId], references: [id])
+  collectionId        String
+  collection          Collection   @relation(fields: [collectionId], references: [id])
+
+  childCollectibles Collectible[]      @relation("ParentChild")
+  OrderItem         OrderItem[]
+  List              List[]
+  CollectibleTrait  CollectibleTrait[]
+  LaunchItem        LaunchItem[]
+}
+
+model TraitType {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  name      String
+  zIndex    Int
+  createdAt DateTime @default(now())
+
+  collectionId String
+  collection   Collection   @relation(fields: [collectionId], references: [id])
+  TraitValue   TraitValue[]
+}
+
+model TraitValue {
+  id            String   @id @default(dbgenerated("gen_random_uuid()"))
+  value         String
+  inscriptionId String?
+  fileKey       String
+  createdAt     DateTime @default(now())
+  mintedAt      DateTime @default(now())
+
+  lockingAddress    String?
+  lockingPrivateKey String?
+
+  traitTypeId      String
+  traitType        TraitType          @relation(fields: [traitTypeId], references: [id])
+  CollectibleTrait CollectibleTrait[]
+  OrderItem        OrderItem[]
+}
+
+model CollectibleTrait {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  createdAt DateTime @default(now())
+
+  collectibleId String
+  collectible   Collectible @relation(fields: [collectibleId], references: [id])
+  traitValueId  String
+  traitValue    TraitValue  @relation(fields: [traitValueId], references: [id])
+}
+
+model Launch {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()"))
+  collectionId       String
+  collection         Collection    @relation(fields: [collectionId], references: [id])
+  isWhitelisted      Boolean
+  wlStartsAt         BigInt?
+  wlEndsAt           BigInt?
+  wlMintPrice        Float?
+  wlMaxMintPerWallet Int?
+  poStartsAt         BigInt
+  poEndsAt           BigInt?
+  poMintPrice        Float
+  poMaxMintPerWallet Int
+  createdAt          DateTime      @default(now())
+  status             LAUNCH_STATUS @default(UNCONFIRMED)
+
+  userLayerId String
+  userLayer   UserLayer @relation(fields: [userLayerId], references: [id])
+
+  launchItems LaunchItem[]
+  wlAddresses WlAddress[]
+  User        User?        @relation(fields: [userId], references: [id])
+  userId      String?
+}
+
+model LaunchItem {
+  id     String             @id @default(dbgenerated("gen_random_uuid()"))
+  status LAUNCH_ITEM_STATUS @default(ACTIVE)
+
+  onHoldUntil DateTime?
+  mintingTxId String?
+
+  launchId      String
+  launch        Launch      @relation(fields: [launchId], references: [id])
+  collectibleId String
+  collectible   Collectible @relation(fields: [collectibleId], references: [id])
+  onHoldBy      String?
+  User          User?       @relation(fields: [onHoldBy], references: [id])
+
+  Order     Order[]
+  purchases Purchase[]
 }
 
 model Purchase {
@@ -123,78 +266,11 @@ model Purchase {
   Order        Order[]
 }
 
-model LaunchItem {
-  id        String             @id @default(dbgenerated("gen_random_uuid()"))
-  launchId  String
-  launch    Launch             @relation(fields: [launchId], references: [id])
-  fileKey   String
-  ipfsUrl   String?
-  metadata  Json?
-  status    LAUNCH_ITEM_STATUS @default(ACTIVE)
-  purchases Purchase[]
-
-  evmAssetId  String?
-  name        String?
-  onHoldUntil DateTime?
-  onHoldBy    String?
-  User        User?     @relation(fields: [onHoldBy], references: [id])
-}
-
-model Launch {
-  id                 String     @id @default(dbgenerated("gen_random_uuid()"))
-  collectionId       String
-  collection         Collection @relation(fields: [collectionId], references: [id])
-  isWhitelisted      Boolean
-  wlStartsAt         BigInt?
-  wlEndsAt           BigInt?
-  wlMintPrice        Float?
-  wlMaxMintPerWallet Int?
-  poStartsAt         BigInt     @default(0)
-  poEndsAt           BigInt?
-  poMintPrice        Float
-  poMaxMintPerWallet Int
-  createdAt          DateTime   @default(now())
-
-  ownerId     String?
-  owner       User?         @relation(fields: [ownerId], references: [id])
-  launchItems LaunchItem[]
-  wlAddresses WlAddress[]
-}
-
 model WlAddress {
   id       String @id @default(dbgenerated("gen_random_uuid()"))
   launchId String
   launch   Launch @relation(fields: [launchId], references: [id])
   address  String
-}
-
-model Trait {
-  id                String             @id @default(dbgenerated("gen_random_uuid()"))
-  name              String
-  collectibleTraits CollectibleTrait[]
-}
-
-model CollectibleTrait {
-  id            String      @id @default(dbgenerated("gen_random_uuid()"))
-  collectibleId String
-  collectible   Collectible @relation(fields: [collectibleId], references: [id])
-  traitId       String
-  trait         Trait       @relation(fields: [traitId], references: [id])
-  value         String
-  rarity        Float
-}
-
-model Collectible {
-  id           String             @id @default(dbgenerated("gen_random_uuid()"))
-  name         String?
-  collectionId String
-  collection   Collection         @relation(fields: [collectionId], references: [id])
-  uniqueIdx    String
-  fileKey      String?
-  createdAt    DateTime           @default(now())
-  txid         String?
-  traits       CollectibleTrait[]
-  list         List[]
 }
 
 model List {
@@ -216,10 +292,9 @@ model List {
 }
 
 enum ORDER_TYPE {
-  TOKEN
-  COLLECTIBLE
-  COLLECTION
-  LAUNCH
+  MINT_COLLECTIBLE
+  MINT_RECURSIVE_COLLECTIBLE
+  LAUNCH_BUY
 }
 
 enum ORDER_STATUS {
@@ -227,6 +302,11 @@ enum ORDER_STATUS {
   IN_QUEUE
   DONE
   EXPIRED
+}
+
+enum ORDER_ITEM_TYPE {
+  COLLECTIBLE
+  TRAIT
 }
 
 enum ORDER_ITEM_STATUS {
@@ -237,20 +317,38 @@ enum ORDER_ITEM_STATUS {
   FAILED
 }
 
-enum COLLECTION_TYPE {
+enum COLLECTION_STATUS {
   UNCONFIRMED
-  LAUNCHED
-  MINTED
+  CONFIRMED
 }
 
-enum LIST_STATUS {
-  PENDING
+enum COLLECTION_TYPE {
+  INSCRIPTION
+  RECURSIVE_INSCRIPTION
+  IPFS
+  SYNTHETIC
+}
+
+enum COLLECTIBLE_STATUS {
+  UNCONFIRMED
+  CONFIRMED
+  BURNED
+  LOCKED
+}
+
+enum LAUNCH_STATUS {
+  UNCONFIRMED
+  CONFIRMED
+}
+
+enum LAUNCH_ITEM_STATUS {
   ACTIVE
   SOLD
   CANCELLED
 }
 
-enum LAUNCH_ITEM_STATUS {
+enum LIST_STATUS {
+  PENDING
   ACTIVE
   SOLD
   CANCELLED

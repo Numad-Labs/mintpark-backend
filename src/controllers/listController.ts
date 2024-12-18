@@ -27,9 +27,12 @@ export const listController = {
     next: NextFunction
   ) => {
     try {
-      const { initialOwner } = req.body;
+      const { initialOwner, marketplaceFee } = req.body;
       const unsignedTx =
-        await marketplaceService.getUnsignedDeploymentTransaction(initialOwner);
+        await marketplaceService.getUnsignedDeploymentTransaction(
+          initialOwner,
+          marketplaceFee
+        );
 
       // Serialize BigInt values before sending the response
       const serializedTx = serializeBigInt(unsignedTx);
@@ -44,27 +47,46 @@ export const listController = {
     next: NextFunction
   ) => {
     try {
-      const { collectionId } = req.body;
+      const { collectionId, layerId } = req.body;
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
-      const user = await userRepository.getById(req.user.id);
+      if (!layerId) throw new CustomError("Please provide a layerId.", 400);
+      const user = await userRepository.getByIdAndLayerId(req.user.id, layerId);
       if (!user) throw new CustomError("User not found", 400);
       if (!collectionId)
         throw new CustomError("Please provide a collectionId.", 400);
-
       const collection = await collectionRepository.getById(db, collectionId);
       if (!collection || !collection.contractAddress)
         throw new CustomError("Please provide a valid collection.", 400);
-
       const unsignedTx = await tradingService.getUnsignedApprovalTransaction(
         collection.contractAddress,
         user?.address
       );
       const serializedTx = serializeBigInt(unsignedTx);
-
       return res
         .status(200)
         .json({ success: true, data: { approveTxHex: serializedTx } });
+    } catch (e) {
+      next(e);
+    }
+  },
+  checkRegistration: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { collectionAddress } = req.body;
+      if (!req.user?.id)
+        throw new CustomError("Could not retrieve id from the token.", 400);
+      const issuerId = req.user.id; // Assuming you have auth middleware
+
+      const result = await listServices.checkAndPrepareRegistration(
+        collectionAddress,
+        issuerId
+      );
+
+      res.status(200).json({ success: true, data: result });
     } catch (e) {
       next(e);
     }
@@ -82,14 +104,12 @@ export const listController = {
         throw new CustomError("Please provide a collectibleId.", 400);
       if (!collectibleId || (price > MAX_SATOSHI_AMOUNT && price <= 0))
         throw new CustomError("Invalid price amount.", 400);
-
       const list = await listServices.listCollectible(
         price,
         collectibleId,
         req.user.id,
         txid
       );
-
       return res.status(200).json({ success: true, data: { list } });
     } catch (e) {
       next(e);
@@ -105,7 +125,6 @@ export const listController = {
       const { txid, vout, inscribedAmount } = req.body;
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
-
       const list = await listServices.confirmPendingList(
         id,
         txid,
@@ -113,31 +132,30 @@ export const listController = {
         inscribedAmount,
         req.user.id
       );
-
       return res.status(200).json({ success: true, data: { list } });
     } catch (e) {
       next(e);
     }
   },
-  generatePsbtHexToBuyListedCollectible: async (
+  generateTxHexToBuyListedCollectible: async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {
     try {
       const { id } = req.params;
-      let { feeRate } = req.body;
+      let { feeRate, layerId } = req.body;
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
+      if (layerId) throw new CustomError("Invalid layerId.", 400);
       if (feeRate < 1) throw new CustomError("Invalid fee rate.", 400);
       if (!feeRate) feeRate = 1;
-
-      const txHex = await listServices.generateBuyPsbtHex(
+      const txHex = await listServices.generateBuyTxHex(
         id,
+        layerId,
         feeRate,
         req.user.id
       );
-
       return res.status(200).json({ success: true, data: { txHex } });
     } catch (e) {
       next(e);
@@ -153,14 +171,12 @@ export const listController = {
       const { hex, txid } = req.body;
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
-
       const result = await listServices.buyListedCollectible(
         id,
         hex,
         req.user.id,
         txid
       );
-
       return res.status(200).json({
         success: true,
         data: { confirmedList: result.confirmedList, txid: result.txid },
@@ -169,27 +185,25 @@ export const listController = {
       next(e);
     }
   },
-  getEstimatedFee: async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      const { id } = req.params;
-      let { feeRate } = req.body;
-      if (feeRate < 1) throw new CustomError("Invalid fee rate.", 400);
-      if (!feeRate) feeRate = 1;
-
-      const estimation = await listServices.estimateFee(id, feeRate);
-
-      return res.status(200).json({
-        success: true,
-        data: {
-          estimation,
-        },
-      });
-    } catch (e) {
-      next(e);
-    }
-  },
+  // getEstimatedFee: async (
+  //   req: AuthenticatedRequest,
+  //   res: Response,
+  //   next: NextFunction
+  // ) => {
+  //   try {
+  //     const { id } = req.params;
+  //     let { feeRate } = req.body;
+  //     if (feeRate < 1) throw new CustomError("Invalid fee rate.", 400);
+  //     if (!feeRate) feeRate = 1;
+  //     const estimation = await listServices.estimateFee(id, feeRate);
+  //     return res.status(200).json({
+  //       success: true,
+  //       data: {
+  //         estimation,
+  //       },
+  //     });
+  //   } catch (e) {
+  //     next(e);
+  //   }
+  // },
 };

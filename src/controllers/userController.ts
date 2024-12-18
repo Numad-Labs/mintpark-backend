@@ -7,7 +7,6 @@ import { userServices } from "../services/userServices";
 import { CustomError } from "../exceptions/CustomError";
 import { AuthenticatedRequest } from "../../custom";
 import { hideSensitiveData } from "../libs/hideDataHelper";
-import logger from "../config/winston";
 import { JsonWebTokenError, TokenExpiredError } from "jsonwebtoken";
 
 export const userController = {
@@ -39,19 +38,84 @@ export const userController = {
           400
         );
 
-      const { user, tokens } = await userServices.login(
+      const { user, tokens, userLayer } = await userServices.login(
         address,
-        pubkey,
         signedMessage,
-        layerId
+        layerId,
+        pubkey
       );
 
       return res.status(200).json({
         success: true,
         data: {
           user: user,
+          userLayer,
           auth: tokens,
         },
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
+  linkAccount: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const { address, signedMessage, pubkey, layerId } = req.body;
+
+    try {
+      if (!address || !signedMessage || !layerId)
+        throw new CustomError(
+          "Please provide a wallet address, signedMessage and layerId.",
+          400
+        );
+      if (!req.user?.id)
+        throw new CustomError("Could not parse id from the token.", 401);
+
+      const result = await userServices.linkAccount(
+        req.user.id,
+        address,
+        signedMessage,
+        layerId,
+        pubkey
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
+  linkAccountToAnotherUser: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const { address, signedMessage, pubkey, layerId } = req.body;
+
+    try {
+      if (!address || !signedMessage || !layerId)
+        throw new CustomError(
+          "Please provide a wallet address, signedMessage and layerId.",
+          400
+        );
+      if (!req.user?.id)
+        throw new CustomError("Could not parse id from the token.", 401);
+
+      const result = await userServices.linkAccountToAnotherUser(
+        req.user.id,
+        address,
+        signedMessage,
+        layerId,
+        pubkey
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: result,
       });
     } catch (e) {
       next(e);
@@ -80,78 +144,57 @@ export const userController = {
         });
 
       if (e instanceof JsonWebTokenError)
-        return res
-          .status(401)
-          .json({
-            success: false,
-            data: null,
-            error: "Invalid refresh token.",
-          });
+        return res.status(401).json({
+          success: false,
+          data: null,
+          error: "Invalid refresh token.",
+        });
 
       next(e);
     }
   },
-  update: async (
+  getByUserLayerId: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const { userLayerId } = req.params;
+
+    try {
+      const user = await userRepository.getByUserLayerId(userLayerId);
+
+      if (user?.id !== req.user?.id)
+        throw new CustomError("You are not allowed to fetch this data.", 400);
+      if (!user?.isActive)
+        throw new CustomError("This account is deactivated.", 400);
+      if (!user) return res.status(200).json({ success: true, data: null });
+
+      return res.status(200).json({ success: true, data: { user } });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getAccountsByUserId: async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {
     const { id } = req.params;
-    const data: Updateable<User> = { ...req.body };
 
     try {
-      if (!req.user?.id)
-        throw new CustomError("Could not retrieve id from the token.", 400);
+      if (req.user?.id !== id)
+        throw new CustomError("You are not allowed to fetch this data.", 400);
 
-      const user = await userServices.update(id, data, req.user.id);
+      const accounts = await userRepository.getActiveAccountsByUserId(id);
+      if (accounts.length)
+        return res.status(200).json({ success: true, data: null });
 
-      return res.status(200).json({ success: true, data: user });
-    } catch (e) {
-      next(e);
-    }
-  },
-  delete: async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    const { id } = req.params;
-
-    try {
-      if (!req.user?.id)
-        throw new CustomError("Could not retrieve id from the token.", 400);
-
-      const user = await userServices.delete(id, req.user.id);
-
-      return res.status(200).json({ success: true, data: user });
-    } catch (e) {
-      next(e);
-    }
-  },
-  getById: async (req: Request, res: Response, next: NextFunction) => {
-    const { id } = req.params;
-
-    try {
-      const user = await userRepository.getById(id);
-      if (!user) return res.status(200).json({ success: true, data: null });
-
-      const sanitizedUser = await hideSensitiveData(user, ["pubkey", "xpub"]);
-
-      return res.status(200).json({ success: true, data: sanitizedUser });
-    } catch (e) {
-      next(e);
-    }
-  },
-  getByAddress: async (req: Request, res: Response, next: NextFunction) => {
-    const { address } = req.body;
-
-    try {
-      const user = await userRepository.getByAddress(address);
-      if (!user) return res.status(200).json({ success: true, data: null });
-
-      const sanitizedUser = await hideSensitiveData(user, ["pubkey", "xpub"]);
-
-      return res.status(200).json({ success: true, data: sanitizedUser });
+      return res.status(200).json({
+        success: true,
+        data: {
+          accounts,
+        },
+      });
     } catch (e) {
       next(e);
     }

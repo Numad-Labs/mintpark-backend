@@ -6,6 +6,8 @@ import LaunchpadService from "../services/launchpadService";
 import { serializeBigInt } from "../utils";
 import { ethers } from "ethers";
 import { db } from "../../../src/utils/db";
+import { Insertable } from "kysely";
+import { Collectible } from "../../../src/types/db/types";
 // import { Launch } from "@prisma/client";
 // import { LaunchItem, Timestamp } from "../../../src/types/db/types";
 type LAUNCH_ITEM_STATUS = "ACTIVE" | "ON_HOLD" | "SOLD" | "CANCELLED";
@@ -170,13 +172,20 @@ export const getLaunchpadMintTransaction = async (
     throw new Error("Launch not found");
   }
 
-  const launchItems = await getLaunchItems(launchId);
-  if (launchItems.length === 0) {
-    throw new Error("No items found for this launch");
-  }
+  //TODO: FIX DG
+  // const launchItems = await getLaunchItems(launchId);
+  // if (launchItems.length === 0) {
+  //   throw new Error("No items found for this launch");
+  // }
+
+  const pickedCollectible: Insertable<Collectible> = {
+    name: "",
+    collectionId: "",
+  };
 
   const unsignedTx = await launchPadService.getUnsignedLaunchMintTransaction(
-    launchItems,
+    /* launchItems, */
+    pickedCollectible,
     buyer,
     collectionAddress,
     db

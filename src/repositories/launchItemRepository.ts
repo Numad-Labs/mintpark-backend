@@ -60,57 +60,57 @@ export const launchItemRepository = {
 
     return launchItems;
   },
-  getByCollectionId: async (collectionId: string) => {
-    const launchItems = await db
-      .selectFrom("LaunchItem")
-      .innerJoin("Launch", "LaunchItem.launchId", "Launch.id")
-      .innerJoin("Collection", "Launch.collectionId", "Collection.id")
-      .select([
-        "LaunchItem.id",
-        "LaunchItem.launchId",
-        "LaunchItem.fileKey",
-        "LaunchItem.metadata",
-        "LaunchItem.status",
-        "Launch.id as launchId",
-        "Launch.collectionId as collectionId",
-        "Collection.name as collectionName",
-        "Collection.creator as collectionCreator",
-        "Collection.description as collectionDescription",
-        "Collection.logoKey as collectionLogoKey",
-        "Collection.layerId as layerId",
-      ])
-      .where("Launch.collectionId", "=", collectionId)
-      .execute();
+  // getByCollectionId: async (collectionId: string) => {
+  //   const launchItems = await db
+  //     .selectFrom("LaunchItem")
+  //     .innerJoin("Launch", "LaunchItem.launchId", "Launch.id")
+  //     .innerJoin("Collection", "Launch.collectionId", "Collection.id")
+  //     .select([
+  //       "LaunchItem.id",
+  //       "LaunchItem.launchId",
+  //       "LaunchItem.fileKey",
+  //       "LaunchItem.metadata",
+  //       "LaunchItem.status",
+  //       "Launch.id as launchId",
+  //       "Launch.collectionId as collectionId",
+  //       "Collection.name as collectionName",
+  //       "Collection.creator as collectionCreator",
+  //       "Collection.description as collectionDescription",
+  //       "Collection.logoKey as collectionLogoKey",
+  //       "Collection.layerId as layerId",
+  //     ])
+  //     .where("Launch.collectionId", "=", collectionId)
+  //     .execute();
 
-    return launchItems;
-  },
-  getActiveLaunchItems: async (collectionId: string) => {
-    const launchItems = await db
-      .selectFrom("LaunchItem")
-      .innerJoin("Launch", "LaunchItem.launchId", "Launch.id")
-      .innerJoin("Collection", "Launch.collectionId", "Collection.id")
-      .select([
-        "LaunchItem.id",
-        "LaunchItem.launchId",
-        "LaunchItem.name",
-        "LaunchItem.evmAssetId",
-        "LaunchItem.fileKey",
-        "LaunchItem.metadata",
-        "LaunchItem.status",
-        "Launch.id as launchId",
-        "Launch.collectionId as collectionId",
-        "Collection.name as collectionName",
-        "Collection.creator as collectionCreator",
-        "Collection.description as collectionDescription",
-        "Collection.logoKey as collectionLogoKey",
-        "Collection.layerId as layerId",
-      ])
-      .where("Launch.collectionId", "=", collectionId)
-      .where("LaunchItem.status", "=", "ACTIVE")
-      .execute();
+  //   return launchItems;
+  // },
+  // getActiveLaunchItems: async (collectionId: string) => {
+  //   const launchItems = await db
+  //     .selectFrom("LaunchItem")
+  //     .innerJoin("Launch", "LaunchItem.launchId", "Launch.id")
+  //     .innerJoin("Collection", "Launch.collectionId", "Collection.id")
+  //     .select([
+  //       "LaunchItem.id",
+  //       "LaunchItem.launchId",
+  //       "LaunchItem.name",
+  //       "LaunchItem.evmAssetId",
+  //       "LaunchItem.fileKey",
+  //       "LaunchItem.metadata",
+  //       "LaunchItem.status",
+  //       "Launch.id as launchId",
+  //       "Launch.collectionId as collectionId",
+  //       "Collection.name as collectionName",
+  //       "Collection.creator as collectionCreator",
+  //       "Collection.description as collectionDescription",
+  //       "Collection.logoKey as collectionLogoKey",
+  //       "Collection.layerId as layerId",
+  //     ])
+  //     .where("Launch.collectionId", "=", collectionId)
+  //     .where("LaunchItem.status", "=", "ACTIVE")
+  //     .execute();
 
-    return launchItems;
-  },
+  //   return launchItems;
+  // },
   getRandomItemByLauchId: async (launchId: string) => {
     const launchItem = await db
       .selectFrom("LaunchItem")

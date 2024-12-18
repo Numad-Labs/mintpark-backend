@@ -1,6 +1,5 @@
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
-import { estimateBuyPsbtRequiredAmount } from "../../blockchain/utxo/calculateRequiredAmount";
 import {
   generateBuyPsbtHex,
   validateSignAndBroadcastBuyPsbtHex,
@@ -21,19 +20,10 @@ import { ethers } from "ethers";
 import NFTService from "../../blockchain/evm/services/nftService";
 import { serializeBigInt } from "../../blockchain/evm/utils";
 import { collectionRepository } from "../repositories/collectionRepository";
-import {
-  BaseTransactionOptions,
-  createThirdwebClient,
-  defineChain,
-  getContract,
-  readContract,
-} from "thirdweb";
-import { config } from "../config/config";
-import {
-  GetAllValidListingParams,
-  getAllValidListings,
-} from "thirdweb/extensions/marketplace";
+
 import { db } from "../utils/db";
+import { launchRepository } from "../repositories/launchRepository";
+import { merkleService } from "../../blockchain/evm/services/merkleTreeService";
 
 // import MarketplaceService from "./marketplaceService";
 const marketplaceService = new MarketplaceService(
@@ -50,15 +40,50 @@ const nftService = new NFTService(
 );
 
 export const listServices = {
+  checkAndPrepareRegistration: async (
+    collectionAddress: string,
+    issuerId: string
+  ) => {
+    const issuer = await userRepository.getById(issuerId);
+    if (!issuer) throw new CustomError("User not found.", 400);
+
+    // Check if collection is registered
+    let isRegistered = false;
+    try {
+      const collectionConfig = await marketplaceService.getCollectionConfig(
+        collectionAddress
+      );
+      isRegistered = collectionConfig?.isActive || false;
+    } catch (error) {
+      // Collection not registered - this is expected
+      isRegistered = false;
+    }
+
+    if (!isRegistered) {
+      // Prepare registration transaction
+      const registerTx = await marketplaceService.registerCollectionTransaction(
+        collectionAddress,
+        EVM_CONFIG.DEFAULT_PUBLIC_MAX_MINT,
+        issuer.address
+      );
+
+      return {
+        isRegistered: false,
+        registrationTx: serializeBigInt(registerTx),
+      };
+    }
+
+    return {
+      isRegistered: true,
+    };
+  },
+
   listCollectible: async (
     price: number,
     collectibleId: string,
     issuerId: string,
     txid?: string
   ) => {
-    const issuer = await userRepository.getById(issuerId);
-    if (!issuer) throw new CustomError("User not found.", 400);
-
     const collectible = await collectibleRepository.getById(collectibleId);
     if (!collectible || !collectible.collectionId)
       throw new CustomError("Collectible not found.", 400);
@@ -67,20 +92,37 @@ export const listServices = {
       db,
       collectible?.collectionId
     );
+    if (!collection) throw new CustomError("Collectible not found.", 400);
 
-    if (!collectible) throw new CustomError("Collectible not found.", 400);
+    const issuer = await userRepository.getByIdAndLayerId(
+      issuerId,
+      collection.layerId
+    );
+    if (!issuer) throw new CustomError("User not found.", 400);
 
     let list;
 
     return await db.transaction().execute(async (trx) => {
       if (collectible.layer === "CITREA") {
-        const marketplaceContract =
-          await marketplaceService.getEthersMarketplaceContract();
-        if (!marketplaceContract) {
-          throw new Error("Could not find marketplace contract.");
-        }
         if (!collection || !collection.contractAddress)
           throw new CustomError("Contract address not found.", 400);
+
+        try {
+          const collectionConfig = await marketplaceService.getCollectionConfig(
+            collection.contractAddress
+          );
+          if (!collectionConfig?.isActive) {
+            throw new CustomError(
+              "Collection not registered. Please register collection first.",
+              400
+            );
+          }
+        } catch (error) {
+          throw new CustomError(
+            "Collection not registered. Please register collection first.",
+            400
+          );
+        }
 
         const signer = await nftService.provider.getSigner();
         const nftContract = new ethers.Contract(
@@ -106,22 +148,30 @@ export const listServices = {
             );
           }
         }
+
+        if (!collectible.uniqueIdx)
+          throw new CustomError(
+            "Collectible with no unique index cannot be listed.",
+            400
+          );
         const tokenId = collectible.uniqueIdx.split("i")[1];
 
         // Create listing transaction
-        const unsignedTx =
-          await marketplaceContract.listItem.populateTransaction(
+        const createListingTx =
+          await marketplaceService.createListingTransaction(
             collection.contractAddress,
             tokenId,
-            ethers.parseEther(price.toString())
+            price.toString(),
+            issuer.address
           );
 
-        const preparedListingTx = await nftService.prepareUnsignedTransaction(
-          unsignedTx,
-          issuer.address
-        );
+        // const preparedListingTx = await nftService.prepareUnsignedTransaction(
+        //   createListingTx,
+        //   issuer.address
+        // );
 
-        const serializedTx = serializeBigInt(preparedListingTx);
+        const serializedTx = serializeBigInt(createListingTx);
+
         list = await listRepository.create(trx, {
           collectibleId: collectible.id,
           sellerId: issuer.id,
@@ -139,6 +189,11 @@ export const listServices = {
 
         return { sanitizedList, preparedListingTx: serializedTx };
       } else if (collectible.layer === "FRACTAL") {
+        if (!collectible.uniqueIdx)
+          throw new CustomError(
+            "Collectible with no unique index cannot be listed.",
+            400
+          );
         const inscription = await getInscriptionInfo(collectible.uniqueIdx);
         if (!inscription)
           throw new CustomError(
@@ -230,6 +285,11 @@ export const listServices = {
 
         return sanitizedList;
       } else if (list.layer === "FRACTAL") {
+        if (!list.uniqueIdx)
+          throw new CustomError(
+            "Collectible with no unique index cannot be listed.",
+            400
+          );
         const inscription = await getInscriptionInfo(list.uniqueIdx);
         if (!inscription)
           throw new CustomError(
@@ -263,51 +323,111 @@ export const listServices = {
       return sanitizedList;
     });
   },
-  generateBuyPsbtHex: async (id: string, feeRate: number, issuerId: string) => {
+  generateBuyTxHex: async (
+    id: string,
+    layerId: string,
+    feeRate: number,
+    issuerId: string
+  ) => {
     const list = await listRepository.getById(id);
     if (!list) throw new CustomError("No list found.", 400);
     if (list.status !== "ACTIVE")
       throw new CustomError("This list is could not be bought.", 400);
 
-    const seller = await userRepository.getById(list.sellerId);
+    const seller = await userRepository.getByIdAndLayerId(
+      list.sellerId,
+      layerId
+    );
     if (!seller) throw new CustomError("Seller not found.", 400);
 
-    const buyer = await userRepository.getById(issuerId);
+    const buyer = await userRepository.getByIdAndLayerId(issuerId, layerId);
     if (!buyer) throw new CustomError("User not found.", 400);
     // if (buyer.address === seller.address)
     //   throw new CustomError("You cannot buy your own listing.", 400);
 
     if (list.layer === "CITREA") {
-      const marketplaceContract =
-        await marketplaceService.getEthersMarketplaceContract();
-
       const collectible = await collectibleRepository.getById(
         list.collectibleId
       );
       if (!collectible) throw new CustomError("Collectible not found", 400);
+      if (!collectible.uniqueIdx)
+        throw new CustomError(
+          "Collectible with no unique index cannot be listed.",
+          400
+        );
 
-      const listingData = await marketplaceContract.getListing(
-        collectible.uniqueIdx.split("i")[0],
-        collectible.uniqueIdx.split("i")[1]
+      const collection = await collectionRepository.getById(
+        db,
+        collectible.collectionId
       );
-      if (!listingData.isActive) {
-        throw new CustomError("Listing no longer active", 400);
+      if (!collection || !collection.contractAddress)
+        throw new CustomError("Collection not found", 400);
+
+      // Get current phase and verify purchase eligibility
+      const currentPhase = await marketplaceService.getCurrentPhase(
+        collection.contractAddress
+      );
+
+      // const listingData = await marketplaceContract.getListing(
+      //   collectible.uniqueIdx.split("i")[0],
+      //   collectible.uniqueIdx.split("i")[1]
+      // );
+      // if (!listingData.isActive) {
+      //   throw new CustomError("Listing no longer active", 400);
+      // }
+
+      // const txHex = await marketplaceContract.buyItem.populateTransaction(
+      //   collectible.uniqueIdx.split("i")[0], // NFT contract
+      //   collectible.uniqueIdx.split("i")[1], // token ID
+      //   {
+      //     value: ethers.parseEther(list.price.toString()),
+      //   }
+      // );
+
+      // const unsignedHex = await nftService.prepareUnsignedTransaction(
+      //   txHex,
+      //   buyer.address
+      // );
+      if (currentPhase === 1) {
+        // Whitelist phase
+        const launch = await launchRepository.getByCollectionId(
+          collectible.collectionId
+        );
+        if (!launch) throw new CustomError("Launch not found", 400);
+
+        const proof = await merkleService.getMerkleProof(
+          launch.id,
+          buyer.address
+        );
+        const isWhitelisted = await merkleService.isAddressWhitelisted(
+          launch.id,
+          buyer.address
+        );
+
+        if (!isWhitelisted) {
+          throw new CustomError("Address not whitelisted", 403);
+        }
+        return serializeBigInt(
+          await marketplaceService.buyListingTransaction(
+            parseInt(collectible.uniqueIdx.split("i")[1]),
+            proof,
+            list.price.toString(),
+            buyer.address
+          )
+        );
+      } else {
+        // FCFS or Public phase - no merkle proof needed
+        return serializeBigInt(
+          await marketplaceService.buyListingTransaction(
+            parseInt(collectible.uniqueIdx.split("i")[1]),
+            [],
+            list.price.toString(),
+            buyer.address
+          )
+        );
       }
 
-      const txHex = await marketplaceContract.buyItem.populateTransaction(
-        collectible.uniqueIdx.split("i")[0], // NFT contract
-        collectible.uniqueIdx.split("i")[1], // token ID
-        {
-          value: ethers.parseEther(list.price.toString()),
-        }
-      );
-
-      const unsignedHex = await nftService.prepareUnsignedTransaction(
-        txHex,
-        buyer.address
-      );
-
-      return serializeBigInt(unsignedHex);
+      // return serializeBigInt(unsignedHex);
     } else if (list.layer === "FRACTAL") {
       if (!list.inscribedAmount)
         throw new CustomError("Invalid inscribed amount.", 400);
@@ -340,37 +460,38 @@ export const listServices = {
       return txHex;
     } else throw new CustomError("Unsupported layer.", 400);
   },
-  updateListedCollectible: async (id: string, issuerId: string) => {
-    const list = await listRepository.getById(id);
-    if (!list) throw new CustomError("No list found.", 400);
-    const buyer = await userRepository.getById(issuerId);
-    if (!buyer) throw new CustomError("User not found.", 400);
-    const marketplaceContract =
-      await marketplaceService.getEthersMarketplaceContract();
+  // updateListedCollectible: async (id: string, issuerId: string) => {
+  //   const list = await listRepository.getById(id);
+  //   if (!list) throw new CustomError("No list found.", 400);
+  //   const buyer = await userRepository.getById(issuerId);
+  //   if (!buyer) throw new CustomError("User not found.", 400);
+  //   const marketplaceContract =
+  //     await marketplaceService.getEthersMarketplaceContract();
 
-    const txHex = await marketplaceContract.buyFromListing.populateTransaction(
-      list.uniqueIdx.split("i")[1],
-      buyer.address,
-      1,
-      ethers.ZeroAddress, // ETH as currency
-      ethers.parseEther(list.price.toString()) // Price from metadata
-    );
-    const unsignedHex = await nftService.prepareUnsignedTransaction(
-      txHex,
-      buyer.address
-    );
+  //   const txHex = await marketplaceContract.buyFromListing.populateTransaction(
+  //     list.uniqueIdx.split("i")[1],
+  //     buyer.address,
+  //     1,
+  //     ethers.ZeroAddress, // ETH as currency
+  //     ethers.parseEther(list.price.toString()) // Price from metadata
+  //   );
+  //   const unsignedHex = await nftService.prepareUnsignedTransaction(
+  //     txHex,
+  //     buyer.address
+  //   );
 
-    const serializedTx = serializeBigInt(unsignedHex);
+  //   const serializedTx = serializeBigInt(unsignedHex);
 
-    return serializedTx;
-  },
+  //   return serializedTx;
+  // },
   buyListedCollectible: async (
     id: string,
+    layerId: string,
     hex: string,
     issuerId: string,
     txid?: string
   ) => {
-    const buyer = await userRepository.getById(issuerId);
+    const buyer = await userRepository.getByIdAndLayerId(issuerId, layerId);
     if (!buyer) throw new CustomError("User not found.", 400);
 
     const list = await listRepository.getById(id);
@@ -378,7 +499,10 @@ export const listServices = {
     if (list.status !== "ACTIVE")
       throw new CustomError("This list is could not be bought.", 400);
 
-    const seller = await userRepository.getById(issuerId);
+    const seller = await userRepository.getByIdAndLayerId(
+      list.sellerId,
+      layerId
+    );
     if (!seller) throw new CustomError("Seller not found.", 400);
 
     return await db.transaction().execute(async (trx) => {
@@ -394,7 +518,7 @@ export const listServices = {
         }
         const confirmedList = await listRepository.update(trx, list.id, {
           status: "SOLD",
-          soldAt: new Date(),
+          soldAt: new Date().toISOString(),
         });
         const buyTxId = txid;
         return { txid: buyTxId, confirmedList };
@@ -409,25 +533,25 @@ export const listServices = {
 
         const confirmedList = await listRepository.update(trx, list.id, {
           status: "SOLD",
-          soldAt: new Date(),
+          soldAt: new Date().toISOString(),
         });
 
         return { txid: buyTxId, confirmedList };
       } else throw new CustomError("Unsupported layer.", 400);
     });
   },
-  estimateFee: async (id: string, feeRate: number) => {
-    const list = await listRepository.getById(id);
-    if (!list) throw new CustomError("Listing not found.", 400);
+  // estimateFee: async (id: string, feeRate: number) => {
+  //   const list = await listRepository.getById(id);
+  //   if (!list) throw new CustomError("Listing not found.", 400);
 
-    const inscribedAmount = list.inscribedAmount || 546;
+  //   const inscribedAmount = list.inscribedAmount || 546;
 
-    const estimation = await estimateBuyPsbtRequiredAmount(
-      list.price,
-      inscribedAmount,
-      feeRate
-    );
+  //   const estimation = await estimateBuyPsbtRequiredAmount(
+  //     list.price,
+  //     inscribedAmount,
+  //     feeRate
+  //   );
 
-    return estimation;
-  },
+  //   return estimation;
+  // },
 };

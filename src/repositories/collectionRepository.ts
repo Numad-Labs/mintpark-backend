@@ -84,15 +84,15 @@ export const collectionRepository = {
 
     return collection;
   },
-  getUnconfirmedCollections: async () => {
-    const collections = await db
-      .selectFrom("Collection")
-      .selectAll()
-      .where("Collection.type", "=", "UNCONFIRMED")
-      .execute();
+  // getUnconfirmedCollections: async () => {
+  //   const collections = await db
+  //     .selectFrom("Collection")
+  //     .selectAll()
+  //     .where("Collection.type", "=", "UNCONFIRMED")
+  //     .execute();
 
-    return collections;
-  },
+  //   return collections;
+  // },
   getAllLaunchedCollectionsByLayerId: async ({
     layerId,
     interval,
@@ -106,7 +106,6 @@ export const collectionRepository = {
       .select((eb) => [
         "Collection.id",
         "Collection.name",
-        "Collection.creator",
         "Collection.description",
         "Collection.type",
         "Collection.logoKey",
@@ -135,7 +134,7 @@ export const collectionRepository = {
         ), 0)`.as("supply"),
       ])
       .where("Collection.layerId", "=", layerId)
-      .where("Collection.type", "!=", "UNCONFIRMED")
+      .where("Collection.status", "!=", "UNCONFIRMED")
       .where("Launch.id", "is not", null);
 
     if (interval !== "all") {
@@ -181,11 +180,11 @@ export const collectionRepository = {
       .select([
         "Collection.id",
         "Collection.name",
-        "Collection.creator",
         "Collection.description",
         "Collection.type",
         "Collection.logoKey",
         "Collection.layerId",
+        "Collection.status",
         "Launch.id as launchId",
         "Launch.wlStartsAt",
         "Launch.wlEndsAt",
@@ -295,7 +294,6 @@ export const collectionRepository = {
       .select(({ eb }) => [
         "Collection.id",
         "Collection.name",
-        "Collection.creator",
         "Collection.description",
         "Collection.supply",
         "Collection.type",
@@ -317,7 +315,7 @@ export const collectionRepository = {
         "Collection.slug",
       ])
       .where("Collection.layerId", "=", params.layerId)
-      .where("Collection.type", "=", "MINTED");
+      .where("Collection.status", "=", "CONFIRMED");
 
     const direction = params.orderDirection === "lowest" ? "asc" : "desc";
     if (params.orderBy && params.orderDirection) {
@@ -381,7 +379,6 @@ export const collectionRepository = {
       .select(({ eb }) => [
         "Collection.id",
         "Collection.name",
-        "Collection.creator",
         "Collection.description",
         "Collection.supply",
         "Collection.type",
@@ -401,7 +398,7 @@ export const collectionRepository = {
         "Collection.inscriptionIcon",
         "Collection.slug",
       ])
-      .where("Collection.type", "=", "MINTED")
+      .where("Collection.status", "=", "CONFIRMED")
       .where("Collection.id", "=", id)
       .executeTakeFirst();
 
@@ -431,14 +428,14 @@ export const collectionRepository = {
 
     return collections;
   },
-  getCollectionsByLayer: async (layer: LAYER) => {
+  getCollectionsByLayer: async (layerId: string) => {
     let collections = db
       .selectFrom("Collection")
       .innerJoin("Layer", "Layer.id", "Collection.layerId")
       .selectAll()
-      .where("Layer.layer", "=", layer)
+      .where("Layer.id", "=", layerId)
       .where("Collection.contractAddress", "is not", null)
-      .where("Collection.type", "=", "MINTED")
+      .where("Collection.status", "=", "CONFIRMED")
       .execute();
 
     return collections;
@@ -463,6 +460,16 @@ export const collectionRepository = {
       .selectFrom("Collection")
       .selectAll()
       .where("Collection.contractAddress", "=", contractAddress)
+      .executeTakeFirst();
+
+    return collection;
+  },
+  getChildCollectionByParentCollectionId: async (collectionId: string) => {
+    const collection = await db
+      .selectFrom("Collection")
+      .selectAll()
+      .where("Collection.parentCollectionId", "=", collectionId)
+      .where("Collection.type", "=", "SYNTHETIC")
       .executeTakeFirst();
 
     return collection;

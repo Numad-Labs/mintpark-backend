@@ -2,7 +2,7 @@ import { Insertable, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { OrderItem } from "../types/db/types";
 import { create } from "domain";
-import { LAYER, NETWORK } from "../types/db/enums";
+import { LAYER, NETWORK, ORDER_ITEM_TYPE } from "../types/db/enums";
 
 export interface OrderItemDetails {
   id: string;
@@ -53,49 +53,37 @@ export const orderItemRepository = {
 
     return orderItem;
   },
-  getById: async (id: string): Promise<OrderItemDetails | null> => {
+  getById: async (id: string) => {
     const result = await db
       .selectFrom("Order")
       .innerJoin("OrderItem", "Order.id", "OrderItem.orderId")
       .innerJoin("User", "Order.userId", "User.id")
-      .innerJoin("Layer", "User.layerId", "Layer.id")
+      // .innerJoin("Layer", "User.layerId", "Layer.id")
       .select([
         "OrderItem.id as id",
         "OrderItem.orderId as orderId",
         "User.id as userId",
-        "User.address as userAddress",
-        "OrderItem.fileKey",
-        "OrderItem.metadata",
-        "OrderItem.metadata",
-        "OrderItem.ipfsUrl",
         "OrderItem.status",
-        "Layer.id as layerId",
-        "Layer.network",
-        "Layer.layer",
+        "Order.collectionId",
+        "OrderItem.collectibleId",
       ])
       .where("OrderItem.id", "=", id)
       .executeTakeFirst();
 
     return result || null;
   },
-  getByOrderId: async (orderId: string): Promise<OrderItemDetails[]> => {
+  getByOrderId: async (orderId: string) => {
     return await db
       .selectFrom("Order")
       .innerJoin("OrderItem", "Order.id", "OrderItem.orderId")
       .innerJoin("User", "Order.userId", "User.id")
-      .innerJoin("Layer", "User.layerId", "Layer.id")
+      // .innerJoin("Layer", "User.layerId", "Layer.id")
       .select([
         "OrderItem.id as id",
         "OrderItem.orderId as orderId",
         "User.id as userId",
-        "User.address as userAddress",
-        "OrderItem.fileKey",
-        "OrderItem.metadata",
-        "OrderItem.status",
-        "OrderItem.ipfsUrl",
-        "Layer.id as layerId",
-        "Layer.network",
-        "Layer.layer",
+        "Order.collectionId",
+        "OrderItem.collectibleId",
       ])
       .where("Order.id", "=", orderId)
       // .where("OrderItem.status", "=", "MINTED")
@@ -112,7 +100,7 @@ export const orderItemRepository = {
 
     return orderItems;
   },
-  getCountByCollectionId: async (collectionId: string) => {
+  getOrderItemCountByCollectionId: async (collectionId: string) => {
     const result = await db
       .selectFrom("OrderItem")
       .innerJoin("Order", "Order.id", "OrderItem.orderId")
@@ -130,5 +118,18 @@ export const orderItemRepository = {
       .execute();
 
     return orderItems;
+  },
+  getInQueueOrderItemByOrderIdAndType: async (
+    orderId: string,
+    type: ORDER_ITEM_TYPE
+  ) => {
+    const orderItem = await db
+      .selectFrom("OrderItem")
+      .selectAll()
+      .where("OrderItem.status", "=", "IN_QUEUE")
+      .where("OrderItem.type", "=", type)
+      .executeTakeFirst();
+
+    return orderItem;
   },
 };

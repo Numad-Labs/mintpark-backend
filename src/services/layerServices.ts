@@ -53,4 +53,12 @@ export const layerServices = {
 
     return layers;
   },
+  checkIfSupportedLayerOrThrow: async (layerId: string) => {
+    const layer = await layerRepository.getById(layerId);
+    if (!layer) throw new CustomError("Layer not found.", 400);
+    if (layer.layer !== "CITREA" || layer.network !== "TESTNET")
+      throw new CustomError("Unsupported layer.", 400);
+
+    return layer;
+  },
 };
