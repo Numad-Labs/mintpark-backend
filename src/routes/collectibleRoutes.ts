@@ -5,10 +5,10 @@ import { parseFiles } from "../middlewares/fileParser";
 
 const collectibleRouter = Router();
 
-// collectibleRouter.get(
-//   "/:userId/listable",
-//   collectibleControllers.getListableCollectibles
-// );
+collectibleRouter.get(
+  "/:userId/listable",
+  collectibleControllers.getListableCollectibles
+);
 collectibleRouter.get(
   "/:collectionId/collection/listable",
   collectibleControllers.getListableCollectiblesByCollectionId

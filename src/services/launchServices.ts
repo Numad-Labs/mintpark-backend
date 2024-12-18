@@ -617,7 +617,10 @@ export const launchServices = {
       });
 
       await collectibleRepository.update(db, parentCollectible.id, {
-        mintingTxId: mintTxId,
+        lockingAddress: vault.address,
+        lockingPrivateKey: vault.privateKey,
+        mintingTxId: revealTxResult,
+        uniqueIdx: inscriptionId,
         status: "CONFIRMED",
       });
 
@@ -664,6 +667,11 @@ export const launchServices = {
     );
     await collectibleRepository.update(db, parentCollectible.id, {
       status: "CONFIRMED",
+    });
+
+    await purchaseRepository.create(db, {
+      userId: user.id,
+      launchItemId: launchItem.id,
     });
 
     return { launchItem, collectible: parentCollectible };

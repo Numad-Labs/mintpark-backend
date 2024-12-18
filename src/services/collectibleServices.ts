@@ -29,6 +29,7 @@ import { traitValueRepository } from "../repositories/traitValueRepository";
 import { collectibleTraitRepository } from "../repositories/collectibleTraitRepository";
 import { param } from "../routes/userRoutes";
 import { getBalance } from "../blockchain/bitcoin/libs";
+import { userLayerRepository } from "../repositories/userLayerRepository";
 
 const evmCollectibleService = new EVMCollectibleService(EVM_CONFIG.RPC_URL!);
 const confirmationService = new TransactionConfirmationService(
@@ -38,10 +39,12 @@ const confirmationService = new TransactionConfirmationService(
 export const collectibleServices = {
   getListableCollectibles: async (
     userId: string,
-    userLayerId: string,
     params: CollectibleQueryParams
   ) => {
-    const user = await userRepository.getByUserLayerId(userLayerId);
+    if (!params.userLayerId)
+      throw new CustomError("Please provide an userLayerId.", 400);
+
+    const user = await userRepository.getByUserLayerId(params.userLayerId);
     if (!user) throw new CustomError("User not found.", 400);
     if (user.id !== userId) throw new CustomError("User not found.", 400);
     if (!user?.isActive)
