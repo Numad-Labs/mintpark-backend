@@ -183,7 +183,7 @@ export const launchServices = {
           .totalAmount +
         feeRate * (COMMIT_TX_SIZE + REVEAL_TX_SIZE) * totalTraitCount;
       let serviceFee = 0;
-      let totalAmount = networkFee + serviceFee;
+      let totalAmount = networkFee * 1.5 + serviceFee;
 
       order = await orderRepository.create(db, {
         userId: userId,
@@ -436,7 +436,7 @@ export const launchServices = {
 
       const funder = await createFundingAddress("TESTNET");
       const serviceFee = 0;
-      let totalAmount = networkFee + serviceFee;
+      let totalAmount = networkFee * 1.5 + serviceFee;
       order = await orderRepository.create(db, {
         userId: user.id,
         collectionId: launch.collectionId,

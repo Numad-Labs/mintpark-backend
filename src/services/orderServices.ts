@@ -348,7 +348,7 @@ export const orderServices = {
       networkFee = 0;
       mintFee = Math.min(totalFileSize * feeRate, 0.00001);
     }
-    let totalAmount = networkFee + mintFee + serviceFee;
+    let totalAmount = networkFee * 1.5 + mintFee + serviceFee;
 
     let order = await orderRepository.getByCollectionId(collection.id);
     if (order)
