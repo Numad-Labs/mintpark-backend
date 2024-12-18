@@ -31,13 +31,17 @@ import { db } from "../utils/db";
 import { userLayerRepository } from "../repositories/userLayerRepository";
 import { layerServices } from "./layerServices";
 import { traitValueRepository } from "../repositories/traitValueRepository";
-
+import { TransactionValidationService } from "../../blockchain/evm/services/evmTransactionValidationService";
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
   EVM_CONFIG.MARKETPLACE_ADDRESS,
   new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
 );
 const confirmationService = new TransactionConfirmationService(
+  EVM_CONFIG.RPC_URL!
+);
+
+const transactionService = new TransactionValidationService(
   EVM_CONFIG.RPC_URL!
 );
 
