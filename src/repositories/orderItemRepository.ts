@@ -2,8 +2,7 @@ import { Insertable, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { OrderItem } from "../types/db/types";
 import { create } from "domain";
-import { LAYER, NETWORK } from "../types/db/enums";
-import { ORDER_ITEM_TYPE } from "@prisma/client";
+import { LAYER, NETWORK, ORDER_ITEM_TYPE } from "../types/db/enums";
 
 export interface OrderItemDetails {
   id: string;
