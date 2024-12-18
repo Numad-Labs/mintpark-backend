@@ -233,12 +233,18 @@ export const launchController = {
       next(e);
     }
   },
-  getLaunchById: async (req: Request, res: Response, next: NextFunction) => {
+  getLaunchByCollectionId: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
     try {
-      const { id } = req.params;
+      const { collectionId } = req.params;
 
       try {
-        const launch = await launchRepository.getConfirmedLaunchById(id);
+        const launch = await launchRepository.getConfirmedLaunchById(
+          collectionId
+        );
         if (!launch) throw new CustomError("Collection not found", 404);
 
         return res.status(200).json({ success: true, data: launch });

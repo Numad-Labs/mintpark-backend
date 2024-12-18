@@ -2,6 +2,7 @@ import { Insertable, Kysely, sql, Transaction, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { DB, Launch } from "../types/db/types";
 import { LaunchQueryParams } from "./collectionRepository";
+import logger from "../config/winston";
 
 export const launchRepository = {
   create: async (
@@ -73,15 +74,24 @@ export const launchRepository = {
 
     let query = db
       .selectFrom("Launch")
-      .innerJoin("Collection", "Collection.id", "Launch.collectionId")
+      .innerJoin(
+        "Collection as parentCollection",
+        "parentCollection.id",
+        "Launch.collectionId"
+      )
+      .innerJoin(
+        "Collection as childCollection",
+        "childCollection.parentCollectionId",
+        "parentCollection.id"
+      )
       .select((eb) => [
-        "Collection.id",
-        "Collection.name",
-        "Collection.creatorName",
-        "Collection.description",
-        "Collection.type",
-        "Collection.logoKey",
-        "Collection.layerId",
+        "parentCollection.id",
+        "parentCollection.name",
+        "parentCollection.creatorName",
+        "parentCollection.description",
+        "parentCollection.type",
+        "parentCollection.logoKey",
+        "parentCollection.layerId",
         "Launch.id as launchId",
         "Launch.wlStartsAt",
         "Launch.wlEndsAt",
@@ -94,6 +104,7 @@ export const launchRepository = {
         "Launch.isWhitelisted",
         "Launch.createdAt",
         "Launch.status",
+        "childCollection.layerId as ld",
         sql<number>`COALESCE((
               SELECT COUNT(*)::integer
               FROM "LaunchItem"
@@ -106,7 +117,7 @@ export const launchRepository = {
               WHERE "LaunchItem"."launchId" = "Launch"."id"
             ), 0)`.as("supply"),
       ])
-      .where("Collection.layerId", "=", layerId)
+      .where("childCollection.layerId", "=", layerId)
       .where("Launch.status", "=", "CONFIRMED");
 
     if (interval !== "all") {
@@ -144,19 +155,29 @@ export const launchRepository = {
       poEndsAt: Number(collection.poEndsAt),
     }));
   },
-  getConfirmedLaunchById: async (id: string) => {
+  getConfirmedLaunchById: async (collectionId: string) => {
     const collection = await db
       .selectFrom("Launch")
-      .innerJoin("Collection", "Collection.id", "Launch.collectionId")
+      .innerJoin(
+        "Collection as parentCollection",
+        "parentCollection.id",
+        "Launch.collectionId"
+      )
+      .innerJoin(
+        "Collection as childCollection",
+        "childCollection.parentCollectionId",
+        "parentCollection.id"
+      )
       .select([
-        "Collection.id",
-        "Collection.name",
-        "Collection.creatorName",
-        "Collection.description",
-        "Collection.type",
-        "Collection.logoKey",
-        "Collection.layerId",
-        "Collection.status",
+        "parentCollection.id",
+        "parentCollection.name",
+        "parentCollection.creatorName",
+        "parentCollection.description",
+        "parentCollection.type",
+        "parentCollection.logoKey",
+        "parentCollection.layerId",
+        "parentCollection.status",
+        "parentCollection.contractAddress",
         "Launch.id as launchId",
         "Launch.wlStartsAt",
         "Launch.wlEndsAt",
@@ -174,14 +195,13 @@ export const launchRepository = {
         WHERE "LaunchItem"."launchId" = "Launch"."id"
         AND "LaunchItem"."status" = 'SOLD'
       ), 0)`.as("mintedAmount"),
-        "Collection.contractAddress",
         sql<number>`COALESCE((
         SELECT COUNT(*)::integer
         FROM "LaunchItem"
         WHERE "LaunchItem"."launchId" = "Launch"."id"
       ), 0)`.as("supply"),
       ])
-      .where("Launch.id", "=", id)
+      .where("parentCollection.id", "=", collectionId)
       .where("Launch.status", "=", "CONFIRMED")
       .executeTakeFirst();
 
