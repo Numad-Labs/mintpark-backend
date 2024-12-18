@@ -33,9 +33,16 @@ import {
   COMMIT_TX_SIZE,
   REVEAL_TX_SIZE,
 } from "../blockchain/bitcoin/constants";
+import NFTService from "../../blockchain/evm/services/nftService";
 
 const launchPadService = new LaunchpadService(
   EVM_CONFIG.RPC_URL,
+  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
+);
+
+const nftService = new NFTService(
+  EVM_CONFIG.RPC_URL,
+  EVM_CONFIG.MARKETPLACE_ADDRESS,
   new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
 );
 
@@ -502,8 +509,17 @@ export const launchServices = {
         await collectionRepository.getChildCollectionByParentCollectionId(
           collection.id
         );
-      if (!L2Collection)
+      if (
+        !L2Collection ||
+        !L2Collection.contractAddress ||
+        !L2Collection.creatorUserLayerId
+      )
         throw new CustomError("Child collection not found.", 400);
+
+      const creator = await userRepository.getByUserLayerId(
+        L2Collection.creatorUserLayerId
+      );
+      if (!creator) throw new CustomError("Creator not found.", 400);
 
       if (collection.type === "RECURSIVE_INSCRIPTION") {
         //TODO: Validate if all traits of the collection has already been minted or not
@@ -522,8 +538,25 @@ export const launchServices = {
       const revealTxId = "";
       const inscriptionId = revealTxId + "i0";
 
-      const mintTxId = "";
+      let mintTxId = "";
 
+      try {
+        // Mint the NFT with the inscription ID
+        mintTxId = await nftService.mintWithInscriptionId(
+          L2Collection.contractAddress,
+          // parentCollectible.nftId, // Using nftId as batchId
+          creator.address,
+          inscriptionId
+        );
+        // vault.address = fundingService.getVaultAddress();
+
+        if (!mintTxId) {
+          throw new CustomError("Failed to mint NFT with inscription ID", 400);
+        }
+      } catch (error) {
+        logger.error("Error during NFT minting:", error);
+        throw new CustomError(`Failed to mint NFT: ${error}`, 400);
+      }
       await orderRepository.update(db, verification.orderId, {
         orderStatus: "DONE",
       });
