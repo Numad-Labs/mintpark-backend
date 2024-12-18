@@ -34,6 +34,8 @@ import {
   COMMIT_TX_SIZE,
   REVEAL_TX_SIZE,
 } from "../blockchain/bitcoin/constants";
+import { producer } from "..";
+import logger from "../config/winston";
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
   EVM_CONFIG.MARKETPLACE_ADDRESS,
@@ -445,6 +447,8 @@ export const orderServices = {
     }
 
     //TODO: Enqueue orderId to the minting queue,
+    producer.sendMessage(order.id);
+    logger.info(`Enqueued ${order.id} to the SQS`);
     // if collection.type === 'RECURSIVE_INSCRIPTION', then invoke the trait minting first
 
     return { order: updatedOrder };
