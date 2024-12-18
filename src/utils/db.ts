@@ -12,7 +12,7 @@ export const db = new Kysely<DB>({
       host: config.PGHOST,
       user: config.PGUSER,
       password: config.PGPASSWORD,
-      // ssl: true,
+      ssl: true,
     }),
   }),
 });

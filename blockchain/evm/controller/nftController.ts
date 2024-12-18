@@ -4,6 +4,7 @@ import MarketplaceService from "../services/marketplaceService";
 import { EVM_CONFIG } from "../evm-config";
 import { serializeBigInt } from "../utils";
 import { CustomError } from "../../../src/exceptions/CustomError";
+import { config } from "../../../src/config/config";
 
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
@@ -29,9 +30,7 @@ export const getDeploymentTransaction = async (
     }
     const unsignedTx = await nftService.getUnsignedDeploymentTransaction(
       initialOwner,
-      name,
-      symbol,
-      price
+      config.VAULT_ADDRESS
     );
     // Serialize BigInt values before sending the response
     const serializedTx = serializeBigInt(unsignedTx);
@@ -42,33 +41,33 @@ export const getDeploymentTransaction = async (
   }
 };
 
-export const getMintNFTTransaction = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { collectionAddress, to, tokenId } = req.body;
-    if (!req.files) {
-      throw new CustomError("not found", 400);
-    }
+// export const getMintNFTTransaction = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   try {
+//     const { collectionAddress, to, tokenId } = req.body;
+//     if (!req.files) {
+//       throw new CustomError("not found", 400);
+//     }
 
-    const files = req.files as Express.Multer.File[];
-    const unsignedTx = await nftService.getUnsignedMintNFTTransaction(
-      collectionAddress,
-      to,
-      tokenId,
-      1,
-      files
-    );
-    console.log("🚀 ~ unsignedTx:", unsignedTx);
-    const serializedTx = serializeBigInt(unsignedTx);
+//     const files = req.files as Express.Multer.File[];
+//     const unsignedTx = await nftService.getUnsignedMintNFTTransaction(
+//       collectionAddress,
+//       to,
+//       tokenId,
+//       1,
+//       files
+//     );
+//     console.log("🚀 ~ unsignedTx:", unsignedTx);
+//     const serializedTx = serializeBigInt(unsignedTx);
 
-    res.json({ success: true, unsignedTransaction: serializedTx });
-  } catch (e) {
-    next(e);
-  }
-};
+//     res.json({ success: true, unsignedTransaction: serializedTx });
+//   } catch (e) {
+//     next(e);
+//   }
+// };
 // export const getMintBatchNFTTransaction = async (
 //   req: Request,
 //   res: Response
@@ -96,23 +95,23 @@ export const getMintNFTTransaction = async (
 //   }
 // };
 
-export const getListNFTTransaction = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { collectionAddress, tokenId, pricePerToken, from } = req.body;
-    const unsignedTx = await nftService.getUnsignedListNFTTransaction(
-      collectionAddress,
-      tokenId,
-      pricePerToken,
-      from
-    );
-    const serializedTx = serializeBigInt(unsignedTx);
+// export const getListNFTTransaction = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   try {
+//     const { collectionAddress, tokenId, pricePerToken, from } = req.body;
+//     const unsignedTx = await nftService.getUnsignedListNFTTransaction(
+//       collectionAddress,
+//       tokenId,
+//       pricePerToken,
+//       from
+//     );
+//     const serializedTx = serializeBigInt(unsignedTx);
 
-    res.json({ success: true, unsignedTransaction: serializedTx });
-  } catch (e) {
-    next(e);
-  }
-};
+//     res.json({ success: true, unsignedTransaction: serializedTx });
+//   } catch (e) {
+//     next(e);
+//   }
+// };
