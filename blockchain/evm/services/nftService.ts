@@ -85,12 +85,17 @@ class NFTService {
     inscriptionId: string
   ): Promise<string> {
     try {
+      const minterWallet = new ethers.Wallet(
+        config.VAULT_PRIVATE_KEY,
+        this.provider
+      );
       // Get the contract interface
       const contract = new ethers.Contract(
         collectionAddress,
         EVM_CONFIG.NFT_CONTRACT_ABI,
-        this.provider
+        minterWallet
       );
+      console.log("Contract owner:", await contract.owner());
       const minterAddress = await contract.minterAddress();
       console.log("🚀 ~ NFTService ~ minterAddress:", minterAddress);
 
@@ -109,18 +114,9 @@ class NFTService {
 
       console.log(`Estimated minting fee: ${estimatedFee.estimatedFee} ETH`);
 
-      // Send the transaction using the funding service
-      const { txHash, actualFee } =
-        await this.fundingService.signAndSendTransaction(
-          collectionAddress,
-          "0",
-          mintData
-        );
-
-      console.log(`Actual minting fee: ${actualFee} ETH`);
-
-      // Wait for transaction confirmation
-      const receipt = await this.provider.waitForTransaction(txHash, 1);
+      // Now mint using the minter's wallet
+      const tx = await contract.mint(recipient, inscriptionId);
+      const receipt = await tx.wait();
 
       if (!receipt) {
         throw new CustomError("Transaction failed to confirm", 500);
@@ -130,22 +126,22 @@ class NFTService {
         throw new CustomError("Transaction failed during execution", 500);
       }
 
-      // Verify the mint was successful by checking for the appropriate event
-      const mintEvent = receipt.logs
-        .map((log) => {
-          try {
-            return contract.interface.parseLog(log);
-          } catch {
-            return null;
-          }
-        })
-        .find((event) => event?.name === "InscriptionMinted");
+      // // Verify the mint was successful by checking for the appropriate event
+      // const mintEvent = receipt.logs
+      //   .map((log) => {
+      //     try {
+      //       return contract.interface.parseLog(log);
+      //     } catch {
+      //       return null;
+      //     }
+      //   })
+      //   .find((event) => event?.name === "InscriptionMinted");
 
-      if (!mintEvent) {
-        throw new CustomError("Mint event not found in transaction logs", 500);
-      }
+      // if (!mintEvent) {
+      //   throw new CustomError("Mint event not found in transaction logs", 500);
+      // }
 
-      return txHash;
+      return receipt.hash;
     } catch (error) {
       if (error instanceof CustomError) {
         throw error;
