@@ -172,10 +172,9 @@ export const collectibleServices = {
       ),
       listRepository.getActiveListCountByCollectionid(collectionId),
     ]);
-    if (!listableCollectibles[0].contractAddress) {
-      throw new Error("Collectible with no contract address.");
-    }
-
+    // if (!listableCollectibles[0].contractAddress) {
+    //   throw new Error("Collectible with no contract address.");
+    // }
     // const totalOwnerCount =
     //   await evmCollectibleService.getCollectionOwnersCount(
     //     listableCollectibles[0].contractAddress

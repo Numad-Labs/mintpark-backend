@@ -37,6 +37,8 @@ export async function processMessage(message: Message) {
   if (!isValidMessage.success)
     throw new CustomError(`Invalid orderId: ${message.Body}`, 400);
 
+  logger.info(`Received message: ${isValidMessage.data}`);
+
   const order = await orderRepository.getById(isValidMessage.data);
   if (!order) throw new CustomError(`Order not found: ${message.Body}`, 400);
   if (order.orderStatus === "DONE")
@@ -91,9 +93,6 @@ export async function processMessage(message: Message) {
       throw new CustomError("Parent collectible's filekey not found.", 400);
 
     const vault = await createFundingAddress("TESTNET");
-    // logger.info(
-    //   `Minted INSCRIPTION: ${orderItem?.collectibleId} Funded by: ${order.fundingAddress}`
-    // );
     const file = await getObjectFromS3(parentCollectible.fileKey);
     const inscriptionData = {
       address: vault.address,
@@ -111,13 +110,15 @@ export async function processMessage(message: Message) {
     const commitTxResult = await sendRawTransaction(commitTxHex);
     if (!commitTxResult)
       throw new CustomError("Could not broadcast the commit tx.", 400);
-    const inscriptionId = await sendRawTransaction(revealTxHex);
-    if (!inscriptionId)
+    const revealTxResult = await sendRawTransaction(revealTxHex);
+    if (!revealTxResult)
       throw new CustomError("Could not broadcast the reveal tx.", 400);
 
     if (!L2Collection.contractAddress) {
       throw new CustomError("L2Collection contract address not found.", 400);
     }
+
+    const inscriptionId = revealTxResult + "i0";
 
     logger.info(`Minted NFT funded by VAULT`);
     let mintTxId = "";
@@ -130,7 +131,7 @@ export async function processMessage(message: Message) {
         creator.address,
         inscriptionId
       );
-      vault.address = fundingService.getVaultAddress();
+      // vault.address = fundingService.getVaultAddress();
 
       if (!mintTxId) {
         throw new CustomError("Failed to mint NFT with inscription ID", 400);
@@ -143,8 +144,9 @@ export async function processMessage(message: Message) {
     await collectibleRepository.update(db, parentCollectible.id, {
       lockingAddress: vault.address,
       lockingPrivateKey: vault.privateKey,
-      mintingTxId: mintTxId,
-      uniqueIdx: inscriptionId + "i0",
+      mintingTxId: revealTxResult,
+      uniqueIdx: inscriptionId,
+      status: "CONFIRMED",
     });
 
     const l2Collectible = await collectibleRepository.create(db, {
@@ -155,7 +157,14 @@ export async function processMessage(message: Message) {
       mintingTxId: mintTxId,
       parentCollectibleId: parentCollectible.id,
       fileKey: parentCollectible.fileKey,
+      status: "CONFIRMED",
     });
+
+    await collectionRepository.incrementCollectionSupplyById(db, collection.id);
+    await collectionRepository.incrementCollectionSupplyById(
+      db,
+      L2Collection.id
+    );
 
     const hasRemainingOrderItem =
       await orderItemRepository.getInQueueOrderItemByOrderIdAndType(

@@ -27,7 +27,7 @@ import { collectibleServices } from "./collectibleServices";
 import { serializeBigInt } from "../../blockchain/evm/utils";
 import { createFundingAddress } from "../blockchain/bitcoin/createFundingAddress";
 import { purchaseRepository } from "../repositories/purchaseRepository";
-import { getEstimatedFee } from "../blockchain/bitcoin/libs";
+import { getBalance, getEstimatedFee } from "../blockchain/bitcoin/libs";
 import { GetObjectCommandOutput } from "@aws-sdk/client-s3";
 import {
   COMMIT_TX_SIZE,
@@ -482,6 +482,12 @@ export const launchServices = {
     if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
       throw new CustomError("You cannot buy the item of this collection.", 400);
 
+    const parentCollectible = await collectibleRepository.getById(
+      isLaunchItemOnHold.collectibleId
+    );
+    if (!parentCollectible)
+      throw new CustomError("Collectible not found.", 400);
+
     if (
       collection.type === "INSCRIPTION" ||
       collection.type === "RECURSIVE_INSCRIPTION"
@@ -492,19 +498,55 @@ export const launchServices = {
           400
         );
 
+      const L2Collection =
+        await collectionRepository.getChildCollectionByParentCollectionId(
+          collection.id
+        );
+      if (!L2Collection)
+        throw new CustomError("Child collection not found.", 400);
+
       if (collection.type === "RECURSIVE_INSCRIPTION") {
         //TODO: Validate if all traits of the collection has already been minted or not
       }
 
-      //TODO: Add validation to check if order.fundingAddress was funded(>=order.fundingAmount) or not
-      const isPaid = true;
-      if (!isPaid)
+      const order = await orderRepository.getById(verification.orderId);
+      if (!order) throw new CustomError("Order not found.", 400);
+      if (!order.fundingAddress)
+        throw new CustomError("Invalid order with undefined address.", 400);
+
+      const balance = await getBalance(order.fundingAddress);
+      if (balance < order.fundingAmount)
         throw new CustomError("Fee has not been transferred yet.", 400);
 
       //TODO: inscribe L1 ordinals by order.privateKey, mint L2 synthetic asset by vault
+      const revealTxId = "";
+      const inscriptionId = revealTxId + "i0";
+
+      const mintTxId = "";
+
       await orderRepository.update(db, verification.orderId, {
         orderStatus: "DONE",
       });
+
+      await collectibleRepository.create(db, {
+        name: parentCollectible.name,
+        collectionId: L2Collection.id,
+        uniqueIdx: L2Collection.contractAddress + "i" + parentCollectible.nftId,
+        nftId: parentCollectible.nftId,
+        mintingTxId: inscriptionId,
+        parentCollectibleId: parentCollectible.id,
+        fileKey: parentCollectible.fileKey,
+        status: "CONFIRMED",
+      });
+
+      await collectibleRepository.update(db, parentCollectible.id, {
+        mintingTxId: mintTxId,
+      });
+
+      await collectionRepository.incrementCollectionSupplyById(
+        db,
+        L2Collection.id
+      );
     } else if (collection.type === "IPFS") {
       if (!verification?.txid)
         throw new CustomError(
@@ -523,6 +565,8 @@ export const launchServices = {
       }
     }
 
+    await collectionRepository.incrementCollectionSupplyById(db, collection.id);
+
     if (launch.status === "UNCONFIRMED")
       await launchRepository.update(launch.id, { status: "CONFIRMED" });
     if (collection.status === "UNCONFIRMED")
@@ -537,15 +581,11 @@ export const launchServices = {
         status: "SOLD",
       }
     );
-    const collectible = await collectibleRepository.update(
-      db,
-      isLaunchItemOnHold.collectibleId,
-      {
-        status: "CONFIRMED",
-      }
-    );
+    await collectibleRepository.update(db, parentCollectible.id, {
+      status: "CONFIRMED",
+    });
 
-    return { launchItem, collectible };
+    return { launchItem, collectible: parentCollectible };
   },
   // create: async (
   //   data: any,

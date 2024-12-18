@@ -137,6 +137,7 @@ export const listRepository = {
           .as("activeListCount"),
       ])
       .where("Collectible.collectionId", "=", collectionId)
+      .where("Collectible.status", "=", "CONFIRMED")
       .where("List.status", "=", "ACTIVE")
       .executeTakeFirst();
 

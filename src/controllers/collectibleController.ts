@@ -59,69 +59,69 @@ export const collectibleControllers = {
   //     next(e);
   //   }
   // },
-  // getListableCollectiblesByCollectionId: async (
-  //   req: Request<{ collectionId: string }, {}, {}, CollectibleQueryParams>,
-  //   res: Response,
-  //   next: NextFunction
-  // ) => {
-  //   try {
-  //     const { collectionId } = req.params;
-  //     const { orderBy, orderDirection, isListed = false, layerId } = req.query;
-  //     const traits: string[] = req.query.traits as string[];
-  //     const result =
-  //       await collectibleServices.getListableCollectiblesByCollectionId(
-  //         collectionId,
-  //         {
-  //           orderBy,
-  //           orderDirection,
-  //           isListed,
-  //           traits,
-  //           layerId,
-  //         }
-  //       );
-  //     return res.status(200).json({
-  //       success: true,
-  //       data: {
-  //         collectibles: result.listableCollectibles,
-  //         listedCollectibleCount: result.activeListCount,
-  //         totalOwnerCount: result.totalOwnerCount,
-  //       },
-  //     });
-  //   } catch (e) {
-  //     next(e);
-  //   }
-  // },
-  // getCollectibleById: async (
-  //   req: Request,
-  //   res: Response,
-  //   next: NextFunction
-  // ) => {
-  //   try {
-  //     const { id } = req.params;
-  //     const collectible = await collectibleRepository.getByIdWithDetails(id);
-  //     return res.status(200).json({ success: true, data: collectible });
-  //   } catch (e) {
-  //     next(e);
-  //   }
-  // },
-  // getTokenActivity: async (req: Request, res: Response, next: NextFunction) => {
-  //   try {
-  //     const { collectibleId } = req.params;
-  //     const { fromBlock } = req.query;
-  //     if (!collectibleId) {
-  //       throw new CustomError("collectibleId is required", 400);
-  //     }
-  //     const activities = await collectibleServices.getActivityByCollectibleId(
-  //       collectibleId
-  //     );
-  //     res.status(200).json({
-  //       success: true,
-  //       data: activities,
-  //     });
-  //   } catch (error) {
-  //     next(error);
-  //   }
-  // },
+  getListableCollectiblesByCollectionId: async (
+    req: Request<{ collectionId: string }, {}, {}, CollectibleQueryParams>,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { collectionId } = req.params;
+      const { orderBy, orderDirection, isListed = false, layerId } = req.query;
+      const traits: string[] = req.query.traits as string[];
+      const result =
+        await collectibleServices.getListableCollectiblesByCollectionId(
+          collectionId,
+          {
+            orderBy,
+            orderDirection,
+            isListed,
+            traits,
+            layerId,
+          }
+        );
+      return res.status(200).json({
+        success: true,
+        data: {
+          collectibles: result.listableCollectibles,
+          listedCollectibleCount: result.activeListCount,
+          // totalOwnerCount: result.totalOwnerCount,
+        },
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getCollectibleById: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { id } = req.params;
+      const collectible = await collectibleRepository.getByIdWithDetails(id);
+      return res.status(200).json({ success: true, data: collectible });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getTokenActivity: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { collectibleId } = req.params;
+      const { fromBlock } = req.query;
+      if (!collectibleId) {
+        throw new CustomError("collectibleId is required", 400);
+      }
+      const activities = await collectibleServices.getActivityByCollectibleId(
+        collectibleId
+      );
+      res.status(200).json({
+        success: true,
+        data: activities,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
   // update: async (
   //   req: AuthenticatedRequest,
   //   res: Response,

@@ -229,6 +229,7 @@ export const collectibleRepository = {
         "CurrentList.listedAt",
         "CurrentList.id as listId",
       ])
+      .where("Collectible.status", "=", "CONFIRMED")
       .where("Collectible.collectionId", "=", collectionId);
 
     if (params.isListed)

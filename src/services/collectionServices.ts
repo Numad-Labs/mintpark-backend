@@ -83,11 +83,14 @@ export const collectionServices = {
     data.logoKey = key;
 
     if (data.type === "INSCRIPTION" || data.type === "RECURSIVE_INSCRIPTION") {
+      const bitcoinLayer = await layerRepository.getBitcoin("TESTNET");
+
       ordinalCollection = await collectionRepository.create({
         ...data,
         status: "UNCONFIRMED",
         creatorId: user.id,
-        creatorUserLayerId: userLayerId,
+        layerId: bitcoinLayer.id,
+        // creatorUserLayerId: userLayerId,
       });
 
       l2Collection = await collectionRepository.create({
