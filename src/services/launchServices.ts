@@ -538,11 +538,6 @@ export const launchServices = {
       )
         throw new CustomError("Child collection not found.", 400);
 
-      const creator = await userRepository.getByUserLayerId(
-        L2Collection.creatorUserLayerId
-      );
-      if (!creator) throw new CustomError("Creator not found.", 400);
-
       if (collection.type === "RECURSIVE_INSCRIPTION") {
         //TODO: Validate if all traits of the collection has already been minted or not
       }
@@ -589,7 +584,7 @@ export const launchServices = {
         mintTxId = await nftService.mintWithInscriptionId(
           L2Collection.contractAddress,
           // parentCollectible.nftId, // Using nftId as batchId
-          creator.address,
+          user.address,
           inscriptionId
         );
         // vault.address = fundingService.getVaultAddress();

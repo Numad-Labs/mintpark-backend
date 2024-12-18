@@ -30,6 +30,7 @@ import { collectibleTraitRepository } from "../repositories/collectibleTraitRepo
 import { param } from "../routes/userRoutes";
 import { getBalance } from "../blockchain/bitcoin/libs";
 import { userLayerRepository } from "../repositories/userLayerRepository";
+import logger from "../config/winston";
 
 const evmCollectibleService = new EVMCollectibleService(EVM_CONFIG.RPC_URL!);
 const confirmationService = new TransactionConfirmationService(
@@ -49,6 +50,7 @@ export const collectibleServices = {
     if (user.id !== userId) throw new CustomError("User not found.", 400);
     if (!user?.isActive)
       throw new CustomError("This account is deactivated.", 400);
+
     // if (user.layerId !== params.layerId)
     //   throw new CustomError("Differing layerId.", 400);
 
@@ -59,6 +61,7 @@ export const collectibleServices = {
       const collections = await collectionRepository.getCollectionsByLayer(
         user.layerId
       );
+      console.log("collections:", collections);
       // if (collections?.length) {
       //   console.log(`Found ${collections.length} CITREA collections`);
       //   // Filter valid collections and process them in parallel
@@ -91,6 +94,7 @@ export const collectibleServices = {
         const validCollections = collections
           .filter((c) => c.contractAddress)
           .map((c) => c.contractAddress!);
+        console.log("🚀 ~ validCollections:", validCollections);
         // Process collections in batches using the new method
         const tokenResults = await evmCollectibleService.processCollections(
           validCollections,
@@ -119,6 +123,8 @@ export const collectibleServices = {
         uniqueIdxs.push(inscriptionUtxo.inscriptions[0].inscriptionId);
       });
     } */
+
+    logger.info(`indexes: ${uniqueIdxs}`);
 
     if (uniqueIdxs.length === 0)
       return {
