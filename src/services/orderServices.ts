@@ -1,15 +1,11 @@
 import { orderRepository } from "../repositories/orderRepostory";
 import { ORDER_TYPE } from "../types/db/enums";
-import { createFundingAddress } from "../../blockchain/utxo/fundingAddressHelper";
 import { userRepository } from "../repositories/userRepository";
 import { layerRepository } from "../repositories/layerRepository";
-import { SERVICE_FEE } from "../../blockchain/utxo/constants";
 import { uploadToS3 } from "../utils/aws";
 import { randomUUID } from "crypto";
 import { orderItemRepository } from "../repositories/orderItemRepository";
 import { collectionServices } from "./collectionServices";
-import { getUtxosHelper } from "../../blockchain/utxo/getUtxosHelper";
-import { getEstimatedFee } from "../../blockchain/utxo/calculateRequiredAmount";
 import { CustomError } from "../exceptions/CustomError";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { Insertable } from "kysely";
@@ -32,6 +28,12 @@ import { userLayerRepository } from "../repositories/userLayerRepository";
 import { layerServices } from "./layerServices";
 import { traitValueRepository } from "../repositories/traitValueRepository";
 import { TransactionValidationService } from "../../blockchain/evm/services/evmTransactionValidationService";
+import { getBalance, getEstimatedFee } from "../blockchain/bitcoin/libs";
+import { createFundingAddress } from "../blockchain/bitcoin/createFundingAddress";
+import {
+  COMMIT_TX_SIZE,
+  REVEAL_TX_SIZE,
+} from "../blockchain/bitcoin/constants";
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
   EVM_CONFIG.MARKETPLACE_ADDRESS,
@@ -197,6 +199,7 @@ export const orderServices = {
     userLayerId: string,
     totalFileSize: number,
     totalTraitCount: number,
+    totalCollectibleCount: number,
     feeRate: number,
     collectionId: string,
     txid?: string
@@ -309,21 +312,23 @@ export const orderServices = {
       }
     }
 
-    let inscriptionFee = 0,
+    let networkFee = 0,
       mintFee = 0,
       serviceFee = 0;
-    let funder = createFundingAddress("BITCOIN", "TESTNET");
+    let funder = createFundingAddress("TESTNET");
 
     //TODO: robust fee calculation for both L1 & L2
     if (collection.type === "INSCRIPTION") {
-      if (!totalFileSize)
-        throw new CustomError("Please provide an totalFileSize", 400);
+      if (!totalFileSize || !totalCollectibleCount)
+        throw new CustomError(
+          "Please provide totalFileSize and totalCollectibleCount",
+          400
+        );
 
-      inscriptionFee = Math.max(
-        getEstimatedFee([totalFileSize], [10], 0, feeRate).estimatedFee
-          .totalAmount,
-        0.00001
-      );
+      networkFee =
+        getEstimatedFee([10], [totalFileSize], 0, feeRate, 0).estimatedFee
+          .totalAmount +
+        (COMMIT_TX_SIZE + REVEAL_TX_SIZE) * totalCollectibleCount;
       mintFee = 0;
     } else if (collection.type === "RECURSIVE_INSCRIPTION") {
       if (!totalTraitCount || !totalFileSize)
@@ -332,20 +337,16 @@ export const orderServices = {
           400
         );
 
-      inscriptionFee = Math.min(
-        (totalTraitCount * BITCOIN_TXID_BYTE_SIZE + totalFileSize) * feeRate,
-        0.00001
-      );
-      mintFee = 0;
+      networkFee =
+        (totalTraitCount * BITCOIN_TXID_BYTE_SIZE + totalFileSize) * feeRate;
     } else if (collection.type === "IPFS") {
       //TODO: createFundingAddress function for IPFS-only collection on the specific L2
       funder = { address: "", privateKey: "", publicKey: "" };
 
-      inscriptionFee = 0;
+      networkFee = 0;
       mintFee = Math.min(totalFileSize * feeRate, 0.00001);
     }
-    let totalAmount = inscriptionFee + mintFee + serviceFee;
-    totalAmount = 0.00001;
+    let totalAmount = networkFee + mintFee + serviceFee;
 
     let order = await orderRepository.getByCollectionId(collection.id);
     if (order)
@@ -415,10 +416,11 @@ export const orderServices = {
       order.collectionId
     );
     if (!collection) throw new CustomError("No collection found.", 400);
+    if (!order.fundingAddress)
+      throw new CustomError("Invalid order with undefined address.", 400);
 
-    //TODO: Add validation to check if order.fundingAddress was funded(>=order.fundingAmount) or not
-    const isPaid = true;
-    if (!isPaid)
+    const balance = await getBalance(order.fundingAddress);
+    if (balance < order.fundingAmount)
       throw new CustomError("Fee has not been transferred yet.", 400);
 
     await orderItemRepository.updateByOrderId(order.id, { status: "IN_QUEUE" });

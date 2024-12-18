@@ -7,9 +7,13 @@ import { orderItemRepository } from "../repositories/orderItemRepository";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { db } from "../utils/db";
 import { collectibleRepository } from "../repositories/collectibleRepository";
-import { createFundingAddress } from "../../blockchain/utxo/fundingAddressHelper";
 import { producer } from "..";
 import { traitValueRepository } from "../repositories/traitValueRepository";
+import { createFundingAddress } from "../blockchain/bitcoin/createFundingAddress";
+import { inscribe } from "../blockchain/bitcoin/inscribe";
+import { userRepository } from "../repositories/userRepository";
+import { getObjectFromS3 } from "../utils/aws";
+import { sendRawTransaction } from "../blockchain/bitcoin/sendTransaction";
 
 export const orderIdSchema = z.string().uuid();
 
@@ -33,6 +37,9 @@ export async function processMessage(message: Message) {
   if (!order.collectionId)
     throw new CustomError("Order does not have collectionId.", 400);
 
+  const creator = await userRepository.getByUserLayerId(order.userLayerId);
+  if (!creator) throw new CustomError("Order creator not found.", 400);
+
   const collection = await collectionRepository.getById(db, order.collectionId);
   if (!collection) throw new CustomError("Collection not found.", 400);
 
@@ -43,6 +50,12 @@ export async function processMessage(message: Message) {
       );
     if (!L2Collection || L2Collection.type !== "SYNTHETIC")
       throw new CustomError("Invalid child collection.", 400);
+
+    if (!order.fundingAddress || !order.privateKey)
+      throw new CustomError(
+        "Order has invalid funding address and private key.",
+        400
+      );
 
     const orderItem =
       await orderItemRepository.getInQueueOrderItemByOrderIdAndType(
@@ -60,12 +73,34 @@ export async function processMessage(message: Message) {
     );
     if (!parentCollectible)
       throw new CustomError("Parent collectible not found.", 400);
+    if (!parentCollectible.fileKey)
+      throw new CustomError("Parent collectible's filekey not found.", 400);
 
-    const vault = await createFundingAddress("BITCOIN", "TESTNET");
-    logger.info(
-      `Minted INSCRIPTION: ${orderItem?.collectibleId} Funded by: ${order.fundingAddress}`
+    const vault = await createFundingAddress("TESTNET");
+    // logger.info(
+    //   `Minted INSCRIPTION: ${orderItem?.collectibleId} Funded by: ${order.fundingAddress}`
+    // );
+    const file = await getObjectFromS3(parentCollectible.fileKey);
+    const inscriptionData = {
+      address: vault.address,
+      opReturnValues: `data:${file.contentType};base64,${(
+        file.content as Buffer
+      ).toString("base64")}` as any,
+    };
+    const { commitTxHex, revealTxHex } = await inscribe(
+      inscriptionData,
+      order.fundingAddress,
+      order.privateKey,
+      true,
+      order.feeRate
     );
-    let inscriptionId = "dulguunuud udku gargaj ugnu!";
+    const commitTxResult = sendRawTransaction(commitTxHex);
+    if (!commitTxResult)
+      throw new CustomError("Could not broadcast the commit tx.", 400);
+    const inscriptionId = sendRawTransaction(revealTxHex);
+    if (!inscriptionId)
+      throw new CustomError("Could not broadcast the reveal tx.", 400);
+
     logger.info(`Minted NFT funded by VAULT`);
     let mintTxId = "";
 
@@ -105,7 +140,7 @@ export async function processMessage(message: Message) {
       }
     } else {
       //ENQUEUE ORDERID
-      producer.sendMessage(order.id, 1);
+      producer.sendMessage(order.id, 3);
     }
 
     return;
@@ -144,7 +179,7 @@ export async function processMessage(message: Message) {
       );
       if (!traitValue) throw new CustomError("Trait value not found.", 400);
 
-      const vault = await createFundingAddress("BITCOIN", "TESTNET");
+      const vault = await createFundingAddress("TESTNET");
       logger.info(
         `Minted RECURSIVE_TRAIT: ${traitValue?.id} Funded by: ${order.fundingAddress}`
       );
@@ -181,7 +216,7 @@ export async function processMessage(message: Message) {
       if (!parentCollectible)
         throw new CustomError("Parent collectible not found.", 400);
 
-      const vault = await createFundingAddress("BITCOIN", "TESTNET");
+      const vault = await createFundingAddress("TESTNET");
       logger.info(
         `Minted RECURSIVE_INSCRIPTION: ${orderItem?.collectibleId} Funded by: ${order.fundingAddress}`
       );

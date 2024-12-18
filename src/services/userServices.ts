@@ -6,7 +6,7 @@ import { generateMessage } from "../libs/generateMessage";
 import { generateNonce } from "../libs/generateNonce";
 import { redis } from "..";
 import { generateTokens } from "../utils/jwt";
-import { verifySignedMessage as fractalVerifySignedMessage } from "../../blockchain/utxo/verifyMessageHelper";
+import { verifySignedMessage as fractalVerifySignedMessage } from "../blockchain/bitcoin/verifySignedMessage";
 import { layerRepository } from "../repositories/layerRepository";
 import { verifySignedMessage as citreaVerifySignedMessage } from "../../blockchain/evm/utils";
 import { userLayerRepository } from "../repositories/userLayerRepository";

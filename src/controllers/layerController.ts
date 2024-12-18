@@ -2,9 +2,6 @@ import { Request, Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../custom";
 import { layerServices } from "../services/layerServices";
 import { LAYER, NETWORK } from "../types/db/enums";
-import { getEstimatedFee } from "../../blockchain/utxo/calculateRequiredAmount";
-import { SERVICE_FEE } from "../../blockchain/utxo/constants";
-import { feeRateHelper } from "../../blockchain/utxo/feeRateHelper";
 import { CustomError } from "../exceptions/CustomError";
 
 export const layerController = {

@@ -63,9 +63,10 @@ export async function getObjectFromS3(key: string) {
     );
 
     if (response.Body instanceof Readable) {
-      const contentType = await response.ContentType;
+      const contentType = response.ContentType;
+      const contentLength = response.ContentLength;
       const content = await streamToBase64(response.Body);
-      return { contentType, content };
+      return { contentType, content, contentLength };
     } else {
       throw new Error("Response body is not a readable stream");
     }
