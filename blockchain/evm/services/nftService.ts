@@ -91,6 +91,8 @@ class NFTService {
         EVM_CONFIG.NFT_CONTRACT_ABI,
         this.provider
       );
+      const minterAddress = await contract.minterAddress();
+      console.log("🚀 ~ NFTService ~ minterAddress:", minterAddress);
 
       // Prepare the mint transaction data
       const mintData = contract.interface.encodeFunctionData("mint", [

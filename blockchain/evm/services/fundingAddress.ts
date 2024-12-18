@@ -19,7 +19,10 @@ export class FundingAddressService {
   private vaultAddress: ethers.Wallet;
   constructor(rpcUrl: string) {
     this.provider = new ethers.JsonRpcProvider(rpcUrl);
-    this.vaultAddress = new ethers.Wallet(config.VAULT_PRIVATE_KEY);
+    this.vaultAddress = new ethers.Wallet(
+      config.VAULT_PRIVATE_KEY,
+      this.provider
+    );
   }
 
   getVaultAddress() {
