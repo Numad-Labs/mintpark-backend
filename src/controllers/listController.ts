@@ -81,14 +81,14 @@ export const listController = {
     next: NextFunction
   ) => {
     try {
-      const { collectionAddress, userLayerId } = req.body;
+      const { collectionId, userLayerId } = req.body;
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
       if (!userLayerId) throw new CustomError("Invalid userLayerId.", 400);
       const issuerId = req.user.id; // Assuming you have auth middleware
 
       const result = await listServices.checkAndPrepareRegistration(
-        collectionAddress,
+        collectionId,
         issuerId,
         userLayerId
       );
