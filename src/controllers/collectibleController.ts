@@ -21,6 +21,7 @@ export interface CollectibleQueryParams {
   collectionIds?: string[];
   traits?: string[];
   layerId: string;
+  userLayerId?: string;
 }
 
 export interface recursiveInscriptionParams {
@@ -34,31 +35,38 @@ export interface ipfsNftParams {
 }
 
 export const collectibleControllers = {
-  // getListableCollectibles: async (
-  //   req: Request<{ userId: string }, {}, {}, CollectibleQueryParams>,
-  //   res: Response,
-  //   next: NextFunction
-  // ) => {
-  //   try {
-  //     const { isListed = false, orderBy, orderDirection, layerId } = req.query;
-  //     const collectionIds = req.query.collectionIds as string[];
-  //     const { userId } = req.params;
-  //     if (!userId) throw new CustomError("userId not found.", 400);
-  //     const result = await collectibleServices.getListableCollectibles(userId, {
-  //       isListed,
-  //       orderBy,
-  //       orderDirection,
-  //       collectionIds,
-  //       layerId,
-  //     });
-  //     return res.status(200).json({
-  //       success: true,
-  //       data: result,
-  //     });
-  //   } catch (e) {
-  //     next(e);
-  //   }
-  // },
+  getListableCollectibles: async (
+    req: Request<{ userId: string }, {}, {}, CollectibleQueryParams>,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const {
+        isListed = false,
+        orderBy,
+        orderDirection,
+        layerId,
+        userLayerId,
+      } = req.query;
+      const collectionIds = req.query.collectionIds as string[];
+      const { userId } = req.params;
+      if (!userId) throw new CustomError("userId not found.", 400);
+      const result = await collectibleServices.getListableCollectibles(userId, {
+        isListed,
+        orderBy,
+        orderDirection,
+        collectionIds,
+        layerId,
+        userLayerId,
+      });
+      return res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
   getListableCollectiblesByCollectionId: async (
     req: Request<{ collectionId: string }, {}, {}, CollectibleQueryParams>,
     res: Response,

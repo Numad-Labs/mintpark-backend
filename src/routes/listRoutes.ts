@@ -4,7 +4,7 @@ import { listController } from "../controllers/listController";
 import { authorize } from "../middlewares/authorize";
 const listRouter = Router();
 
-/* listRouter.post("/", authenticateToken, listController.listCollectible);
+listRouter.post("/", authenticateToken, listController.listCollectible);
 listRouter.post(
   "/approval",
   authenticateToken,
@@ -37,7 +37,7 @@ listRouter.post(
   "/:id/buy",
   authenticateToken,
   listController.buyListedCollectible
-); */
+);
 
 // listRouter.get(
 //   "/:id/estimate-fee",

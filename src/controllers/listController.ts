@@ -47,17 +47,22 @@ export const listController = {
     next: NextFunction
   ) => {
     try {
-      const { collectionId, layerId } = req.body;
+      const { collectionId, userLayerId } = req.body;
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
-      if (!layerId) throw new CustomError("Please provide a layerId.", 400);
-      const user = await userRepository.getByIdAndLayerId(req.user.id, layerId);
+      if (!userLayerId)
+        throw new CustomError("Please provide a userLayerId.", 400);
+
+      const user = await userRepository.getByUserLayerId(userLayerId);
       if (!user) throw new CustomError("User not found", 400);
+      if (user.id !== req.user.id)
+        throw new CustomError("You are not allowed to do this action.", 400);
       if (!collectionId)
         throw new CustomError("Please provide a collectionId.", 400);
       const collection = await collectionRepository.getById(db, collectionId);
       if (!collection || !collection.contractAddress)
         throw new CustomError("Please provide a valid collection.", 400);
+
       const unsignedTx = await tradingService.getUnsignedApprovalTransaction(
         collection.contractAddress,
         user?.address

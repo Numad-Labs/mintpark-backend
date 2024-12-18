@@ -1,10 +1,6 @@
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
 import { CustomError } from "../exceptions/CustomError";
-import {
-  LISTING_SERVICE_FEE_PERCENTAGE,
-  MINIMUM_LISTING_SERVICE_FEE,
-} from "../libs/constants";
 import { hideSensitiveData } from "../libs/hideDataHelper";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import { listRepository } from "../repositories/listRepository";
@@ -187,58 +183,60 @@ export const listServices = {
         ]);
 
         return { sanitizedList, preparedListingTx: serializedTx };
-      } else if (collectible.layer === "FRACTAL") {
-        if (!collectible.uniqueIdx)
-          throw new CustomError(
-            "Collectible with no unique index cannot be listed.",
-            400
-          );
-        const inscription = await getInscriptionInfo(collectible.uniqueIdx);
-        if (!inscription)
-          throw new CustomError(
-            "Invalid inscriptionId, this inscription cant be sold.",
-            400
-          );
-        if (inscription.address !== issuer.address)
-          throw new CustomError(
-            "You are not the owner of this inscription.",
-            400
-          );
-        if (!inscription.utxo.satoshi)
-          throw new CustomError("No inscription satoshi amount found.", 400);
+      }
+      // else if (collectible.layer === "FRACTAL") {
+      //   if (!collectible.uniqueIdx)
+      //     throw new CustomError(
+      //       "Collectible with no unique index cannot be listed.",
+      //       400
+      //     );
+      //   const inscription = await getInscriptionInfo(collectible.uniqueIdx);
+      //   if (!inscription)
+      //     throw new CustomError(
+      //       "Invalid inscriptionId, this inscription cant be sold.",
+      //       400
+      //     );
+      //   if (inscription.address !== issuer.address)
+      //     throw new CustomError(
+      //       "You are not the owner of this inscription.",
+      //       400
+      //     );
+      //   if (!inscription.utxo.satoshi)
+      //     throw new CustomError("No inscription satoshi amount found.", 400);
 
-        const latestPendingList =
-          await listRepository.getLatestPendingListByCollectibleId(
-            trx,
-            collectible.id
-          );
-        if (latestPendingList)
-          await listRepository.cancelPendingListingsByCollectibleId(
-            trx,
-            collectible.id
-          );
+      //   const latestPendingList =
+      //     await listRepository.getLatestPendingListByCollectibleId(
+      //       trx,
+      //       collectible.id
+      //     );
+      //   if (latestPendingList)
+      //     await listRepository.cancelPendingListingsByCollectibleId(
+      //       trx,
+      //       collectible.id
+      //     );
 
-        const vault = createFundingAddress(
-          collectible.layer,
-          collectible.network
-        );
-        list = await listRepository.create(trx, {
-          collectibleId: collectible.id,
-          sellerId: issuer.id,
-          address: vault.address,
-          privateKey: vault.privateKey,
-          price: price,
-          inscribedAmount: inscription.utxo.satoshi,
-        });
+      //   const vault = createFundingAddress(
+      //     collectible.layer,
+      //     collectible.network
+      //   );
+      //   list = await listRepository.create(trx, {
+      //     collectibleId: collectible.id,
+      //     sellerId: issuer.id,
+      //     address: vault.address,
+      //     privateKey: vault.privateKey,
+      //     price: price,
+      //     inscribedAmount: inscription.utxo.satoshi,
+      //   });
 
-        const sanitizedList = hideSensitiveData(list, [
-          "privateKey",
-          "vaultTxid",
-          "vaultVout",
-        ]);
+      //   const sanitizedList = hideSensitiveData(list, [
+      //     "privateKey",
+      //     "vaultTxid",
+      //     "vaultVout",
+      //   ]);
 
-        return sanitizedList;
-      } else throw new CustomError("Unsupported layer.", 400);
+      //   return sanitizedList;
+      // }
+      else throw new CustomError("Unsupported layer.", 400);
     });
   },
   confirmPendingList: async (
@@ -283,43 +281,45 @@ export const listServices = {
         ]);
 
         return sanitizedList;
-      } else if (list.layer === "FRACTAL") {
-        if (!list.uniqueIdx)
-          throw new CustomError(
-            "Collectible with no unique index cannot be listed.",
-            400
-          );
-        const inscription = await getInscriptionInfo(list.uniqueIdx);
-        if (!inscription)
-          throw new CustomError(
-            "Invalid inscriptionId, this inscription cant be sold.",
-            400
-          );
-        if (inscription.address !== list.address)
-          throw new CustomError(
-            "Collectible has not been transferred yet.",
-            400
-          );
-        if (!inscription.utxo.satoshi)
-          throw new CustomError("No inscription satoshi amount found.", 400);
-        if (inscription.utxo.satoshi !== inscribedAmount)
-          throw new CustomError("Invalid inscribed amount.", 400);
-      } else throw new CustomError("Unsupported layer.", 400);
+      }
+      // else if (list.layer === "FRACTAL") {
+      //   if (!list.uniqueIdx)
+      //     throw new CustomError(
+      //       "Collectible with no unique index cannot be listed.",
+      //       400
+      //     );
+      //   const inscription = await getInscriptionInfo(list.uniqueIdx);
+      //   if (!inscription)
+      //     throw new CustomError(
+      //       "Invalid inscriptionId, this inscription cant be sold.",
+      //       400
+      //     );
+      //   if (inscription.address !== list.address)
+      //     throw new CustomError(
+      //       "Collectible has not been transferred yet.",
+      //       400
+      //     );
+      //   if (!inscription.utxo.satoshi)
+      //     throw new CustomError("No inscription satoshi amount found.", 400);
+      //   if (inscription.utxo.satoshi !== inscribedAmount)
+      //     throw new CustomError("Invalid inscribed amount.", 400);
+      // }
+      else throw new CustomError("Unsupported layer.", 400);
 
-      const updatedList = await listRepository.update(trx, list.id, {
-        status: "ACTIVE",
-        vaultTxid: txid,
-        vaultVout: vout,
-        inscribedAmount: inscribedAmount,
-      });
+      // const updatedList = await listRepository.update(trx, list.id, {
+      //   status: "ACTIVE",
+      //   vaultTxid: txid,
+      //   vaultVout: vout,
+      //   inscribedAmount: inscribedAmount,
+      // });
 
-      const sanitizedList = hideSensitiveData(updatedList, [
-        "privateKey",
-        "vaultTxid",
-        "vaultVout",
-      ]);
+      // const sanitizedList = hideSensitiveData(updatedList, [
+      //   "privateKey",
+      //   "vaultTxid",
+      //   "vaultVout",
+      // ]);
 
-      return sanitizedList;
+      // return sanitizedList;
     });
   },
   generateBuyTxHex: async (
@@ -427,37 +427,39 @@ export const listServices = {
       }
 
       // return serializeBigInt(unsignedHex);
-    } else if (list.layer === "FRACTAL") {
-      if (!list.inscribedAmount)
-        throw new CustomError("Invalid inscribed amount.", 400);
+    }
+    // else if (list.layer === "FRACTAL") {
+    //   if (!list.inscribedAmount)
+    //     throw new CustomError("Invalid inscribed amount.", 400);
 
-      if (!buyer.pubkey || !list.vaultTxid || list.vaultVout === null)
-        throw new CustomError("Invalid fields.", 400);
+    //   if (!buyer.pubkey || !list.vaultTxid || list.vaultVout === null)
+    //     throw new CustomError("Invalid fields.", 400);
 
-      const serviceFee = Math.min(
-        list.price * LISTING_SERVICE_FEE_PERCENTAGE,
-        MINIMUM_LISTING_SERVICE_FEE
-      );
+    //   const serviceFee = Math.min(
+    //     list.price * LISTING_SERVICE_FEE_PERCENTAGE,
+    //     MINIMUM_LISTING_SERVICE_FEE
+    //   );
 
-      const txHex = await generateBuyPsbtHex(
-        {
-          buyerAddress: buyer.address,
-          buyerPubKey: buyer.pubkey,
-          sellerAddress: seller.address,
-          vaultAddress: list.address,
-          vaultTxid: list.vaultTxid,
-          vaultVout: list.vaultVout,
-          vaultPrivateKey: list.privateKey,
-          inscribedAmount: list.inscribedAmount,
-          listedPrice: list.price,
-          serviceFee: serviceFee,
-        },
-        feeRate,
-        true
-      );
+    //   const txHex = await generateBuyPsbtHex(
+    //     {
+    //       buyerAddress: buyer.address,
+    //       buyerPubKey: buyer.pubkey,
+    //       sellerAddress: seller.address,
+    //       vaultAddress: list.address,
+    //       vaultTxid: list.vaultTxid,
+    //       vaultVout: list.vaultVout,
+    //       vaultPrivateKey: list.privateKey,
+    //       inscribedAmount: list.inscribedAmount,
+    //       listedPrice: list.price,
+    //       serviceFee: serviceFee,
+    //     },
+    //     feeRate,
+    //     true
+    //   );
 
-      return txHex;
-    } else throw new CustomError("Unsupported layer.", 400);
+    //   return txHex;
+    // }
+    else throw new CustomError("Unsupported layer.", 400);
   },
   // updateListedCollectible: async (id: string, issuerId: string) => {
   //   const list = await listRepository.getById(id);
@@ -521,22 +523,24 @@ export const listServices = {
         });
         const buyTxId = txid;
         return { txid: buyTxId, confirmedList };
-      } else if (list.layer === "FRACTAL") {
-        const buyTxId = await validateSignAndBroadcastBuyPsbtHex(
-          hex,
-          list.privateKey,
-          seller.address,
-          list.price
-        );
-        if (!buyTxId) throw new CustomError("Invalid psbt.", 400);
+      }
+      // else if (list.layer === "FRACTAL") {
+      //   const buyTxId = await validateSignAndBroadcastBuyPsbtHex(
+      //     hex,
+      //     list.privateKey,
+      //     seller.address,
+      //     list.price
+      //   );
+      //   if (!buyTxId) throw new CustomError("Invalid psbt.", 400);
 
-        const confirmedList = await listRepository.update(trx, list.id, {
-          status: "SOLD",
-          soldAt: new Date().toISOString(),
-        });
+      //   const confirmedList = await listRepository.update(trx, list.id, {
+      //     status: "SOLD",
+      //     soldAt: new Date().toISOString(),
+      //   });
 
-        return { txid: buyTxId, confirmedList };
-      } else throw new CustomError("Unsupported layer.", 400);
+      //   return { txid: buyTxId, confirmedList };
+      // }
+      else throw new CustomError("Unsupported layer.", 400);
     });
   },
   // estimateFee: async (id: string, feeRate: number) => {
