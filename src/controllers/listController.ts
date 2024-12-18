@@ -175,11 +175,12 @@ export const listController = {
   ) => {
     try {
       const { id } = req.params;
-      const { hex, txid } = req.body;
+      const { hex, txid, userLayerId } = req.body;
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
       const result = await listServices.buyListedCollectible(
         id,
+        userLayerId,
         hex,
         req.user.id,
         txid

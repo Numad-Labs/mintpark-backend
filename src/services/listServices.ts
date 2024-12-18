@@ -487,12 +487,12 @@ export const listServices = {
   // },
   buyListedCollectible: async (
     id: string,
-    layerId: string,
+    userLayerId: string,
     hex: string,
     issuerId: string,
     txid?: string
   ) => {
-    const buyer = await userRepository.getByIdAndLayerId(issuerId, layerId);
+    const buyer = await userRepository.getByUserLayerId(userLayerId);
     if (!buyer) throw new CustomError("User not found.", 400);
 
     const list = await listRepository.getById(id);
@@ -500,11 +500,11 @@ export const listServices = {
     if (list.status !== "ACTIVE")
       throw new CustomError("This list is could not be bought.", 400);
 
-    const seller = await userRepository.getByIdAndLayerId(
-      list.sellerId,
-      layerId
-    );
-    if (!seller) throw new CustomError("Seller not found.", 400);
+    // const seller = await userRepository.getByIdAndLayerId(
+    //   list.sellerId,
+    //   layerId
+    // );
+    // if (!seller) throw new CustomError("Seller not found.", 400);
 
     return await db.transaction().execute(async (trx) => {
       if (list.layer === "CITREA") {
