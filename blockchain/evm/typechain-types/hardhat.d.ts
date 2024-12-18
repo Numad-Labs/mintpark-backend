@@ -94,13 +94,17 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.MarketplaceWithPhase__factory>;
     getContractFactory(
-      name: "MultiCollectionPhasedMarketplace",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.MultiCollectionPhasedMarketplace__factory>;
-    getContractFactory(
       name: "MPMNFT",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.MPMNFT__factory>;
+    getContractFactory(
+      name: "BatchEnabledNFT",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.BatchEnabledNFT__factory>;
+    getContractFactory(
+      name: "InscriptionNFT",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.InscriptionNFT__factory>;
 
     getContractAt(
       name: "Ownable",
@@ -203,15 +207,20 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.MarketplaceWithPhase>;
     getContractAt(
-      name: "MultiCollectionPhasedMarketplace",
+      name: "MPMNFT",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
-    ): Promise<Contracts.MultiCollectionPhasedMarketplace>;
+    ): Promise<Contracts.MPMNFT>;
     getContractAt(
-      name: "MPMNFT",
+      name: "BatchEnabledNFT",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
-    ): Promise<Contracts.MPMNFT>;
+    ): Promise<Contracts.BatchEnabledNFT>;
+    getContractAt(
+      name: "InscriptionNFT",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.InscriptionNFT>;
 
     deployContract(
       name: "Ownable",
@@ -294,13 +303,17 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.MarketplaceWithPhase>;
     deployContract(
-      name: "MultiCollectionPhasedMarketplace",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.MultiCollectionPhasedMarketplace>;
-    deployContract(
       name: "MPMNFT",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.MPMNFT>;
+    deployContract(
+      name: "BatchEnabledNFT",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.BatchEnabledNFT>;
+    deployContract(
+      name: "InscriptionNFT",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.InscriptionNFT>;
 
     deployContract(
       name: "Ownable",
@@ -403,15 +416,20 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.MarketplaceWithPhase>;
     deployContract(
-      name: "MultiCollectionPhasedMarketplace",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.MultiCollectionPhasedMarketplace>;
-    deployContract(
       name: "MPMNFT",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.MPMNFT>;
+    deployContract(
+      name: "BatchEnabledNFT",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.BatchEnabledNFT>;
+    deployContract(
+      name: "InscriptionNFT",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.InscriptionNFT>;
 
     // default types
     getContractFactory(

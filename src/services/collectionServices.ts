@@ -72,9 +72,9 @@ export const collectionServices = {
     if (user.layer === "CITREA" && user.network === "TESTNET") {
       const unsignedTx = await nftService.getUnsignedDeploymentTransaction(
         user.address,
-        name,
-        name,
-        priceForLaunchpad
+        name
+        // name,
+        // priceForLaunchpad
       );
       deployContractTxHex = serializeBigInt(unsignedTx);
     }

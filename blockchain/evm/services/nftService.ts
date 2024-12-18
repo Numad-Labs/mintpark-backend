@@ -1,11 +1,10 @@
 import { ethers } from "ethers";
 import { EVM_CONFIG } from "../evm-config";
 import { config } from "../../../src/config/config";
-import { NextFunction, Request, Response } from "express";
 import MarketplaceService from "./marketplaceService";
-
 import { PinataSDK, PinResponse } from "pinata-web3";
-import { convertMulterToFileObject } from "../utils";
+import { FundingAddressService } from "./fundingAddress";
+import { CustomError } from "../../../src/exceptions/CustomError";
 
 interface UploadResult {
   metadataURI: string;
@@ -18,6 +17,7 @@ class NFTService {
   private marketplaceAddress: string;
   private storage: PinataSDK;
   private marketplaceService: MarketplaceService;
+  private fundingService: FundingAddressService;
 
   constructor(
     providerUrl: string,
@@ -32,13 +32,12 @@ class NFTService {
       pinataJwt: config.PINATA_JWT,
       pinataGateway: config.PINATA_GATEWAY_URL,
     });
+    this.fundingService = new FundingAddressService(providerUrl);
   }
 
   async getUnsignedDeploymentTransaction(
-    initialOwner: string,
-    name: string,
-    symbol: string,
-    priceForLaunchpad: number
+    minterAddress: string,
+    initialOwner: string
   ) {
     const signer = await this.provider.getSigner();
     const factory = new ethers.ContractFactory(
@@ -48,350 +47,146 @@ class NFTService {
     );
 
     const unsignedTx = await factory.getDeployTransaction(
-      initialOwner,
-      name,
-      symbol,
-      ethers.parseEther(priceForLaunchpad.toString()) // mintFee
+      minterAddress,
+      initialOwner
     );
     return this.prepareUnsignedTransaction(unsignedTx, initialOwner);
   }
 
-  async getUnsignedMintNFTTransaction(
-    collectionAddress: string,
-    to: string,
-    name: string,
-    quantity: number,
-    files: Express.Multer.File[]
-  ) {
-    const signer = await this.provider.getSigner();
+  async uploadNFTMetadata(
+    file: Express.Multer.File,
+    name: string
+  ): Promise<string> {
+    if (!file) {
+      throw new CustomError("No file uploaded", 400);
+    }
 
-    const contract = new ethers.Contract(
-      collectionAddress,
-      EVM_CONFIG.NFT_CONTRACT_ABI,
-      signer
-    );
-    const metadataURIs = await this.createAndUploadBatchMetadata(
-      files,
-      quantity,
-      name
-    );
-
-    // Assuming the contract has a batchMintWithURI function
-    const unsignedTx = await contract.batchMint.populateTransaction(
-      to,
-      quantity,
-      metadataURIs
-    );
-    return this.prepareUnsignedTransaction(unsignedTx, to);
-  }
-
-  async uploadNftImagesToIpfs(
-    name: string,
-    quantity: number,
-    files: Express.Multer.File[]
-  ) {
-    // Handle file uploads and metadata creation
-    const metadataURIs = await this.createAndUploadBatchMetadata(
-      files,
-      quantity,
-      name
-    );
-
-    return metadataURIs;
-  }
-
-  async getUnsignedBatchMintNFTTransaction(
-    collectionAddress: string,
-    to: string,
-    quantity: number,
-    metadataURIs: string[]
-  ) {
-    const signer = await this.provider.getSigner();
-
-    const contract = new ethers.Contract(
-      collectionAddress,
-      EVM_CONFIG.NFT_CONTRACT_ABI,
-      signer
-    );
-
-    // Assuming the contract has a batchMintWithURI function
-    const unsignedTx = await contract.batchMint.populateTransaction(
-      to,
-      // startTokenId,
-      quantity,
-      metadataURIs
-    );
-
-    return this.prepareUnsignedTransaction(unsignedTx, to);
-  }
-
-  // async getUnsignedMintNFTTransaction(
-  //   collectionAddress: string,
-  //   to: string,
-  //   quantity: number,
-  //   metadataURIs: string[]
-  // ) {
-  //   const signer = await this.provider.getSigner();
-
-  //   const contract = new ethers.Contract(
-  //     collectionAddress,
-  //     EVM_CONFIG.NFT_CONTRACT_ABI,
-  //     signer
-  //   );
-
-  //   // Handle file uploads and metadata creation
-  //   const metadataURIs = await this.createAndUploadBatchMetadata(
-  //     files,
-  //     quantity,
-  //     name
-  //   );
-
-  //   // Assuming the contract has a batchMintWithURI function
-  //   const unsignedTx = await contract.batchMint.populateTransaction(
-  //     to,
-  //     // startTokenId,
-  //     quantity,
-  //     metadataURIs
-  //   );
-
-  //   return this.prepareUnsignedTransaction(unsignedTx, to);
-  // }
-
-  async getUnsignedListNFTTransaction(
-    collectionAddress: string,
-    tokenId: string,
-    pricePerToken: string,
-    from: string
-  ) {
     try {
-      const signer = await this.provider.getSigner();
+      // Upload image first
+      const imageResponse = await this.uploadImage(file);
 
-      const nftContract = new ethers.Contract(
+      // Create and upload metadata
+      const metadata = {
+        name: name || "Unnamed NFT",
+        image: `ipfs://${imageResponse.IpfsHash}`,
+      };
+
+      const metadataResponse = await this.storage.upload.json(metadata);
+
+      return `ipfs://${metadataResponse.IpfsHash}`;
+    } catch (error) {
+      throw new CustomError(`Failed to upload NFT metadata: ${error}`, 500);
+    }
+  }
+
+  async mintWithInscriptionId(
+    collectionAddress: string,
+    recipient: string,
+    inscriptionId: string
+  ): Promise<string> {
+    try {
+      // Get the contract interface
+      const contract = new ethers.Contract(
         collectionAddress,
         EVM_CONFIG.NFT_CONTRACT_ABI,
-        signer
+        this.provider
       );
 
-      // Check if the marketplace is already approved
-      const isApproved = await nftContract.isApprovedForAll(
-        from,
-        this.marketplaceAddress
-      );
-      console.log("🚀 ~ NFTService ~ isApproved:", isApproved);
+      // Prepare the mint transaction data
+      const mintData = contract.interface.encodeFunctionData("mint", [
+        recipient,
+        inscriptionId,
+      ]);
 
-      if (!isApproved) {
-        console.log("Approval needed. Preparing approval transaction...");
-        const approvalTx =
-          await nftContract.setApprovalForAll.populateTransaction(
-            this.marketplaceAddress,
-            true
-          );
-        const preparedApprovalTx = await this.prepareUnsignedTransaction(
-          approvalTx,
-          from
+      // Estimate the transaction fee
+      const estimatedFee = await this.fundingService.estimateTransactionFee(
+        collectionAddress,
+        "0",
+        mintData
+      );
+
+      console.log(`Estimated minting fee: ${estimatedFee.estimatedFee} ETH`);
+
+      // Send the transaction using the funding service
+      const { txHash, actualFee } =
+        await this.fundingService.signAndSendTransaction(
+          collectionAddress,
+          "0",
+          mintData
         );
 
-        // Return the approval transaction instead of the listing transaction
-        return {
-          type: "approval",
-          transaction: preparedApprovalTx,
-        };
+      console.log(`Actual minting fee: ${actualFee} ETH`);
+
+      // Wait for transaction confirmation
+      const receipt = await this.provider.waitForTransaction(txHash, 1);
+
+      if (!receipt) {
+        throw new CustomError("Transaction failed to confirm", 500);
       }
 
-      console.log(
-        "NFT already approved or approval transaction sent. Preparing listing transaction..."
-      );
-
-      const listing = {
-        assetContract: collectionAddress,
-        tokenId: tokenId,
-        startTime: Math.floor(Date.now() / 1000),
-        startTimestamp: Math.floor(Date.now() / 1000),
-        endTimestamp: Math.floor(Date.now() / 1000) + 86400 * 7, // 1 week
-        listingDurationInSeconds: 86400 * 7, // 1 week
-        quantity: 1,
-        currency: ethers.ZeroAddress, // ETH
-        reservePricePerToken: pricePerToken,
-        buyoutPricePerToken: pricePerToken,
-        listingType: 0, // Direct listing
-        pricePerToken: pricePerToken,
-        reserved: false,
-      };
-
-      const marketplaceContract =
-        await this.marketplaceService.getEthersMarketplaceContract();
-      if (!marketplaceContract) {
-        throw new Error("Could not find marketplace contract");
+      if (receipt.status === 0) {
+        throw new CustomError("Transaction failed during execution", 500);
       }
 
-      const testing = await marketplaceContract.contractType();
-      console.log("🚀 ~ NFTService ~ testing:", testing);
-      console.log(
-        "🚀 ~ NFTService ~ marketplaceContract:",
-        marketplaceContract
-      );
-      const unsignedTx =
-        await marketplaceContract.createListing.populateTransaction(listing);
+      // Verify the mint was successful by checking for the appropriate event
+      const mintEvent = receipt.logs
+        .map((log) => {
+          try {
+            return contract.interface.parseLog(log);
+          } catch {
+            return null;
+          }
+        })
+        .find((event) => event?.name === "InscriptionMinted");
 
-      if (!unsignedTx) {
-        throw new Error("Failed to populate transaction for createListing");
+      if (!mintEvent) {
+        throw new CustomError("Mint event not found in transaction logs", 500);
       }
 
-      // Combine transactions using multicall
-
-      const multicallTx =
-        await marketplaceContract.multicall.populateTransaction([
-          unsignedTx.data,
-        ]);
-
-      const preparedListingTx = await this.prepareUnsignedTransaction(
-        multicallTx,
-        from
-      );
-
-      console.log("🚀 ~ NFTService ~ preparedListingTx:", preparedListingTx);
-
-      return {
-        type: "listing",
-        transaction: preparedListingTx,
-      };
+      return txHash;
     } catch (error) {
-      console.error("Error in getUnsignedListNFTTransaction:", error);
-      throw error;
+      if (error instanceof CustomError) {
+        throw error;
+      }
+
+      throw new CustomError(
+        `Failed to mint NFT with inscription ID: ${error}`,
+        500
+      );
     }
   }
 
-  async uploadImages(
-    files: Express.Multer.File[]
-    // storage: { upload: { file: (file: File) => Promise<PinResponse> } }
-  ): Promise<PinResponse[]> {
-    const createUploadTask = async (file: Express.Multer.File) => {
-      try {
-        const blob = new Blob([file.buffer], { type: file.mimetype });
-        const fileObject = new File([blob], file.originalname, {
-          type: file.mimetype,
-        });
+  async getInscriptionId(
+    collectionAddress: string,
+    tokenId: number
+  ): Promise<string> {
+    const contract = new ethers.Contract(
+      collectionAddress,
+      EVM_CONFIG.NFT_CONTRACT_ABI,
+      this.provider
+    );
 
-        return this.storage.upload.file(fileObject);
-      } catch (error) {
-        console.error("Upload error details:", {
-          error,
-          file: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-        });
+    return await contract.getInscriptionId(tokenId);
+  }
 
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error occurred";
-        throw new Error(
-          `Failed to upload file ${file.originalname}: ${errorMessage}`
-        );
-      }
-    };
-
-    // Create an array of upload promises
-    const uploadPromises = files.map((file) => createUploadTask(file));
-
-    // Process uploads concurrently with error handling
+  private async uploadImage(file: Express.Multer.File): Promise<PinResponse> {
     try {
-      const responses = await Promise.all(uploadPromises);
-      return responses;
+      const blob = new Blob([file.buffer], { type: file.mimetype });
+      const fileObject = new File([blob], file.originalname, {
+        type: file.mimetype,
+      });
+
+      return await this.storage.upload.file(fileObject);
     } catch (error) {
-      // If any upload fails, the error will be caught here
-      throw error;
+      console.error("Upload error details:", {
+        error,
+        file: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+      });
+
+      throw new Error(`Failed to upload file ${file.originalname}: ${error}`);
     }
-  }
-
-  async createAndUploadBatchMetadata(
-    files: Express.Multer.File[],
-    quantity: number,
-    name: string
-  ): Promise<string[]> {
-    console.log("Files received:", files ? files.length : 0);
-    console.log("Expected quantity:", quantity);
-
-    if (!files || !Array.isArray(files)) {
-      throw new Error("No files uploaded or files are not in expected format");
-    }
-
-    const imageUploadResponses: PinResponse[] = await this.uploadImages(files);
-    // for (const file of files) {
-    //   try {
-    //     const blob = new Blob([file.buffer], { type: file.mimetype });
-    //     const fileObject = new File([blob], file.originalname, {
-    //       type: file.mimetype,
-    //     });
-
-    //     const response: PinResponse = await this.storage.upload.file(
-    //       fileObject
-    //     );
-    //     imageUploadResponses.push(response);
-    //   } catch (error) {
-    //     console.error("Upload error details:", {
-    //       error,
-    //       file: file.originalname,
-    //       mimetype: file.mimetype,
-    //       size: file.size,
-    //     });
-
-    //     const errorMessage =
-    //       error instanceof Error ? error.message : "Unknown error occurred";
-
-    //     throw new Error(
-    //       `Failed to upload file ${file.originalname}: ${errorMessage}`
-    //     );
-    //   }
-    // }
-
-    // Create metadata objects for all NFTs using the IPFS hashes from the image uploads
-    const metadataObjects = imageUploadResponses.map(
-      (imageResponse, index) => ({
-        name: `${name || "Unnamed NFT"} #${index + 1}`,
-        image: `ipfs://${imageResponse.IpfsHash}`, // Using IPFS URI format
-      })
-    );
-
-    // Upload metadata files one by one
-    const metadataUploadResponses: PinResponse[] = [];
-    for (const metadata of metadataObjects) {
-      const response: PinResponse = await this.storage.upload.json(metadata);
-      metadataUploadResponses.push(response);
-    }
-    // Combine all the metadata into a single return object for each NFT
-    const results: UploadResult[] = metadataUploadResponses.map(
-      (metadataResponse, index) => ({
-        metadataURI: `ipfs://${metadataResponse.IpfsHash}`,
-        imageMetadata: imageUploadResponses[index],
-        metadataFileMetadata: metadataResponse,
-      })
-    );
-
-    return results.map((result) => result.metadataURI);
-  }
-
-  private async createAndUploadMetadata(req: Request): Promise<string> {
-    if (!req.file) {
-      throw new Error("No file uploaded");
-    }
-
-    // Upload the image to IPFS
-    const imageFile = req.file;
-    const imageURI = await this.storage.upload.file(
-      convertMulterToFileObject(imageFile)
-    );
-
-    // Create metadata object
-    const metadata = {
-      name: req.body.name || "Unnamed NFT",
-      description: req.body.description || "No description provided",
-      image: imageURI, // This should be a URL pointing to the image
-      attributes: JSON.parse(req.body.attributes || "[]"),
-    };
-
-    // Upload metadata to IPFS
-    const metadataURI = await this.storage.upload.json(metadata);
-
-    return `ipfs://${metadataURI.IpfsHash}`;
   }
 
   async prepareUnsignedTransaction(
@@ -415,10 +210,9 @@ class NFTService {
       maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
       nonce: nonce,
       chainId: chainId,
-      type: 2, // EIP-1559 transaction type
+      type: 2,
     };
 
-    // Add 'to' property only if it exists (for non-deployment transactions)
     if ("to" in unsignedTx && unsignedTx.to) {
       preparedTx.to = unsignedTx.to;
     }

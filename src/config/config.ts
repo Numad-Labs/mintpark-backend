@@ -36,6 +36,8 @@ const envSchema = z.object({
   MAX_CONCURRENT_COLLECTIONS: z.string().transform(Number),
   PINATA_JWT: z.string(),
   PINATA_GATEWAY_URL: z.string(),
+  VAULT_ADDRESS: z.string(),
+  VAULT_PRIVATE_KEY: z.string(),
 });
 
 let env = envSchema.safeParse(process.env);

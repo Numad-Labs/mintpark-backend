@@ -57,6 +57,7 @@ export class SQSConsumer {
       } catch (error) {
         logger.error("Error receiving message:", error);
         // Add a small delay before retrying on error
+
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }

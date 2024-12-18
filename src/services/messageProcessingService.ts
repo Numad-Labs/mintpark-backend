@@ -14,10 +14,23 @@ import { inscribe } from "../blockchain/bitcoin/inscribe";
 import { userRepository } from "../repositories/userRepository";
 import { getObjectFromS3 } from "../utils/aws";
 import { sendRawTransaction } from "../blockchain/bitcoin/sendTransaction";
+import NFTService from "../../blockchain/evm/services/nftService";
+import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
+import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
+import { FundingAddressService } from "../../blockchain/evm/services/fundingAddress";
 
 export const orderIdSchema = z.string().uuid();
 
+const nftService = new NFTService(
+  EVM_CONFIG.RPC_URL,
+  EVM_CONFIG.MARKETPLACE_ADDRESS,
+  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
+);
+
+const fundingService = new FundingAddressService(EVM_CONFIG.RPC_URL);
+
 export async function processMessage(message: Message) {
+  // console.log("message", message, new Date());
   if (!message.Body) throw new CustomError("Invalid message body.", 400);
   const parsedMessage = JSON.parse(message.Body);
   const isValidMessage = orderIdSchema.safeParse(parsedMessage);
@@ -102,8 +115,30 @@ export async function processMessage(message: Message) {
     if (!inscriptionId)
       throw new CustomError("Could not broadcast the reveal tx.", 400);
 
+    if (!L2Collection.contractAddress) {
+      throw new CustomError("L2Collection contract address not found.", 400);
+    }
+
     logger.info(`Minted NFT funded by VAULT`);
     let mintTxId = "";
+
+    try {
+      // Mint the NFT with the inscription ID
+      mintTxId = await nftService.mintWithInscriptionId(
+        L2Collection.contractAddress,
+        // parentCollectible.nftId, // Using nftId as batchId
+        creator.address,
+        inscriptionId
+      );
+      vault.address = fundingService.getVaultAddress();
+
+      if (!mintTxId) {
+        throw new CustomError("Failed to mint NFT with inscription ID", 400);
+      }
+    } catch (error) {
+      logger.error("Error during NFT minting:", error);
+      throw new CustomError(`Failed to mint NFT: ${error}`, 400);
+    }
 
     await collectibleRepository.update(db, parentCollectible.id, {
       lockingAddress: vault.address,
