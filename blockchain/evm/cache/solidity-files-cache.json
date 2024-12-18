@@ -1033,8 +1033,8 @@
       ]
     },
     "/Users/apple/projects/mintpark-backend/blockchain/evm/contracts/SyntethicNFT.sol": {
-      "lastModificationDate": 1734525917426,
-      "contentHash": "a74777ae26b1fb7ef0b8625afd597629",
+      "lastModificationDate": 1734544659379,
+      "contentHash": "10be2f5adbc74eeb0afdf84da581c142",
       "sourceName": "blockchain/evm/contracts/SyntethicNFT.sol",
       "solcConfig": {
         "version": "0.8.27",
@@ -1062,7 +1062,8 @@
       },
       "imports": [
         "@openzeppelin/contracts/token/ERC721/ERC721.sol",
-        "@openzeppelin/contracts/access/Ownable.sol"
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol"
       ],
       "versionPragmas": [
         "^0.8.17"

@@ -48,7 +48,5 @@ export type { MarketplaceWithPhase } from "./blockchain/evm/contracts/Marketplac
 export { MarketplaceWithPhase__factory } from "./factories/blockchain/evm/contracts/MarketplaceWithPhase__factory";
 export type { MPMNFT } from "./blockchain/evm/contracts/MPMNFT";
 export { MPMNFT__factory } from "./factories/blockchain/evm/contracts/MPMNFT__factory";
-export type { BatchEnabledNFT } from "./blockchain/evm/contracts/SyntethicNFT.sol/BatchEnabledNFT";
-export { BatchEnabledNFT__factory } from "./factories/blockchain/evm/contracts/SyntethicNFT.sol/BatchEnabledNFT__factory";
 export type { InscriptionNFT } from "./blockchain/evm/contracts/SyntethicNFT.sol/InscriptionNFT";
 export { InscriptionNFT__factory } from "./factories/blockchain/evm/contracts/SyntethicNFT.sol/InscriptionNFT__factory";

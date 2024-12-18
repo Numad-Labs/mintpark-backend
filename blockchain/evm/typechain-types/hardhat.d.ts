@@ -98,10 +98,6 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.MPMNFT__factory>;
     getContractFactory(
-      name: "BatchEnabledNFT",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.BatchEnabledNFT__factory>;
-    getContractFactory(
       name: "InscriptionNFT",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.InscriptionNFT__factory>;
@@ -212,11 +208,6 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.MPMNFT>;
     getContractAt(
-      name: "BatchEnabledNFT",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.BatchEnabledNFT>;
-    getContractAt(
       name: "InscriptionNFT",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
@@ -306,10 +297,6 @@ declare module "hardhat/types/runtime" {
       name: "MPMNFT",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.MPMNFT>;
-    deployContract(
-      name: "BatchEnabledNFT",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.BatchEnabledNFT>;
     deployContract(
       name: "InscriptionNFT",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -420,11 +407,6 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.MPMNFT>;
-    deployContract(
-      name: "BatchEnabledNFT",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.BatchEnabledNFT>;
     deployContract(
       name: "InscriptionNFT",
       args: any[],

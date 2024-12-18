@@ -43,7 +43,10 @@ export interface InscriptionNFTInterface extends Interface {
       | "setMinter"
       | "supportsInterface"
       | "symbol"
+      | "tokenByIndex"
+      | "tokenOfOwnerByIndex"
       | "tokenURI"
+      | "totalSupply"
       | "transferFrom"
       | "transferOwnership"
   ): FunctionFragment;
@@ -117,8 +120,20 @@ export interface InscriptionNFTInterface extends Interface {
   ): string;
   encodeFunctionData(functionFragment: "symbol", values?: undefined): string;
   encodeFunctionData(
+    functionFragment: "tokenByIndex",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "tokenOfOwnerByIndex",
+    values: [AddressLike, BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "tokenURI",
     values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "totalSupply",
+    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "transferFrom",
@@ -173,7 +188,19 @@ export interface InscriptionNFTInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "symbol", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "tokenByIndex",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "tokenOfOwnerByIndex",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "tokenURI", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "totalSupply",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "transferFrom",
     data: BytesLike
@@ -395,7 +422,17 @@ export interface InscriptionNFT extends BaseContract {
 
   symbol: TypedContractMethod<[], [string], "view">;
 
+  tokenByIndex: TypedContractMethod<[index: BigNumberish], [bigint], "view">;
+
+  tokenOfOwnerByIndex: TypedContractMethod<
+    [owner: AddressLike, index: BigNumberish],
+    [bigint],
+    "view"
+  >;
+
   tokenURI: TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
+
+  totalSupply: TypedContractMethod<[], [bigint], "view">;
 
   transferFrom: TypedContractMethod<
     [from: AddressLike, to: AddressLike, tokenId: BigNumberish],
@@ -494,8 +531,21 @@ export interface InscriptionNFT extends BaseContract {
     nameOrSignature: "symbol"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
+    nameOrSignature: "tokenByIndex"
+  ): TypedContractMethod<[index: BigNumberish], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "tokenOfOwnerByIndex"
+  ): TypedContractMethod<
+    [owner: AddressLike, index: BigNumberish],
+    [bigint],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "tokenURI"
   ): TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
+  getFunction(
+    nameOrSignature: "totalSupply"
+  ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
     nameOrSignature: "transferFrom"
   ): TypedContractMethod<
