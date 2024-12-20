@@ -4,6 +4,8 @@ import { collectionServices } from "../services/collectionServices";
 import { CustomError } from "../exceptions/CustomError";
 import { launchServices } from "../services/launchServices";
 import { collectionRepository } from "../repositories/collectionRepository";
+import { Insertable } from "kysely";
+import { Collection } from "../types/db/types";
 
 export interface CollectionQueryParams {
   layerId: string;
@@ -42,9 +44,9 @@ export const collectionController = {
       type,
     } = req.body;
     const logo = req.file as Express.Multer.File;
-    const data = {
+    const data: Insertable<Collection> = {
       name,
-      creator,
+      creatorName: creator,
       description,
       supply: 0,
       logoKey: null,
