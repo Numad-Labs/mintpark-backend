@@ -36,6 +36,7 @@ import {
 import NFTService from "../../blockchain/evm/services/nftService";
 import { inscribe } from "../blockchain/bitcoin/inscribe";
 import { sendRawTransaction } from "../blockchain/bitcoin/sendTransaction";
+import { hideSensitiveData } from "../libs/hideDataHelper";
 
 const launchPadService = new LaunchpadService(
   EVM_CONFIG.RPC_URL,
@@ -382,87 +383,97 @@ export const launchServices = {
     if (userPurchaseCount && userPurchaseCount >= launch.poMaxMintPerWallet)
       throw new CustomError("Wallet limit has been reached.", 400);
 
-    // const userOnHoldItemCount =
-    //   await launchItemRepository.getOnHoldCountByLaunchIdAndUserId(
-    //     launch.id,
-    //     user.id
-    //   );
-    // if (Number(userOnHoldItemCount) >= 3)
-    //   throw new CustomError("You have too many items reserved.", 400);
+    const userOnHoldItemCount =
+      await launchItemRepository.getOnHoldCountByLaunchIdAndUserId(
+        launch.id,
+        user.id
+      );
+    if (Number(userOnHoldItemCount) >= 3)
+      throw new CustomError("You have too many items reserved.", 400);
 
     const launchItem = await launchItemRepository.getRandomItemByLauchId(
       launch.id
     );
-    // const pickedLaunchItem = await launchItemRepository.setOnHoldById(
-    //   db,
-    //   launchItem.id,
-    //   user.id
-    // );
-    const collectible = await collectibleRepository.getById(
-      launchItem.collectibleId
-    );
-    if (!collectible) throw new CustomError("Collectible not found.", 400);
+    const result = await db.transaction().execute(async (trx) => {
+      const pickedLaunchItem = await launchItemRepository.setOnHoldById(
+        trx,
+        launchItem.id,
+        user.id
+      );
+      const collectible = await collectibleRepository.getById(
+        launchItem.collectibleId
+      );
+      if (!collectible) throw new CustomError("Collectible not found.", 400);
 
-    let singleMintTxHex, order;
-    if (
-      collection.type === "INSCRIPTION" ||
-      collection.type === "RECURSIVE_INSCRIPTION"
-    ) {
-      if (!feeRate)
-        throw new CustomError(
-          "You must provide fee rate for this operation.",
-          400
-        );
+      let singleMintTxHex, order;
+      if (
+        collection.type === "INSCRIPTION" ||
+        collection.type === "RECURSIVE_INSCRIPTION"
+      ) {
+        if (!feeRate)
+          throw new CustomError(
+            "You must provide fee rate for this operation.",
+            400
+          );
 
-      let networkFee: number = 546,
-        file;
-      if (collection.type === "RECURSIVE_INSCRIPTION") {
-        //TODO: Validate if all traits of the collection has already been minted or not
-        //networkFee = calculateRecursiveInscriptionGasFee(traitCount: number)
+        let networkFee: number = 546,
+          file;
+        if (collection.type === "RECURSIVE_INSCRIPTION") {
+          //TODO: Validate if all traits of the collection has already been minted or not
+          //networkFee = calculateRecursiveInscriptionGasFee(traitCount: number)
+        }
+
+        if (collection.type === "INSCRIPTION" && collectible.fileKey) {
+          file = await getObjectFromS3(collectible.fileKey);
+          networkFee =
+            getEstimatedFee(
+              [Number(file.contentType?.length)],
+              [Number(file.contentLength)],
+              0,
+              feeRate,
+              0
+            ).estimatedFee.totalAmount +
+            feeRate * (COMMIT_TX_SIZE + REVEAL_TX_SIZE);
+        }
+
+        const funder = await createFundingAddress("TESTNET");
+        const serviceFee = 0;
+        let totalAmount = networkFee * 1.5 + serviceFee;
+        order = await orderRepository.create(trx, {
+          userId: user.id,
+          collectionId: launch.collectionId,
+          feeRate,
+          orderType: "LAUNCH_BUY",
+          fundingAmount: totalAmount,
+          fundingAddress: funder.address,
+          privateKey: funder.privateKey,
+          userLayerId,
+        });
+
+        order = hideSensitiveData(order, ["privateKey"]);
+      } else if (collection.type === "IPFS") {
+        if (!collection.contractAddress)
+          throw new Error("Collection with no contract address not found.");
+
+        //TODO: refactor this method for generating mint transaction tx by pickedLaunchItem.collectible.cid
+        const unsignedTx =
+          await launchPadService.getUnsignedLaunchMintTransaction(
+            collectible,
+            user.address,
+            collection.contractAddress,
+            db
+          );
+        singleMintTxHex = serializeBigInt(unsignedTx);
       }
 
-      if (collection.type === "INSCRIPTION" && collectible.fileKey) {
-        file = await getObjectFromS3(collectible.fileKey);
-        networkFee =
-          getEstimatedFee(
-            [Number(file.contentType?.length)],
-            [Number(file.contentLength)],
-            0,
-            feeRate,
-            0
-          ).estimatedFee.totalAmount +
-          feeRate * (COMMIT_TX_SIZE + REVEAL_TX_SIZE);
-      }
+      return { launchItem: launchItem, order, singleMintTxHex };
+    });
 
-      const funder = await createFundingAddress("TESTNET");
-      const serviceFee = 0;
-      let totalAmount = networkFee * 1.5 + serviceFee;
-      order = await orderRepository.create(db, {
-        userId: user.id,
-        collectionId: launch.collectionId,
-        feeRate,
-        orderType: "LAUNCH_BUY",
-        fundingAmount: totalAmount,
-        fundingAddress: funder.address,
-        privateKey: funder.privateKey,
-        userLayerId,
-      });
-    } else if (collection.type === "IPFS") {
-      if (!collection.contractAddress)
-        throw new Error("Collection with no contract address not found.");
-
-      //TODO: refactor this method for generating mint transaction tx by pickedLaunchItem.collectible.cid
-      const unsignedTx =
-        await launchPadService.getUnsignedLaunchMintTransaction(
-          collectible,
-          user.address,
-          collection.contractAddress,
-          db
-        );
-      singleMintTxHex = serializeBigInt(unsignedTx);
-    }
-
-    return { launchItem: launchItem, order, singleMintTxHex };
+    return {
+      launchItem: launchItem,
+      order: result.order,
+      singleMintTxHex: result.singleMintTxHex,
+    };
   },
   confirmMint: async (
     userId: string,
@@ -483,18 +494,16 @@ export const launchServices = {
     if (!user?.isActive)
       throw new CustomError("This account is deactivated.", 400);
 
-    // const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
-    //   launchItemId
-    // );
-    // if (!isLaunchItemOnHold)
-    //   throw new CustomError("Launch item not found.", 400);
-    // if (isLaunchItemOnHold.status === "SOLD")
-    //   throw new CustomError("Launch item has already been sold.", 400);
-    // if (isLaunchItemOnHold && isLaunchItemOnHold.onHoldBy !== user.id)
-    //   throw new CustomError(
-    //     "This launch item is currently reserved to another user.",
-    //     400
-    //   );
+    const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
+      launchItemId
+    );
+    if (isLaunchItemOnHold && isLaunchItemOnHold.onHoldBy !== user.id)
+      throw new CustomError(
+        "This launch item is currently reserved to another user.",
+        400
+      );
+    if (isLaunchItemOnHold && isLaunchItemOnHold.status === "SOLD")
+      throw new CustomError("Launch item has already been sold.", 400);
 
     const launchItem = await launchItemRepository.getById(launchItemId);
     if (!launchItem) throw new CustomError("Launch item not found.", 400);
@@ -520,156 +529,167 @@ export const launchServices = {
     if (!parentCollectible.fileKey)
       throw new CustomError("Collectible file key not found.", 400);
 
-    if (
-      collection.type === "INSCRIPTION" ||
-      collection.type === "RECURSIVE_INSCRIPTION"
-    ) {
-      if (!verification?.orderId)
-        throw new CustomError(
-          "You must provide orderId for this operation.",
-          400
-        );
-
-      const L2Collection =
-        await collectionRepository.getChildCollectionByParentCollectionId(
-          collection.id
-        );
+    const result = await db.transaction().execute(async (trx) => {
       if (
-        !L2Collection ||
-        !L2Collection.contractAddress ||
-        !L2Collection.creatorUserLayerId
-      )
-        throw new CustomError("Child collection not found.", 400);
+        collection.type === "INSCRIPTION" ||
+        collection.type === "RECURSIVE_INSCRIPTION"
+      ) {
+        if (!verification?.orderId)
+          throw new CustomError(
+            "You must provide orderId for this operation.",
+            400
+          );
 
-      if (collection.type === "RECURSIVE_INSCRIPTION") {
-        //TODO: Validate if all traits of the collection has already been minted or not
-      }
+        const L2Collection =
+          await collectionRepository.getChildCollectionByParentCollectionId(
+            collection.id
+          );
+        if (
+          !L2Collection ||
+          !L2Collection.contractAddress ||
+          !L2Collection.creatorUserLayerId
+        )
+          throw new CustomError("Child collection not found.", 400);
 
-      const order = await orderRepository.getById(verification.orderId);
-      if (!order) throw new CustomError("Order not found.", 400);
-      if (!order.fundingAddress || !order.privateKey)
-        throw new CustomError(
-          "Order has invalid funding address and private key.",
-          400
-        );
-
-      const balance = await getBalance(order.fundingAddress);
-      if (balance < order.fundingAmount)
-        throw new CustomError("Fee has not been transferred yet.", 400);
-
-      //TODO: inscribe L1 ordinals by order.privateKey, mint L2 synthetic asset by vault
-      const vault = await createFundingAddress("TESTNET");
-      const file = await getObjectFromS3(parentCollectible.fileKey);
-      const inscriptionData = {
-        address: vault.address,
-        opReturnValues: `data:${file.contentType};base64,${(
-          file.content as Buffer
-        ).toString("base64")}` as any,
-      };
-      const { commitTxHex, revealTxHex } = await inscribe(
-        inscriptionData,
-        order.fundingAddress,
-        order.privateKey,
-        true,
-        order.feeRate
-      );
-      const commitTxResult = await sendRawTransaction(commitTxHex);
-      if (!commitTxResult)
-        throw new CustomError("Could not broadcast the commit tx.", 400);
-      const revealTxResult = await sendRawTransaction(revealTxHex);
-      if (!revealTxResult)
-        throw new CustomError("Could not broadcast the reveal tx.", 400);
-      const inscriptionId = revealTxResult + "i0";
-
-      let mintTxId = "";
-      try {
-        // Mint the NFT with the inscription ID
-        mintTxId = await nftService.mintWithInscriptionId(
-          L2Collection.contractAddress,
-          // parentCollectible.nftId, // Using nftId as batchId
-          user.address,
-          inscriptionId
-        );
-        // vault.address = fundingService.getVaultAddress();
-
-        if (!mintTxId) {
-          throw new CustomError("Failed to mint NFT with inscription ID", 400);
+        if (collection.type === "RECURSIVE_INSCRIPTION") {
+          //TODO: Validate if all traits of the collection has already been minted or not
         }
-      } catch (error) {
-        logger.error("Error during NFT minting:", error);
-        throw new CustomError(`Failed to mint NFT: ${error}`, 400);
-      }
-      await orderRepository.update(db, verification.orderId, {
-        orderStatus: "DONE",
-      });
 
-      await collectibleRepository.create(db, {
-        name: parentCollectible.name,
-        collectionId: L2Collection.id,
-        uniqueIdx: L2Collection.contractAddress + "i" + parentCollectible.nftId,
-        nftId: parentCollectible.nftId,
-        mintingTxId: inscriptionId,
-        parentCollectibleId: parentCollectible.id,
-        fileKey: parentCollectible.fileKey,
-        status: "CONFIRMED",
-      });
+        const order = await orderRepository.getById(verification.orderId);
+        if (!order) throw new CustomError("Order not found.", 400);
+        if (!order.fundingAddress || !order.privateKey)
+          throw new CustomError(
+            "Order has invalid funding address and private key.",
+            400
+          );
 
-      await collectibleRepository.update(db, parentCollectible.id, {
-        lockingAddress: vault.address,
-        lockingPrivateKey: vault.privateKey,
-        mintingTxId: revealTxResult,
-        uniqueIdx: inscriptionId,
-        status: "CONFIRMED",
-      });
+        const balance = await getBalance(order.fundingAddress);
+        if (balance < order.fundingAmount)
+          throw new CustomError("Fee has not been transferred yet.", 400);
 
-      await collectionRepository.incrementCollectionSupplyById(
-        db,
-        L2Collection.id
-      );
+        //TODO: inscribe L1 ordinals by order.privateKey, mint L2 synthetic asset by vault
+        if (!parentCollectible.fileKey)
+          throw new CustomError("Collectible with no file key.", 400);
+        const vault = await createFundingAddress("TESTNET");
+        const file = await getObjectFromS3(parentCollectible.fileKey);
+        const inscriptionData = {
+          address: vault.address,
+          opReturnValues: `data:${file.contentType};base64,${(
+            file.content as Buffer
+          ).toString("base64")}` as any,
+        };
+        const { commitTxHex, revealTxHex } = await inscribe(
+          inscriptionData,
+          order.fundingAddress,
+          order.privateKey,
+          true,
+          order.feeRate
+        );
+        const commitTxResult = await sendRawTransaction(commitTxHex);
+        if (!commitTxResult)
+          throw new CustomError("Could not broadcast the commit tx.", 400);
+        const revealTxResult = await sendRawTransaction(revealTxHex);
+        if (!revealTxResult)
+          throw new CustomError("Could not broadcast the reveal tx.", 400);
+        const inscriptionId = revealTxResult + "i0";
 
-      if (L2Collection.status === "UNCONFIRMED")
-        await collectionRepository.update(db, L2Collection.id, {
+        let mintTxId = "";
+        try {
+          // Mint the NFT with the inscription ID
+          mintTxId = await nftService.mintWithInscriptionId(
+            L2Collection.contractAddress,
+            // parentCollectible.nftId, // Using nftId as batchId
+            user.address,
+            inscriptionId
+          );
+          // vault.address = fundingService.getVaultAddress();
+
+          if (!mintTxId) {
+            throw new CustomError(
+              "Failed to mint NFT with inscription ID",
+              400
+            );
+          }
+        } catch (error) {
+          logger.error("Error during NFT minting:", error);
+          throw new CustomError(`Failed to mint NFT: ${error}`, 400);
+        }
+
+        await orderRepository.update(trx, verification.orderId, {
+          orderStatus: "DONE",
+        });
+
+        await collectibleRepository.create(trx, {
+          name: parentCollectible.name,
+          collectionId: L2Collection.id,
+          uniqueIdx:
+            L2Collection.contractAddress + "i" + parentCollectible.nftId,
+          nftId: parentCollectible.nftId,
+          mintingTxId: inscriptionId,
+          parentCollectibleId: parentCollectible.id,
+          fileKey: parentCollectible.fileKey,
           status: "CONFIRMED",
         });
-    } else if (collection.type === "IPFS") {
-      if (!verification?.txid)
-        throw new CustomError(
-          "You must provide mint txid for this operation.",
-          400
+
+        await collectibleRepository.update(trx, parentCollectible.id, {
+          lockingAddress: vault.address,
+          lockingPrivateKey: vault.privateKey,
+          mintingTxId: revealTxResult,
+          uniqueIdx: inscriptionId,
+          status: "CONFIRMED",
+        });
+
+        await collectionRepository.incrementCollectionSupplyById(
+          trx,
+          L2Collection.id
         );
 
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        verification.txid
-      );
-      if (transactionDetail.status !== 1) {
-        throw new CustomError(
-          "Transaction not confirmed. Please try again.",
-          500
-        );
+        if (L2Collection.status === "UNCONFIRMED")
+          await collectionRepository.update(trx, L2Collection.id, {
+            status: "CONFIRMED",
+          });
+      } else if (collection.type === "IPFS") {
+        if (!verification?.txid)
+          throw new CustomError(
+            "You must provide mint txid for this operation.",
+            400
+          );
+
+        const transactionDetail =
+          await confirmationService.getTransactionDetails(verification.txid);
+        if (transactionDetail.status !== 1) {
+          throw new CustomError(
+            "Transaction not confirmed. Please try again.",
+            500
+          );
+        }
       }
-    }
 
-    await collectionRepository.incrementCollectionSupplyById(db, collection.id);
+      await collectionRepository.incrementCollectionSupplyById(
+        trx,
+        collection.id
+      );
 
-    if (collection.status === "UNCONFIRMED")
-      await collectionRepository.update(db, collection.id, {
+      if (collection.status === "UNCONFIRMED")
+        await collectionRepository.update(trx, collection.id, {
+          status: "CONFIRMED",
+        });
+
+      const soldLaunchItem = await launchItemRepository.update(
+        trx,
+        launchItem.id,
+        {
+          status: "SOLD",
+        }
+      );
+      await collectibleRepository.update(trx, parentCollectible.id, {
         status: "CONFIRMED",
       });
 
-    const soldLaunchItem = await launchItemRepository.update(
-      db,
-      launchItem.id,
-      {
-        status: "SOLD",
-      }
-    );
-    await collectibleRepository.update(db, parentCollectible.id, {
-      status: "CONFIRMED",
-    });
-
-    await purchaseRepository.create(db, {
-      userId: user.id,
-      launchItemId: soldLaunchItem.id,
+      await purchaseRepository.create(trx, {
+        userId: user.id,
+        launchItemId: soldLaunchItem.id,
+      });
     });
 
     return { launchItem, collectible: parentCollectible };

@@ -107,7 +107,11 @@ export const orderController = {
         id
       );
 
-      return res.status(200).json({ success: true, data: { order } });
+      const sanitizedOrder = hideSensitiveData(order, ["privateKey"]);
+
+      return res
+        .status(200)
+        .json({ success: true, data: { order: sanitizedOrder } });
     } catch (e) {
       next(e);
     }

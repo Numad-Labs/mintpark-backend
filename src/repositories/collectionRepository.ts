@@ -474,4 +474,26 @@ export const collectionRepository = {
 
     return collection;
   },
+  countSyntheticCollections: async () => {
+    const result = await db
+      .selectFrom("Collection")
+      .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
+      .where("Collection.type", "=", "SYNTHETIC")
+      .where("Collection.status", "=", "CONFIRMED")
+      .executeTakeFirst();
+
+    return result?.count;
+  },
+  getSyntheticCollectionsWithOffset: async (offset: number) => {
+    const result = await db
+      .selectFrom("Collection")
+      .selectAll()
+      .where("Collection.type", "=", "SYNTHETIC")
+      .where("Collection.status", "=", "CONFIRMED")
+      .offset(offset)
+      .orderBy("createdAt asc")
+      .execute();
+
+    return result;
+  },
 };

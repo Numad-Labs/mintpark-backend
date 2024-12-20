@@ -30,6 +30,7 @@ import { version } from "../package.json";
 import { SQSConsumer } from "./queue/sqsConsumer";
 import { processMessage } from "./services/messageProcessingService";
 import { SQSProducer } from "./queue/sqsProducer";
+import { CollectionOwnerCounterService } from "./cron";
 
 export const redis = new Redis(config.REDIS_CONNECTION_STRING);
 
@@ -78,8 +79,8 @@ export const producer = new SQSProducer(
   "https://sqs.eu-central-1.amazonaws.com/992382532523/test-queue"
 );
 
-// checkPaymentAndUpdateOrderStatus();
-// mintingQueue();
+const collectionOwnerCounterService = new CollectionOwnerCounterService();
+collectionOwnerCounterService.startScheduler().catch(logger.error);
 
 app.listen(config.PORT, () => {
   logger.info(`Server has started on port ${config.PORT}`);
@@ -92,8 +93,9 @@ async function cleanup() {
   logger.info("Received shutdown signal, cleaning up...");
   try {
     await db.destroy();
-    redis.disconnect();
+    await redis.disconnect();
     consumer.stop();
+    await collectionOwnerCounterService.stopHeartbeat();
 
     logger.info("Cleanup successful");
     process.exit(0);
