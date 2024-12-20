@@ -51,7 +51,6 @@ export class SQSConsumer {
               error
             );
             await this.deleteMessage(message);
-            // Message will become visible again after visibility timeout
           }
         }
       } catch (error) {

@@ -127,6 +127,7 @@ export const orderItemRepository = {
       .selectFrom("OrderItem")
       .selectAll()
       .where("OrderItem.status", "=", "IN_QUEUE")
+      .where("OrderItem.orderId", "=", orderId)
       .where("OrderItem.type", "=", type)
       .executeTakeFirst();
 
