@@ -1033,8 +1033,8 @@
       ]
     },
     "/Users/apple/projects/mintpark-backend/blockchain/evm/contracts/SyntethicNFT.sol": {
-      "lastModificationDate": 1734544659379,
-      "contentHash": "10be2f5adbc74eeb0afdf84da581c142",
+      "lastModificationDate": 1734701800239,
+      "contentHash": "5da808cc733c9219b8ed43f68d119b50",
       "sourceName": "blockchain/evm/contracts/SyntethicNFT.sol",
       "solcConfig": {
         "version": "0.8.27",

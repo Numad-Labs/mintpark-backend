@@ -127,9 +127,9 @@ export async function processMessage(message: Message) {
       // Mint the NFT with the inscription ID
       mintTxId = await nftService.mintWithInscriptionId(
         L2Collection.contractAddress,
-        // parentCollectible.nftId, // Using nftId as batchId
         creator.address,
-        inscriptionId
+        inscriptionId,
+        parentCollectible.nftId
       );
       // vault.address = fundingService.getVaultAddress();
 

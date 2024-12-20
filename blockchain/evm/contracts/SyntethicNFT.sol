@@ -12,9 +12,6 @@ contract InscriptionNFT is ERC721, Ownable, ERC721Enumerable {
   // Mapping to store inscription IDs for each token
   mapping(uint256 => string) private inscriptionIds;
 
-  // Counter for token IDs
-  uint256 private _nextTokenId;
-
   // Events
   event InscriptionMinted(
     uint256 indexed tokenId,
@@ -24,19 +21,28 @@ contract InscriptionNFT is ERC721, Ownable, ERC721Enumerable {
 
   constructor(
     address _minter,
-    address initialOwner
-  ) ERC721("InscriptionNFT", "INFT") Ownable(initialOwner) {
+    address initialOwner,
+    string memory contractName
+  )
+    // string memory symbol
+    ERC721(contractName, "INFT")
+    Ownable(initialOwner)
+  {
     minterAddress = _minter;
-    _nextTokenId = 1;
+    // _nextTokenId = 1;
   }
 
   // Mint a single token with inscription ID
-  function mint(address recipient, string calldata inscriptionId) external {
+  function mint(
+    address recipient,
+    uint256 tokenId,
+    string calldata inscriptionId
+  ) external {
     require(msg.sender == minterAddress, "Not authorized");
     require(bytes(inscriptionId).length > 0, "Invalid inscription ID");
 
-    uint256 tokenId = _nextTokenId;
-    _nextTokenId++;
+    // uint256 tokenId = _nextTokenId;
+    // _nextTokenId++;
 
     _safeMint(recipient, tokenId);
     inscriptionIds[tokenId] = inscriptionId;

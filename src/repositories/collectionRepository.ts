@@ -304,6 +304,7 @@ export const collectionRepository = {
         "CollectionStats.volume",
         "CollectionStats.listedCount",
         "CollectionStats.soldCount",
+        "Collection.ownerCount",
         sql<number>`"CollectionStats"."floor" * "Collection"."supply"`.as(
           "marketCap"
         ),
@@ -480,6 +481,7 @@ export const collectionRepository = {
       .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
       .where("Collection.type", "=", "SYNTHETIC")
       .where("Collection.status", "=", "CONFIRMED")
+      .where("contractAddress", "is not", null)
       .executeTakeFirst();
 
     return result?.count;

@@ -598,9 +598,9 @@ export const launchServices = {
           // Mint the NFT with the inscription ID
           mintTxId = await nftService.mintWithInscriptionId(
             L2Collection.contractAddress,
-            // parentCollectible.nftId, // Using nftId as batchId
             user.address,
-            inscriptionId
+            inscriptionId,
+            parentCollectible.nftId
           );
           // vault.address = fundingService.getVaultAddress();
 

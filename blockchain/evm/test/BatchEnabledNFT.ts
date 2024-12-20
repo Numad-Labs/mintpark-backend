@@ -8,12 +8,19 @@ describe("InscriptionNFT", function () {
   let minter: SignerWithAddress;
   let recipient: SignerWithAddress;
   let other: SignerWithAddress;
+  const testNfitId = "nfit123";
+  const testNfitId2 = "nfit1234";
+  const testContractName = "NNFT";
 
   beforeEach(async function () {
     [owner, minter, recipient, other] = await ethers.getSigners();
 
     const InscriptionNFT = await ethers.getContractFactory("InscriptionNFT");
-    inscriptionNFT = await InscriptionNFT.deploy(minter.address, owner.address);
+    inscriptionNFT = await InscriptionNFT.deploy(
+      minter.address,
+      owner.address,
+      testContractName
+    );
     await inscriptionNFT.waitForDeployment();
   });
 
@@ -34,7 +41,7 @@ describe("InscriptionNFT", function () {
       await expect(
         inscriptionNFT
           .connect(minter)
-          .mint(recipient.address, testInscriptionId)
+          .mint(recipient.address, testInscriptionId, testNfitId)
       )
         .to.emit(inscriptionNFT, "InscriptionMinted")
         .withArgs(1, recipient.address, testInscriptionId);
@@ -47,23 +54,25 @@ describe("InscriptionNFT", function () {
 
     it("Should not allow non-minter to mint", async function () {
       await expect(
-        inscriptionNFT.connect(other).mint(recipient.address, testInscriptionId)
+        inscriptionNFT
+          .connect(other)
+          .mint(recipient.address, testInscriptionId, testNfitId)
       ).to.be.revertedWith("Not authorized");
     });
 
     it("Should not allow minting with empty inscription ID", async function () {
       await expect(
-        inscriptionNFT.connect(minter).mint(recipient.address, "")
+        inscriptionNFT.connect(minter).mint(recipient.address, "", testNfitId)
       ).to.be.revertedWith("Invalid inscription ID");
     });
 
     it("Should mint sequential token IDs", async function () {
       await inscriptionNFT
         .connect(minter)
-        .mint(recipient.address, "inscription1");
+        .mint(recipient.address, "inscription1", testNfitId);
       await inscriptionNFT
         .connect(minter)
-        .mint(recipient.address, "inscription2");
+        .mint(recipient.address, "inscription2", testNfitId2);
 
       expect(await inscriptionNFT.ownerOf(1)).to.equal(recipient.address);
       expect(await inscriptionNFT.ownerOf(2)).to.equal(recipient.address);
