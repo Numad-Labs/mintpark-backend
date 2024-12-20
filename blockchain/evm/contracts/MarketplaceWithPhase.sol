@@ -281,6 +281,10 @@ contract MarketplaceWithPhase is Ownable, ReentrancyGuard {
     emit ListingCancelled(listingId);
   }
 
+  function getListingIdCounter() external view returns (uint256) {
+    return _listingIdCounter;
+  }
+
   // View functions
   function getMintCount(
     address user,
