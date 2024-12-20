@@ -219,6 +219,7 @@ export const collectibleRepository = {
         "Collectible.highResolutionImageUrl",
         "Collectible.collectionId",
         "Collection.name as collectionName",
+        "Collection.creatorName",
         "Collection.contractAddress",
         eb.fn.coalesce("CurrentList.price", sql<number>`0`).as("price"),
         "FloorPrices.floor",
