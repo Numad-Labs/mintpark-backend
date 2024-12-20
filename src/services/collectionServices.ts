@@ -91,6 +91,7 @@ export const collectionServices = {
         status: "UNCONFIRMED",
         creatorId: user.id,
         layerId: bitcoinLayer.id,
+        ownerCount: 0,
         // creatorUserLayerId: userLayerId,
       });
 
@@ -101,6 +102,7 @@ export const collectionServices = {
         parentCollectionId: ordinalCollection.id,
         creatorId: user.id,
         creatorUserLayerId: userLayerId,
+        ownerCount: 0,
       });
     } else if (data.type === "IPFS") {
       l2Collection = await collectionRepository.create({
@@ -109,6 +111,7 @@ export const collectionServices = {
         status: "UNCONFIRMED",
         creatorId: user.id,
         creatorUserLayerId: userLayerId,
+        ownerCount: 0,
       });
     }
 

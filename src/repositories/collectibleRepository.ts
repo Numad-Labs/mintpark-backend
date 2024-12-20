@@ -57,6 +57,7 @@ export const collectibleRepository = {
         "Collectible.parentCollectibleId",
         "Collectible.mintingTxId",
         "Collectible.nftId",
+        "Collectible.highResolutionImageUrl",
         "Layer.layer",
         "Layer.network",
       ])
@@ -94,6 +95,7 @@ export const collectibleRepository = {
           "Collectible.uniqueIdx",
           "Collectible.createdAt",
           "Collectible.fileKey",
+          "Collectible.highResolutionImageUrl",
           "Collectible.collectionId",
           "Collection.name as collectionName",
           "CurrentList.listedAt",
@@ -214,6 +216,7 @@ export const collectibleRepository = {
         "Collectible.uniqueIdx",
         "Collectible.createdAt",
         "Collectible.fileKey",
+        "Collectible.highResolutionImageUrl",
         "Collectible.collectionId",
         "Collection.name as collectionName",
         "Collection.contractAddress",
@@ -316,6 +319,7 @@ export const collectibleRepository = {
         "Collectible.uniqueIdx",
         "Collectible.createdAt",
         "Collectible.fileKey",
+        "Collectible.highResolutionImageUrl",
         "Collectible.collectionId",
         "Collection.description",
         "Collection.name as collectionName",
@@ -368,27 +372,6 @@ export const collectibleRepository = {
 
     return result;
   },
-
-  getCollectionWithCollectionAddress: async (collectionIds: string[]) => {
-    let query = db
-      .selectFrom("Collection")
-      .select([
-        "id",
-        "name",
-        "contractAddress",
-        "supply",
-        "description",
-        "logoKey",
-      ])
-      .where("contractAddress", "is not", null);
-
-    if (collectionIds?.length) {
-      query = query.where("id", "in", collectionIds);
-    }
-
-    return query.execute();
-  },
-
   getByUniqueIdx: async (uniqueIdx: string) => {
     const collectible = await db
       .selectFrom("Collectible")
@@ -400,6 +383,7 @@ export const collectibleRepository = {
         "Collectible.uniqueIdx",
         "Collectible.createdAt",
         "Collectible.fileKey",
+        "Collectible.highResolutionImageUrl",
         "Collectible.collectionId",
         "Layer.layer",
         "Layer.network",

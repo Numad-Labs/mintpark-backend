@@ -150,16 +150,17 @@ model Collection {
 }
 
 model Collectible {
-  id          String             @id @default(dbgenerated("gen_random_uuid()"))
-  name        String
-  fileKey     String?
-  cid         String?
-  uniqueIdx   String?
-  nftId       String
-  metadata    Json?
-  status      COLLECTIBLE_STATUS @default(UNCONFIRMED)
-  createdAt   DateTime           @default(now())
-  mintingTxId String?
+  id                     String             @id @default(dbgenerated("gen_random_uuid()"))
+  name                   String
+  fileKey                String?
+  highResolutionImageUrl String?
+  cid                    String?
+  uniqueIdx              String?
+  nftId                  String
+  metadata               Json?
+  status                 COLLECTIBLE_STATUS @default(UNCONFIRMED)
+  createdAt              DateTime           @default(now())
+  mintingTxId            String?
 
   lockingAddress    String?
   lockingPrivateKey String?
