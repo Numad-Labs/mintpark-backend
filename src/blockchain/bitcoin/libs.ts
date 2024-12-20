@@ -16,7 +16,6 @@ export async function getBalance(address: string) {
     {
       headers: {
         accept: "application/json",
-        // Authorization: `Bearer ${config.UNISAT_FRACTAL_TESTNET_API_KEY}`,
       },
     }
   );
@@ -35,7 +34,6 @@ export async function getUtxos(address: string) {
     {
       headers: {
         accept: "application/json",
-        // Authorization: `Bearer ${config.UNISAT_FRACTAL_TESTNET_API_KEY}`,
       },
     }
   );

@@ -85,7 +85,20 @@ app.listen(config.PORT, () => {
   logger.info(`Server has started on port ${config.PORT}`);
 });
 
-process.on("SIGTERM", () => {
-  db.destroy();
-  redis.disconnect();
-});
+process.on("SIGTERM", cleanup);
+process.on("SIGINT", cleanup);
+
+async function cleanup() {
+  logger.info("Received shutdown signal, cleaning up...");
+  try {
+    await db.destroy();
+    redis.disconnect();
+    consumer.stop();
+
+    logger.info("Cleanup successful");
+    process.exit(0);
+  } catch (err) {
+    logger.error("Error during cleanup:", err);
+    process.exit(1);
+  }
+}

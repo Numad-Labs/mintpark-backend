@@ -229,6 +229,8 @@ export const collectibleServices = {
     startIndex: number,
     files: Express.Multer.File[]
   ) => {
+    //TODO: FIX THIS LATER
+    startIndex++;
     const fileKeys = await Promise.all(
       files.map(async (file) => {
         const key = randomUUID().toString();
@@ -301,6 +303,7 @@ export const collectibleServices = {
     startIndex: number,
     data: recursiveInscriptionParams[]
   ) => {
+    startIndex++;
     const collectiblesData: Insertable<Collectible>[] = [];
     const collectibleTraitData: Insertable<CollectibleTrait>[] = [];
     for (let i = 0; i < data.length; i++) {
@@ -391,6 +394,7 @@ export const collectibleServices = {
     startIndex: number,
     data: ipfsNftParams[]
   ) => {
+    startIndex++;
     const collectiblesData: Insertable<Collectible>[] = [];
     for (let i = 0; i < data.length; i++) {
       //TODO: data[i].cid validation?
