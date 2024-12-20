@@ -9,8 +9,6 @@ import {
 import { db } from "../utils/db";
 import { Collection, DB } from "../types/db/types";
 import { CollectionQueryParams } from "../controllers/collectionController";
-import { intervalMap } from "../libs/constants";
-import { LAYER } from "../types/db/enums";
 
 export interface LaunchQueryParams {
   layerId: string;
@@ -110,6 +108,7 @@ export const collectionRepository = {
         "Collection.type",
         "Collection.logoKey",
         "Collection.layerId",
+        "Collection.creatorName",
         "Launch.id as launchId",
         "Launch.wlStartsAt",
         "Launch.wlEndsAt",
@@ -185,6 +184,7 @@ export const collectionRepository = {
         "Collection.logoKey",
         "Collection.layerId",
         "Collection.status",
+        "Collection.creatorName",
         "Launch.id as launchId",
         "Launch.wlStartsAt",
         "Launch.wlEndsAt",
@@ -300,6 +300,7 @@ export const collectionRepository = {
         "Collection.logoKey",
         "Collection.contractAddress",
         "Collection.layerId",
+        "Collection.creatorName",
         "CollectionStats.floor",
         "CollectionStats.volume",
         "CollectionStats.listedCount",
@@ -385,6 +386,7 @@ export const collectionRepository = {
         "Collection.type",
         "Collection.logoKey",
         "Collection.layerId",
+        "Collection.creatorName",
         "CollectionStats.floor",
         "CollectionStats.volume",
         "CollectionStats.listedCount",
