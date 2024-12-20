@@ -126,6 +126,7 @@ model Collection {
   slug            String?
   logoKey         String?
   supply          Int
+  ownerCount      Int?
 
   contractAddress String?
   type            COLLECTION_TYPE   @default(RECURSIVE_INSCRIPTION)

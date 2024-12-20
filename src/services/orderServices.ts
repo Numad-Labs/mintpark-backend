@@ -16,11 +16,6 @@ import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import NFTService from "../../blockchain/evm/services/nftService";
 import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
 import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
-import {
-  acquireSlot,
-  forceReleaseSlot,
-  updateProgress,
-} from "../libs/uploadLimiter";
 import { FILE_COUNT_LIMIT } from "../libs/constants";
 import { serializeBigInt } from "../../blockchain/evm/utils";
 import { db } from "../utils/db";

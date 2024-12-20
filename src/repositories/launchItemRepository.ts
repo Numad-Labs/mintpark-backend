@@ -149,7 +149,7 @@ export const launchItemRepository = {
           eb("LaunchItem.onHoldUntil", "is", null),
           sql`${eb.ref(
             "onHoldUntil"
-          )} < NOW() - INTERVAL '2 minute'`.$castTo<boolean>(),
+          )} < NOW() - INTERVAL '3 minute'`.$castTo<boolean>(),
         ])
       )
       .executeTakeFirstOrThrow(
@@ -168,7 +168,7 @@ export const launchItemRepository = {
       .where((eb) =>
         sql`${eb.ref(
           "onHoldUntil"
-        )} < NOW() - INTERVAL '2 minute'`.$castTo<boolean>()
+        )} < NOW() - INTERVAL '3 minute'`.$castTo<boolean>()
       )
       .executeTakeFirst();
 

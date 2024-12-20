@@ -55,6 +55,7 @@ export type Collection = {
   slug: string | null;
   logoKey: string | null;
   supply: number;
+  ownerCount: number | null;
   contractAddress: string | null;
   type: Generated<COLLECTION_TYPE>;
   status: Generated<COLLECTION_STATUS>;
