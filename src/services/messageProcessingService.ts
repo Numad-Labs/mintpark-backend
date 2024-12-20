@@ -121,7 +121,7 @@ export async function processMessage(message: Message) {
     const inscriptionId = revealTxResult + "i0";
 
     logger.info(`Minted NFT funded by VAULT`);
-    let mintTxId = "";
+    let mintTxId;
 
     try {
       // Mint the NFT with the inscription ID
@@ -140,6 +140,16 @@ export async function processMessage(message: Message) {
       logger.error("Error during NFT minting:", error);
       throw new CustomError(`Failed to mint NFT: ${error}`, 400);
     }
+
+    if (collection.status !== "CONFIRMED")
+      await collectionRepository.update(db, collection.id, {
+        status: "CONFIRMED",
+      });
+
+    if (L2Collection.status !== "CONFIRMED")
+      await collectionRepository.update(db, L2Collection.id, {
+        status: "CONFIRMED",
+      });
 
     await collectibleRepository.update(db, parentCollectible.id, {
       lockingAddress: vault.address,
@@ -171,23 +181,11 @@ export async function processMessage(message: Message) {
         order.id,
         "COLLECTIBLE"
       );
-    if (!hasRemainingOrderItem) {
+
+    if (!hasRemainingOrderItem)
       await orderRepository.updateOrderStatus(order.id, "DONE");
-
-      if (collection.status !== "CONFIRMED") {
-        await collectionRepository.update(db, collection.id, {
-          status: "CONFIRMED",
-        });
-
-        if (L2Collection.status !== "CONFIRMED")
-          await collectionRepository.update(db, L2Collection.id, {
-            status: "CONFIRMED",
-          });
-      }
-    } else {
-      //ENQUEUE ORDERID
-      producer.sendMessage(order.id, 3);
-    }
+    //ENQUEUE ORDERID
+    else producer.sendMessage(order.id, 3);
 
     return;
   } else if (collection.type === "RECURSIVE_INSCRIPTION") {
