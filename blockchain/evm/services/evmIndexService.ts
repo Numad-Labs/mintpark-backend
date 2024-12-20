@@ -371,7 +371,7 @@ export class EVMCollectibleService {
             {
               address: EVM_CONFIG.MARKETPLACE_ADDRESS,
               topics: [
-                ethers.id("ItemListed(address,address,uint256,uint256)"),
+                ethers.id("ListingCreated(uint256,address,uint256,uint256)"),
               ],
             },
             fromBlock,
@@ -381,9 +381,7 @@ export class EVMCollectibleService {
           this.getPaginatedLogs(
             {
               address: EVM_CONFIG.MARKETPLACE_ADDRESS,
-              topics: [
-                ethers.id("ItemSold(address,address,address,uint256,uint256)"),
-              ],
+              topics: [ethers.id("ListingSold(uint256,address,uint256)")],
             },
             fromBlock,
             latestBlock
@@ -392,7 +390,7 @@ export class EVMCollectibleService {
           this.getPaginatedLogs(
             {
               address: EVM_CONFIG.MARKETPLACE_ADDRESS,
-              topics: [ethers.id("ListingCancelled(address,address,uint256)")],
+              topics: [ethers.id("ListingCancelled(uint256)")],
             },
             fromBlock,
             latestBlock
@@ -437,12 +435,12 @@ export class EVMCollectibleService {
         }
       }
 
-      // Process Listing events
+      // Process ListingCreated events
       for (const log of listingLogs) {
         const eventArgs = await this.processEventLog(
           log,
           marketplaceContract,
-          "ItemListed"
+          "ListingCreated"
         );
         if (
           eventArgs &&
@@ -452,11 +450,14 @@ export class EVMCollectibleService {
           const block = await this.provider.getBlock(log.blockNumber);
           const timestamp = block ? Number(block.timestamp) : 0;
 
+          // Get the listing details to find the seller
+          const listing = await marketplaceContract.getListing(eventArgs[0]);
+
           activities.push({
             activityType: NFTActivityType.LISTED,
             tokenId,
             collectionId: nftContractAddress,
-            fromAddress: eventArgs[0],
+            fromAddress: listing.seller,
             price: eventArgs[3].toString(),
             transactionHash: log.transactionHash,
             timestamp,
@@ -465,32 +466,37 @@ export class EVMCollectibleService {
         }
       }
 
-      // Process Sale events
+      // Process ListingSold events
       for (const log of saleLogs) {
         const eventArgs = await this.processEventLog(
           log,
           marketplaceContract,
-          "ItemSold"
+          "ListingSold"
         );
-        if (
-          eventArgs &&
-          eventArgs[2].toLowerCase() === nftContractAddress.toLowerCase() &&
-          eventArgs[3].toString() === tokenId
-        ) {
-          const block = await this.provider.getBlock(log.blockNumber);
-          const timestamp = block ? Number(block.timestamp) : 0;
+        if (eventArgs) {
+          // Get the listing details since the event doesn't contain all info
+          const listing = await marketplaceContract.getListing(eventArgs[0]);
 
-          activities.push({
-            activityType: NFTActivityType.SALE,
-            tokenId,
-            collectionId: nftContractAddress,
-            fromAddress: eventArgs[0],
-            toAddress: eventArgs[1],
-            price: eventArgs[4].toString(),
-            transactionHash: log.transactionHash,
-            timestamp,
-            blockNumber: log.blockNumber,
-          });
+          if (
+            listing.nftContract.toLowerCase() ===
+              nftContractAddress.toLowerCase() &&
+            listing.tokenId.toString() === tokenId
+          ) {
+            const block = await this.provider.getBlock(log.blockNumber);
+            const timestamp = block ? Number(block.timestamp) : 0;
+
+            activities.push({
+              activityType: NFTActivityType.SALE,
+              tokenId,
+              collectionId: nftContractAddress,
+              fromAddress: listing.seller,
+              toAddress: eventArgs[1], // buyer address
+              price: eventArgs[2].toString(),
+              transactionHash: log.transactionHash,
+              timestamp,
+              blockNumber: log.blockNumber,
+            });
+          }
         }
       }
 
