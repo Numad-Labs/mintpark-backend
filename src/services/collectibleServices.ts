@@ -62,33 +62,7 @@ export const collectibleServices = {
         user.layerId
       );
       console.log("collections:", collections);
-      // if (collections?.length) {
-      //   console.log(`Found ${collections.length} CITREA collections`);
-      //   // Filter valid collections and process them in parallel
-      //   const validCollections = collections.filter((c) => c.contractAddress);
-      //   const tokenResults = await Promise.all(
-      //     validCollections.map(async (collection) => {
-      //       try {
-      //         const tokenIds = await evmCollectibleService.getOwnedTokens(
-      //           collection.contractAddress!,
-      //           user.address
-      //         );
-      //         if (!tokenIds?.length) return [];
-      //         console.log(
-      //           `Found ${tokenIds.length} tokens for contract: ${collection.contractAddress}`
-      //         );
-      //         return tokenIds.map(
-      //           (tokenId) => `${collection.contractAddress}i${tokenId}`
-      //         );
-      //       } catch (error) {
-      //         console.error(
-      //           `Error processing collection ${collection.contractAddress}:`,
-      //           error
-      //         );
-      //         return [];
-      //       }
-      //     })
-      //   );
+
       if (collections?.length) {
         // Filter valid collections
         const validCollections = collections

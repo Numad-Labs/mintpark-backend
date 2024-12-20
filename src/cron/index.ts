@@ -1,4 +1,6 @@
 import { redis } from "..";
+import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
+import { EVMCollectibleService } from "../../blockchain/evm/services/evmIndexService";
 import logger from "../config/winston";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { db } from "../utils/db";
@@ -11,6 +13,8 @@ export class CollectionOwnerCounterService {
   private readonly INSTANCE_HEARTBEAT_TTL: number;
   private readonly instanceId: string;
   private heartbeatInterval?: NodeJS.Timeout;
+  private readonly TWO_HOURS_MS = 2 * 60 * 60 * 1000; // 2 hours in millisecond
+  private readonly evmService: EVMCollectibleService;
 
   constructor() {
     this.LOCK_TTL = 5 * 60; // 5 minutes
@@ -20,6 +24,8 @@ export class CollectionOwnerCounterService {
     this.instanceId = `instance:${process.pid}:${Math.random()
       .toString(36)
       .slice(2)}`;
+
+    this.evmService = new EVMCollectibleService(EVM_CONFIG.RPC_URL);
   }
 
   async startHeartbeat(): Promise<void> {
@@ -95,16 +101,53 @@ export class CollectionOwnerCounterService {
     }
   }
 
+  private async getLastProcessedTime(collectionId: string): Promise<number> {
+    const lastProcessed = await redis.get(`last_processed:${collectionId}`);
+    return lastProcessed ? parseInt(lastProcessed) : 0;
+  }
+
+  private async setLastProcessedTime(collectionId: string): Promise<void> {
+    await redis.set(`last_processed:${collectionId}`, Date.now().toString());
+  }
+
+  private async shouldProcessCollection(
+    collectionId: string
+  ): Promise<boolean> {
+    const lastProcessed = await this.getLastProcessedTime(collectionId);
+    return Date.now() - lastProcessed >= this.TWO_HOURS_MS;
+  }
+
   async processCollectionBatch(
-    collections: Array<{ id: string; address?: string }>
+    collections: Array<{ id: string; contractAddress?: string | null }>
   ): Promise<void> {
     for (const collection of collections) {
       try {
-        const uniqueOwnersCount = await this.getUniqueOwnersCount(collection);
+        if (!collection.contractAddress) {
+          logger.warn(`Collection ${collection.id} has no contract address`);
+          continue;
+        }
+
+        if (!(await this.shouldProcessCollection(collection.id))) {
+          logger.info(
+            `Skipping collection ${collection.id} - Not due for processing yet`
+          );
+          continue;
+        }
+
+        const uniqueOwnersCount =
+          await this.evmService.getCollectionOwnersCount(
+            collection.contractAddress
+          );
 
         await collectionRepository.update(db, collection.id, {
           ownerCount: uniqueOwnersCount,
         });
+
+        await this.setLastProcessedTime(collection.id);
+
+        logger.info(
+          `Updated owner count for collection ${collection.id}: ${uniqueOwnersCount} owners`
+        );
       } catch (error) {
         logger.error(
           `Failed to update owner count for collection ${collection.id}:`,
@@ -175,6 +218,7 @@ export class CollectionOwnerCounterService {
         } finally {
           await this.releaseLock(batchLockKey);
         }
+        // await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     } catch (error) {
       logger.error("Error in owner count update job:", error);
@@ -188,14 +232,14 @@ export class CollectionOwnerCounterService {
     // logger.info(`active instance count: ${this.getActiveInstanceCount().}`);
     console.log(await this.getActiveInstanceCount());
 
-    // // Run every 2 hours
-    // cron.schedule("0 */2 * * *", async () => {
-    //   await this.updateOwnerCounts();
-    // });
-
-    // Run every minute
-    cron.schedule("* * * * *", async () => {
+    // Run every 2 hours
+    cron.schedule("0 */2 * * *", async () => {
       await this.updateOwnerCounts();
     });
+
+    // // Run every minute
+    // cron.schedule("* * * * *", async () => {
+    //   await this.updateOwnerCounts();
+    // });
   }
 }

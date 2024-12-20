@@ -7,12 +7,6 @@ import { FundingAddressService } from "./fundingAddress";
 import { CustomError } from "../../../src/exceptions/CustomError";
 import logger from "../../../src/config/winston";
 
-interface UploadResult {
-  metadataURI: string;
-  imageMetadata: PinResponse;
-  metadataFileMetadata: PinResponse;
-}
-
 class NFTService {
   provider: ethers.JsonRpcProvider;
   private marketplaceAddress: string;
@@ -38,7 +32,8 @@ class NFTService {
 
   async getUnsignedDeploymentTransaction(
     initialOwner: string,
-    minterAddress: string
+    minterAddress: string,
+    contractName: string
   ) {
     const signer = await this.provider.getSigner();
     const factory = new ethers.ContractFactory(
@@ -49,7 +44,8 @@ class NFTService {
 
     const unsignedTx = await factory.getDeployTransaction(
       minterAddress,
-      initialOwner
+      initialOwner,
+      contractName
     );
     return this.prepareUnsignedTransaction(unsignedTx, initialOwner);
   }
@@ -83,7 +79,8 @@ class NFTService {
   async mintWithInscriptionId(
     collectionAddress: string,
     recipient: string,
-    inscriptionId: string
+    inscriptionId: string,
+    nftId: string
   ): Promise<string> {
     try {
       // Create minter wallet
@@ -119,7 +116,7 @@ class NFTService {
       }
 
       // Mint directly using the contract instance (which is already connected to minterWallet)
-      const tx = await contract.mint(recipient, inscriptionId);
+      const tx = await contract.mint(recipient, nftId, inscriptionId);
       const receipt = await tx.wait();
 
       if (!receipt || receipt.status === 0) {

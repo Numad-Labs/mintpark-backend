@@ -22,7 +22,7 @@ export const getDeploymentTransaction = async (
   try {
     const { initialOwner, name, symbol, price } = req.body;
     // Validate input
-    if (!initialOwner || !name || !symbol) {
+    if (!initialOwner || !name) {
       return res.status(400).json({
         success: false,
         error: "Missing required parameters: initialOwner, name, or symbol",
@@ -30,7 +30,8 @@ export const getDeploymentTransaction = async (
     }
     const unsignedTx = await nftService.getUnsignedDeploymentTransaction(
       initialOwner,
-      config.VAULT_ADDRESS
+      config.VAULT_ADDRESS,
+      name
     );
     // Serialize BigInt values before sending the response
     const serializedTx = serializeBigInt(unsignedTx);

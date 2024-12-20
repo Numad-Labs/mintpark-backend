@@ -82,7 +82,7 @@ export interface InscriptionNFTInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "mint",
-    values: [AddressLike, string]
+    values: [AddressLike, BigNumberish, string]
   ): string;
   encodeFunctionData(
     functionFragment: "minterAddress",
@@ -370,7 +370,7 @@ export interface InscriptionNFT extends BaseContract {
   >;
 
   mint: TypedContractMethod<
-    [recipient: AddressLike, inscriptionId: string],
+    [recipient: AddressLike, tokenId: BigNumberish, inscriptionId: string],
     [void],
     "nonpayable"
   >;
@@ -476,7 +476,7 @@ export interface InscriptionNFT extends BaseContract {
   getFunction(
     nameOrSignature: "mint"
   ): TypedContractMethod<
-    [recipient: AddressLike, inscriptionId: string],
+    [recipient: AddressLike, tokenId: BigNumberish, inscriptionId: string],
     [void],
     "nonpayable"
   >;

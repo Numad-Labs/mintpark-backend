@@ -186,60 +186,7 @@ export const listServices = {
         ]);
 
         return { sanitizedList, preparedListingTx: serializedTx };
-      }
-      // else if (collectible.layer === "FRACTAL") {
-      //   if (!collectible.uniqueIdx)
-      //     throw new CustomError(
-      //       "Collectible with no unique index cannot be listed.",
-      //       400
-      //     );
-      //   const inscription = await getInscriptionInfo(collectible.uniqueIdx);
-      //   if (!inscription)
-      //     throw new CustomError(
-      //       "Invalid inscriptionId, this inscription cant be sold.",
-      //       400
-      //     );
-      //   if (inscription.address !== issuer.address)
-      //     throw new CustomError(
-      //       "You are not the owner of this inscription.",
-      //       400
-      //     );
-      //   if (!inscription.utxo.satoshi)
-      //     throw new CustomError("No inscription satoshi amount found.", 400);
-
-      //   const latestPendingList =
-      //     await listRepository.getLatestPendingListByCollectibleId(
-      //       trx,
-      //       collectible.id
-      //     );
-      //   if (latestPendingList)
-      //     await listRepository.cancelPendingListingsByCollectibleId(
-      //       trx,
-      //       collectible.id
-      //     );
-
-      //   const vault = createFundingAddress(
-      //     collectible.layer,
-      //     collectible.network
-      //   );
-      //   list = await listRepository.create(trx, {
-      //     collectibleId: collectible.id,
-      //     sellerId: issuer.id,
-      //     address: vault.address,
-      //     privateKey: vault.privateKey,
-      //     price: price,
-      //     inscribedAmount: inscription.utxo.satoshi,
-      //   });
-
-      //   const sanitizedList = hideSensitiveData(list, [
-      //     "privateKey",
-      //     "vaultTxid",
-      //     "vaultVout",
-      //   ]);
-
-      //   return sanitizedList;
-      // }
-      else throw new CustomError("Unsupported layer.", 400);
+      } else throw new CustomError("Unsupported layer.", 400);
     });
   },
   confirmPendingList: async (

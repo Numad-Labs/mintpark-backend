@@ -181,6 +181,7 @@ export class EVMCollectibleService {
         `Error getting owners count for ${contractAddress}:`,
         error
       );
+
       throw error;
     }
   }
