@@ -8,11 +8,6 @@ require("dotenv").config();
 import userRouter from "./routes/userRoutes";
 import { errorHandler } from "./middlewares/errorHandler";
 import { notFound } from "./middlewares/notFound";
-// import {
-//   checkAndUpdateCollectibleStatus,
-//   checkPaymentAndUpdateOrderStatus,
-//   mintingQueue,
-// } from "./cron";
 import layerRouter from "./routes/layerRoutes";
 import orderRouter from "./routes/orderRoutes";
 import collectionRouter from "./routes/collectionRoutes";
