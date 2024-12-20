@@ -154,14 +154,17 @@ export const listServices = {
           );
         const tokenId = collectible.uniqueIdx.split("i")[1];
 
-        // Create listing transaction
-        const createListingTx =
+        const { transaction: createListingTx, expectedListingId } =
           await marketplaceService.createListingTransaction(
             collection.contractAddress,
             tokenId,
             price.toString(),
             issuer.address
           );
+        console.log(
+          "🚀 ~ returnawaitdb.transaction ~ expectedListingId:",
+          expectedListingId
+        );
 
         // const preparedListingTx = await nftService.prepareUnsignedTransaction(
         //   createListingTx,
@@ -170,12 +173,14 @@ export const listServices = {
 
         const serializedTx = serializeBigInt(createListingTx);
 
+        //todo listingId gd nemeh
         list = await listRepository.create(trx, {
           collectibleId: collectible.id,
           sellerId: issuer.id,
           address: issuer.address,
-          privateKey: "evm",
+          privateKey: expectedListingId,
           price: price,
+
           // inscribedAmount: price,
         });
 
@@ -365,7 +370,7 @@ export const listServices = {
         // FCFS or Public phase - no merkle proof needed
         return serializeBigInt(
           await marketplaceService.buyListingTransaction(
-            parseInt(collectible.uniqueIdx.split("i")[1]),
+            parseInt(list.privateKey),
             [],
             list.price.toString(),
             buyer.address

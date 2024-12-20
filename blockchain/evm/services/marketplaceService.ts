@@ -55,6 +55,19 @@ class MarketplaceService {
     );
   }
 
+  // async verifyListing(listingId: number) {
+  //   const signer = await this.provider.getSigner();
+
+  //   const marketplaceFactory = new ethers.ContractFactory(
+  //     EVM_CONFIG.MARKETPLACE_ABI,
+  //     EVM_CONFIG.MARKETPLACE_CONTRACT_BYTECODE,
+  //     signer
+  //   );
+  //   const listing = await marketplaceFactory.getListing(listingId);
+  //   console.log("Listing status:", listing);
+  //   return listing.isActive;
+  // }
+
   async registerCollectionTransaction(
     nftContract: string,
     publicMaxMint: number,
@@ -117,7 +130,13 @@ class MarketplaceService {
       tokenId,
       ethers.parseEther(price)
     );
-    return this.prepareUnsignedTransaction(unsignedTx, sellerAddress);
+    return {
+      transaction: await this.prepareUnsignedTransaction(
+        unsignedTx,
+        sellerAddress
+      ),
+      expectedListingId: (await this.getNextListingId()).toString(),
+    };
   }
 
   async buyListingTransaction(
@@ -126,6 +145,7 @@ class MarketplaceService {
     price: string,
     buyerAddress: string
   ) {
+    console.log("🚀 ~ MarketplaceService ~ listingId:", listingId);
     const contract = await this.getEthersMarketplaceContract();
     const unsignedTx = await contract.purchaseListing.populateTransaction(
       listingId,
@@ -145,6 +165,12 @@ class MarketplaceService {
     return this.prepareUnsignedTransaction(unsignedTx, sellerAddress);
   }
 
+  // Add this method to get the next listing ID
+  private async getNextListingId(): Promise<number> {
+    const contract = await this.getEthersMarketplaceContract();
+    // You'll need to add a view function in your contract to get this
+    return contract.getListingIdCounter();
+  }
   async prepareUnsignedTransaction(
     unsignedTx: ethers.ContractTransaction | ethers.ContractDeployTransaction,
     from: string

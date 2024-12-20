@@ -89,6 +89,7 @@ export interface MarketplaceWithPhaseInterface extends Interface {
       | "getCollectionConfig"
       | "getCurrentPhase"
       | "getListing"
+      | "getListingIdCounter"
       | "getMintCount"
       | "listings"
       | "marketplaceFee"
@@ -150,6 +151,10 @@ export interface MarketplaceWithPhaseInterface extends Interface {
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "getListingIdCounter",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "getMintCount",
     values: [AddressLike, AddressLike, BigNumberish]
   ): string;
@@ -208,6 +213,10 @@ export interface MarketplaceWithPhaseInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "getListing", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "getListingIdCounter",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "getMintCount",
     data: BytesLike
@@ -468,6 +477,8 @@ export interface MarketplaceWithPhase extends BaseContract {
     "view"
   >;
 
+  getListingIdCounter: TypedContractMethod<[], [bigint], "view">;
+
   getMintCount: TypedContractMethod<
     [user: AddressLike, nftContract: AddressLike, phase: BigNumberish],
     [bigint],
@@ -578,6 +589,9 @@ export interface MarketplaceWithPhase extends BaseContract {
     [MarketplaceWithPhase.ListingStructOutput],
     "view"
   >;
+  getFunction(
+    nameOrSignature: "getListingIdCounter"
+  ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
     nameOrSignature: "getMintCount"
   ): TypedContractMethod<
