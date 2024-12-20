@@ -5,6 +5,8 @@ import {
   CollectibleQueryParams,
   traitFilter,
 } from "../controllers/collectibleController";
+import logger from "../config/winston";
+import { log } from "console";
 
 export const collectibleRepository = {
   create: async (
@@ -147,10 +149,10 @@ export const collectibleRepository = {
           );
           break;
         case "recent":
-          query = query.orderBy("CurrentList.listedAt", "desc");
+          query = query.orderBy("CurrentList.listedAt", "asc");
           break;
         default:
-          query = query.orderBy("CurrentList.price", "asc");
+          query = query.orderBy("Collectible.createdAt", "asc");
       }
 
       // Execute query and log results for debugging
@@ -260,18 +262,21 @@ export const collectibleRepository = {
     //   );
     // }
 
+    logger.info(params.orderBy);
     switch (params.orderBy) {
       case "price":
+        logger.info(params.orderBy);
         query = query.orderBy(
           "CurrentList.price",
           params.orderDirection === "desc" ? "desc" : "asc"
         );
         break;
       case "recent":
+        logger.info(params.orderBy);
         query = query.orderBy("CurrentList.listedAt", "asc");
         break;
       default:
-        query = query.orderBy("CurrentList.price", "asc");
+        query = query.orderBy("Collectible.createdAt", "desc");
     }
 
     const collectibles = await query.execute();
