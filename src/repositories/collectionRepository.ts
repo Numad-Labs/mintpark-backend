@@ -484,13 +484,17 @@ export const collectionRepository = {
 
     return result?.count;
   },
-  getSyntheticCollectionsWithOffset: async (offset: number) => {
+  getSyntheticCollectionsWithOffsetAndPagination: async (
+    offset: number,
+    pagination: number
+  ) => {
     const result = await db
       .selectFrom("Collection")
       .selectAll()
       .where("Collection.type", "=", "SYNTHETIC")
       .where("Collection.status", "=", "CONFIRMED")
       .offset(offset)
+      .limit(pagination)
       .orderBy("createdAt asc")
       .execute();
 
