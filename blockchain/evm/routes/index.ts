@@ -17,6 +17,6 @@ const evmRoutes = Router();
 // evmRoutes.post("/marketplace/buy", evmAssetController.buyAsset);
 
 evmRoutes.post("/generate-message", userController.generateMessageToSign);
-evmRoutes.post("/login", userController.login);
+// evmRoutes.post("/login", userController.login);
 
 export = evmRoutes;

@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { BatchEnabledNFT, InscriptionNFT } from "../typechain-types";
+import { InscriptionNFT } from "../typechain-types";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 describe("InscriptionNFT", function () {
   let inscriptionNFT: InscriptionNFT;
