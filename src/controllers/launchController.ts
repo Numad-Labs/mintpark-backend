@@ -16,6 +16,7 @@ import {
 } from "./collectibleController";
 import { userRepository } from "../repositories/userRepository";
 import LaunchpadService from "../../blockchain/evm/services/launchpadService";
+import logger from "../config/winston";
 
 export interface LaunchOfferType {
   offerType: "public" | "whitelist";
@@ -87,7 +88,7 @@ export const launchController = {
         collectionId,
         names,
         files,
-        isLastBatch
+        isLastBatch === "true"
       );
 
       return res.status(200).json({ success: true, data: result });
