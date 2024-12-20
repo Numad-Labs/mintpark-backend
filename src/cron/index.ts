@@ -154,8 +154,9 @@ export class CollectionOwnerCounterService {
 
         try {
           const collections =
-            await collectionRepository.getSyntheticCollectionsWithOffset(
-              offset
+            await collectionRepository.getSyntheticCollectionsWithOffsetAndPagination(
+              offset,
+              batchSize
             );
 
           console.log("The collections to be processed: ", collections);
