@@ -48,7 +48,15 @@ export class EVMCollectibleService {
       // Process one token at a time to prevent concurrent requests
       for (let i = 0; i < balanceNumber; i++) {
         try {
+          console.log(
+            "🚀 ~ EVMCollectibleService ~ getOwnedTokens ~ ownerAddress:",
+            ownerAddress
+          );
           const tokenId = await contract.tokenOfOwnerByIndex(ownerAddress, i);
+          console.log(
+            "🚀 ~ EVMCollectibleService ~ getOwnedTokens ~ tokenId:",
+            tokenId
+          );
           allTokenIds.push(tokenId.toString());
 
           // Add a small delay between individual token requests
