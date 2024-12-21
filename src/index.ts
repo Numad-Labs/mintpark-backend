@@ -64,14 +64,14 @@ app.use(errorHandler);
 
 const consumer = new SQSConsumer(
   "eu-central-1",
-  "https://sqs.eu-central-1.amazonaws.com/992382532523/test-queue"
+  `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`
 );
 logger.info("Starting SQS consumer...");
 consumer.start(processMessage);
 
 export const producer = new SQSProducer(
   "eu-central-1",
-  "https://sqs.eu-central-1.amazonaws.com/992382532523/test-queue"
+  `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`
 );
 
 const collectionOwnerCounterService = new CollectionOwnerCounterService();
