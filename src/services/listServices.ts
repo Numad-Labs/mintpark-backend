@@ -152,7 +152,7 @@ export const listServices = {
             "Collectible with no unique index cannot be listed.",
             400
           );
-        const tokenId = collectible.uniqueIdx.split("i")[1];
+        const tokenId = collectible.nftId;
 
         const { transaction: createListingTx, expectedListingId } =
           await marketplaceService.createListingTransaction(
@@ -358,6 +358,7 @@ export const listServices = {
         if (!isWhitelisted) {
           throw new CustomError("Address not whitelisted", 403);
         }
+
         return serializeBigInt(
           await marketplaceService.buyListingTransaction(
             parseInt(collectible.uniqueIdx.split("i")[1]),
@@ -367,6 +368,9 @@ export const listServices = {
           )
         );
       } else {
+        console.log("🚀 ~ list.price:", list.price);
+        console.log("Listing price:", list.price.toString());
+        console.log("Sending price:", ethers.parseEther(list.price.toString()));
         // FCFS or Public phase - no merkle proof needed
         return serializeBigInt(
           await marketplaceService.buyListingTransaction(
