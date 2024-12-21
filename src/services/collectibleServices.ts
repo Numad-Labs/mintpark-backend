@@ -199,6 +199,7 @@ export const collectibleServices = {
   },
   createInscriptions: async (
     collectionId: string,
+    collectionName: string,
     names: string[],
     startIndex: number,
     files: Express.Multer.File[]
@@ -217,7 +218,7 @@ export const collectibleServices = {
     const collectiblesData: Insertable<Collectible>[] = [];
     for (let i = 0; i < fileKeys.length; i++)
       collectiblesData.push({
-        name: names[i],
+        name: `${collectionName} #${startIndex + i}`,
         fileKey: fileKeys[i].key,
         collectionId,
         nftId: (startIndex + i).toString(),
@@ -256,6 +257,7 @@ export const collectibleServices = {
       await orderItemRepository.getOrderItemCountByCollectionId(collection.id);
     const collectibles = await collectibleServices.createInscriptions(
       collectionId,
+      collection.name,
       names,
       Number(existingCollectibleCount),
       files
