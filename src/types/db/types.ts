@@ -86,6 +86,7 @@ export type Launch = {
   poMaxMintPerWallet: number;
   createdAt: Generated<Timestamp>;
   status: Generated<LAUNCH_STATUS>;
+  reservedCount: Generated<number>;
   userLayerId: string;
   userId: string | null;
 };

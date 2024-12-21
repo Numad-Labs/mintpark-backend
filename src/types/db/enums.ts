@@ -56,6 +56,7 @@ export type LAUNCH_STATUS = (typeof LAUNCH_STATUS)[keyof typeof LAUNCH_STATUS];
 export const LAUNCH_ITEM_STATUS = {
   ACTIVE: "ACTIVE",
   SOLD: "SOLD",
+  RESERVED: "RESERVED",
   CANCELLED: "CANCELLED",
 } as const;
 export type LAUNCH_ITEM_STATUS =

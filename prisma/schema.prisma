@@ -230,6 +230,7 @@ model Launch {
   poMaxMintPerWallet Int
   createdAt          DateTime      @default(now())
   status             LAUNCH_STATUS @default(UNCONFIRMED)
+  reservedCount      Int           @default(0)
 
   userLayerId String
   userLayer   UserLayer @relation(fields: [userLayerId], references: [id])
@@ -346,6 +347,7 @@ enum LAUNCH_STATUS {
 enum LAUNCH_ITEM_STATUS {
   ACTIVE
   SOLD
+  RESERVED
   CANCELLED
 }
 

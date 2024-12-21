@@ -9,7 +9,7 @@ const collectionRouter = Router();
 collectionRouter.post(
   "/",
   authenticateToken,
-  // authorize("SUPER_ADMIN"),
+  authorize("SUPER_ADMIN"),
   parseFiles("logo", true),
   collectionController.create
 );

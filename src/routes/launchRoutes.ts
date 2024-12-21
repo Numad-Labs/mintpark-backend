@@ -24,26 +24,34 @@ launchRouter.get(
 launchRouter.post(
   "/change-mintfee-transaction",
   authenticateToken,
-  // authorize("SUPER_ADMIN"),
+  authorize("SUPER_ADMIN"),
   launchController.generateUnsignedMintPriceChangeTx
 );
 // launchRouter.put("/:id", authenticateToken, launchController.update);
 
-launchRouter.post("/", authenticateToken, launchController.create);
+launchRouter.post(
+  "/",
+  authenticateToken,
+  authorize("SUPER_ADMIN"),
+  launchController.create
+);
 launchRouter.post(
   "/inscription",
   authenticateToken,
+  authorize("SUPER_ADMIN"),
   parseFiles("files", false),
   launchController.createInscriptionAndLaunchItemsInBatch
 );
 launchRouter.post(
   "/recursive-inscription",
   authenticateToken,
+  authorize("SUPER_ADMIN"),
   launchController.createRecursiveInscriptionAndLaunchItemsInBatch
 );
 launchRouter.post(
   "/ipfs",
   authenticateToken,
+  authorize("SUPER_ADMIN"),
   launchController.createIpfsNftAndLaunchItemsInBatch
 );
 launchRouter.post("/:id/buy", authenticateToken, launchController.buy);
