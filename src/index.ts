@@ -33,7 +33,7 @@ const app = express();
 
 app.get("/", (req: Request, res: Response) => {
   res.status(200).json({
-    message: `API ${version} - 👋🌎🌍🌏`,
+    message: `API ${version} - 👋🌎🌍`,
   });
 });
 
