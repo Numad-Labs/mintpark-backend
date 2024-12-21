@@ -45,7 +45,7 @@ app.use(
     extended: true,
   })
 );
-// app.use(rateLimiter);
+app.use(rateLimiter);
 
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/layers", layerRouter);
