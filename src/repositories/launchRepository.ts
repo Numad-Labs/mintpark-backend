@@ -110,6 +110,7 @@ export const launchRepository = {
               FROM "LaunchItem"
               WHERE "LaunchItem"."launchId" = "Launch"."id"
               AND "LaunchItem"."status" = 'SOLD'
+              OR "LaunchItem"."status" = 'RESERVED'
             ), 0)`.as("mintedAmount"),
         sql<number>`COALESCE((
               SELECT COUNT(*)::integer
@@ -194,6 +195,7 @@ export const launchRepository = {
         FROM "LaunchItem"
         WHERE "LaunchItem"."launchId" = "Launch"."id"
         AND "LaunchItem"."status" = 'SOLD'
+        OR "LaunchItem"."status" = 'RESERVED'
       ), 0)`.as("mintedAmount"),
         sql<number>`COALESCE((
         SELECT COUNT(*)::integer

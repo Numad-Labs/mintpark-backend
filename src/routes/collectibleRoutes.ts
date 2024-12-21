@@ -2,6 +2,7 @@ import { Router } from "express";
 import { collectibleControllers } from "../controllers/collectibleController";
 import { authenticateToken } from "../middlewares/authenticateToken";
 import { parseFiles } from "../middlewares/fileParser";
+import { authorize } from "../middlewares/authorize";
 
 const collectibleRouter = Router();
 
@@ -25,16 +26,19 @@ collectibleRouter.post(
   "/inscription",
   authenticateToken,
   parseFiles("files", false),
+  authorize("SUPER_ADMIN"),
   collectibleControllers.createInscriptionInBatch
 );
 collectibleRouter.post(
   "/recursive-inscription",
   authenticateToken,
+  authorize("SUPER_ADMIN"),
   collectibleControllers.createRecursiveInscriptionInBatch
 );
 collectibleRouter.post(
   "/ipfs",
   authenticateToken,
+  authorize("SUPER_ADMIN"),
   collectibleControllers.createIpfsNftInBatch
 );
 
