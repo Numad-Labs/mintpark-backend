@@ -130,6 +130,10 @@ class MarketplaceService {
       tokenId,
       ethers.parseEther(price)
     );
+    console.log({
+      givenPrice: price,
+      savingPrice: ethers.parseEther(price),
+    });
     return {
       transaction: await this.prepareUnsignedTransaction(
         unsignedTx,
@@ -145,8 +149,13 @@ class MarketplaceService {
     price: string,
     buyerAddress: string
   ) {
-    console.log("🚀 ~ MarketplaceService ~ listingId:", listingId);
     const contract = await this.getEthersMarketplaceContract();
+
+    console.log("🚀 ~ MarketplaceService ~ listingId:", listingId);
+
+    // Debug logging
+    const listing = await contract.getListing(listingId);
+
     const unsignedTx = await contract.purchaseListing.populateTransaction(
       listingId,
       merkleProof,
