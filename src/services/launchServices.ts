@@ -226,6 +226,7 @@ export const launchServices = {
       await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
     const collectibles = await collectibleServices.createInscriptions(
       collectionId,
+      collection.name,
       names,
       Number(existingLaunchItemCount),
       files
