@@ -630,6 +630,7 @@ export const launchServices = {
           parentCollectibleId: parentCollectible.id,
           fileKey: parentCollectible.fileKey,
           status: "CONFIRMED",
+          highResolutionImageUrl: parentCollectible.highResolutionImageUrl,
         });
 
         await collectibleRepository.update(trx, parentCollectible.id, {
