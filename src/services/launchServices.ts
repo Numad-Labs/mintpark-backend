@@ -564,9 +564,9 @@ export const launchServices = {
             400
           );
 
-        const balance = await getBalance(order.fundingAddress);
-        if (balance < order.fundingAmount)
-          throw new CustomError("Fee has not been transferred yet.", 400);
+        // const balance = await getBalance(order.fundingAddress);
+        // if (balance < order.fundingAmount)
+        //   throw new CustomError("Fee has not been transferred yet.", 400);
 
         //TODO: inscribe L1 ordinals by order.privateKey, mint L2 synthetic asset by vault
         if (!parentCollectible.fileKey)
