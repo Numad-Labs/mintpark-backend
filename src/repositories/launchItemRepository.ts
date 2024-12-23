@@ -2,6 +2,7 @@ import { Insertable, Kysely, sql, Transaction, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { DB, LaunchItem } from "../types/db/types";
 import { ON_HOLD_MINUTES } from "../libs/constants";
+import { LAUNCH_ITEM_STATUS } from "../types/db/enums";
 
 export const launchItemRepository = {
   create: async (data: Insertable<LaunchItem>) => {
@@ -60,57 +61,6 @@ export const launchItemRepository = {
 
     return launchItems;
   },
-  // getByCollectionId: async (collectionId: string) => {
-  //   const launchItems = await db
-  //     .selectFrom("LaunchItem")
-  //     .innerJoin("Launch", "LaunchItem.launchId", "Launch.id")
-  //     .innerJoin("Collection", "Launch.collectionId", "Collection.id")
-  //     .select([
-  //       "LaunchItem.id",
-  //       "LaunchItem.launchId",
-  //       "LaunchItem.fileKey",
-  //       "LaunchItem.metadata",
-  //       "LaunchItem.status",
-  //       "Launch.id as launchId",
-  //       "Launch.collectionId as collectionId",
-  //       "Collection.name as collectionName",
-  //       "Collection.creator as collectionCreator",
-  //       "Collection.description as collectionDescription",
-  //       "Collection.logoKey as collectionLogoKey",
-  //       "Collection.layerId as layerId",
-  //     ])
-  //     .where("Launch.collectionId", "=", collectionId)
-  //     .execute();
-
-  //   return launchItems;
-  // },
-  // getActiveLaunchItems: async (collectionId: string) => {
-  //   const launchItems = await db
-  //     .selectFrom("LaunchItem")
-  //     .innerJoin("Launch", "LaunchItem.launchId", "Launch.id")
-  //     .innerJoin("Collection", "Launch.collectionId", "Collection.id")
-  //     .select([
-  //       "LaunchItem.id",
-  //       "LaunchItem.launchId",
-  //       "LaunchItem.name",
-  //       "LaunchItem.evmAssetId",
-  //       "LaunchItem.fileKey",
-  //       "LaunchItem.metadata",
-  //       "LaunchItem.status",
-  //       "Launch.id as launchId",
-  //       "Launch.collectionId as collectionId",
-  //       "Collection.name as collectionName",
-  //       "Collection.creator as collectionCreator",
-  //       "Collection.description as collectionDescription",
-  //       "Collection.logoKey as collectionLogoKey",
-  //       "Collection.layerId as layerId",
-  //     ])
-  //     .where("Launch.collectionId", "=", collectionId)
-  //     .where("LaunchItem.status", "=", "ACTIVE")
-  //     .execute();
-
-  //   return launchItems;
-  // },
   getRandomItemByLauchId: async (launchId: string) => {
     const launchItem = await db
       .selectFrom("LaunchItem")
@@ -187,7 +137,7 @@ export const launchItemRepository = {
       .where((eb) =>
         sql`${eb.ref(
           "onHoldUntil"
-        )} < NOW() - INTERVAL '3 minute'`.$castTo<boolean>()
+        )} < NOW() - INTERVAL '2 minute'`.$castTo<boolean>()
       )
       .executeTakeFirst();
 
@@ -202,6 +152,35 @@ export const launchItemRepository = {
       .values(data)
       .returningAll()
       .execute();
+
+    return launchItem;
+  },
+  getByLaunchIdAndStatus: async (
+    launchId: string,
+    status: LAUNCH_ITEM_STATUS
+  ) => {
+    const launchItems = await db
+      .selectFrom("LaunchItem")
+      .selectAll()
+      .where("LaunchItem.launchId", "=", launchId)
+      .where("LaunchItem.status", "=", status)
+      .execute();
+
+    return launchItems;
+  },
+  updateReservedLaunchItemStatusByLaunchId: async (
+    launchId: string,
+    status: LAUNCH_ITEM_STATUS
+  ) => {
+    const launchItem = await db
+      .updateTable("LaunchItem")
+      .returningAll()
+      .set({ status: status })
+      .where("LaunchItem.launchId", "=", launchId)
+      .where("LaunchItem.status", "=", "RESERVED")
+      .executeTakeFirstOrThrow(
+        () => new Error("Couldnt update the launch item.")
+      );
 
     return launchItem;
   },

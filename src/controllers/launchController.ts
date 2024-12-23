@@ -258,46 +258,6 @@ export const launchController = {
       next(e);
     }
   },
-  // generateBuyOrderForLaunchedCollection: async (
-  //   req: AuthenticatedRequest,
-  //   res: Response,
-  //   next: NextFunction
-  // ) => {
-  //   const { collectionId } = req.params;
-  //   const { feeRate, launchOfferType, layerId, userLayerId } = req.body;
-  //   try {
-  //     if (!req.user?.id)
-  //       throw new CustomError("Could not parse the id from the token.", 400);
-  //     if (!layerId) throw new CustomError("Please provide a layerId.", 404);
-  //     if (!userLayerId)
-  //       throw new CustomError("Please provide an userLayerId.", 404);
-  //     if (!collectionId)
-  //       throw new CustomError("CollectionId is required as param.", 400);
-  //     if (!feeRate) throw new CustomError("Fee rate is required.", 400);
-  //     const user = await userRepository.getByIdAndLayerId(
-  //       req.user?.id,
-  //       layerId
-  //     );
-  //     if (!user) throw new CustomError("User not found.", 404);
-  //     const layer = await layerServices.getById(user.layerId);
-  //     if (!layer) throw new CustomError("Layer not found.", 404);
-  //     if (layer.layer !== "FRACTAL" && layer.network !== "TESTNET")
-  //       throw new CustomError("Not supported for this layer yet.", 400);
-  //     const offerType: LaunchOfferType = {
-  //       offerType: launchOfferType as "public" | "whitelist",
-  //     };
-  //     const order = await launchServices.generateOrderForLaunchedCollection(
-  //       collectionId,
-  //       feeRate,
-  //       offerType,
-  //       user.id,
-  //       userLayerId
-  //     );
-  //     return res.status(200).json({ success: true, data: order });
-  //   } catch (e) {
-  //     next(e);
-  //   }
-  // },
   generateUnsignedMintPriceChangeTx: async (
     req: AuthenticatedRequest,
     res: Response,
@@ -326,41 +286,49 @@ export const launchController = {
       next(e);
     }
   },
-  // invokeOrder: async (
-  //   req: AuthenticatedRequest,
-  //   res: Response,
-  //   next: NextFunction
-  // ) => {
-  //   const { orderId, launchItemId, txid } = req.body;
-  //   try {
-  //     if (!req.user?.id) throw new CustomError("User not found.", 404);
-  //     if (!orderId) throw new CustomError("OrderId is required as body.", 400);
-  //     const mintHexes = await launchServices.mintPickedCollection(
-  //       orderId,
-  //       launchItemId,
-  //       req.user?.id,
-  //       txid
-  //     );
-  //     return res
-  //       .status(200)
-  //       .json({ success: true, data: { mintHexes: mintHexes } });
-  //   } catch (e) {
-  //     next(e);
-  //   }
-  // },
-  // update: async (
-  //   req: AuthenticatedRequest,
-  //   res: Response,
-  //   next: NextFunction
-  // ) => {
-  //   const { id } = req.params;
-  //   const data: Updateable<Launch> = { ...req.body };
-  //   try {
-  //     if (!req.user?.id) throw new CustomError("User not found.", 404);
-  //     const result = await launchServices.update(id, data, req.user.id);
-  //     return res.status(200).json({ success: true, data: { result } });
-  //   } catch (e) {
-  //     next(e);
-  //   }
-  // },
+  createOrderForReservedLaunchItems: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user?.id)
+        throw new CustomError("Could not parse the id from the token.", 400);
+
+      const { launchId, userLayerId } = req.body;
+
+      const result = await launchServices.createOrderForReservedLaunchItems(
+        launchId,
+        req.user.id,
+        userLayerId
+      );
+
+      return res.status(200).json({ result });
+    } catch (e) {
+      next(e);
+    }
+  },
+  invokeMintingForReservedLaunchItems: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user?.id)
+        throw new CustomError("Could not parse the id from the token.", 400);
+
+      const { orderId, launchId, userLayerId } = req.body;
+
+      const result = await launchServices.invokeMintingForReservedLaunchItems(
+        orderId,
+        launchId,
+        req.user.id,
+        userLayerId
+      );
+
+      return res.status(200).json({ result });
+    } catch (e) {
+      next(e);
+    }
+  },
 };

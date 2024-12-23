@@ -11,23 +11,12 @@ launchRouter.get(
   "/collections/:collectionId",
   launchController.getLaunchByCollectionId
 );
-// launchRouter.post(
-//   "/collections/:collectionId/create-order",
-//   authenticateToken,
-//   launchController.generateBuyOrderForLaunchedCollection
-// );
-// launchRouter.post(
-//   "/invoke-order",
-//   authenticateToken,
-//   launchController.invokeOrder
-// );
 launchRouter.post(
   "/change-mintfee-transaction",
   authenticateToken,
   authorize("SUPER_ADMIN"),
   launchController.generateUnsignedMintPriceChangeTx
 );
-// launchRouter.put("/:id", authenticateToken, launchController.update);
 
 launchRouter.post(
   "/",
@@ -56,5 +45,18 @@ launchRouter.post(
 );
 launchRouter.post("/:id/buy", authenticateToken, launchController.buy);
 launchRouter.post("/mint", authenticateToken, launchController.mint);
+
+// launchRouter.post(
+//   "/create-order-for-reserved-items",
+//   authenticateToken,
+//   authorize("SUPER_ADMIN"),
+//   launchController.createOrderForReservedLaunchItems
+// );
+// launchRouter.post(
+//   "/invoke-minting-for-reserved-items",
+//   authenticateToken,
+//   authorize("SUPER_ADMIN"),
+//   launchController.invokeMintingForReservedLaunchItems
+// );
 
 export = launchRouter;
