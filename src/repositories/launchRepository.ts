@@ -3,6 +3,7 @@ import { db } from "../utils/db";
 import { DB, Launch } from "../types/db/types";
 import { LaunchQueryParams } from "./collectionRepository";
 import logger from "../config/winston";
+import { LAUNCH_ITEM_STATUS } from "@prisma/client";
 
 export const launchRepository = {
   create: async (
@@ -222,5 +223,18 @@ export const launchRepository = {
       poStartsAt: Number(collection.poStartsAt),
       poEndsAt: Number(collection.poEndsAt),
     };
+  },
+  getLaunchItemCountByLaunchIdAndStatus: async (
+    launchId: string,
+    status: LAUNCH_ITEM_STATUS
+  ) => {
+    const result = await db
+      .selectFrom("LaunchItem")
+      .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
+      .where("LaunchItem.launchId", "=", launchId)
+      .where("LaunchItem.status", "=", status)
+      .executeTakeFirst();
+
+    return result?.count;
   },
 };

@@ -442,7 +442,7 @@ export const orderServices = {
     }
 
     //TODO: Enqueue orderId to the minting queue,
-    producer.sendMessage(order.id);
+    producer.sendMessage(order.id, 5);
     logger.info(`Enqueued ${order.id} to the SQS`);
     // if collection.type === 'RECURSIVE_INSCRIPTION', then invoke the trait minting first
 

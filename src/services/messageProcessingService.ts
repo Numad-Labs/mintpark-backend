@@ -53,6 +53,8 @@ export async function processMessage(message: Message) {
   if (!order.collectionId)
     throw new CustomError("Order does not have collectionId.", 400);
 
+  logger.info(`Started processing order: ${order.id}`);
+
   const creator = await userRepository.getByUserLayerId(order.userLayerId);
   if (!creator) throw new CustomError("Order creator not found.", 400);
 
@@ -81,8 +83,7 @@ export async function processMessage(message: Message) {
     if (!orderItem) return;
     if (!orderItem.collectibleId)
       throw new CustomError("Collectible id not found on the order item.", 400);
-
-    await orderItemRepository.update(orderItem?.id, { status: "MINTED" });
+    logger.info(`Started processing order item: ${orderItem.id}`);
 
     const parentCollectible = await collectibleRepository.getById(
       orderItem.collectibleId
@@ -113,14 +114,17 @@ export async function processMessage(message: Message) {
     const revealTxResult = await sendRawTransaction(revealTxHex);
     if (!revealTxResult)
       throw new CustomError("Could not broadcast the reveal tx.", 400);
+    logger.info(
+      `Inscribed the order item: ${orderItem.id} in transaction: ${commitTxResult} + ${revealTxResult}`
+    );
+
+    await orderItemRepository.update(orderItem?.id, { status: "MINTED" });
 
     if (!L2Collection.contractAddress) {
       throw new CustomError("L2Collection contract address not found.", 400);
     }
 
     const inscriptionId = revealTxResult + "i0";
-
-    logger.info(`Minted NFT funded by VAULT`);
     let mintTxId;
 
     try {
@@ -130,6 +134,9 @@ export async function processMessage(message: Message) {
         creator.address,
         inscriptionId,
         parentCollectible.nftId
+      );
+      logger.info(
+        `Minted the order item: ${orderItem.id} in transaction: ${mintTxId}`
       );
       // vault.address = fundingService.getVaultAddress();
 
@@ -185,7 +192,9 @@ export async function processMessage(message: Message) {
     if (!hasRemainingOrderItem)
       await orderRepository.updateOrderStatus(order.id, "DONE");
     //ENQUEUE ORDERID
-    else producer.sendMessage(order.id, 3);
+    else producer.sendMessage(order.id, 90);
+
+    logger.info(`Finished processing the order item: ${orderItem.id}`);
 
     return;
   } else if (collection.type === "RECURSIVE_INSCRIPTION") {
@@ -236,7 +245,7 @@ export async function processMessage(message: Message) {
       });
 
       //ENQUEUE ORDERID
-      producer.sendMessage(order.id, 1);
+      producer.sendMessage(order.id, 90);
 
       return;
     } else {
@@ -303,7 +312,7 @@ export async function processMessage(message: Message) {
         }
       } else {
         //ENQUEUE ORDERID
-        producer.sendMessage(order.id, 1);
+        producer.sendMessage(order.id, 90);
       }
 
       return;
@@ -348,7 +357,7 @@ export async function processMessage(message: Message) {
       }
     } else {
       //ENQUEUE ORDERID
-      producer.sendMessage(order.id, 1);
+      producer.sendMessage(order.id, 5);
     }
 
     return;
