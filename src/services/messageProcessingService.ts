@@ -192,7 +192,7 @@ export async function processMessage(message: Message) {
     if (!hasRemainingOrderItem)
       await orderRepository.updateOrderStatus(order.id, "DONE");
     //ENQUEUE ORDERID
-    else producer.sendMessage(order.id, 90);
+    else producer.sendMessage(order.id, 120);
 
     logger.info(`Finished processing the order item: ${orderItem.id}`);
 
@@ -245,7 +245,7 @@ export async function processMessage(message: Message) {
       });
 
       //ENQUEUE ORDERID
-      producer.sendMessage(order.id, 90);
+      producer.sendMessage(order.id, 120);
 
       return;
     } else {
@@ -312,7 +312,7 @@ export async function processMessage(message: Message) {
         }
       } else {
         //ENQUEUE ORDERID
-        producer.sendMessage(order.id, 90);
+        producer.sendMessage(order.id, 120);
       }
 
       return;
