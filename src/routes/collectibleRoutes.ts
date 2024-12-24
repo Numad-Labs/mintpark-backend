@@ -42,4 +42,10 @@ collectibleRouter.post(
   collectibleControllers.createIpfsNftInBatch
 );
 
+// collectibleRouter.post(
+//   "/inscribe",
+//   parseFiles("file", true),
+//   collectibleControllers.inscribe
+// );
+
 export = collectibleRouter;

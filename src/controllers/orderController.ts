@@ -140,41 +140,41 @@ export const orderController = {
   //     next(e);
   //   }
   // },
-  // getByUserId: async (
-  //   req: AuthenticatedRequest,
-  //   res: Response,
-  //   next: NextFunction
-  // ) => {
-  //   try {
-  //     const { userId } = req.params;
-  //     if (req.user?.id !== userId)
-  //       throw new CustomError("You are not allowed to access this info", 400);
-  //     const orders = await orderServices.getByUserId(userId);
-  //     const sanitazedOrders = orders.map((order) => {
-  //       return hideSensitiveData(order, ["privateKey"]);
-  //     });
-  //     return res.status(200).json({ success: true, data: sanitazedOrders });
-  //   } catch (e) {
-  //     next(e);
-  //   }
-  // },
-  // getById: async (
-  //   req: AuthenticatedRequest,
-  //   res: Response,
-  //   next: NextFunction
-  // ) => {
-  //   try {
-  //     const { orderId } = req.params;
-  //     const order = await orderServices.getById(orderId);
-  //     if (req.user?.id !== order?.userId)
-  //       throw new CustomError("You are not allowed to access this info", 400);
-  //     if (!order) throw new CustomError("Order not found", 404);
-  //     const sanitazedOrder = hideSensitiveData(order, ["privateKey"]);
-  //     return res.status(200).json({ success: true, data: sanitazedOrder });
-  //   } catch (e) {
-  //     next(e);
-  //   }
-  // },
+  getByUserId: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { userId } = req.params;
+      if (req.user?.id !== userId)
+        throw new CustomError("You are not allowed to access this info", 400);
+      const orders = await orderServices.getByUserId(userId);
+      const sanitizedOrders = orders.map((order) => {
+        return hideSensitiveData(order, ["privateKey"]);
+      });
+      return res.status(200).json({ success: true, data: sanitizedOrders });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getById: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { orderId } = req.params;
+      const order = await orderServices.getById(orderId);
+      if (req.user?.id !== order?.userId)
+        throw new CustomError("You are not allowed to access this info", 400);
+      if (!order) throw new CustomError("Order not found", 404);
+      const sanitazedOrder = hideSensitiveData(order, ["privateKey"]);
+      return res.status(200).json({ success: true, data: sanitazedOrder });
+    } catch (e) {
+      next(e);
+    }
+  },
   // //TODO: Adjust
   // checkOrderIsPaid: async (
   //   req: AuthenticatedRequest,

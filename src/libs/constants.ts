@@ -18,6 +18,7 @@ export const REDIS_KEYS = {
   COLLECTION_PREFIX: "upload:collection:",
   getCollectionKey: (collectionId: string) =>
     `upload:collection:${collectionId}`,
+  BITCOIN_FEE_RATES: "bitcoin_mempool_feerate",
 };
 
 export const sizeLimitConstants = {
