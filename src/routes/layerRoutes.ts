@@ -6,7 +6,7 @@ const layerRouter = Router();
 
 layerRouter.get("/:id", layerController.getById);
 layerRouter.get("/", layerController.getAll);
-// layerRouter.get("/:layerId/fee-rates", layerController.getFeeRates);
+layerRouter.get("/:layerId/fee-rates", layerController.getFeeRates);
 // layerRouter.post("/estimate-fee", layerController.getEstimatedFee);
 
 export = layerRouter;

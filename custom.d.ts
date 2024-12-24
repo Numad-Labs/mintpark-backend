@@ -51,6 +51,14 @@ export type unisatUtxo = {
   vout: number;
 };
 
+export type mempoolFeeRates = {
+  fastestFee: number;
+  halfHourFee: number;
+  hourFee: number;
+  economyFee: number;
+  minimumFee: number;
+};
+
 export type AddressType = "p2pkh" | "p2sh" | "p2wpkh" | "p2tr";
 
 export type rpcResponse = {

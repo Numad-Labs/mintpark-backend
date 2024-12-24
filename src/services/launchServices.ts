@@ -628,7 +628,7 @@ export const launchServices = {
           uniqueIdx:
             L2Collection.contractAddress + "i" + parentCollectible.nftId,
           nftId: parentCollectible.nftId,
-          mintingTxId: inscriptionId,
+          mintingTxId: mintTxId,
           parentCollectibleId: parentCollectible.id,
           fileKey: parentCollectible.fileKey,
           status: "CONFIRMED",

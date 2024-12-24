@@ -19,6 +19,13 @@ orderRouter.post(
   orderController.invokeOrderForMinting
 );
 
+orderRouter.get(
+  "/user/:userId",
+  authenticateToken,
+  orderController.getByUserId
+);
+orderRouter.get("/:orderId", authenticateToken, orderController.getById);
+
 /* orderRouter.post(
   "/collectible",
   authenticateToken,
@@ -42,12 +49,6 @@ orderRouter.post(
   orderController.generateMintTxHex
 );
 
-orderRouter.get(
-  "/user/:userId",
-  authenticateToken,
-  orderController.getByUserId
-);
-orderRouter.get("/:orderId", authenticateToken, orderController.getById);
 orderRouter.get(
   "/:orderId/payment-status",
   authenticateToken,

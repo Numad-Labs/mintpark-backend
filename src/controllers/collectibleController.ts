@@ -5,6 +5,10 @@ import { collectibleServices } from "../services/collectibleServices";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import { EVMCollectibleService } from "../../blockchain/evm/services/evmIndexService";
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
+import { createFundingAddress } from "../blockchain/bitcoin/createFundingAddress";
+import { sendRawTransaction } from "../blockchain/bitcoin/sendTransaction";
+import { inscribe } from "../blockchain/bitcoin/inscribe";
+import logger from "../config/winston";
 
 export interface traitFilter {
   name: string;
@@ -245,4 +249,47 @@ export const collectibleControllers = {
       next(e);
     }
   },
+  // inscribe: async (
+  //   req: AuthenticatedRequest,
+  //   res: Response,
+  //   next: NextFunction
+  // ) => {
+  //   try {
+  //     const file = req.file;
+  //     if (!file) throw new CustomError("File not found.", 400);
+
+  //     const fundingAddress =
+  //       "tb1p2l6ck4u9dx8jl9gy07gvz5w2e792tqteekspvrsjx5ma6nq88fzse6axxr";
+  //     const fundingPrivateKey =
+  //       "";
+
+  //     const vault = await createFundingAddress("TESTNET");
+  //     const inscriptionData = {
+  //       address: vault.address,
+  //       opReturnValues: `data:${file?.mimetype};base64,${(
+  //         file?.buffer as Buffer
+  //       ).toString("base64")}` as any,
+  //     };
+  //     const { commitTxHex, revealTxHex } = await inscribe(
+  //       inscriptionData,
+  //       fundingAddress,
+  //       fundingPrivateKey,
+  //       true,
+  //       1
+  //     );
+  //     const commitTxResult = await sendRawTransaction(commitTxHex);
+  //     if (!commitTxResult)
+  //       throw new CustomError("Could not broadcast the commit tx.", 400);
+  //     const revealTxResult = await sendRawTransaction(revealTxHex);
+  //     if (!revealTxResult)
+  //       throw new CustomError("Could not broadcast the reveal tx.", 400);
+  //     logger.info(
+  //       `Inscribed in transaction: ${commitTxResult} + ${revealTxResult}`
+  //     );
+
+  //     return res.status(200).json({ vault, commitTxResult, revealTxResult });
+  //   } catch (e) {
+  //     next(e);
+  //   }
+  // },
 };

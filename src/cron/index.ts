@@ -1,7 +1,9 @@
 import { redis } from "..";
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import { EVMCollectibleService } from "../../blockchain/evm/services/evmIndexService";
+import { getFeeRates } from "../blockchain/bitcoin/getFeeRates";
 import logger from "../config/winston";
+import { REDIS_KEYS } from "../libs/constants";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { db } from "../utils/db";
 const cron = require("node-cron");
@@ -237,9 +239,41 @@ export class CollectionOwnerCounterService {
       await this.updateOwnerCounts();
     });
 
-    // // Run every minute
-    // cron.schedule("* * * * *", async () => {
-    //   await this.updateOwnerCounts();
-    // });
+    // Run single-instance task every 30 minutes
+    cron.schedule("*/30 * * * *", async () => {
+      await this.fetchAndUpdateBitcoinFeeRates();
+    });
+  }
+
+  async fetchAndUpdateBitcoinFeeRates(): Promise<void> {
+    const globalLockKey = "bitcoin_fee_rate_update_task_lock";
+    const lockDuration = 25 * 60; // 25 minutes (shorter than schedule interval)
+
+    try {
+      // Try to acquire global lock
+      const lockAcquired = await this.acquireLock(globalLockKey);
+      if (!lockAcquired) {
+        logger.info(
+          'The task "bitcoin_fee_rate_update_task_lock" is already running on another instance'
+        );
+        return;
+      }
+
+      logger.info('Starting task "bitcoin_fee_rate_update_task_lock"');
+
+      try {
+        const feeRates = await getFeeRates();
+
+        await redis.set(REDIS_KEYS.BITCOIN_FEE_RATES, JSON.stringify(feeRates));
+      } finally {
+        // Only release lock if we're still the owner
+        const lockOwner = await redis.get(globalLockKey);
+        if (lockOwner === this.instanceId) {
+          await redis.del(globalLockKey);
+        }
+      }
+    } catch (error) {
+      logger.error("Error in single-instance task:", error);
+    }
   }
 }

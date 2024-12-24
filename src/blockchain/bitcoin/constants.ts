@@ -16,3 +16,11 @@ export const MAX_SATOSHI_AMOUNT = 2_100_000_000_000_000;
 
 export const COMMIT_TX_SIZE = TX_INPUT_P2TR + TX_OUTPUT_P2TR * 2;
 export const REVEAL_TX_SIZE = TX_INPUT_P2TR + TX_OUTPUT_P2TR * 2;
+
+export interface FEE_RATE_TYPES {
+  MINIMUM: number;
+  SLOW: number;
+  AVERAGE: number;
+  FAST: number;
+  MAX: number;
+}

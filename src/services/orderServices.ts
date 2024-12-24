@@ -448,14 +448,14 @@ export const orderServices = {
 
     return { order: updatedOrder };
   },
-  // getByUserId: async (userId: string) => {
-  //   const orders = await orderRepository.getByUserId(userId);
-  //   return orders;
-  // },
-  // getById: async (orderId: string) => {
-  //   const order = await orderRepository.getById(orderId);
-  //   return order;
-  // },
+  getByUserId: async (userId: string) => {
+    const orders = await orderRepository.getByUserId(userId);
+    return orders;
+  },
+  getById: async (orderId: string) => {
+    const order = await orderRepository.getById(orderId);
+    return order;
+  },
   // generateMintTxHex: async (
   //   orderId: string,
   //   layerId: string,
