@@ -57,6 +57,8 @@ export async function processMessage(message: Message) {
 
   const creator = await userRepository.getByUserLayerId(order.userLayerId);
   if (!creator) throw new CustomError("Order creator not found.", 400);
+  if (!creator.isActive)
+    throw new CustomError("This account is deactivated.", 400);
 
   const collection = await collectionRepository.getById(db, order.collectionId);
   if (!collection) throw new CustomError("Collection not found.", 400);

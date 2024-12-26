@@ -58,7 +58,7 @@ export const collectionServices = {
         "You are not allowed to create for this user.",
         400
       );
-    if (!user?.isActive)
+    if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
     if (user.layer !== layer.layer || user.network !== layer.network)
       throw new CustomError(

@@ -271,6 +271,9 @@ export const launchController = {
       const user = await userRepository.getByUserLayerId(userLayerId);
       if (!user || !user.address || user.id !== userLayerId)
         throw new CustomError("User address not found from the token.", 400);
+      if (!user.isActive)
+        throw new CustomError("This account is deactivated.", 400);
+
       const unsignedTx =
         await launchPadService.createLaunchpadContractFeeChange(
           collectionTxid,

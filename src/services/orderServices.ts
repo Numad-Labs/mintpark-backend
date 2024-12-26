@@ -234,7 +234,7 @@ export const orderServices = {
         "You are not allowed to create order for this account.",
         400
       );
-    if (!user?.isActive)
+    if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
     await layerServices.checkIfSupportedLayerOrThrow(user.layerId);
 

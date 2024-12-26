@@ -76,7 +76,7 @@ export const launchServices = {
 
     const user = await userRepository.getByUserLayerId(data.userLayerId);
     if (!user) throw new CustomError("Invalid user layer.", 400);
-    if (!user?.isActive)
+    if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
     if (user.id !== userId || data.userLayerId !== data.userLayerId)
       throw new CustomError(
@@ -364,7 +364,7 @@ export const launchServices = {
         "You are not allowed to buy from this account.",
         400
       );
-    if (!user?.isActive)
+    if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
 
     const launch = await launchRepository.getById(id);
@@ -494,7 +494,7 @@ export const launchServices = {
         "You are not allowed to buy from this account.",
         400
       );
-    if (!user?.isActive)
+    if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
 
     const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
@@ -703,14 +703,6 @@ export const launchServices = {
     issuerId: string,
     userLayerId: string
   ) => {
-    /* 
-      CAN ONLY BE DONE BY SUPER_ADMIN(FOR NOW?)
-      GET ALL RESERVED LAUNCHITEMS
-      CREATE MINT ORDER & ORDERITEMS
-
-      RETURN ORDER
-    */
-
     const issuer = await userRepository.getByUserLayerId(userLayerId);
     if (!issuer) throw new CustomError("User not found.", 400);
     if (issuer.id !== issuerId)
@@ -723,6 +715,8 @@ export const launchServices = {
         "Only admins are allowed to do this opearation.",
         400
       );
+    if (!issuer.isActive)
+      throw new CustomError("This account is deactivated.", 400);
 
     const launch = await launchRepository.getById(launchId);
     if (!launch) throw new CustomError("Launch not found.", 400);
@@ -780,13 +774,6 @@ export const launchServices = {
     issuerId: string,
     userLayerId: string
   ) => {
-    /*
-      CHECK IF ORDER.ADDRESS WAS FUNDED
-      SET THE ORDER & ORDERITEMS AS IN_QUEUE
-      SET THE LAUNCHITEMS AS SOLD
-      ENQUEUE THE ORDERID FOR MINT
-    */
-
     const issuer = await userRepository.getByUserLayerId(userLayerId);
     if (!issuer) throw new CustomError("User not found.", 400);
     if (issuer.id !== issuerId)
@@ -799,6 +786,8 @@ export const launchServices = {
         "Only admins are allowed to do this opearation.",
         400
       );
+    if (!issuer.isActive)
+      throw new CustomError("This account is deactivated.", 400);
 
     const launch = await launchRepository.getById(launchId);
     if (!launch) throw new CustomError("Launch not found.", 400);

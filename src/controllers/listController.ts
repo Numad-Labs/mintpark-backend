@@ -57,6 +57,9 @@ export const listController = {
       if (!user) throw new CustomError("User not found", 400);
       if (user.id !== req.user.id)
         throw new CustomError("You are not allowed to do this action.", 400);
+      if (!user.isActive)
+        throw new CustomError("This account is deactivated.", 400);
+
       if (!collectionId)
         throw new CustomError("Please provide a collectionId.", 400);
       const collection = await collectionRepository.getById(db, collectionId);
