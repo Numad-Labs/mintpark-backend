@@ -842,8 +842,8 @@
       "artifacts": []
     },
     "/Users/apple/projects/mintpark-backend/blockchain/evm/contracts/MarketplaceWithPhase.sol": {
-      "lastModificationDate": 1734726220544,
-      "contentHash": "5bfc42acc274423f5cd25aff9a6a251d",
+      "lastModificationDate": 1734955560098,
+      "contentHash": "8ff054a25f34168b8a0d53c2aeeb7669",
       "sourceName": "blockchain/evm/contracts/MarketplaceWithPhase.sol",
       "solcConfig": {
         "version": "0.8.27",

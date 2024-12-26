@@ -216,7 +216,6 @@ contract MarketplaceWithPhase is Ownable, ReentrancyGuard {
     emit ListingCreated(newListingId, nftContract, tokenId, price);
   }
 
-  // Purchase listing with phase checks
   function purchaseListing(
     uint256 listingId,
     bytes32[] calldata merkleProof
@@ -246,18 +245,18 @@ contract MarketplaceWithPhase is Ownable, ReentrancyGuard {
     // Update mint count
     _mintCounts[msg.sender][nftContract][currentPhase]++;
 
-    // Process purchase
+    // Important: Store token ID before deactivating listing
+    uint256 tokenId = listing.tokenId;
+
+    // Deactivate listing
     listing.isActive = false;
 
     // Calculate fees and process transfers
     uint256 marketplaceFeeAmount = (listing.price * marketplaceFee) / 10000;
     uint256 sellerProceeds = listing.price - marketplaceFeeAmount;
 
-    IERC721(nftContract).transferFrom(
-      listing.seller,
-      msg.sender,
-      listing.tokenId
-    );
+    // Use stored tokenId for transfer
+    IERC721(nftContract).transferFrom(listing.seller, msg.sender, tokenId);
 
     payable(listing.seller).transfer(sellerProceeds);
     payable(owner()).transfer(marketplaceFeeAmount);
