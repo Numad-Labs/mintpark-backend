@@ -314,6 +314,11 @@ export const collectibleRepository = {
         "FloorPrices.collectionId",
         "Collectible.collectionId"
       )
+      .leftJoin(
+        "Collectible as parentCollectible",
+        "parentCollectible.id",
+        "Collectible.parentCollectibleId"
+      )
       .select(({ eb }) => [
         "Collectible.id",
         "Collectible.name",
@@ -334,6 +339,7 @@ export const collectibleRepository = {
           END`
           .$castTo<number>()
           .as("floorDifference"),
+        "parentCollectible.uniqueIdx as inscriptionId",
         "CurrentList.address as ownedBy",
         "CurrentList.listedAt",
         "CurrentList.id as listId",
