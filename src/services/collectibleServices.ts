@@ -48,7 +48,7 @@ export const collectibleServices = {
     const user = await userRepository.getByUserLayerId(params.userLayerId);
     if (!user) throw new CustomError("User not found.", 400);
     if (user.id !== userId) throw new CustomError("User not found.", 400);
-    if (!user?.isActive)
+    if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
 
     // if (user.layerId !== params.layerId)

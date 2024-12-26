@@ -37,6 +37,8 @@ export const listServices = {
   ) => {
     const issuer = await userRepository.getByUserLayerId(userLayerId);
     if (!issuer) throw new CustomError("User not found.", 400);
+    if (!issuer.isActive)
+      throw new CustomError("This account is deactivated.", 400);
 
     const collection = await collectionRepository.getById(db, collectionId);
     if (!collection) throw new CustomError("Collection not found.", 400);
@@ -293,6 +295,8 @@ export const listServices = {
 
     const buyer = await userRepository.getByUserLayerId(userLayerId);
     if (!buyer) throw new CustomError("User not found.", 400);
+    if (!buyer.isActive)
+      throw new CustomError("This account is deactivated.", 400);
     // if (buyer.address === seller.address)
     //   throw new CustomError("You cannot buy your own listing.", 400);
 
@@ -450,6 +454,8 @@ export const listServices = {
   ) => {
     const buyer = await userRepository.getByUserLayerId(userLayerId);
     if (!buyer) throw new CustomError("User not found.", 400);
+    if (!buyer.isActive)
+      throw new CustomError("This account is deactivated.", 400);
 
     const list = await listRepository.getById(id);
     if (!list) throw new CustomError("No list found.", 400);

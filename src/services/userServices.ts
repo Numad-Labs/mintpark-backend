@@ -188,6 +188,8 @@ export const userServices = {
       await userLayerRepository.getByAddressAndLayerId(address, layerId);
     if (!isExistingUserLayer)
       throw new CustomError("This account has not been linked yet.", 400);
+    if (!isExistingUserLayer.isActive)
+      throw new CustomError("This account has already been deactivated.", 400);
     if (isExistingUserLayer.userId === userId)
       throw new CustomError(
         "This account has already been linked to you.",

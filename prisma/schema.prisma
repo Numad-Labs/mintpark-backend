@@ -29,9 +29,9 @@ model User {
 
 model UserLayer {
   id            String    @id @default(dbgenerated("gen_random_uuid()"))
-  address       String    @unique
-  pubkey        String?   @unique
-  xpub          String?   @unique
+  address       String
+  pubkey        String?
+  xpub          String?
   createdAt     DateTime  @default(now())
   isActive      Boolean   @default(true)
   deactivatedAt DateTime?
@@ -44,7 +44,7 @@ model UserLayer {
   Launch     Launch[]
   Collection Collection[]
 
-  @@unique([address, layerId, deactivatedAt])
+  @@unique([address, isActive, layerId, deactivatedAt])
 }
 
 model Currency {
