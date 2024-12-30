@@ -314,6 +314,7 @@ export const orderServices = {
       serviceFee = 0;
     let funder = createFundingAddress("TESTNET");
 
+    let txHex;
     //TODO: robust fee calculation for both L1 & L2
     if (collection.type === "INSCRIPTION") {
       if (!totalFileSize || !totalCollectibleCount)
@@ -342,6 +343,8 @@ export const orderServices = {
 
       networkFee = 0;
       mintFee = Math.min(totalFileSize * feeRate, 0.00001);
+
+      txHex = "TODO: DG TRANSFER MINTFEE TO ORDER.FUNDINGADDRESS";
     }
     let totalAmount = networkFee * 1.5 + mintFee + serviceFee;
 
@@ -395,7 +398,7 @@ export const orderServices = {
 
     // const isComplete = await updateProgress(collectionId);
 
-    return { order };
+    return { order, txHex };
   },
   invokeOrderForMinting: async (userId: string, id: string) => {
     const order = await orderRepository.getById(id);

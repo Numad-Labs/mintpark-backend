@@ -411,9 +411,8 @@ export const collectibleServices = {
     if (!order.fundingAddress)
       throw new CustomError("Invalid order with undefined address.", 400);
 
-    const balance = await getBalance(order.fundingAddress);
-    if (balance < order.fundingAmount)
-      throw new CustomError("Fee has not been transferred yet.", 400);
+    //TODO: DG IPFS BALANCE CHECK
+    const balance = 0;
 
     const existingCollectibleCount =
       await orderItemRepository.getOrderItemCountByCollectionId(collection.id);

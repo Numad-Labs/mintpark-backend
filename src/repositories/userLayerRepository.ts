@@ -44,6 +44,7 @@ export const userLayerRepository = {
       .selectAll()
       .where("UserLayer.address", "=", address)
       .where("UserLayer.layerId", "=", layerId)
+      .where("UserLayer.isActive", "=", true)
       .executeTakeFirst();
 
     return userLayer;
