@@ -307,11 +307,15 @@ describe("MarketplaceWithPhase with InscriptionNFT", function () {
       .setApprovalForAll(await marketplace.getAddress(), true);
     await marketplace
       .connect(buyer1)
-      .createListing(await nftContract.getAddress(), 700, BASE_PRICE * 2n);
+      .createListing(
+        await nftContract.getAddress(),
+        700,
+        BASE_PRICE * BigInt(2)
+      );
 
     // Buyer2 purchases the token
     await marketplace.connect(buyer2).purchaseListing(2, [], {
-      value: BASE_PRICE * 2n,
+      value: BASE_PRICE * BigInt(2),
     });
 
     // Verify final ownership
@@ -338,7 +342,7 @@ describe("MarketplaceWithPhase with InscriptionNFT", function () {
     const listing = await marketplace.getListing(listingId);
 
     // Verify listing data
-    expect(listing.tokenId).to.equal(900n);
+    expect(listing.tokenId).to.equal(BigInt(900));
     expect(listing.seller).to.equal(await seller.getAddress());
     expect(listing.nftContract).to.equal(await nftContract.getAddress());
     expect(listing.price).to.equal(BASE_PRICE);

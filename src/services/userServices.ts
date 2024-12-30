@@ -92,6 +92,7 @@ export const userServices = {
     if (!nonce) throw new CustomError("No recorded nonce found.", 400);
 
     const layer = await layerRepository.getById(layerId);
+    console.log("🚀 ~ layer:", layer);
     if (!layer) throw new CustomError("Layer not found.", 400);
 
     const message = await generateMessage(address, nonce);
@@ -103,8 +104,7 @@ export const userServices = {
         address
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
-    }
-    if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
+    } else if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
       if (!pubkey)
         throw new CustomError(
           "Pubkey must be provided for this operation.",
@@ -168,8 +168,7 @@ export const userServices = {
         address
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
-    }
-    if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
+    } else if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
       if (!pubkey)
         throw new CustomError(
           "Pubkey must be provided for this operation.",
