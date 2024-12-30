@@ -72,7 +72,7 @@ export const orderController = {
           400
         );
 
-      const { order } = await orderServices.createMintOrder(
+      const { order, txHex } = await orderServices.createMintOrder(
         req.user.id,
         userLayerId,
         totalFileSize,
@@ -86,7 +86,7 @@ export const orderController = {
 
       return res.status(200).json({
         success: true,
-        data: { order: sanitazedOrder },
+        data: { order: sanitazedOrder, txHex },
       });
     } catch (e) {
       next(e);
