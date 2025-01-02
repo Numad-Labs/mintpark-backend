@@ -2,7 +2,6 @@ import { ethers } from "ethers";
 import { EVM_CONFIG } from "../evm-config";
 import { config } from "../../../src/config/config";
 import { ThirdwebStorage } from "@thirdweb-dev/storage";
-import { NextFunction, Request, Response } from "express";
 import MarketplaceService from "./marketplaceService";
 
 class TradingService {
@@ -14,7 +13,7 @@ class TradingService {
   constructor(
     providerUrl: string,
     marketplaceAddress: string,
-    marketplaceService: MarketplaceService
+    marketplaceService: MarketplaceService,
   ) {
     this.provider = new ethers.JsonRpcProvider(providerUrl);
     this.marketplaceAddress = marketplaceAddress;
@@ -28,20 +27,20 @@ class TradingService {
 
   async getUnsignedApprovalTransaction(
     collectionAddress: string,
-    from: string
+    from: string,
   ) {
     const signer = await this.provider.getSigner();
 
     const nftContract = new ethers.Contract(
       collectionAddress,
-      EVM_CONFIG.NFT_CONTRACT_ABI,
-      signer
+      EVM_CONFIG.INS_NFT_CONTRACT_ABI,
+      signer,
     );
 
     // Check if the marketplace is already approved
     const isApproved = await nftContract.isApprovedForAll(
       from,
-      this.marketplaceAddress
+      this.marketplaceAddress,
     );
     console.log("🚀 ~ NFTService ~ isApproved:", isApproved);
 
@@ -50,11 +49,11 @@ class TradingService {
       const approvalTx =
         await nftContract.setApprovalForAll.populateTransaction(
           this.marketplaceAddress,
-          true
+          true,
         );
       const preparedApprovalTx = await this.prepareUnsignedTransaction(
         approvalTx,
-        from
+        from,
       );
 
       return {
@@ -73,45 +72,22 @@ class TradingService {
     initialOwner: string,
     name: string,
     symbol: string,
-    priceForLaunchpad: number
+    priceForLaunchpad: number,
   ) {
     const signer = await this.provider.getSigner();
     const factory = new ethers.ContractFactory(
-      EVM_CONFIG.NFT_CONTRACT_ABI,
-      EVM_CONFIG.NFT_CONTRACT_BYTECODE,
-      signer
+      EVM_CONFIG.INS_NFT_CONTRACT_ABI,
+      EVM_CONFIG.INS_NFT_CONTRACT_BYTECODE,
+      signer,
     );
 
     const unsignedTx = await factory.getDeployTransaction(
       initialOwner,
       name,
       symbol,
-      ethers.parseEther(priceForLaunchpad.toString()) // mintFee
+      ethers.parseEther(priceForLaunchpad.toString()), // mintFee
     );
     return this.prepareUnsignedTransaction(unsignedTx, initialOwner);
-  }
-
-  async getUnsignedMintNFTTransaction(
-    collectionAddress: string,
-    to: string,
-    tokenId: number,
-    req: Request
-  ) {
-    const signer = await this.provider.getSigner();
-
-    const contract = new ethers.Contract(
-      collectionAddress,
-      EVM_CONFIG.NFT_CONTRACT_ABI,
-      signer
-    );
-    const metadataURI = await this.createAndUploadMetadata(req);
-    const unsignedTx = await contract.safeMint.populateTransaction(
-      to,
-      tokenId,
-      metadataURI
-    );
-
-    return this.prepareUnsignedTransaction(unsignedTx, to);
   }
 
   async getUnsignedBatchMintNFTTransaction(
@@ -119,21 +95,21 @@ class TradingService {
     to: string,
     name: string,
     quantity: number,
-    files: Express.Multer.File[]
+    files: Express.Multer.File[],
   ) {
     const signer = await this.provider.getSigner();
 
     const contract = new ethers.Contract(
       collectionAddress,
-      EVM_CONFIG.NFT_CONTRACT_ABI,
-      signer
+      EVM_CONFIG.INS_NFT_CONTRACT_ABI,
+      signer,
     );
 
     // Handle file uploads and metadata creation
     const metadataURIs = await this.createAndUploadBatchMetadata(
       files,
       quantity,
-      name
+      name,
     );
 
     // Assuming the contract has a batchMintWithURI function
@@ -141,7 +117,7 @@ class TradingService {
       to,
       // startTokenId,
       quantity,
-      metadataURIs
+      metadataURIs,
     );
 
     return this.prepareUnsignedTransaction(unsignedTx, to);
@@ -151,21 +127,21 @@ class TradingService {
     collectionAddress: string,
     tokenId: string,
     pricePerToken: string,
-    from: string
+    from: string,
   ) {
     try {
       const signer = await this.provider.getSigner();
 
       const nftContract = new ethers.Contract(
         collectionAddress,
-        EVM_CONFIG.NFT_CONTRACT_ABI,
-        signer
+        EVM_CONFIG.INS_NFT_CONTRACT_ABI,
+        signer,
       );
 
       // Check if the marketplace is already approved
       const isApproved = await nftContract.isApprovedForAll(
         from,
-        this.marketplaceAddress
+        this.marketplaceAddress,
       );
       console.log("🚀 ~ NFTService ~ isApproved:", isApproved);
 
@@ -174,11 +150,11 @@ class TradingService {
         const approvalTx =
           await nftContract.setApprovalForAll.populateTransaction(
             this.marketplaceAddress,
-            true
+            true,
           );
         const preparedApprovalTx = await this.prepareUnsignedTransaction(
           approvalTx,
-          from
+          from,
         );
 
         // Return the approval transaction instead of the listing transaction
@@ -189,7 +165,7 @@ class TradingService {
       }
 
       console.log(
-        "NFT already approved or approval transaction sent. Preparing listing transaction..."
+        "NFT already approved or approval transaction sent. Preparing listing transaction...",
       );
 
       const listing = {
@@ -218,7 +194,7 @@ class TradingService {
       console.log("🚀 ~ NFTService ~ testing:", testing);
       console.log(
         "🚀 ~ NFTService ~ marketplaceContract:",
-        marketplaceContract
+        marketplaceContract,
       );
       const unsignedTx =
         await marketplaceContract.createListing.populateTransaction(listing);
@@ -235,7 +211,7 @@ class TradingService {
 
       const preparedListingTx = await this.prepareUnsignedTransaction(
         multicallTx,
-        from
+        from,
       );
 
       console.log("🚀 ~ NFTService ~ preparedListingTx:", preparedListingTx);
@@ -253,7 +229,7 @@ class TradingService {
   private async createAndUploadBatchMetadata(
     files: Express.Multer.File[],
     quantity: number,
-    name: string
+    name: string,
   ): Promise<string[]> {
     console.log("Files received:", files ? files.length : 0);
     console.log("Expected quantity:", quantity);
@@ -290,42 +266,15 @@ class TradingService {
         });
 
         return metadataURI;
-      })
+      }),
     );
 
     return metadataURIs;
   }
 
-  private async createAndUploadMetadata(req: Request): Promise<string> {
-    if (!req.file) {
-      throw new Error("No file uploaded");
-    }
-
-    // Upload the image to IPFS
-    const imageFile = req.file;
-    const imageURI = await this.storage.upload(imageFile.buffer, {
-      uploadWithGatewayUrl: true,
-    });
-
-    // Create metadata object
-    const metadata = {
-      name: req.body.name || "Unnamed NFT",
-      description: req.body.description || "No description provided",
-      image: imageURI, // This should be a URL pointing to the image
-      attributes: JSON.parse(req.body.attributes || "[]"),
-    };
-
-    // Upload metadata to IPFS
-    const metadataURI = await this.storage.upload(metadata, {
-      uploadWithGatewayUrl: true,
-    });
-
-    return metadataURI;
-  }
-
   async prepareUnsignedTransaction(
     unsignedTx: ethers.ContractTransaction | ethers.ContractDeployTransaction,
-    from: string
+    from: string,
   ) {
     const estimatedGas = await this.provider.estimateGas({
       ...unsignedTx,

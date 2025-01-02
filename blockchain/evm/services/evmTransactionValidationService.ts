@@ -16,7 +16,7 @@ export class TransactionValidationService {
     txid: string,
     orderUserId: string,
     orderQuantity: number,
-    collectionContractAddress: string
+    collectionContractAddress: string,
   ): Promise<boolean> {
     try {
       // Get transaction receipt
@@ -33,8 +33,8 @@ export class TransactionValidationService {
       // Get the NFT contract
       const nftContract = new ethers.Contract(
         collectionContractAddress,
-        EVM_CONFIG.NFT_CONTRACT_ABI,
-        this.provider
+        EVM_CONFIG.INS_NFT_CONTRACT_ABI,
+        this.provider,
       );
 
       // Get transfer events from the receipt
@@ -54,7 +54,7 @@ export class TransactionValidationService {
       if (transferEvents.length !== orderQuantity) {
         throw new CustomError(
           `Expected ${orderQuantity} mints, but found ${transferEvents.length}`,
-          400
+          400,
         );
       }
       // Get original transaction
@@ -67,7 +67,7 @@ export class TransactionValidationService {
 
       // Verify each mint
       for (const event of transferEvents) {
-        const iface = new ethers.Interface(EVM_CONFIG.NFT_CONTRACT_ABI);
+        const iface = new ethers.Interface(EVM_CONFIG.INS_NFT_CONTRACT_ABI);
         const parsedLog = iface.parseLog({
           topics: event.topics,
           data: event.data,
@@ -109,7 +109,7 @@ export class TransactionValidationService {
     seller: any,
     nftContractAddress: string,
     tokenId: string,
-    expectedPrice: string
+    expectedPrice: string,
   ): Promise<boolean> {
     try {
       // Get transaction receipt

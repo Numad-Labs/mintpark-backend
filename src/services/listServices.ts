@@ -17,23 +17,23 @@ import { merkleService } from "../../blockchain/evm/services/merkleTreeService";
 
 // import MarketplaceService from "./marketplaceService";
 const marketplaceService = new MarketplaceService(
-  EVM_CONFIG.MARKETPLACE_ADDRESS
+  EVM_CONFIG.MARKETPLACE_ADDRESS,
 );
 
 const confirmationService = new TransactionConfirmationService(
-  EVM_CONFIG.RPC_URL
+  EVM_CONFIG.RPC_URL,
 );
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
   EVM_CONFIG.MARKETPLACE_ADDRESS,
-  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
+  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS),
 );
 
 export const listServices = {
   checkAndPrepareRegistration: async (
     collectionId: string,
     issuerId: string,
-    userLayerId: string
+    userLayerId: string,
   ) => {
     const issuer = await userRepository.getByUserLayerId(userLayerId);
     if (!issuer) throw new CustomError("User not found.", 400);
@@ -47,7 +47,7 @@ export const listServices = {
     let isRegistered = false;
     try {
       const collectionConfig = await marketplaceService.getCollectionConfig(
-        collection.contractAddress as string
+        collection.contractAddress as string,
       );
       isRegistered = collectionConfig?.isActive || false;
     } catch (error) {
@@ -60,7 +60,7 @@ export const listServices = {
       const registerTx = await marketplaceService.registerCollectionTransaction(
         collection.contractAddress as string,
         EVM_CONFIG.DEFAULT_PUBLIC_MAX_MINT,
-        issuer.address
+        issuer.address,
       );
 
       return {
@@ -77,7 +77,7 @@ export const listServices = {
     price: number,
     collectibleId: string,
     issuerId: string,
-    txid?: string
+    txid?: string,
   ) => {
     const collectible = await collectibleRepository.getById(collectibleId);
     if (!collectible || !collectible.collectionId)
@@ -85,7 +85,7 @@ export const listServices = {
 
     const collection = await collectionRepository.getById(
       db,
-      collectible?.collectionId
+      collectible?.collectionId,
     );
     if (!collection) throw new CustomError("Collectible not found.", 400);
     if (
@@ -96,7 +96,7 @@ export const listServices = {
 
     const issuer = await userRepository.getByIdAndLayerId(
       issuerId,
-      collection.layerId
+      collection.layerId,
     );
     if (!issuer) throw new CustomError("User not found.", 400);
 
@@ -109,32 +109,32 @@ export const listServices = {
 
         try {
           const collectionConfig = await marketplaceService.getCollectionConfig(
-            collection.contractAddress
+            collection.contractAddress,
           );
           if (!collectionConfig?.isActive) {
             throw new CustomError(
               "Collection not registered. Please register collection first.",
-              400
+              400,
             );
           }
         } catch (error) {
           throw new CustomError(
             "Collection not registered. Please register collection first.",
-            400
+            400,
           );
         }
 
         const signer = await nftService.provider.getSigner();
         const nftContract = new ethers.Contract(
           collection.contractAddress,
-          EVM_CONFIG.NFT_CONTRACT_ABI,
-          signer
+          EVM_CONFIG.INS_NFT_CONTRACT_ABI,
+          signer,
         );
 
         // Check if the marketplace is already approved
         const isApproved = await nftContract.isApprovedForAll(
           issuer.address,
-          EVM_CONFIG.MARKETPLACE_ADDRESS
+          EVM_CONFIG.MARKETPLACE_ADDRESS,
         );
 
         if (!isApproved) {
@@ -144,7 +144,7 @@ export const listServices = {
           if (transactionDetail.status !== 1) {
             throw new CustomError(
               "Transaction not confirmed. Please try again.",
-              500
+              500,
             );
           }
         }
@@ -152,7 +152,7 @@ export const listServices = {
         if (!collectible.uniqueIdx)
           throw new CustomError(
             "Collectible with no unique index cannot be listed.",
-            400
+            400,
           );
         const tokenId = collectible.nftId;
 
@@ -161,11 +161,11 @@ export const listServices = {
             collection.contractAddress,
             tokenId,
             price.toString(),
-            issuer.address
+            issuer.address,
           );
         console.log(
           "🚀 ~ returnawaitdb.transaction ~ expectedListingId:",
-          expectedListingId
+          expectedListingId,
         );
 
         // const preparedListingTx = await nftService.prepareUnsignedTransaction(
@@ -175,7 +175,6 @@ export const listServices = {
 
         const serializedTx = serializeBigInt(createListingTx);
 
-        //todo listingId gd nemeh
         list = await listRepository.create(trx, {
           collectibleId: collectible.id,
           sellerId: issuer.id,
@@ -201,7 +200,7 @@ export const listServices = {
     txid: string,
     vout: number,
     inscribedAmount: number,
-    issuerId: string
+    issuerId: string,
   ) => {
     const list = await listRepository.getById(id);
     if (!list) throw new CustomError("No list found.", 400);
@@ -210,7 +209,7 @@ export const listServices = {
     if (list.sellerId !== issuerId)
       throw new CustomError(
         "You are not allowed to confirm this listing.",
-        400
+        400,
       );
 
     return await db.transaction().execute(async (trx) => {
@@ -221,7 +220,7 @@ export const listServices = {
         if (transactionDetail.status !== 1) {
           throw new CustomError(
             "Transaction not confirmed. Please try again.",
-            400
+            400,
           );
         }
         const updatedList = await listRepository.update(trx, list.id, {
@@ -283,7 +282,7 @@ export const listServices = {
     id: string,
     userLayerId: string,
     feeRate: number,
-    issuerId: string
+    issuerId: string,
   ) => {
     const list = await listRepository.getById(id);
     if (!list) throw new CustomError("No list found.", 400);
@@ -302,25 +301,25 @@ export const listServices = {
 
     if (list.layer === "CITREA") {
       const collectible = await collectibleRepository.getById(
-        list.collectibleId
+        list.collectibleId,
       );
       if (!collectible) throw new CustomError("Collectible not found", 400);
       if (!collectible.uniqueIdx)
         throw new CustomError(
           "Collectible with no unique index cannot be listed.",
-          400
+          400,
         );
 
       const collection = await collectionRepository.getById(
         db,
-        collectible.collectionId
+        collectible.collectionId,
       );
       if (!collection || !collection.contractAddress)
         throw new CustomError("Collection not found", 400);
 
       // Get current phase and verify purchase eligibility
       const currentPhase = await marketplaceService.getCurrentPhase(
-        collection.contractAddress
+        collection.contractAddress,
       );
 
       // const listingData = await marketplaceContract.getListing(
@@ -346,17 +345,17 @@ export const listServices = {
       if (currentPhase === 1) {
         // Whitelist phase
         const launch = await launchRepository.getByCollectionId(
-          collectible.collectionId
+          collectible.collectionId,
         );
         if (!launch) throw new CustomError("Launch not found", 400);
 
         const proof = await merkleService.getMerkleProof(
           launch.id,
-          buyer.address
+          buyer.address,
         );
         const isWhitelisted = await merkleService.isAddressWhitelisted(
           launch.id,
-          buyer.address
+          buyer.address,
         );
 
         if (!isWhitelisted) {
@@ -368,8 +367,8 @@ export const listServices = {
             parseInt(collectible.uniqueIdx.split("i")[1]),
             proof,
             list.price.toString(),
-            buyer.address
-          )
+            buyer.address,
+          ),
         );
       } else {
         console.log("🚀 ~ list.price:", list.price);
@@ -381,8 +380,8 @@ export const listServices = {
             parseInt(list.privateKey),
             [],
             list.price.toString(),
-            buyer.address
-          )
+            buyer.address,
+          ),
         );
       }
 
@@ -450,7 +449,7 @@ export const listServices = {
     userLayerId: string,
     hex: string,
     issuerId: string,
-    txid?: string
+    txid?: string,
   ) => {
     const buyer = await userRepository.getByUserLayerId(userLayerId);
     if (!buyer) throw new CustomError("User not found.", 400);
@@ -476,7 +475,7 @@ export const listServices = {
         if (transactionDetail.status !== 1) {
           throw new CustomError(
             "Transaction not confirmed. Please try again.",
-            500
+            500,
           );
         }
         const confirmedList = await listRepository.update(trx, list.id, {

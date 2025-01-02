@@ -20,11 +20,11 @@ import { Insertable, Kysely, Transaction } from "kysely";
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
   EVM_CONFIG.MARKETPLACE_ADDRESS,
-  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
+  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS),
 );
 
 const confirmationService = new TransactionConfirmationService(
-  EVM_CONFIG.RPC_URL!
+  EVM_CONFIG.RPC_URL!,
 );
 
 class LaunchpadService {
@@ -45,21 +45,21 @@ class LaunchpadService {
   async createLaunchpadListingWithAssets(
     launchConfig: LaunchConfig,
     ownerAddress: string,
-    totalSupply: number
+    totalSupply: number,
   ) {
     try {
       const signer = await this.provider.getSigner();
 
       const nftContract = new ethers.Contract(
         launchConfig.collectionAddress,
-        EVM_CONFIG.NFT_CONTRACT_ABI,
-        signer
+        EVM_CONFIG.INS_NFT_CONTRACT_ABI,
+        signer,
       );
 
       // Check if the marketplace is already approved
       const isApproved = await nftContract.isApprovedForAll(
         ownerAddress,
-        EVM_CONFIG.MARKETPLACE_ADDRESS
+        EVM_CONFIG.MARKETPLACE_ADDRESS,
       );
       console.log("🚀 ~ NFTService ~ isApproved:", isApproved);
 
@@ -68,11 +68,11 @@ class LaunchpadService {
         const approvalTx =
           await nftContract.setApprovalForAll.populateTransaction(
             EVM_CONFIG.MARKETPLACE_ADDRESS,
-            true
+            true,
           );
         const preparedApprovalTx = await nftService.prepareUnsignedTransaction(
           approvalTx,
-          ownerAddress
+          ownerAddress,
         );
 
         // Return the approval transaction instead of the listing transaction
@@ -94,7 +94,7 @@ class LaunchpadService {
       for (let i = 0; i < batchCount; i++) {
         const batchQuantity = Math.min(
           BATCH_SIZE,
-          totalSupply - i * BATCH_SIZE
+          totalSupply - i * BATCH_SIZE,
         );
         console.log("🚀 ~ LaunchpadService ~ batchQuantity:", batchQuantity);
         const startTokenId = i * BATCH_SIZE;
@@ -118,13 +118,13 @@ class LaunchpadService {
       }
       console.log(
         "🚀 ~ LaunchpadService ~ listingTransactions:",
-        listingTransactions
+        listingTransactions,
       );
 
       // 4. Create multicall transaction
       const multicallTx =
         await marketplaceContract.multicall.populateTransaction(
-          listingTransactions
+          listingTransactions,
         );
 
       // 5. Prepare final transaction
@@ -149,7 +149,7 @@ class LaunchpadService {
   //     // Get the NFT contract
   //     const nftContract = new ethers.Contract(
   //       collectionAddress,
-  //       EVM_CONFIG.NFT_CONTRACT_ABI,
+  //       EVM_CONFIG.INS_NFT_CONTRACT_ABI,
   //       this.provider
   //     );
 
@@ -191,25 +191,24 @@ class LaunchpadService {
   async createLaunchpadContractFeeChange(
     collectionTxid: string,
     ownerAddress: string,
-    mintFee: string
+    mintFee: string,
   ) {
     try {
       if (!collectionTxid) throw new Error("txid not found.");
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        collectionTxid
-      );
+      const transactionDetail =
+        await confirmationService.getTransactionDetails(collectionTxid);
 
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
-          500
+          500,
         );
       }
 
       if (!transactionDetail.deployedContractAddress) {
         throw new CustomError(
           "Transaction does not contain deployed contract address.",
-          500
+          500,
         );
       }
 
@@ -217,12 +216,11 @@ class LaunchpadService {
       const nftContract = new ethers.Contract(
         transactionDetail.deployedContractAddress,
         EVM_CONFIG.NFT_CONTRACT_ABI,
-        this.provider
+        this.provider,
       );
 
-      // Create batch transaction
       const mintTx = await nftContract.setMintFee.populateTransaction(
-        ethers.parseEther(mintFee)
+        ethers.parseEther(mintFee),
       );
 
       return nftService.prepareUnsignedTransaction(mintTx, ownerAddress);
@@ -238,13 +236,13 @@ class LaunchpadService {
     pickedCollectible: Insertable<Collectible>,
     buyer: string,
     collectionAddress: string,
-    db: Kysely<DB> | Transaction<DB>
+    db: Kysely<DB> | Transaction<DB>,
   ): Promise<ethers.TransactionRequest> {
     //TODO: REFACTOR DG
     if (!pickedCollectible.cid || !pickedCollectible.uniqueIdx)
       throw new CustomError(
         "Collectible with invalid cid or unique index.",
-        400
+        400,
       );
 
     const signer = await this.provider.getSigner();
@@ -264,7 +262,7 @@ class LaunchpadService {
 
     const metadataURI = await this.generateMetadataFromCid(
       pickedCollectible.name,
-      pickedCollectible.cid
+      pickedCollectible.cid,
     );
 
     console.log("🚀 ~ LaunchpadService ~ metadataURI:", metadataURI);
@@ -275,8 +273,8 @@ class LaunchpadService {
 
     const nftContract = new ethers.Contract(
       collectionAddress,
-      EVM_CONFIG.NFT_CONTRACT_ABI,
-      signer
+      EVM_CONFIG.INS_NFT_CONTRACT_ABI,
+      signer,
     );
 
     const price = await nftContract.mintFee();
@@ -290,25 +288,11 @@ class LaunchpadService {
     const unsignedTx = await nftContract.mint.populateTransaction(
       tokenId,
       metadataURI,
-      { value: ethers.parseEther(mintPrice) }
+      { value: ethers.parseEther(mintPrice) },
     );
 
     // Prepare the full transaction
     return await nftService.prepareUnsignedTransaction(unsignedTx, buyer);
-  }
-
-  private generateTokenId(items: LaunchItem[]): number {
-    const existingIds = items
-      /*  .map((item) => item.evmAssetId) */
-      .map((item) => item.launchId)
-      .filter((id): id is string => id !== null)
-      .map((id) => parseInt(id));
-
-    if (existingIds.length === 0) {
-      return 0;
-    }
-
-    return Math.max(...existingIds) + 1;
   }
 
   async generateMetadataFromCid(name: string, cid: string) {
@@ -319,11 +303,73 @@ class LaunchpadService {
     };
 
     // Upload metadata to IPFS
-    const metadataResponse: PinResponse = await this.storage.upload.json(
-      metadata
-    );
+    const metadataResponse: PinResponse =
+      await this.storage.upload.json(metadata);
 
     return `ipfs://${metadataResponse.IpfsHash}`;
+  }
+
+  async generateFeeTransferTransaction(
+    issuerAddress: string,
+    colllectionAddress: string,
+    fundingAddress: string,
+  ): Promise<ethers.TransactionRequest> {
+    try {
+      const signer = await this.provider.getSigner();
+
+      const nftContract = new ethers.Contract(
+        colllectionAddress,
+        EVM_CONFIG.NFT_CONTRACT_ABI,
+        signer,
+      );
+      // Calculate the required fees
+      const mintFee = await nftContract.mintFee();
+
+      if (mintFee <= 0) {
+        throw new CustomError("Total fee amount must be greater than 0", 400);
+      }
+
+      // Verify funding address
+      if (!ethers.isAddress(fundingAddress)) {
+        throw new CustomError("Invalid funding address", 400);
+      }
+
+      // Create the basic transaction object
+      const transactionRequest: ethers.TransactionRequest = {
+        to: fundingAddress,
+        value: ethers.parseEther(mintFee.toString()),
+        from: issuerAddress,
+      };
+
+      // Get the provider's network info
+      const network = await this.provider.getNetwork();
+      const feeData = await this.provider.getFeeData();
+      const nonce = await this.provider.getTransactionCount(issuerAddress);
+
+      // Estimate gas for the transfer
+      const gasLimit = await this.provider.estimateGas(transactionRequest);
+
+      // Prepare the complete unsigned transaction
+      const unsignedTx: ethers.TransactionRequest = {
+        ...transactionRequest,
+        chainId: network.chainId,
+        nonce: nonce,
+        gasLimit: gasLimit,
+        maxFeePerGas: feeData.maxFeePerGas,
+        maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
+        type: 2, // EIP-1559 transaction type
+      };
+
+      return unsignedTx;
+    } catch (error) {
+      if (error instanceof CustomError) {
+        throw error;
+      }
+      throw new CustomError(
+        `Failed to generate fee transfer transaction: ${error}`,
+        500,
+      );
+    }
   }
 }
 
