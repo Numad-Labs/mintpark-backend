@@ -18,7 +18,7 @@ export class EVMCollectibleService {
     if (!ethers.isAddress(contractAddress)) {
       throw new CustomError(
         `Invalid contract address: ${contractAddress}`,
-        400
+        400,
       );
     }
     if (!ethers.isAddress(ownerAddress)) {
@@ -28,14 +28,14 @@ export class EVMCollectibleService {
       // Create contract instance
       const contract = new ethers.Contract(
         contractAddress,
-        EVM_CONFIG.NFT_CONTRACT_ABI,
-        this.provider
+        EVM_CONFIG.INS_NFT_CONTRACT_ABI,
+        this.provider,
       );
 
       const balance = await contract.balanceOf(ownerAddress);
       console.log(
         "🚀 ~ EVMCollectibleService ~ getOwnedTokens ~ balance:",
-        balance
+        balance,
       );
       const balanceNumber = Number(balance);
 
@@ -50,12 +50,12 @@ export class EVMCollectibleService {
         try {
           console.log(
             "🚀 ~ EVMCollectibleService ~ getOwnedTokens ~ ownerAddress:",
-            ownerAddress
+            ownerAddress,
           );
           const tokenId = await contract.tokenOfOwnerByIndex(ownerAddress, i);
           console.log(
             "🚀 ~ EVMCollectibleService ~ getOwnedTokens ~ tokenId:",
-            tokenId
+            tokenId,
           );
           allTokenIds.push(tokenId.toString());
 
@@ -92,13 +92,13 @@ export class EVMCollectibleService {
         try {
           const tokens = await this.getOwnedTokens(
             contractAddress,
-            ownerAddress
+            ownerAddress,
           );
           return { contractAddress, tokens };
         } catch (error) {
           console.error(
             `Error processing collection ${contractAddress}:`,
-            error
+            error,
           );
           return { contractAddress, tokens: [] };
         }
@@ -123,15 +123,15 @@ export class EVMCollectibleService {
     if (!ethers.isAddress(contractAddress)) {
       throw new CustomError(
         `Invalid contract address: ${contractAddress}`,
-        400
+        400,
       );
     }
 
     try {
       const contract = new Contract(
         contractAddress,
-        EVM_CONFIG.NFT_CONTRACT_ABI,
-        this.provider
+        EVM_CONFIG.INS_NFT_CONTRACT_ABI,
+        this.provider,
       );
 
       // Get total supply of tokens
@@ -179,7 +179,7 @@ export class EVMCollectibleService {
     } catch (error) {
       console.error(
         `Error getting owners count for ${contractAddress}:`,
-        error
+        error,
       );
 
       throw error;
@@ -188,7 +188,7 @@ export class EVMCollectibleService {
 
   //saved to use. Can be used on get collection owner's cound in batch. But didn't tested
   async getAllCollectionsOwnersCount(
-    contractAddresses: string[]
+    contractAddresses: string[],
   ): Promise<Record<string, number>> {
     const results: Record<string, number> = {};
 
@@ -214,7 +214,7 @@ export class EVMCollectibleService {
       // Add delay between batches
       if (i + this.BATCH_SIZE < contractAddresses.length) {
         await new Promise((resolve) =>
-          setTimeout(resolve, this.DELAY_BETWEEN_BATCHES)
+          setTimeout(resolve, this.DELAY_BETWEEN_BATCHES),
         );
       }
     }
@@ -251,7 +251,7 @@ export class EVMCollectibleService {
       .leftJoin("List", (join) =>
         join
           .on("List.collectibleId", "=", "Collectible.id")
-          .on("List.status", "=", "ACTIVE")
+          .on("List.status", "=", "ACTIVE"),
       )
       .select([
         "Collectible.id",
@@ -301,7 +301,7 @@ export class EVMCollectibleService {
   private async getPaginatedLogs(
     filter: any,
     fromBlock: number,
-    toBlock: number
+    toBlock: number,
   ): Promise<Log[]> {
     const logs: Log[] = [];
     let currentFromBlock = fromBlock;
@@ -309,7 +309,7 @@ export class EVMCollectibleService {
     while (currentFromBlock <= toBlock) {
       const currentToBlock = Math.min(
         currentFromBlock + this.BLOCK_RANGE - 1,
-        toBlock
+        toBlock,
       );
 
       try {
@@ -322,7 +322,7 @@ export class EVMCollectibleService {
       } catch (error) {
         console.error(
           `Error fetching logs for blocks ${currentFromBlock}-${currentToBlock}:`,
-          error
+          error,
         );
       }
 
@@ -335,7 +335,7 @@ export class EVMCollectibleService {
   async getActivityByTokenId(
     nftContractAddress: string,
     tokenId: string,
-    fromBlock: number = 0
+    fromBlock: number = 0,
   ): Promise<NFTActivity[]> {
     const activities: NFTActivity[] = [];
 
@@ -344,14 +344,14 @@ export class EVMCollectibleService {
 
       const nftContract = new ethers.Contract(
         nftContractAddress,
-        EVM_CONFIG.NFT_CONTRACT_ABI,
-        this.provider
+        EVM_CONFIG.INS_NFT_CONTRACT_ABI,
+        this.provider,
       );
 
       const marketplaceContract = new ethers.Contract(
         EVM_CONFIG.MARKETPLACE_ADDRESS,
         EVM_CONFIG.MARKETPLACE_ABI,
-        this.provider
+        this.provider,
       );
 
       // Get all events and filter afterwards
@@ -364,7 +364,7 @@ export class EVMCollectibleService {
               topics: [ethers.id("Transfer(address,address,uint256)")],
             },
             fromBlock,
-            latestBlock
+            latestBlock,
           ),
           // All ItemListed events
           this.getPaginatedLogs(
@@ -375,7 +375,7 @@ export class EVMCollectibleService {
               ],
             },
             fromBlock,
-            latestBlock
+            latestBlock,
           ),
           // All ItemSold events
           this.getPaginatedLogs(
@@ -384,7 +384,7 @@ export class EVMCollectibleService {
               topics: [ethers.id("ListingSold(uint256,address,uint256)")],
             },
             fromBlock,
-            latestBlock
+            latestBlock,
           ),
           // All ListingCancelled events
           this.getPaginatedLogs(
@@ -393,7 +393,7 @@ export class EVMCollectibleService {
               topics: [ethers.id("ListingCancelled(uint256)")],
             },
             fromBlock,
-            latestBlock
+            latestBlock,
           ),
         ]);
 
@@ -402,7 +402,7 @@ export class EVMCollectibleService {
         const eventArgs = await this.processEventLog(
           log,
           nftContract,
-          "Transfer"
+          "Transfer",
         );
         if (eventArgs && eventArgs[2].toString() === tokenId) {
           const block = await this.provider.getBlock(log.blockNumber);
@@ -440,7 +440,7 @@ export class EVMCollectibleService {
         const eventArgs = await this.processEventLog(
           log,
           marketplaceContract,
-          "ListingCreated"
+          "ListingCreated",
         );
         if (
           eventArgs &&
@@ -471,7 +471,7 @@ export class EVMCollectibleService {
         const eventArgs = await this.processEventLog(
           log,
           marketplaceContract,
-          "ListingSold"
+          "ListingSold",
         );
         if (eventArgs) {
           // Get the listing details since the event doesn't contain all info
@@ -505,7 +505,7 @@ export class EVMCollectibleService {
         const eventArgs = await this.processEventLog(
           log,
           marketplaceContract,
-          "ListingCancelled"
+          "ListingCancelled",
         );
         if (
           eventArgs &&
@@ -538,7 +538,7 @@ export class EVMCollectibleService {
   private async processEventLog(
     log: Log,
     contract: ethers.Contract,
-    eventName: string
+    eventName: string,
   ) {
     const iface = new ethers.Interface(contract.interface.formatJson());
     try {
