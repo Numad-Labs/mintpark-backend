@@ -337,7 +337,7 @@ export async function processMessage(message: Message) {
     if (!collectible)
       throw new CustomError("Parent collectible not found.", 400);
 
-    logger.info(`Minted NFT funded by VAULT`);
+    //TODO DG: MINT NFT FROM CID BY THE VAULT
     let mintTxId = "";
 
     await collectibleRepository.update(db, collectible.id, {
