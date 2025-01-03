@@ -36,15 +36,15 @@ import { config } from "../config/config";
 const nftService = new NFTService(
   EVM_CONFIG.RPC_URL,
   EVM_CONFIG.MARKETPLACE_ADDRESS,
-  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS),
+  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
 );
 const confirmationService = new TransactionConfirmationService(
-  EVM_CONFIG.RPC_URL!,
+  EVM_CONFIG.RPC_URL!
 );
 
 const launchPadService = new LaunchpadService(
   EVM_CONFIG.RPC_URL,
-  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS),
+  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
 );
 
 export interface nftMetaData {
@@ -202,7 +202,7 @@ export const orderServices = {
     totalCollectibleCount: number,
     feeRate: number,
     collectionId: string,
-    txid?: string,
+    txid?: string
   ) => {
     if (!collectionId) throw new CustomError("Collection id is required.", 400);
     const collection = await collectionServices.getById(collectionId);
@@ -210,7 +210,7 @@ export const orderServices = {
     if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
       throw new CustomError(
         "You cannot create mint order for synthetic collection.",
-        400,
+        400
       );
     if (collection.creatorId !== userId)
       throw new CustomError("You are not the creator of this collection.", 400);
@@ -219,14 +219,14 @@ export const orderServices = {
     if (collection.type !== "IPFS") {
       childCollection =
         await collectionRepository.getChildCollectionByParentCollectionId(
-          collection.id,
+          collection.id
         );
       if (!childCollection)
         throw new CustomError("Child collection not found.", 400);
     }
 
     const hasExistingOrder = await orderRepository.getByCollectionId(
-      collection.id,
+      collection.id
     );
     if (hasExistingOrder)
       throw new CustomError("This collection already has existing order.", 400);
@@ -235,7 +235,7 @@ export const orderServices = {
     if (user?.id !== userId)
       throw new CustomError(
         "You are not allowed to create order for this account.",
-        400,
+        400
       );
     if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
@@ -277,20 +277,21 @@ export const orderServices = {
       // }
 
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail =
-        await confirmationService.getTransactionDetails(txid);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
 
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
-          500,
+          500
         );
       }
 
       if (!transactionDetail.deployedContractAddress) {
         throw new CustomError(
           "Transaction does not contain deployed contract address.",
-          500,
+          500
         );
       }
 
@@ -302,7 +303,7 @@ export const orderServices = {
         if (!childCollection)
           throw new CustomError(
             "Child collection must be recorded for this operation.",
-            400,
+            400
           );
 
         await collectionRepository.update(db, childCollection.id, {
@@ -322,7 +323,7 @@ export const orderServices = {
       if (!totalFileSize || !totalCollectibleCount)
         throw new CustomError(
           "Please provide totalFileSize and totalCollectibleCount",
-          400,
+          400
         );
 
       networkFee =
@@ -334,7 +335,7 @@ export const orderServices = {
       if (!totalTraitCount || !totalFileSize)
         throw new CustomError(
           "Please provide an totalFileSize or totalTraitCount",
-          400,
+          400
         );
 
       networkFee =
@@ -351,7 +352,7 @@ export const orderServices = {
       txHex = launchPadService.generateFeeTransferTransaction(
         user.address,
         collection.contractAddress,
-        funder.address,
+        funder.address
       );
     }
     let totalAmount = networkFee * 1.5 + mintFee + serviceFee;
@@ -360,7 +361,7 @@ export const orderServices = {
     if (order)
       throw new CustomError(
         "Mint order for this collection already exists.",
-        400,
+        400
       );
 
     order = await orderRepository.create(db, {
@@ -416,12 +417,12 @@ export const orderServices = {
     if (order?.userId !== userId)
       throw new CustomError(
         "You are not allowed to create trait value for this collection.",
-        400,
+        400
       );
 
     const collection = await collectionRepository.getById(
       db,
-      order.collectionId,
+      order.collectionId
     );
     if (!collection) throw new CustomError("No collection found.", 400);
     if (!order.fundingAddress)
@@ -439,7 +440,7 @@ export const orderServices = {
     const orderItems: Insertable<OrderItem>[] = [];
     if (collection.type === "RECURSIVE_INSCRIPTION") {
       const traitValues = await traitValueRepository.getByCollectionId(
-        collection.id,
+        collection.id
       );
 
       for (let i = 0; i < traitValues.length; i++)
