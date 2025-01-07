@@ -992,46 +992,6 @@
         "Hashes"
       ]
     },
-    "/Users/apple/projects/mintpark-backend/blockchain/evm/contracts/MarketplaceContract.sol": {
-      "lastModificationDate": 1729858779914,
-      "contentHash": "4d125336258a1c02de25ec760f3efb3d",
-      "sourceName": "blockchain/evm/contracts/MarketplaceContract.sol",
-      "solcConfig": {
-        "version": "0.8.27",
-        "settings": {
-          "evmVersion": "paris",
-          "optimizer": {
-            "enabled": false,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/token/ERC721/IERC721.sol",
-        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
-        "@openzeppelin/contracts/access/Ownable.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "MarketplaceContract"
-      ]
-    },
     "/Users/apple/projects/mintpark-backend/blockchain/evm/contracts/SyntethicNFT.sol": {
       "lastModificationDate": 1734701800239,
       "contentHash": "5da808cc733c9219b8ed43f68d119b50",
