@@ -29,29 +29,29 @@ class MarketplaceService {
 
   async getUnsignedDeploymentTransaction(
     initialOwner: string,
-    marketplaceFee: number
+    marketplaceFee: number,
   ) {
     const signer = await this.provider.getSigner();
 
     const factory = new ethers.ContractFactory(
       EVM_CONFIG.MARKETPLACE_ABI,
       EVM_CONFIG.MARKETPLACE_CONTRACT_BYTECODE,
-      signer
+      signer,
     );
 
     const unsignedTx = await factory.getDeployTransaction(
       initialOwner,
-      marketplaceFee
+      marketplaceFee,
     );
     return this.prepareUnsignedTransaction(unsignedTx, initialOwner);
   }
 
   async getEthersMarketplaceContract() {
-    const signer = await this.provider.getSigner();
+    // const signer = await this.provider.getSigner();
     return new ethers.Contract(
       this.marketplaceAddress,
       EVM_CONFIG.MARKETPLACE_ABI,
-      signer
+      this.provider,
     );
   }
 
@@ -71,12 +71,12 @@ class MarketplaceService {
   async registerCollectionTransaction(
     nftContract: string,
     publicMaxMint: number,
-    ownerAddress: string
+    ownerAddress: string,
   ) {
     const contract = await this.getEthersMarketplaceContract();
     const unsignedTx = await contract.registerCollection.populateTransaction(
       nftContract,
-      publicMaxMint
+      publicMaxMint,
     );
     return this.prepareUnsignedTransaction(unsignedTx, ownerAddress);
   }
@@ -88,7 +88,7 @@ class MarketplaceService {
     whitelistMaxMint: number,
     fcfsMaxMint: number,
     merkleRoot: string,
-    ownerAddress: string
+    ownerAddress: string,
   ) {
     const contract = await this.getEthersMarketplaceContract();
     const unsignedTx =
@@ -98,7 +98,7 @@ class MarketplaceService {
         fcfsEndTime,
         whitelistMaxMint,
         fcfsMaxMint,
-        merkleRoot
+        merkleRoot,
       );
     return this.prepareUnsignedTransaction(unsignedTx, ownerAddress);
   }
@@ -122,56 +122,120 @@ class MarketplaceService {
     nftContract: string,
     tokenId: string,
     price: string,
-    sellerAddress: string
+    sellerAddress: string,
   ) {
     const contract = await this.getEthersMarketplaceContract();
     const unsignedTx = await contract.createListing.populateTransaction(
       nftContract,
       tokenId,
-      ethers.parseEther(price)
+      ethers.parseEther(price),
     );
     console.log({
       givenPrice: price,
       savingPrice: ethers.parseEther(price),
     });
+    const nextListingId = await this.getNextListingId();
+    console.log("🚀 ~ MarketplaceService ~ nextListingId:", nextListingId);
+
+    // The current listing ID will be one less than the counter
+    const currentListingId =
+      Number(nextListingId) > 0 ? Number(nextListingId) - 1 : 0;
+
     return {
       transaction: await this.prepareUnsignedTransaction(
         unsignedTx,
-        sellerAddress
+        sellerAddress,
       ),
       expectedListingId: (await this.getNextListingId()).toString(),
+      currentListingId: currentListingId.toString(),
     };
   }
 
   async buyListingTransaction(
+    nftContract: string,
+    tokenId: string,
     listingId: number,
     merkleProof: string[],
     price: string,
-    buyerAddress: string
+    buyerAddress: string,
   ) {
     const contract = await this.getEthersMarketplaceContract();
 
     console.log("🚀 ~ MarketplaceService ~ listingId:", listingId);
 
-    // Debug logging
-    const listing = await contract.getListing(listingId);
+    // Get all listings
+    const allListings = await this.getAllListings();
+
+    // Find active listing with matching contract and token ID
+    // Sort by listingId in descending order to get the most recent listing
+    const matchingListings = allListings
+      .filter(
+        (listing) =>
+          listing.nftContract.toLowerCase() === nftContract.toLowerCase() &&
+          listing.tokenId === parseInt(tokenId) &&
+          listing.isActive === true,
+      )
+      .sort((a, b) => b.listingId - a.listingId);
+
+    if (matchingListings.length === 0) {
+      throw new Error("No active listing found for this NFT");
+    }
+
+    // Get the most recent active listing
+    const targetListing = matchingListings[0];
+    // Verify price matches
+    const listingPriceInEther = ethers.formatEther(targetListing.price);
+    if (listingPriceInEther !== price) {
+      throw new Error(
+        `Price mismatch. Expected: ${listingPriceInEther}, Got: ${price}`,
+      );
+    }
+
+    console.log("Found listing:", {
+      listingId: targetListing.listingId,
+      price: listingPriceInEther,
+      tokenId: targetListing.tokenId,
+      nftContract: targetListing.nftContract,
+    });
 
     const unsignedTx = await contract.purchaseListing.populateTransaction(
-      listingId,
+      targetListing.listingId,
       merkleProof,
-      {
-        value: ethers.parseEther(price),
-      }
+      { value: targetListing.price },
     );
     return this.prepareUnsignedTransaction(unsignedTx, buyerAddress);
   }
 
   async cancelListingTransaction(listingId: number, sellerAddress: string) {
     const contract = await this.getEthersMarketplaceContract();
-    const unsignedTx = await contract.cancelListing.populateTransaction(
-      listingId
-    );
+    const unsignedTx =
+      await contract.cancelListing.populateTransaction(listingId);
     return this.prepareUnsignedTransaction(unsignedTx, sellerAddress);
+  }
+
+  async getAllListings() {
+    const contract = await this.getEthersMarketplaceContract();
+    const listingCounter = await this.getNextListingId();
+    const listings = [];
+
+    // Fetch all listings from 1 to listingCounter
+    for (let i = 1; i <= listingCounter; i++) {
+      try {
+        const listing = await contract.getListing(i);
+        listings.push({
+          listingId: i,
+          nftContract: listing.nftContract,
+          tokenId: Number(listing.tokenId),
+          seller: listing.seller,
+          price: listing.price,
+          isActive: listing.isActive,
+        });
+      } catch (error) {
+        console.warn(`Failed to fetch listing ${i}:`, error);
+      }
+    }
+
+    return listings;
   }
 
   // Add this method to get the next listing ID
@@ -182,7 +246,7 @@ class MarketplaceService {
   }
   async prepareUnsignedTransaction(
     unsignedTx: ethers.ContractTransaction | ethers.ContractDeployTransaction,
-    from: string
+    from: string,
   ) {
     const estimatedGas = await this.provider.estimateGas({
       ...unsignedTx,

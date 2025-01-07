@@ -364,6 +364,8 @@ export const listServices = {
 
         return serializeBigInt(
           await marketplaceService.buyListingTransaction(
+            collection.contractAddress,
+            collectible.nftId,
             parseInt(collectible.uniqueIdx.split("i")[1]),
             proof,
             list.price.toString(),
@@ -377,6 +379,8 @@ export const listServices = {
         // FCFS or Public phase - no merkle proof needed
         return serializeBigInt(
           await marketplaceService.buyListingTransaction(
+            collection.contractAddress,
+            collectible.nftId,
             parseInt(list.privateKey),
             [],
             list.price.toString(),
