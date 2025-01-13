@@ -119,7 +119,6 @@ export const launchServices = {
       const layerType = await layerRepository.getById(childCollection.layerId);
       if (!layerType) throw new CustomError("Layer not found.", 400);
 
-      //TODO: add validation to check if userId is the creator of the collection
       if (!txid) throw new CustomError("txid not found.", 400);
       const transactionDetail = await confirmationService.getTransactionDetails(
         txid
@@ -246,7 +245,9 @@ export const launchServices = {
     );
 
     if (isLastBatch) {
-      //TODO: ADD LAUNCHITEM.COUNT > 0 VALIDATION
+      if (Number(existingLaunchItemCount) + launchItems.length <= 0)
+        throw new CustomError("Launch with no launch items.", 400);
+
       await launchRepository.update(launch.id, { status: "CONFIRMED" });
     }
 
@@ -295,8 +296,9 @@ export const launchServices = {
     );
 
     if (isLastBatch) {
-      //TODO: ADD LAUNCHITEM.COUNT > 0 VALIDATION
-      // await launchRepository.update(launch.id, { status: "CONFIRMED" });
+      if (Number(existingLaunchItemCount) + launchItems.length <= 0)
+        throw new CustomError("Launch with no launch items.", 400);
+
       //TODO: INVOKE THE RECURSIVE TRAIT MINTING, GET ORDERID BY THE LAUNCH.COLLECTIONID
       // CONFIRM THE LAUNCH AFTER MINTING THE LAST TRAIT OF THE COLLECTION
     }
@@ -345,7 +347,9 @@ export const launchServices = {
     );
 
     if (isLastBatch) {
-      //TODO: ADD LAUNCHITEM.COUNT > 0 VALIDATION
+      if (Number(existingLaunchItemCount) + launchItems.length <= 0)
+        throw new CustomError("Launch with no launch items.", 400);
+
       await launchRepository.update(launch.id, { status: "CONFIRMED" });
     }
 
@@ -380,7 +384,7 @@ export const launchServices = {
     if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
       throw new CustomError("You cannot buy the item of this collection.", 400);
 
-    //TODO: add phase validation
+    //TODO: whitelisting phase purchase count validation
     const userPurchaseCount =
       await purchaseRepository.getCountByUserIdAndLaunchId(launch.id, user.id);
     if (userPurchaseCount && userPurchaseCount >= launch.poMaxMintPerWallet)
@@ -458,7 +462,6 @@ export const launchServices = {
         if (!collection.contractAddress)
           throw new Error("Collection with no contract address not found.");
 
-        //TODO: refactor this method for generating mint transaction tx by pickedLaunchItem.collectible.cid
         const unsignedTx =
           await launchPadService.getUnsignedLaunchMintTransaction(
             collectible,
@@ -570,7 +573,6 @@ export const launchServices = {
         // if (balance < order.fundingAmount)
         //   throw new CustomError("Fee has not been transferred yet.", 400);
 
-        //TODO: inscribe L1 ordinals by order.privateKey, mint L2 synthetic asset by vault
         if (!parentCollectible.fileKey)
           throw new CustomError("Collectible with no file key.", 400);
         const vault = await createFundingAddress("TESTNET");

@@ -241,6 +241,7 @@ export const collectibleServices = {
       throw new CustomError("Invalid collection type.", 400);
 
     const order = await orderRepository.getByCollectionId(collectionId);
+    if (!order) throw new CustomError("Order not found.", 400);
     if (order?.userId !== userId)
       throw new CustomError(
         "You are not allowed to create trait value for this collection.",
@@ -329,12 +330,12 @@ export const collectibleServices = {
       throw new CustomError("Invalid collection type.", 400);
 
     const order = await orderRepository.getByCollectionId(collectionId);
+    if (!order) throw new CustomError("Order not found.", 400);
     if (order?.userId !== userId)
       throw new CustomError(
         "You are not allowed to create trait value for this collection.",
         400
       );
-
     if (!order.fundingAddress)
       throw new CustomError("Invalid order with undefined address.", 400);
 
@@ -373,7 +374,7 @@ export const collectibleServices = {
     startIndex++;
     const collectiblesData: Insertable<Collectible>[] = [];
     for (let i = 0; i < data.length; i++) {
-      //TODO: data[i].cid validation?
+      //DG TODO: data[i].cid validation?
       const isValidCid = true;
       if (!isValidCid) throw new CustomError("Invalid cid.", 400);
 
@@ -403,6 +404,7 @@ export const collectibleServices = {
       throw new CustomError("Invalid collection type.", 400);
 
     const order = await orderRepository.getByCollectionId(collectionId);
+    if (!order) throw new CustomError("Order not found.", 400);
     if (order?.userId !== userId)
       throw new CustomError(
         "You are not allowed to create trait value for this collection.",
@@ -411,7 +413,7 @@ export const collectibleServices = {
     if (!order.fundingAddress)
       throw new CustomError("Invalid order with undefined address.", 400);
 
-    //TODO: DG IPFS BALANCE CHECK
+    //DG TODO: IPFS BALANCE CHECK
     // const balance = 0;
     // if (balance < order.fundingAmount)
     //   throw new CustomError("Fee has not been transferred yet.", 400);

@@ -175,7 +175,6 @@ export const orderController = {
       next(e);
     }
   },
-  // //TODO: Adjust
   // checkOrderIsPaid: async (
   //   req: AuthenticatedRequest,
   //   res: Response,

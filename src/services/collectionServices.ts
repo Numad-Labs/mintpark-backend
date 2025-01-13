@@ -232,8 +232,6 @@ export const collectionServices = {
   //     collectibleData
   //   );
 
-  //   //TODO: metadata support
-
   //   return { collectionData, collectibleData };
   // },
 };
