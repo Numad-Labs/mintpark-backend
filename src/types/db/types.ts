@@ -61,6 +61,9 @@ export type Collection = {
   type: Generated<COLLECTION_TYPE>;
   status: Generated<COLLECTION_STATUS>;
   createdAt: Generated<Timestamp>;
+  isBadge: Generated<boolean>;
+  badgeCid: string | null;
+  badgeSupply: number | null;
   layerId: string;
   creatorId: string | null;
   creatorUserLayerId: string | null;

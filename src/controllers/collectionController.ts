@@ -61,9 +61,13 @@ export const collectionController = {
       if (!logo) throw new CustomError("Logo file must be provided.", 400);
       if (!data.type) throw new CustomError("Invalid collection type.", 400);
       if (
-        !["SYNTHETIC", "IPFS", "INSCRIPTION", "RECURSIVE_INSCRIPTION"].includes(
-          data.type
-        )
+        ![
+          "SYNTHETIC",
+          "IPFS_FILE",
+          "IPFS_CID",
+          "INSCRIPTION",
+          "RECURSIVE_INSCRIPTION",
+        ].includes(data.type)
       )
         throw new CustomError("Invalid collection type.", 400);
 

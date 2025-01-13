@@ -216,7 +216,7 @@ export const orderServices = {
       throw new CustomError("You are not the creator of this collection.", 400);
 
     let childCollection;
-    if (collection.type !== "IPFS") {
+    if (collection.type !== "IPFS_CID" && collection.type !== "IPFS_FILE") {
       childCollection =
         await collectionRepository.getChildCollectionByParentCollectionId(
           collection.id
@@ -295,7 +295,7 @@ export const orderServices = {
         );
       }
 
-      if (collection.type === "IPFS") {
+      if (collection.type === "IPFS_CID" || collection.type === "IPFS_FILE") {
         await collectionRepository.update(db, collection.id, {
           contractAddress: transactionDetail.deployedContractAddress,
         });
@@ -340,9 +340,14 @@ export const orderServices = {
 
       networkFee =
         (totalTraitCount * BITCOIN_TXID_BYTE_SIZE + totalFileSize) * feeRate;
-    } else if (collection.type === "IPFS") {
+    } else if (
+      collection.type === "IPFS_CID" ||
+      collection.type === "IPFS_FILE"
+    ) {
+      //DG TODO: PUT THE VAULT ADDRESS FOR RECEIVING THE FEE
       funder = { address: config.VAULT_ADDRESS, privateKey: "", publicKey: "" };
 
+      //DG TODO: CALCULATE THE MINT FEE TO RECEIVE BASED ON THE totalFileSize or totalCollectibleCount(if so should be added in the request body on the client side)
       networkFee = 0;
       mintFee = Math.min(totalFileSize * feeRate, 0.00001);
 
@@ -427,9 +432,19 @@ export const orderServices = {
     if (!order.fundingAddress)
       throw new CustomError("Invalid order with undefined address.", 400);
 
-    const balance = await getBalance(order.fundingAddress);
-    if (balance < order.fundingAmount)
-      throw new CustomError("Fee has not been transferred yet.", 400);
+    if (
+      collection.type === "INSCRIPTION" ||
+      collection.type === "RECURSIVE_INSCRIPTION"
+    ) {
+      const balance = await getBalance(order.fundingAddress);
+      if (balance < order.fundingAmount)
+        throw new CustomError("Fee has not been transferred yet.", 400);
+    } else if (
+      collection.type === "IPFS_CID" ||
+      collection.type === "IPFS_FILE"
+    ) {
+      //DG TODO: VALIDATE IF VAULT HAS BEEN FUNDED BY order.fundingAmount
+    }
 
     await orderItemRepository.updateByOrderId(order.id, { status: "IN_QUEUE" });
     const updatedOrder = await orderRepository.update(db, order.id, {

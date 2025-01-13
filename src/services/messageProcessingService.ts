@@ -18,6 +18,7 @@ import NFTService from "../../blockchain/evm/services/nftService";
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
 import { FundingAddressService } from "../../blockchain/evm/services/fundingAddress";
+import { getBalance } from "../blockchain/bitcoin/libs";
 
 export const orderIdSchema = z.string().uuid();
 
@@ -52,6 +53,8 @@ export async function processMessage(message: Message) {
     throw new CustomError("Order with invalid order type.", 400);
   if (!order.collectionId)
     throw new CustomError("Order does not have collectionId.", 400);
+  if (!order.fundingAddress)
+    throw new CustomError("Order does not have funding address.", 400);
 
   logger.info(`Started processing order: ${order.id}`);
 
@@ -62,6 +65,20 @@ export async function processMessage(message: Message) {
 
   const collection = await collectionRepository.getById(db, order.collectionId);
   if (!collection) throw new CustomError("Collection not found.", 400);
+
+  if (
+    collection.type === "INSCRIPTION" ||
+    collection.type === "RECURSIVE_INSCRIPTION"
+  ) {
+    const balance = await getBalance(order.fundingAddress);
+    if (balance < order.fundingAmount)
+      throw new CustomError("Fee has not been transferred yet.", 400);
+  } else if (
+    collection.type === "IPFS_CID" ||
+    collection.type === "IPFS_FILE"
+  ) {
+    //DG TODO: VALIDATE IF VAULT HAS BEEN FUNDED BY order.fundingAmount
+  }
 
   if (collection.type === "INSCRIPTION") {
     const L2Collection =
@@ -193,7 +210,6 @@ export async function processMessage(message: Message) {
 
     if (!hasRemainingOrderItem)
       await orderRepository.updateOrderStatus(order.id, "DONE");
-    //ENQUEUE ORDERID
     else producer.sendMessage(order.id, 120);
 
     logger.info(`Finished processing the order item: ${orderItem.id}`);
@@ -246,7 +262,6 @@ export async function processMessage(message: Message) {
         lockingPrivateKey: vault.privateKey,
       });
 
-      //ENQUEUE ORDERID
       producer.sendMessage(order.id, 120);
 
       return;
@@ -282,6 +297,7 @@ export async function processMessage(message: Message) {
         lockingAddress: vault.address,
         lockingPrivateKey: vault.privateKey,
         mintingTxId: mintTxId,
+        status: "CONFIRMED",
       });
 
       const l2Collectible = await collectibleRepository.create(db, {
@@ -294,32 +310,33 @@ export async function processMessage(message: Message) {
         fileKey: parentCollectible.fileKey,
       });
 
+      await collectionRepository.incrementCollectionSupplyById(
+        db,
+        collection.id
+      );
+      await collectionRepository.incrementCollectionSupplyById(
+        db,
+        L2Collection.id
+      );
+
       const hasRemainingOrderItem =
         await orderItemRepository.getInQueueOrderItemByOrderIdAndType(
           order.id,
           "COLLECTIBLE"
         );
-      if (!hasRemainingOrderItem) {
+
+      if (!hasRemainingOrderItem)
         await orderRepository.updateOrderStatus(order.id, "DONE");
+      else producer.sendMessage(order.id, 120);
 
-        if (collection.status !== "CONFIRMED") {
-          await collectionRepository.update(db, collection.id, {
-            status: "CONFIRMED",
-          });
-
-          if (L2Collection.status !== "CONFIRMED")
-            await collectionRepository.update(db, L2Collection.id, {
-              status: "CONFIRMED",
-            });
-        }
-      } else {
-        //ENQUEUE ORDERID
-        producer.sendMessage(order.id, 120);
-      }
+      logger.info(`Finished processing the order item: ${orderItem.id}`);
 
       return;
     }
-  } else if (collection.type === "IPFS") {
+  } else if (
+    collection.type === "IPFS_CID" ||
+    collection.type === "IPFS_FILE"
+  ) {
     const orderItem =
       await orderItemRepository.getInQueueOrderItemByOrderIdAndType(
         order.id,
@@ -337,31 +354,25 @@ export async function processMessage(message: Message) {
     if (!collectible)
       throw new CustomError("Parent collectible not found.", 400);
 
-    //DG TODO: MINT NFT FROM CID BY THE VAULT
+    //DG TODO: MINT NFT FROM CID TO creator.address BY THE VAULT
     let mintTxId = "";
 
     await collectibleRepository.update(db, collectible.id, {
       mintingTxId: mintTxId,
+      status: "CONFIRMED",
     });
+    await collectionRepository.incrementCollectionSupplyById(db, collection.id);
 
     const hasRemainingOrderItem =
       await orderItemRepository.getInQueueOrderItemByOrderIdAndType(
         order.id,
         "COLLECTIBLE"
       );
-    if (!hasRemainingOrderItem) {
+
+    if (!hasRemainingOrderItem)
       await orderRepository.updateOrderStatus(order.id, "DONE");
+    else producer.sendMessage(order.id, 120);
 
-      if (collection.status !== "CONFIRMED") {
-        await collectionRepository.update(db, collection.id, {
-          status: "CONFIRMED",
-        });
-      }
-    } else {
-      //ENQUEUE ORDERID
-      producer.sendMessage(order.id, 5);
-    }
-
-    return;
+    logger.info(`Finished processing the order item: ${orderItem.id}`);
   } else throw new CustomError("Invalid collection type.", 400);
 }

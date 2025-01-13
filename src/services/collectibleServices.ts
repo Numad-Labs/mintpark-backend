@@ -393,6 +393,7 @@ export const collectibleServices = {
 
     return collectibles;
   },
+  //TODO: add option for one file for when minting COLLECTIBLE(IPFS FILE), if existingCollectibleCount === 0 && file.count === 1
   createIpfsNftAndOrderItemInBatch: async (
     userId: string,
     collectionId: string,
@@ -400,7 +401,7 @@ export const collectibleServices = {
   ) => {
     const collection = await collectionRepository.getById(db, collectionId);
     if (!collection) throw new CustomError("Invalid collectionId.", 400);
-    if (collection?.type !== "IPFS")
+    if (collection.type !== "IPFS_CID" && collection.type !== "IPFS_FILE")
       throw new CustomError("Invalid collection type.", 400);
 
     const order = await orderRepository.getByCollectionId(collectionId);

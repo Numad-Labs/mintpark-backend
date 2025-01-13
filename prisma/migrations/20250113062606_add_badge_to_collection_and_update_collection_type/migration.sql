@@ -1,0 +1,24 @@
+/*
+  Warnings:
+
+  - The values [IPFS] on the enum `COLLECTION_TYPE` will be removed. If these variants are still used in the database, this will fail.
+
+*/
+-- AlterEnum
+BEGIN;
+CREATE TYPE "COLLECTION_TYPE_new" AS ENUM ('INSCRIPTION', 'RECURSIVE_INSCRIPTION', 'IPFS_FILE', 'IPFS_CID', 'SYNTHETIC');
+ALTER TABLE "Collection" ALTER COLUMN "type" DROP DEFAULT;
+ALTER TABLE "Collection" ALTER COLUMN "type" TYPE "COLLECTION_TYPE_new" USING ("type"::text::"COLLECTION_TYPE_new");
+ALTER TYPE "COLLECTION_TYPE" RENAME TO "COLLECTION_TYPE_old";
+ALTER TYPE "COLLECTION_TYPE_new" RENAME TO "COLLECTION_TYPE";
+DROP TYPE "COLLECTION_TYPE_old";
+ALTER TABLE "Collection" ALTER COLUMN "type" SET DEFAULT 'RECURSIVE_INSCRIPTION';
+COMMIT;
+
+-- AlterTable
+ALTER TABLE "Collection" ADD COLUMN     "badgeCid" TEXT,
+ADD COLUMN     "badgeSupply" INTEGER,
+ADD COLUMN     "isBadge" BOOLEAN NOT NULL DEFAULT false;
+
+-- AlterTable
+ALTER TABLE "Layer" ALTER COLUMN "layer" SET DEFAULT 'CITREA';

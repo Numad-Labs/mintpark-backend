@@ -104,10 +104,10 @@ export const collectionServices = {
         creatorUserLayerId: userLayerId,
         ownerCount: 0,
       });
-    } else if (data.type === "IPFS") {
+    } else if (data.type === "IPFS_CID" || data.type === "IPFS_FILE") {
       l2Collection = await collectionRepository.create({
         ...data,
-        type: "IPFS",
+        type: data.type,
         status: "UNCONFIRMED",
         creatorId: user.id,
         creatorUserLayerId: userLayerId,

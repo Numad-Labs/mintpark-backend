@@ -3,7 +3,7 @@ import { db } from "../utils/db";
 import { DB, Launch } from "../types/db/types";
 import { LaunchQueryParams } from "./collectionRepository";
 import logger from "../config/winston";
-import { LAUNCH_ITEM_STATUS } from "@prisma/client";
+import { LAUNCH_ITEM_STATUS } from "../types/db/enums";
 
 export const launchRepository = {
   create: async (

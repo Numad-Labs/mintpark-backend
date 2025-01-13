@@ -139,7 +139,10 @@ export const launchServices = {
       await collectionRepository.update(db, childCollection.id, {
         contractAddress: transactionDetail.deployedContractAddress,
       });
-    } else if (collection.type === "IPFS") {
+    } else if (
+      collection.type === "IPFS_CID" ||
+      collection.type === "IPFS_FILE"
+    ) {
       if (!txid) throw new CustomError("txid not found.", 400);
       const transactionDetail = await confirmationService.getTransactionDetails(
         txid
@@ -317,7 +320,7 @@ export const launchServices = {
   ) => {
     const collection = await collectionRepository.getById(db, collectionId);
     if (!collection) throw new CustomError("Invalid collectionId.", 400);
-    if (collection?.type !== "IPFS")
+    if (collection.type !== "IPFS_CID" && collection.type !== "IPFS_FILE")
       throw new CustomError("Invalid collection type.", 400);
     if (collection.creatorId !== userId)
       throw new CustomError("You are not the creator of this collection.", 400);
@@ -458,7 +461,10 @@ export const launchServices = {
         });
 
         order = hideSensitiveData(order, ["privateKey"]);
-      } else if (collection.type === "IPFS") {
+      } else if (
+        collection.type === "IPFS_CID" ||
+        collection.type === "IPFS_FILE"
+      ) {
         if (!collection.contractAddress)
           throw new Error("Collection with no contract address not found.");
 
@@ -654,7 +660,10 @@ export const launchServices = {
           await collectionRepository.update(trx, L2Collection.id, {
             status: "CONFIRMED",
           });
-      } else if (collection.type === "IPFS") {
+      } else if (
+        collection.type === "IPFS_CID" ||
+        collection.type === "IPFS_FILE"
+      ) {
         if (!verification?.txid)
           throw new CustomError(
             "You must provide mint txid for this operation.",
