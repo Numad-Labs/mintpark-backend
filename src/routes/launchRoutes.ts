@@ -22,6 +22,7 @@ launchRouter.post(
   "/",
   authenticateToken,
   authorize("SUPER_ADMIN"),
+  parseFiles("badge", true),
   launchController.create
 );
 launchRouter.post(
@@ -45,6 +46,12 @@ launchRouter.post(
 );
 launchRouter.post("/:id/buy", authenticateToken, launchController.buy);
 launchRouter.post("/mint", authenticateToken, launchController.mint);
+launchRouter.post(
+  "/whitelist-addresses",
+  authenticateToken,
+  authorize("SUPER_ADMIN"),
+  launchController.addWhitelistAddress
+);
 
 // launchRouter.post(
 //   "/create-order-for-reserved-items",

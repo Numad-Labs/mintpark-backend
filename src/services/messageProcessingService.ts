@@ -354,8 +354,13 @@ export async function processMessage(message: Message) {
     if (!collectible)
       throw new CustomError("Parent collectible not found.", 400);
 
-    //DG TODO: MINT NFT FROM CID TO creator.address BY THE VAULT
     let mintTxId = "";
+    if (collection.type === "IPFS_CID") {
+      //DG TODO: MINT NFT FROM CID TO creator.address BY THE VAULT
+    } else if (collection.type === "IPFS_FILE") {
+      //ONLY FOR MINTING SINGLE COLLECTIBLE, WITH UNCONFIRMED COLLECTION
+      //DG TODO: MINT NFT FROM collectible.fileKey file TO creator.address BY THE VAULT
+    }
 
     await collectibleRepository.update(db, collectible.id, {
       mintingTxId: mintTxId,

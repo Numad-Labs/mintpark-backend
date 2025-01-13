@@ -202,7 +202,9 @@ export const orderServices = {
     totalCollectibleCount: number,
     feeRate: number,
     collectionId: string,
-    txid?: string
+    txid: string | null,
+    badge: Express.Multer.File | null,
+    badgeSupply: number | null
   ) => {
     if (!collectionId) throw new CustomError("Collection id is required.", 400);
     const collection = await collectionServices.getById(collectionId);
@@ -242,40 +244,6 @@ export const orderServices = {
     await layerServices.checkIfSupportedLayerOrThrow(user.layerId);
 
     if (user.layer === "CITREA" && user.network === "TESTNET") {
-      // const user = await userRepository.getByIdAndLayerId(
-      //   userId,
-      //   collection.layerId
-      // );
-      // if (!user) throw new CustomError("User not found.", 400);
-
-      // const totalBatches = Math.ceil(totalFileCount / FILE_COUNT_LIMIT);
-      // if (totalBatches < 1 || files.length < 1)
-      //   throw new CustomError("Insufficient file count.", 400);
-      // const slotAcquired = await acquireSlot(collectionId, totalBatches);
-      // if (!slotAcquired)
-      //   throw new CustomError(
-      //     "The minting service is at maximum capacity. Please wait a moment and try again.",
-      //     400
-      //   );
-
-      // const orderItemCount = await orderItemRepository.getCountByCollectionId(
-      //   collectionId
-      // );
-      // const nftMetadatas: nftMetaData[] = [];
-      // let index = 0;
-      // for (let file of files) {
-      //   let nftId = Number(orderItemCount) + index;
-
-      //   nftMetadatas.push({
-      //     name: `${collection.name} #${nftId}`,
-      //     nftId: nftId.toString(),
-      //     ipfsUri: null,
-      //     file: file,
-      //   });
-
-      //   index++;
-      // }
-
       if (!txid) throw new CustomError("txid not found.", 400);
       const transactionDetail = await confirmationService.getTransactionDetails(
         txid
@@ -296,6 +264,28 @@ export const orderServices = {
       }
 
       if (collection.type === "IPFS_CID" || collection.type === "IPFS_FILE") {
+        if (collection.isBadge) {
+          if (!badge)
+            throw new CustomError("Badge file must be provided.", 400);
+          if (!badgeSupply)
+            throw new CustomError("Badge supply must be provided.", 400);
+          if (Number(badgeSupply) < 1)
+            throw new CustomError("Invalid badge supply.", 400);
+
+          const key = randomUUID();
+          await uploadToS3(key, badge);
+
+          //DG TODO done: upload the file to IPFS & parse the CID
+          // const badgeCid = await nftService.uploadImage(badge);
+
+          await collectionRepository.update(db, collection.id, {
+            logoKey: key,
+            badgeSupply: badgeSupply,
+            // badgeCid: badgeCid.IpfsHash,
+            badgeCid: "",
+          });
+        }
+
         await collectionRepository.update(db, collection.id, {
           contractAddress: transactionDetail.deployedContractAddress,
         });

@@ -196,6 +196,49 @@ export const listController = {
       next(e);
     }
   },
+  generateCancelListingTx: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { id } = req.params;
+
+      if (!req.user?.id)
+        throw new CustomError("Could not retrieve id from the token.", 400);
+      const result = await listServices.generateListingCancelTx(
+        req.user.id,
+        id
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: { result },
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
+  confirmCancelListingTx: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { id } = req.params;
+
+      if (!req.user?.id)
+        throw new CustomError("Could not retrieve id from the token.", 400);
+      const result = await listServices.confirmListingCancel(req.user.id, id);
+
+      return res.status(200).json({
+        success: true,
+        data: { result },
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
   // getEstimatedFee: async (
   //   req: AuthenticatedRequest,
   //   res: Response,

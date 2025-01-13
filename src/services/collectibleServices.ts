@@ -1,6 +1,6 @@
 import {
   CollectibleQueryParams,
-  ipfsNftParams,
+  ipfsData,
   recursiveInscriptionParams,
   traitFilter,
 } from "../controllers/collectibleController";
@@ -31,6 +31,7 @@ import { param } from "../routes/userRoutes";
 import { getBalance } from "../blockchain/bitcoin/libs";
 import { userLayerRepository } from "../repositories/userLayerRepository";
 import logger from "../config/winston";
+import { BADGE_BATCH_SIZE } from "../libs/constants";
 
 const evmCollectibleService = new EVMCollectibleService(EVM_CONFIG.RPC_URL!);
 const confirmationService = new TransactionConfirmationService(
@@ -198,9 +199,7 @@ export const collectibleServices = {
     return activities;
   },
   createInscriptions: async (
-    collectionId: string,
-    collectionName: string,
-    names: string[],
+    collection: { id: string; name: string },
     startIndex: number,
     files: Express.Multer.File[]
   ) => {
@@ -218,9 +217,9 @@ export const collectibleServices = {
     const collectiblesData: Insertable<Collectible>[] = [];
     for (let i = 0; i < fileKeys.length; i++)
       collectiblesData.push({
-        name: `${collectionName} #${startIndex + i}`,
+        name: `${collection.name} #${startIndex + i}`,
         fileKey: fileKeys[i].key,
-        collectionId,
+        collectionId: collection.id,
         nftId: (startIndex + i).toString(),
       });
     const collectibles = await collectibleRepository.bulkInsert(
@@ -232,7 +231,6 @@ export const collectibleServices = {
   createInscriptionAndOrderItemInBatch: async (
     userId: string,
     collectionId: string,
-    names: string[],
     files: Express.Multer.File[]
   ) => {
     const collection = await collectionRepository.getById(db, collectionId);
@@ -257,9 +255,7 @@ export const collectibleServices = {
     const existingCollectibleCount =
       await orderItemRepository.getOrderItemCountByCollectionId(collection.id);
     const collectibles = await collectibleServices.createInscriptions(
-      collectionId,
-      collection.name,
-      names,
+      { id: collection.id, name: collection.name },
       Number(existingCollectibleCount),
       files
     );
@@ -276,7 +272,7 @@ export const collectibleServices = {
     return { collectibles, orderItems };
   },
   createRecursiveInscriptions: async (
-    collectionId: string,
+    collection: { id: string; name: string },
     startIndex: number,
     data: recursiveInscriptionParams[]
   ) => {
@@ -287,8 +283,8 @@ export const collectibleServices = {
       let collectibleId = randomUUID().toString();
       collectiblesData.push({
         id: collectibleId,
-        name: data[i].name,
-        collectionId,
+        name: `${collection.name} #${startIndex + i}`,
+        collectionId: collection.id,
         nftId: (startIndex + i).toString(),
       });
 
@@ -297,7 +293,7 @@ export const collectibleServices = {
           await traitValueRepository.getByNameValueAndCollectionId(
             trait.type,
             trait.value,
-            collectionId
+            collection.id
           );
 
         if (!traitValue)
@@ -346,7 +342,7 @@ export const collectibleServices = {
     const existingCollectibleCount =
       await orderItemRepository.getOrderItemCountByCollectionId(collection.id);
     const result = await collectibleServices.createRecursiveInscriptions(
-      collectionId,
+      { id: collection.id, name: collection.name },
       Number(existingCollectibleCount),
       data
     );
@@ -366,10 +362,10 @@ export const collectibleServices = {
       orderItems,
     };
   },
-  createIpfsNfts: async (
-    collection: { id: string; contractAddress: string | null },
+  createIpfsNftCollectibles: async (
+    collection: { id: string; name: string; contractAddress: string | null },
     startIndex: number,
-    data: ipfsNftParams[]
+    data: string[]
   ) => {
     startIndex++;
     const collectiblesData: Insertable<Collectible>[] = [];
@@ -379,8 +375,8 @@ export const collectibleServices = {
       if (!isValidCid) throw new CustomError("Invalid cid.", 400);
 
       collectiblesData.push({
-        name: data[i].name,
-        cid: data[i].cid,
+        name: `${collection.name} #${startIndex + i}`,
+        cid: data[i],
         collectionId: collection.id,
         uniqueIdx:
           collection.contractAddress + "i" + (startIndex + i).toString(),
@@ -393,11 +389,11 @@ export const collectibleServices = {
 
     return collectibles;
   },
-  //TODO: add option for one file for when minting COLLECTIBLE(IPFS FILE), if existingCollectibleCount === 0 && file.count === 1
+  //TODO: add optional parameter for one file for when minting COLLECTIBLE(IPFS FILE), if existingCollectibleCount === 0 && file.count === 1
   createIpfsNftAndOrderItemInBatch: async (
     userId: string,
     collectionId: string,
-    data: ipfsNftParams[]
+    data: ipfsData
   ) => {
     const collection = await collectionRepository.getById(db, collectionId);
     if (!collection) throw new CustomError("Invalid collectionId.", 400);
@@ -421,11 +417,32 @@ export const collectibleServices = {
 
     const existingCollectibleCount =
       await orderItemRepository.getOrderItemCountByCollectionId(collection.id);
-    const collectibles = await collectibleServices.createIpfsNfts(
-      collection,
-      Number(existingCollectibleCount),
-      data
-    );
+
+    let collectibles: Insertable<Collectible>[] = [];
+    if (collection.isBadge) {
+      if (!collection.badgeCid || !collection.badgeSupply)
+        throw new CustomError("Invalid badge details.", 400);
+
+      collectibles = await collectibleServices.createIpfsBadgeCollectibles(
+        {
+          id: collection.id,
+          name: collection.name,
+          badgeSupply: collection.badgeSupply,
+        },
+        Number(existingCollectibleCount),
+        collection.badgeCid,
+        collection.logoKey
+      );
+    } else {
+      if (!data.CIDs)
+        throw new CustomError("Invalid ipfs collectible data.", 400);
+
+      collectibles = await collectibleServices.createIpfsNftCollectibles(
+        collection,
+        Number(existingCollectibleCount),
+        data.CIDs
+      );
+    }
 
     const orderItemsData: Insertable<OrderItem>[] = [];
     for (let i = 0; i < collectibles.length; i++)
@@ -437,5 +454,37 @@ export const collectibleServices = {
     const orderItems = await orderItemRepository.bulkInsert(orderItemsData);
 
     return { collectibles, orderItems };
+  },
+  createIpfsBadgeCollectibles: async (
+    collection: {
+      id: string;
+      name: string;
+      badgeSupply: number;
+    },
+    startIndex: number,
+    cid: string,
+    fileKey: string | null
+  ) => {
+    //TODO: FIX THIS LATER
+    startIndex++;
+    const nftCount =
+      collection.badgeSupply - startIndex + 1 > BADGE_BATCH_SIZE
+        ? BADGE_BATCH_SIZE
+        : collection.badgeSupply - startIndex + 1;
+
+    const collectiblesData: Insertable<Collectible>[] = [];
+    for (let i = 0; i < nftCount; i++)
+      collectiblesData.push({
+        name: `${collection.name} #${startIndex + i}`,
+        collectionId: collection.id,
+        nftId: (startIndex + i).toString(),
+        cid,
+        fileKey,
+      });
+    const collectibles = await collectibleRepository.bulkInsert(
+      collectiblesData
+    );
+
+    return collectibles;
   },
 };
