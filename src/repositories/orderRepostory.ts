@@ -77,29 +77,6 @@ export const orderRepository = {
 
     return order;
   },
-  // getAll: async (layer: LAYER) => {
-  //   const orders = await db
-  //     .selectFrom("Order")
-  //     .innerJoin("User", "User.id", "Order.userId")
-  //     .innerJoin("Layer", "Layer.id", "User.layerId")
-  //     .selectAll(["Order"])
-  //     .where("Order.orderStatus", "!=", "DONE")
-  //     .where("Order.orderStatus", "!=", "EXPIRED")
-  //     .where("Layer.layer", "=", layer)
-  //     .execute();
-
-  //   return orders;
-  // },
-  // getInQueueOrders: async (layer: LAYER) => {
-  //   const orders = await db
-  //     .selectFrom("Order")
-  //     .selectAll()
-  //     .where("Order.orderStatus", "=", ORDER_STATUS.IN_QUEUE)
-  //     .where("Order.orderType", "!=", ORDER_TYPE.LAUNCH) //TODO. Make it for launch too
-  //     .execute();
-
-  //   return orders;
-  // },
   getByCollectionId: async (collectionId: string) => {
     const order = await db
       .selectFrom("Order")

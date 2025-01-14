@@ -202,7 +202,9 @@ export const orderServices = {
     totalCollectibleCount: number,
     feeRate: number,
     collectionId: string,
-    txid?: string
+    txid: string | null,
+    badge: Express.Multer.File | null,
+    badgeSupply: number | null
   ) => {
     if (!collectionId) throw new CustomError("Collection id is required.", 400);
     const collection = await collectionServices.getById(collectionId);
@@ -216,7 +218,7 @@ export const orderServices = {
       throw new CustomError("You are not the creator of this collection.", 400);
 
     let childCollection;
-    if (collection.type !== "IPFS") {
+    if (collection.type !== "IPFS_CID" && collection.type !== "IPFS_FILE") {
       childCollection =
         await collectionRepository.getChildCollectionByParentCollectionId(
           collection.id
@@ -242,40 +244,6 @@ export const orderServices = {
     await layerServices.checkIfSupportedLayerOrThrow(user.layerId);
 
     if (user.layer === "CITREA" && user.network === "TESTNET") {
-      // const user = await userRepository.getByIdAndLayerId(
-      //   userId,
-      //   collection.layerId
-      // );
-      // if (!user) throw new CustomError("User not found.", 400);
-
-      // const totalBatches = Math.ceil(totalFileCount / FILE_COUNT_LIMIT);
-      // if (totalBatches < 1 || files.length < 1)
-      //   throw new CustomError("Insufficient file count.", 400);
-      // const slotAcquired = await acquireSlot(collectionId, totalBatches);
-      // if (!slotAcquired)
-      //   throw new CustomError(
-      //     "The minting service is at maximum capacity. Please wait a moment and try again.",
-      //     400
-      //   );
-
-      // const orderItemCount = await orderItemRepository.getCountByCollectionId(
-      //   collectionId
-      // );
-      // const nftMetadatas: nftMetaData[] = [];
-      // let index = 0;
-      // for (let file of files) {
-      //   let nftId = Number(orderItemCount) + index;
-
-      //   nftMetadatas.push({
-      //     name: `${collection.name} #${nftId}`,
-      //     nftId: nftId.toString(),
-      //     ipfsUri: null,
-      //     file: file,
-      //   });
-
-      //   index++;
-      // }
-
       if (!txid) throw new CustomError("txid not found.", 400);
       const transactionDetail = await confirmationService.getTransactionDetails(
         txid
@@ -295,7 +263,29 @@ export const orderServices = {
         );
       }
 
-      if (collection.type === "IPFS") {
+      if (collection.type === "IPFS_CID" || collection.type === "IPFS_FILE") {
+        if (collection.isBadge) {
+          if (!badge)
+            throw new CustomError("Badge file must be provided.", 400);
+          if (!badgeSupply)
+            throw new CustomError("Badge supply must be provided.", 400);
+          if (Number(badgeSupply) < 1)
+            throw new CustomError("Invalid badge supply.", 400);
+
+          const key = randomUUID();
+          await uploadToS3(key, badge);
+
+          //DG TODO done: upload the file to IPFS & parse the CID
+          // const badgeCid = await nftService.uploadImage(badge);
+
+          await collectionRepository.update(db, collection.id, {
+            logoKey: key,
+            badgeSupply: badgeSupply,
+            // badgeCid: badgeCid.IpfsHash,
+            badgeCid: "",
+          });
+        }
+
         await collectionRepository.update(db, collection.id, {
           contractAddress: transactionDetail.deployedContractAddress,
         });
@@ -318,7 +308,7 @@ export const orderServices = {
     let funder = createFundingAddress("TESTNET");
 
     let txHex;
-    //TODO: robust fee calculation for both L1 & L2
+    //TODO: optimize fee calculation for both L1 & L2
     if (collection.type === "INSCRIPTION") {
       if (!totalFileSize || !totalCollectibleCount)
         throw new CustomError(
@@ -340,9 +330,14 @@ export const orderServices = {
 
       networkFee =
         (totalTraitCount * BITCOIN_TXID_BYTE_SIZE + totalFileSize) * feeRate;
-    } else if (collection.type === "IPFS") {
+    } else if (
+      collection.type === "IPFS_CID" ||
+      collection.type === "IPFS_FILE"
+    ) {
+      //DG TODO: PUT THE VAULT ADDRESS FOR RECEIVING THE FEE
       funder = { address: config.VAULT_ADDRESS, privateKey: "", publicKey: "" };
 
+      //DG TODO: CALCULATE THE MINT FEE TO RECEIVE BASED ON THE totalFileSize or totalCollectibleCount(if so should be added in the request body on the client side)
       networkFee = 0;
       mintFee = Math.min(totalFileSize * feeRate, 0.00001);
 
@@ -402,7 +397,6 @@ export const orderServices = {
     //   metadata. = nftUrls[index];
     // });
 
-    //TODO: metadata support
     // orderItems = await orderItemRepository.bulkInsert(insertableOrderItems);
 
     // const isComplete = await updateProgress(collectionId);
@@ -428,9 +422,19 @@ export const orderServices = {
     if (!order.fundingAddress)
       throw new CustomError("Invalid order with undefined address.", 400);
 
-    const balance = await getBalance(order.fundingAddress);
-    if (balance < order.fundingAmount)
-      throw new CustomError("Fee has not been transferred yet.", 400);
+    if (
+      collection.type === "INSCRIPTION" ||
+      collection.type === "RECURSIVE_INSCRIPTION"
+    ) {
+      const balance = await getBalance(order.fundingAddress);
+      if (balance < order.fundingAmount)
+        throw new CustomError("Fee has not been transferred yet.", 400);
+    } else if (
+      collection.type === "IPFS_CID" ||
+      collection.type === "IPFS_FILE"
+    ) {
+      //DG TODO: VALIDATE IF VAULT HAS BEEN FUNDED BY order.fundingAmount
+    }
 
     await orderItemRepository.updateByOrderId(order.id, { status: "IN_QUEUE" });
     const updatedOrder = await orderRepository.update(db, order.id, {
@@ -453,7 +457,6 @@ export const orderServices = {
       await orderItemRepository.bulkInsert(orderItems);
     }
 
-    //TODO: Enqueue orderId to the minting queue,
     producer.sendMessage(order.id, 5);
     logger.info(`Enqueued ${order.id} to the SQS`);
     // if collection.type === 'RECURSIVE_INSCRIPTION', then invoke the trait minting first
@@ -468,200 +471,4 @@ export const orderServices = {
     const order = await orderRepository.getById(orderId);
     return order;
   },
-  // generateMintTxHex: async (
-  //   orderId: string,
-  //   layerId: string,
-  //   issuerId: string
-  // ) => {
-  //   const issuer = await userRepository.getByIdAndLayerId(issuerId, layerId);
-  //   if (!issuer) throw new CustomError("No user found.", 400);
-
-  //   const order = await orderRepository.getById(orderId);
-  //   if (!order) throw new CustomError("Order user found.", 400);
-  //   if (!order.collectionId)
-  //     throw new CustomError("Couldn't find collection id.", 400);
-
-  //   const orderItems = await orderItemRepository.getByOrderId(order.id);
-  //   if (orderItems.length <= 1 || orderItems.length < order.quantity)
-  //     throw new CustomError("Insufficient order items.", 400);
-
-  //   if (issuer.layer === "CITREA") {
-  //     const collection = await collectionRepository.getById(
-  //       db,
-  //       order.collectionId
-  //     );
-
-  //     if (!collection?.contractAddress)
-  //       throw new CustomError(
-  //         "Couldn't find collection contract address.",
-  //         400
-  //       );
-
-  //     const ipfsUrls = orderItems
-  //       .map((item) => item.ipfsUrl)
-  //       .filter((url): url is string => url !== null);
-
-  //     //TODO: metadata support
-  //     const unsignedTx = await nftService.getUnsignedBatchMintNFTTransaction(
-  //       collection?.contractAddress,
-  //       issuer.address,
-  //       orderItems.length,
-  //       ipfsUrls
-  //     );
-
-  //     const batchMintTxHex = serializeBigInt(unsignedTx);
-
-  //     return { order, batchMintTxHex };
-  //   } else throw new Error("This layer is unsupported ATM.");
-  // },
-  // checkOrderisPaid: async (orderId: string, layerId: string, txid?: string) => {
-  //   // Check payment status
-  //   // If payment is confirmed, return true else false
-  //   try {
-  //     const order = await orderRepository.getById(orderId);
-  //     if (!order) throw new CustomError("Order not found.", 400);
-  //     if (order.paidAt && order.orderStatus !== "PENDING") return true;
-
-  //     const user = await userRepository.getByIdAndLayerId(
-  //       order.userId,
-  //       layerId
-  //     );
-  //     if (!user) throw new CustomError("User not found.", 400);
-
-  //     if (user.layer === "CITREA" && user.network === "TESTNET") {
-  //       if (!txid) throw new CustomError("txid is missing", 400);
-
-  //       const transactionDetail =
-  //         await confirmationService.getTransactionDetails(txid);
-
-  //       if (transactionDetail.status !== 1) {
-  //         throw new CustomError(
-  //           "Transaction not confirmed. Please try again.",
-  //           500
-  //         );
-  //       }
-
-  //       if (order.orderType === "COLLECTIBLE" || !order.collectionId) {
-  //         order.paidAt = new Date();
-  //         await orderRepository.update(db, order.id, {
-  //           paidAt: order.paidAt,
-  //           orderStatus: "DONE",
-  //           txId: txid,
-  //         });
-
-  //         const orderItems = await orderItemRepository.updateByOrderId(
-  //           order.id,
-  //           {
-  //             status: "MINTED",
-  //           }
-  //         );
-
-  //         return true;
-  //       }
-
-  //       const collection = await collectionRepository.getById(
-  //         db,
-  //         order.collectionId
-  //       );
-  //       const orderItemCount = await orderItemRepository.getCountByCollectionId(
-  //         order.collectionId
-  //       );
-
-  //       const orderItems = await orderItemRepository.updateByOrderId(order.id, {
-  //         status: "MINTED",
-  //         txid: txid,
-  //       });
-
-  //       const collectibles: Insertable<Collectible>[] = [];
-  //       for (const orderItem of orderItems) {
-  //         if (collection?.id && orderItem.evmAssetId) {
-  //           collectibles.push({
-  //             collectionId: collection.id,
-  //             uniqueIdx: `${collection.contractAddress}i${orderItem.evmAssetId}`,
-  //             name: orderItem.name,
-  //             fileKey: orderItem.fileKey,
-  //             txid: orderItem.txid,
-  //           });
-  //         }
-  //       }
-
-  //       //TODO: metadata support
-  //       await collectibleRepository.bulkInsert(collectibles);
-
-  //       if (Number(orderItemCount) === order.quantity) {
-  //         order.paidAt = new Date();
-  //         await orderRepository.update(db, order.id, {
-  //           paidAt: order.paidAt,
-  //           orderStatus: "DONE",
-  //           txId: txid,
-  //         });
-
-  //         if (collection?.type === "UNCONFIRMED")
-  //           await collectionRepository.update(db, order.collectionId, {
-  //             type: "MINTED",
-  //             supply: Number(orderItemCount),
-  //           });
-  //       }
-
-  //       return true;
-  //     } else if (user.layer === "FRACTAL" && user.network === "TESTNET") {
-  //       let isTestNet = true;
-  //       if (!order.fundingAddress)
-  //         throw new CustomError("No funding address was provided.", 400);
-  //       // if (layer.network === "MAINNET") isTestNet = false;
-  //       const utxos = await getUtxosHelper(
-  //         order.fundingAddress,
-  //         isTestNet,
-  //         user.layer
-  //       );
-  //       const totalAmount = utxos.reduce((a, b) => a + b.satoshi, 0);
-
-  //       if (totalAmount >= order.fundingAmount) {
-  //         order.paidAt = new Date();
-  //         await orderRepository.update(db, order.id, {
-  //           paidAt: order.paidAt,
-  //           orderStatus: "IN_QUEUE",
-  //         });
-  //         return true;
-  //       }
-  //       return false;
-  //     } else throw new Error("This layer unsupported ATM.");
-  //   } catch (error) {
-  //     throw error;
-  //   }
-  // },
 };
-
-// async function uploadToS3AndCreateOrderItems(
-//   orderId: string,
-//   nftMetadatas: nftMetaData[]
-// ): Promise<any[]> {
-//   return await Promise.all(
-//     nftMetadatas.map(async (metadata) => {
-//       const key = randomUUID();
-//       if (metadata.file) await uploadToS3(key, metadata.file);
-//       return await orderItemRepository.create({
-//         orderId,
-//         fileKey: key,
-//         name: metadata.name,
-//         evmAssetId: metadata.nftId,
-//         ipfsUrl: metadata.ipfsUri,
-//       });
-//     })
-//   );
-// }
-
-// async function uploadToS3AndReturnOrderItems(
-//   orderId: string,
-//   nftMetadatas: nftMetaData[]
-// ): Promise<Insertable<OrderItem>[]> {
-//   return await Promise.all(
-//     nftMetadatas.map(async (metadata) => {
-//       const key = randomUUID();
-//       if (metadata.file) await uploadToS3(key, metadata.file);
-//       return {
-//         orderId,
-//       };
-//     })
-//   );
-// }

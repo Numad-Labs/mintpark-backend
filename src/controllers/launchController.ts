@@ -10,10 +10,7 @@ import { serializeBigInt } from "../../blockchain/evm/utils";
 import { Insertable, Updateable } from "kysely";
 import { Launch } from "../types/db/types";
 import { launchRepository } from "../repositories/launchRepository";
-import {
-  ipfsNftParams,
-  recursiveInscriptionParams,
-} from "./collectibleController";
+import { ipfsData, recursiveInscriptionParams } from "./collectibleController";
 import { userRepository } from "../repositories/userRepository";
 import LaunchpadService from "../../blockchain/evm/services/launchpadService";
 import logger from "../config/winston";
@@ -37,8 +34,14 @@ export const launchController = {
       if (!req.user?.id)
         throw new CustomError("Cannot parse user from token", 401);
 
-      const data: Insertable<Launch> = { ...req.body.data };
-      const { txid, totalFileSize, feeRate } = req.body;
+      const parsedData = JSON.parse(req.body.data);
+      const data: Insertable<Launch> = { ...parsedData };
+      const { txid, totalFileSize, totalTraitCount, feeRate } = req.body;
+
+      const { badgeSupply } = req.body;
+      const file = req.file as Express.Multer.File;
+
+      console.log(file);
 
       if (!txid || !data.userLayerId)
         throw new CustomError("Invalid input.", 400);
@@ -48,7 +51,10 @@ export const launchController = {
         data,
         txid,
         totalFileSize,
-        feeRate
+        totalTraitCount,
+        feeRate,
+        file,
+        badgeSupply
       );
 
       return res.status(200).json({ success: true, data: { launch, order } });
@@ -66,27 +72,16 @@ export const launchController = {
         throw new CustomError("Could not parse the id from the token.", 400);
 
       const { collectionId, isLastBatch } = req.body;
-      const parsedJsonData = JSON.parse(req.body.names);
-      const names: string[] = Array.isArray(parsedJsonData)
-        ? parsedJsonData
-        : parsedJsonData
-        ? [parsedJsonData]
-        : [];
       const files: Express.Multer.File[] = req.files as Express.Multer.File[];
 
-      if (names.length === 0)
-        throw new CustomError("Please provide the names.", 400);
       if (files.length === 0)
         throw new CustomError("Please provide the files.", 400);
       if (files.length > 10)
         throw new CustomError("You cannot provide more than 10 files.", 400);
-      if (files.length !== names.length)
-        throw new CustomError("Differing number of names & files found.", 400);
 
       const result = await launchServices.createInscriptionAndLaunchItemInBatch(
         req.user.id,
         collectionId,
-        names,
         files,
         isLastBatch === "true"
       );
@@ -142,25 +137,26 @@ export const launchController = {
         throw new CustomError("Could not parse the id from the token.", 400);
 
       const { collectionId, isLastBatch } = req.body;
-      const data: ipfsNftParams[] = Array.isArray(req.body.data)
+      const data: ipfsData = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data
         ? [req.body.data]
         : [];
-      if (data.length === 0)
-        throw new CustomError("Please provide the data.", 400);
-      if (data.length > 10)
-        throw new CustomError(
-          "You cannot provide more than 10 elements of data.",
-          400
-        );
+      // if (data.length === 0)
+      //   throw new CustomError("Please provide the data.", 400);
+      // if (data.length > 10)
+      //   throw new CustomError(
+      //     "You cannot provide more than 10 elements of data.",
+      //     400
+      //   );
 
-      const result = await launchServices.createIpfsNftAndLaunchItemInBatch(
-        req.user.id,
-        collectionId,
-        data,
-        isLastBatch
-      );
+      const result =
+        await launchServices.createIpfsCollectiblesAndLaunchItemInBatch(
+          req.user.id,
+          collectionId,
+          data,
+          isLastBatch
+        );
 
       return res.status(200).json({ success: true, data: result });
     } catch (e) {
@@ -330,6 +326,28 @@ export const launchController = {
       );
 
       return res.status(200).json({ result });
+    } catch (e) {
+      next(e);
+    }
+  },
+  addWhitelistAddress: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user?.id)
+        throw new CustomError("Could not parse the id from the token.", 400);
+
+      const { launchId, addresses } = req.body;
+
+      const result = await launchServices.addWhitelistAddress(
+        req.user.id,
+        launchId,
+        addresses
+      );
+
+      return res.status(200).json({ success: true, data: result });
     } catch (e) {
       next(e);
     }

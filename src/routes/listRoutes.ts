@@ -38,6 +38,16 @@ listRouter.post(
   authenticateToken,
   listController.buyListedCollectible
 );
+listRouter.post(
+  "/:id/generate-cancel-listing-tx",
+  authenticateToken,
+  listController.generateCancelListingTx
+);
+listRouter.post(
+  "/:id/confirm-cancel-listing",
+  authenticateToken,
+  listController.confirmCancelListingTx
+);
 
 // listRouter.get(
 //   "/:id/estimate-fee",

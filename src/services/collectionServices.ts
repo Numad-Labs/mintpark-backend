@@ -36,15 +36,17 @@ export const collectionServices = {
     data: Insertable<Collection>,
     name: string,
     priceForLaunchpad: number,
-    file: Express.Multer.File,
     issuerId: string,
-    userLayerId: string
+    userLayerId: string,
+    file?: Express.Multer.File
   ) => {
     if (data.type === "SYNTHETIC")
       throw new CustomError(
         "You cannot directly create synthetic collection.",
         400
       );
+
+    if (data.isBadge) data.type = "IPFS_CID";
 
     if (!data.layerId) throw new CustomError("Please provide a layerId.", 400);
     const layer = await layerServices.checkIfSupportedLayerOrThrow(
@@ -79,9 +81,11 @@ export const collectionServices = {
       deployContractTxHex = serializeBigInt(unsignedTx);
     }
 
-    const key = randomUUID();
-    await uploadToS3(key, file);
-    data.logoKey = key;
+    if (file) {
+      const key = randomUUID();
+      await uploadToS3(key, file);
+      data.logoKey = key;
+    }
 
     if (data.type === "INSCRIPTION" || data.type === "RECURSIVE_INSCRIPTION") {
       const bitcoinLayer = await layerRepository.getBitcoin("TESTNET");
@@ -104,10 +108,10 @@ export const collectionServices = {
         creatorUserLayerId: userLayerId,
         ownerCount: 0,
       });
-    } else if (data.type === "IPFS") {
+    } else if (data.type === "IPFS_CID" || data.type === "IPFS_FILE") {
       l2Collection = await collectionRepository.create({
         ...data,
-        type: "IPFS",
+        type: data.type,
         status: "UNCONFIRMED",
         creatorId: user.id,
         creatorUserLayerId: userLayerId,
@@ -231,8 +235,6 @@ export const collectionServices = {
   //   const collectibles = await collectibleRepository.bulkInsert(
   //     collectibleData
   //   );
-
-  //   //TODO: metadata support
 
   //   return { collectionData, collectibleData };
   // },

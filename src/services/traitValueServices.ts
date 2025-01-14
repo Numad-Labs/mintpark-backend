@@ -47,7 +47,7 @@ export const traitValueServices = {
     if (!user.isActive)
       throw new CustomError("This account has been deactivated.", 400);
 
-    //TODO: Add validation to check if order.fundingAddress was funded(>=order.fundingAmount) or not
+    //TODO: validation to check if order.fundingAddress was funded(>=order.fundingAmount) or not
     const isPaid = true;
     if (!isPaid)
       throw new CustomError("Fee has not been transferred yet.", 400);

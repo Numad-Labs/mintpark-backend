@@ -23,16 +23,12 @@ export const listRepository = {
 
     return list;
   },
-  cancelPendingListingsByCollectibleId: async (
-    db: Kysely<DB> | Transaction<DB>,
-    collectibleId: string
-  ) => {
+  cancelListingsById: async (db: Kysely<DB> | Transaction<DB>, id: string) => {
     const listings = await db
       .updateTable("List")
       .returningAll()
       .set({ status: "CANCELLED" })
-      .where("List.collectibleId", "=", collectibleId)
-      .where("List.status", "=", "PENDING")
+      .where("List.id", "=", id)
       .execute();
 
     return listings;

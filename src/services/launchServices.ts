@@ -11,18 +11,21 @@ import { layerRepository } from "../repositories/layerRepository";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import { CustomError } from "../exceptions/CustomError";
 import { Insertable, Updateable } from "kysely";
-import { Collectible, Launch, LaunchItem, OrderItem } from "../types/db/types";
+import {
+  Collectible,
+  Launch,
+  LaunchItem,
+  OrderItem,
+  WlAddress,
+} from "../types/db/types";
 import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
 import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
 import LaunchpadService from "../../blockchain/evm/services/launchpadService";
 import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
-import { FILE_COUNT_LIMIT } from "../libs/constants";
+import { BADGE_BATCH_SIZE, FILE_COUNT_LIMIT } from "../libs/constants";
 import { db } from "../utils/db";
 import logger from "../config/winston";
-import {
-  ipfsNftParams,
-  recursiveInscriptionParams,
-} from "../controllers/collectibleController";
+import { recursiveInscriptionParams } from "../controllers/collectibleController";
 import { collectibleServices } from "./collectibleServices";
 import { serializeBigInt } from "../../blockchain/evm/utils";
 import { createFundingAddress } from "../blockchain/bitcoin/createFundingAddress";
@@ -39,6 +42,7 @@ import { sendRawTransaction } from "../blockchain/bitcoin/sendTransaction";
 import { hideSensitiveData } from "../libs/hideDataHelper";
 import { orderItemRepository } from "../repositories/orderItemRepository";
 import { producer } from "..";
+import { wlRepository } from "../repositories/wlRepository";
 
 const launchPadService = new LaunchpadService(
   EVM_CONFIG.RPC_URL,
@@ -60,17 +64,24 @@ export const launchServices = {
     userId: string,
     data: Insertable<Launch>,
     txid: string,
-    totalFileSize?: number,
-    totalTraitCount?: number,
-    feeRate?: number
+    totalFileSize: number | null,
+    totalTraitCount: number | null,
+    feeRate: number | null,
+    badge: Express.Multer.File | null,
+    badgeSupply: number | null
   ) => {
     const collection = await collectionRepository.getById(
       db,
       data.collectionId
     );
     if (!collection) throw new CustomError("Invalid collectionId.", 400);
-    if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
+    if (
+      collection.type === "SYNTHETIC" ||
+      collection.type === "IPFS_FILE" ||
+      collection.parentCollectionId
+    )
       throw new CustomError("Invalid collection type.", 400);
+
     if (collection.creatorId !== userId)
       throw new CustomError("You are not the creator of this collection.", 400);
 
@@ -119,7 +130,6 @@ export const launchServices = {
       const layerType = await layerRepository.getById(childCollection.layerId);
       if (!layerType) throw new CustomError("Layer not found.", 400);
 
-      //TODO: add validation to check if userId is the creator of the collection
       if (!txid) throw new CustomError("txid not found.", 400);
       const transactionDetail = await confirmationService.getTransactionDetails(
         txid
@@ -140,7 +150,31 @@ export const launchServices = {
       await collectionRepository.update(db, childCollection.id, {
         contractAddress: transactionDetail.deployedContractAddress,
       });
-    } else if (collection.type === "IPFS") {
+    } else if (
+      collection.type === "IPFS_CID" ||
+      collection.type === "IPFS_FILE"
+    ) {
+      if (collection.isBadge) {
+        if (!badge) throw new CustomError("Badge file must be provided.", 400);
+        if (!badgeSupply)
+          throw new CustomError("Badge supply must be provided.", 400);
+        if (Number(badgeSupply) < 1)
+          throw new CustomError("Invalid badge supply.", 400);
+
+        const key = randomUUID();
+        await uploadToS3(key, badge);
+
+        //DG TODO done: upload the file to IPFS & parse the CID
+        // const badgeCid = await nftService.uploadImage(badge);
+
+        await collectionRepository.update(db, collection.id, {
+          logoKey: key,
+          badgeSupply: badgeSupply,
+          // badgeCid: badgeCid.IpfsHash,
+          badgeCid: "",
+        });
+      }
+
       if (!txid) throw new CustomError("txid not found.", 400);
       const transactionDetail = await confirmationService.getTransactionDetails(
         txid
@@ -208,7 +242,6 @@ export const launchServices = {
   createInscriptionAndLaunchItemInBatch: async (
     userId: string,
     collectionId: string,
-    names: string[],
     files: Express.Multer.File[],
     isLastBatch: boolean
   ) => {
@@ -227,9 +260,7 @@ export const launchServices = {
     const existingLaunchItemCount =
       await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
     const collectibles = await collectibleServices.createInscriptions(
-      collectionId,
-      collection.name,
-      names,
+      { id: collection.id, name: collection.name },
       Number(existingLaunchItemCount),
       files
     );
@@ -246,7 +277,9 @@ export const launchServices = {
     );
 
     if (isLastBatch) {
-      //TODO: ADD LAUNCHITEM.COUNT > 0 VALIDATION
+      if (Number(existingLaunchItemCount) + launchItems.length <= 0)
+        throw new CustomError("Launch with no launch items.", 400);
+
       await launchRepository.update(launch.id, { status: "CONFIRMED" });
     }
 
@@ -278,7 +311,7 @@ export const launchServices = {
     const existingLaunchItemCount =
       await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
     const result = await collectibleServices.createRecursiveInscriptions(
-      collectionId,
+      { id: collection.id, name: collection.name },
       Number(existingLaunchItemCount),
       data
     );
@@ -295,8 +328,9 @@ export const launchServices = {
     );
 
     if (isLastBatch) {
-      //TODO: ADD LAUNCHITEM.COUNT > 0 VALIDATION
-      // await launchRepository.update(launch.id, { status: "CONFIRMED" });
+      if (Number(existingLaunchItemCount) + launchItems.length <= 0)
+        throw new CustomError("Launch with no launch items.", 400);
+
       //TODO: INVOKE THE RECURSIVE TRAIT MINTING, GET ORDERID BY THE LAUNCH.COLLECTIONID
       // CONFIRM THE LAUNCH AFTER MINTING THE LAST TRAIT OF THE COLLECTION
     }
@@ -307,15 +341,15 @@ export const launchServices = {
       launchItems,
     };
   },
-  createIpfsNftAndLaunchItemInBatch: async (
+  createIpfsCollectiblesAndLaunchItemInBatch: async (
     userId: string,
     collectionId: string,
-    data: ipfsNftParams[],
+    data: { CIDs?: string[]; file?: Express.Multer.File },
     isLastBatch: boolean
   ) => {
     const collection = await collectionRepository.getById(db, collectionId);
     if (!collection) throw new CustomError("Invalid collectionId.", 400);
-    if (collection?.type !== "IPFS")
+    if (collection.type !== "IPFS_CID" && collection.type !== "IPFS_FILE")
       throw new CustomError("Invalid collection type.", 400);
     if (collection.creatorId !== userId)
       throw new CustomError("You are not the creator of this collection.", 400);
@@ -327,25 +361,57 @@ export const launchServices = {
 
     const existingLaunchItemCount =
       await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
-    const collectibles = await collectibleServices.createIpfsNfts(
-      collection,
-      Number(existingLaunchItemCount),
-      data
-    );
+
+    let collectibles: Insertable<Collectible>[] = [],
+      isDone = false;
+    if (collection.isBadge) {
+      if (!collection.badgeCid || !collection.badgeSupply)
+        throw new CustomError("Invalid badge details.", 400);
+
+      collectibles = await collectibleServices.createIpfsBadgeCollectibles(
+        {
+          id: collection.id,
+          name: collection.name,
+          badgeSupply: collection.badgeSupply,
+        },
+        Number(existingLaunchItemCount),
+        collection.badgeCid,
+        collection.logoKey
+      );
+
+      if (
+        Number(existingLaunchItemCount) + BADGE_BATCH_SIZE >=
+        collection.badgeSupply
+      )
+        isDone = true;
+    } else {
+      if (!data.CIDs)
+        throw new CustomError("Invalid ipfs collectible data.", 400);
+
+      collectibles = await collectibleServices.createIpfsNftCollectibles(
+        collection,
+        Number(existingLaunchItemCount),
+        data.CIDs
+      );
+    }
 
     const launchItemsData: Insertable<LaunchItem>[] = [];
-    for (let i = 0; i < collectibles.length; i++)
+    for (let i = 0; i < collectibles.length; i++) {
       launchItemsData.push({
-        collectibleId: collectibles[i].id,
+        collectibleId: collectibles[i].id as string,
         launchId: launch.id,
       });
+    }
+
     const launchItems = await launchItemRepository.bulkInsert(
       db,
       launchItemsData
     );
 
-    if (isLastBatch) {
-      //TODO: ADD LAUNCHITEM.COUNT > 0 VALIDATION
+    if (isLastBatch || isDone) {
+      if (Number(existingLaunchItemCount) + launchItems.length <= 0)
+        throw new CustomError("Launch with no launch items.", 400);
+
       await launchRepository.update(launch.id, { status: "CONFIRMED" });
     }
 
@@ -380,10 +446,41 @@ export const launchServices = {
     if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
       throw new CustomError("You cannot buy the item of this collection.", 400);
 
-    //TODO: add phase validation
     const userPurchaseCount =
       await purchaseRepository.getCountByUserIdAndLaunchId(launch.id, user.id);
-    if (userPurchaseCount && userPurchaseCount >= launch.poMaxMintPerWallet)
+
+    //TODO: whitelisting phase purchase count validation
+    const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
+    if (
+      launch.isWhitelisted &&
+      Number(launch.wlStartsAt) < currentUnixTimeStamp &&
+      Number(launch.wlEndsAt) > currentUnixTimeStamp
+    ) {
+      if (
+        userPurchaseCount &&
+        userPurchaseCount >= Number(launch.wlMaxMintPerWallet)
+      )
+        throw new CustomError(
+          "Wallet limit has been reached for whitelist phase.",
+          400
+        );
+
+      const wlAddress = await wlRepository.getByLaunchIdAndAddress(
+        launch.id,
+        user.address
+      );
+      if (!wlAddress)
+        throw new CustomError(
+          "You are not allowed to participate in this phase.",
+          400
+        );
+    }
+
+    if (
+      userPurchaseCount &&
+      userPurchaseCount >=
+        launch.poMaxMintPerWallet + Number(launch.wlMaxMintPerWallet)
+    )
       throw new CustomError("Wallet limit has been reached.", 400);
 
     const userOnHoldItemCount =
@@ -454,11 +551,13 @@ export const launchServices = {
         });
 
         order = hideSensitiveData(order, ["privateKey"]);
-      } else if (collection.type === "IPFS") {
+      } else if (collection.type === "IPFS_CID") {
         if (!collection.contractAddress)
           throw new Error("Collection with no contract address not found.");
+        if (!collectible.cid)
+          throw new CustomError("Collectible with no cid.", 400);
 
-        //TODO: refactor this method for generating mint transaction tx by pickedLaunchItem.collectible.cid
+        //DG TODO: generate txHex to transfer gasFee + serviceFee + mintFee... to vault
         const unsignedTx =
           await launchPadService.getUnsignedLaunchMintTransaction(
             collectible,
@@ -467,7 +566,7 @@ export const launchServices = {
             db
           );
         singleMintTxHex = serializeBigInt(unsignedTx);
-      }
+      } else throw new CustomError("Unsupported collection type.", 400);
 
       return { launchItem: launchItem, order, singleMintTxHex };
     });
@@ -570,7 +669,6 @@ export const launchServices = {
         // if (balance < order.fundingAmount)
         //   throw new CustomError("Fee has not been transferred yet.", 400);
 
-        //TODO: inscribe L1 ordinals by order.privateKey, mint L2 synthetic asset by vault
         if (!parentCollectible.fileKey)
           throw new CustomError("Collectible with no file key.", 400);
         const vault = await createFundingAddress("TESTNET");
@@ -652,7 +750,7 @@ export const launchServices = {
           await collectionRepository.update(trx, L2Collection.id, {
             status: "CONFIRMED",
           });
-      } else if (collection.type === "IPFS") {
+      } else if (collection.type === "IPFS_CID") {
         if (!verification?.txid)
           throw new CustomError(
             "You must provide mint txid for this operation.",
@@ -661,13 +759,21 @@ export const launchServices = {
 
         const transactionDetail =
           await confirmationService.getTransactionDetails(verification.txid);
+
         if (transactionDetail.status !== 1) {
           throw new CustomError(
             "Transaction not confirmed. Please try again.",
             500
           );
         }
-      }
+
+        //DG TODO: MINT NFT BY VAULT
+
+        await collectibleRepository.update(trx, parentCollectible.id, {
+          status: "CONFIRMED",
+          mintingTxId: verification.txid,
+        });
+      } else throw new CustomError("Unsupported collection type.", 400);
 
       await collectionRepository.incrementCollectionSupplyById(
         trx,
@@ -686,9 +792,6 @@ export const launchServices = {
           status: "SOLD",
         }
       );
-      await collectibleRepository.update(trx, parentCollectible.id, {
-        status: "CONFIRMED",
-      });
 
       await purchaseRepository.create(trx, {
         userId: user.id,
@@ -804,5 +907,36 @@ export const launchServices = {
     logger.info(`Enqueued ${orderId} to the SQS`);
 
     return launch;
+  },
+  addWhitelistAddress: async (
+    issuerId: string,
+    launchId: string,
+    addresses: string[]
+  ) => {
+    const launch = await launchRepository.getById(launchId);
+    if (!launch) throw new CustomError("Launch not found.", 400);
+
+    const collection = await collectionRepository.getById(
+      db,
+      launch.collectionId
+    );
+    if (!collection) throw new CustomError("Collection not found.", 400);
+    if (collection.creatorId !== issuerId)
+      throw new CustomError("You are not the creator of this launch.", 400);
+
+    if (addresses.length > 50)
+      throw new CustomError("Address count cannot be more than 100.", 400);
+
+    const whitelistAddresses: Insertable<WlAddress>[] = [];
+    addresses.forEach((address) =>
+      whitelistAddresses.push({
+        launchId: launch.id,
+        address: address.toLowerCase(),
+      })
+    );
+
+    const wlAddress = await wlRepository.bulkInsert(whitelistAddresses);
+
+    return wlAddress;
   },
 };

@@ -42,6 +42,7 @@ export const collectionController = {
       layerId,
       userLayerId,
       type,
+      isBadge,
     } = req.body;
     const logo = req.file as Express.Multer.File;
     const data: Insertable<Collection> = {
@@ -52,18 +53,23 @@ export const collectionController = {
       logoKey: null,
       layerId,
       type,
+      isBadge: isBadge === "true",
     };
 
     try {
       if (!userId) throw new CustomError("Cannot parse user from token", 401);
       if (!name || !description)
         throw new CustomError("Name and description are required.", 400);
-      if (!logo) throw new CustomError("Logo file must be provided.", 400);
+      // if (!logo) throw new CustomError("Logo file must be provided.", 400);
       if (!data.type) throw new CustomError("Invalid collection type.", 400);
       if (
-        !["SYNTHETIC", "IPFS", "INSCRIPTION", "RECURSIVE_INSCRIPTION"].includes(
-          data.type
-        )
+        ![
+          "SYNTHETIC",
+          "IPFS_FILE",
+          "IPFS_CID",
+          "INSCRIPTION",
+          "RECURSIVE_INSCRIPTION",
+        ].includes(data.type)
       )
         throw new CustomError("Invalid collection type.", 400);
 
@@ -72,9 +78,9 @@ export const collectionController = {
           data,
           name,
           priceForLaunchpad,
-          logo,
           userId,
-          userLayerId
+          userLayerId,
+          logo
         );
 
       return res.status(200).json({

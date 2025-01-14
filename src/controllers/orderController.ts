@@ -57,6 +57,9 @@ export const orderController = {
         totalCollectibleCount,
       } = req.body;
 
+      const file = req.file as Express.Multer.File;
+      const { badgeSupply } = req.body;
+
       if (!req.user?.id)
         throw new CustomError("Cannot parse user from token", 401);
       if (!feeRate)
@@ -80,7 +83,9 @@ export const orderController = {
         totalCollectibleCount,
         Number(feeRate),
         collectionId,
-        txid
+        txid,
+        file,
+        badgeSupply
       );
       const sanitazedOrder = hideSensitiveData(order, ["privateKey"]);
 
@@ -175,7 +180,6 @@ export const orderController = {
       next(e);
     }
   },
-  // //TODO: Adjust
   // checkOrderIsPaid: async (
   //   req: AuthenticatedRequest,
   //   res: Response,

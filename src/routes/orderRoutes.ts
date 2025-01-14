@@ -10,6 +10,7 @@ orderRouter.post(
   "/",
   authenticateToken,
   authorize("SUPER_ADMIN"),
+  parseFiles("badge", true),
   orderController.createMintOrder
 );
 orderRouter.post(

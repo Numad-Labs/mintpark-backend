@@ -15,6 +15,11 @@ export interface traitFilter {
   value: string;
 }
 
+export interface ipfsData {
+  CIDs?: string[];
+  file?: Express.Multer.File;
+}
+
 type OrderByOption = "price" | "recent";
 type OrderDirectionOption = "asc" | "desc";
 
@@ -31,11 +36,6 @@ export interface CollectibleQueryParams {
 export interface recursiveInscriptionParams {
   name: string;
   traits: { type: string; value: string }[];
-}
-
-export interface ipfsNftParams {
-  name: string;
-  cid: string;
 }
 
 export const collectibleControllers = {
@@ -149,28 +149,17 @@ export const collectibleControllers = {
         throw new CustomError("Could not parse the id from the token.", 400);
 
       const { collectionId } = req.body;
-      const parsedJsonData = JSON.parse(req.body.names);
-      const names: string[] = Array.isArray(parsedJsonData)
-        ? parsedJsonData
-        : parsedJsonData
-        ? [parsedJsonData]
-        : [];
       const files: Express.Multer.File[] = req.files as Express.Multer.File[];
 
-      if (names.length === 0)
-        throw new CustomError("Please provide the names.", 400);
       if (files.length === 0)
         throw new CustomError("Please provide the files.", 400);
       if (files.length > 10)
         throw new CustomError("You cannot provide more than 10 files.", 400);
-      if (files.length !== names.length)
-        throw new CustomError("Differing number of names & files found.", 400);
 
       const result =
         await collectibleServices.createInscriptionAndOrderItemInBatch(
           req.user.id,
           collectionId,
-          names,
           files
         );
 
@@ -225,18 +214,18 @@ export const collectibleControllers = {
         throw new CustomError("Could not parse the id from the token.", 400);
 
       const { collectionId } = req.body;
-      const data: ipfsNftParams[] = Array.isArray(req.body.data)
+      const data: ipfsData = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data
         ? [req.body.data]
         : [];
-      if (data.length === 0)
-        throw new CustomError("Please provide the data.", 400);
-      if (data.length > 10)
-        throw new CustomError(
-          "You cannot provide more than 10 elements of data.",
-          400
-        );
+      // if (data.length === 0)
+      //   throw new CustomError("Please provide the data.", 400);
+      // if (data.length > 10)
+      //   throw new CustomError(
+      //     "You cannot provide more than 10 elements of data.",
+      //     400
+      //   );
 
       const result = await collectibleServices.createIpfsNftAndOrderItemInBatch(
         req.user.id,

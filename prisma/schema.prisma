@@ -60,7 +60,7 @@ model Currency {
 model Layer {
   id         String       @id @default(dbgenerated("gen_random_uuid()"))
   name       String
-  layer      LAYER        @default(FRACTAL)
+  layer      LAYER        @default(CITREA)
   network    NETWORK      @default(TESTNET)
   currencyId String
   currency   Currency     @relation(fields: [currencyId], references: [id])
@@ -132,6 +132,10 @@ model Collection {
   type            COLLECTION_TYPE   @default(RECURSIVE_INSCRIPTION)
   status          COLLECTION_STATUS @default(UNCONFIRMED)
   createdAt       DateTime          @default(now())
+
+  isBadge     Boolean @default(false)
+  badgeCid    String?
+  badgeSupply Int?
 
   layerId            String
   layer              Layer       @relation(fields: [layerId], references: [id])
@@ -328,7 +332,8 @@ enum COLLECTION_STATUS {
 enum COLLECTION_TYPE {
   INSCRIPTION
   RECURSIVE_INSCRIPTION
-  IPFS
+  IPFS_FILE
+  IPFS_CID
   SYNTHETIC
 }
 
