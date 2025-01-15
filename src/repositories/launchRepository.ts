@@ -80,7 +80,7 @@ export const launchRepository = {
         "parentCollection.id",
         "Launch.collectionId"
       )
-      .innerJoin(
+      .leftJoin(
         "Collection as childCollection",
         "childCollection.parentCollectionId",
         "parentCollection.id"
@@ -108,7 +108,7 @@ export const launchRepository = {
         "Launch.isWhitelisted",
         "Launch.createdAt",
         "Launch.status",
-        "childCollection.layerId as ld",
+        "childCollection.layerId as layerId",
         sql<number>`COALESCE((
               SELECT COUNT(*)::integer
               FROM "LaunchItem"
@@ -122,7 +122,12 @@ export const launchRepository = {
               WHERE "LaunchItem"."launchId" = "Launch"."id"
             ), 0)`.as("supply"),
       ])
-      .where("childCollection.layerId", "=", layerId)
+      .where((eb) =>
+        eb.or([
+          eb("childCollection.layerId", "=", layerId),
+          eb("parentCollection.layerId", "=", layerId),
+        ])
+      )
       .where("Launch.status", "=", "CONFIRMED");
 
     if (interval !== "all") {
@@ -168,7 +173,7 @@ export const launchRepository = {
         "parentCollection.id",
         "Launch.collectionId"
       )
-      .innerJoin(
+      .leftJoin(
         "Collection as childCollection",
         "childCollection.parentCollectionId",
         "parentCollection.id"
