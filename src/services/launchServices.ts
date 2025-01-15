@@ -348,6 +348,7 @@ export const launchServices = {
     isLastBatch: boolean
   ) => {
     const collection = await collectionRepository.getById(db, collectionId);
+    console.log(collectionId);
     if (!collection) throw new CustomError("Invalid collectionId.", 400);
     if (collection.type !== "IPFS_CID" && collection.type !== "IPFS_FILE")
       throw new CustomError("Invalid collection type.", 400);
@@ -415,7 +416,7 @@ export const launchServices = {
       await launchRepository.update(launch.id, { status: "CONFIRMED" });
     }
 
-    return { collectibles, launchItems };
+    return { collectibles, launchItems, isDone };
   },
   buy: async (
     userId: string,
@@ -915,6 +916,8 @@ export const launchServices = {
   ) => {
     const launch = await launchRepository.getById(launchId);
     if (!launch) throw new CustomError("Launch not found.", 400);
+    if (!launch.isWhitelisted)
+      throw new CustomError("Launch is not whitelisted.", 400);
 
     const collection = await collectionRepository.getById(
       db,
