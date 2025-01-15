@@ -46,6 +46,31 @@ export const launchController = {
       if (!txid || !data.userLayerId)
         throw new CustomError("Invalid input.", 400);
 
+      if (data.isWhitelisted) {
+        if (
+          !data.wlEndsAt ||
+          !data.wlStartsAt ||
+          !data.wlMintPrice ||
+          !data.wlMaxMintPerWallet
+        )
+          throw new CustomError("Invalid whitelist info.", 400);
+
+        if (
+          data.wlStartsAt > data.poStartsAt &&
+          data.wlEndsAt > data.poStartsAt
+        )
+          throw new CustomError(
+            "The starting and ending date of whitelisting phase must be before the starting date of public offering phase.",
+            400
+          );
+      }
+
+      if (data.poEndsAt && data.poEndsAt < data.poStartsAt)
+        throw new CustomError(
+          "The ending date must be after the starting date.",
+          400
+        );
+
       const { launch, order } = await launchServices.create(
         req.user.id,
         data,

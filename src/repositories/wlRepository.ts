@@ -4,14 +4,14 @@ import { WlAddress } from "../types/db/types";
 
 export const wlRepository = {
   getByLaunchIdAndAddress: async (launchId: string, address: string) => {
-    const user = await db
+    const wlAddress = await db
       .selectFrom("WlAddress")
       .selectAll()
       .where("WlAddress.launchId", "=", launchId)
       .where("WlAddress.address", "=", address)
-      .execute();
+      .executeTakeFirst();
 
-    return user;
+    return wlAddress;
   },
   bulkInsert: async (addresses: Insertable<WlAddress>[]) => {
     const wlAddress = await db
@@ -21,6 +21,15 @@ export const wlRepository = {
       .executeTakeFirstOrThrow(
         () => new Error("Could not create the wl address.")
       );
+
+    return wlAddress;
+  },
+  getByLaunchId: async (launchId: string) => {
+    const wlAddress = await db
+      .selectFrom("WlAddress")
+      .selectAll()
+      .where("WlAddress.launchId", "=", launchId)
+      .execute();
 
     return wlAddress;
   },
