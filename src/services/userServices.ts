@@ -11,6 +11,7 @@ import { layerRepository } from "../repositories/layerRepository";
 import { verifySignedMessage as citreaVerifySignedMessage } from "../../blockchain/evm/utils";
 import { userLayerRepository } from "../repositories/userLayerRepository";
 import { verifyMessage as bitcoinVerifySignedMessage } from "@unisat/wallet-utils";
+import { isBitcoinTestnetAddress } from "../blockchain/bitcoin/libs";
 
 export const userServices = {
   generateMessageToSign: async (address: string) => {
@@ -42,6 +43,12 @@ export const userServices = {
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     } else if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
+      if (!isBitcoinTestnetAddress(address))
+        throw new CustomError(
+          `Please switch your wallet's Bitcoin network to TESTNET.`,
+          400
+        );
+
       if (!pubkey)
         throw new CustomError(
           "Pubkey must be provided for this operation.",
