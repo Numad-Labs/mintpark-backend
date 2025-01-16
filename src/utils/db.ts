@@ -12,7 +12,9 @@ export const db = new Kysely<DB>({
       host: config.PGHOST,
       user: config.PGUSER,
       password: config.PGPASSWORD,
-      ssl: config.NODE_ENV === "development" ? false : true,
-    }),
-  }),
+      // ssl: config.NODE_ENV === "development" ? false : true,
+      //GB TODO: true uyd local deer ajillaj bn
+      ssl: true
+    })
+  })
 });

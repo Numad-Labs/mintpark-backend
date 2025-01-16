@@ -3,11 +3,6 @@ import { AuthenticatedRequest } from "../../custom";
 import { CustomError } from "../exceptions/CustomError";
 import { collectibleServices } from "../services/collectibleServices";
 import { collectibleRepository } from "../repositories/collectibleRepository";
-import { EVMCollectibleService } from "../../blockchain/evm/services/evmIndexService";
-import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
-import { createFundingAddress } from "../blockchain/bitcoin/createFundingAddress";
-import { sendRawTransaction } from "../blockchain/bitcoin/sendTransaction";
-import { inscribe } from "../blockchain/bitcoin/inscribe";
 import logger from "../config/winston";
 
 export interface traitFilter {
@@ -42,7 +37,7 @@ export const collectibleControllers = {
   getListableCollectibles: async (
     req: Request<{ userId: string }, {}, {}, CollectibleQueryParams>,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ) => {
     try {
       const {
@@ -74,7 +69,7 @@ export const collectibleControllers = {
   getListableCollectiblesByCollectionId: async (
     req: Request<{ collectionId: string }, {}, {}, CollectibleQueryParams>,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ) => {
     try {
       const { collectionId } = req.params;
@@ -89,7 +84,7 @@ export const collectibleControllers = {
             isListed,
             traits,
             layerId,
-          }
+          },
         );
       return res.status(200).json({
         success: true,
@@ -106,7 +101,7 @@ export const collectibleControllers = {
   getCollectibleById: async (
     req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ) => {
     try {
       const { id } = req.params;
@@ -123,9 +118,8 @@ export const collectibleControllers = {
       if (!collectibleId) {
         throw new CustomError("collectibleId is required", 400);
       }
-      const activities = await collectibleServices.getActivityByCollectibleId(
-        collectibleId
-      );
+      const activities =
+        await collectibleServices.getActivityByCollectibleId(collectibleId);
       res.status(200).json({
         success: true,
         data: activities,
@@ -142,7 +136,7 @@ export const collectibleControllers = {
   createInscriptionInBatch: async (
     req: AuthenticatedRequest,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ) => {
     try {
       if (!req.user?.id)
@@ -160,7 +154,7 @@ export const collectibleControllers = {
         await collectibleServices.createInscriptionAndOrderItemInBatch(
           req.user.id,
           collectionId,
-          files
+          files,
         );
 
       return res.status(200).json({ success: true, data: result });
@@ -171,7 +165,7 @@ export const collectibleControllers = {
   createRecursiveInscriptionInBatch: async (
     req: AuthenticatedRequest,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ) => {
     try {
       if (!req.user?.id)
@@ -182,21 +176,21 @@ export const collectibleControllers = {
       const data: recursiveInscriptionParams[] = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data
-        ? [req.body.data]
-        : [];
+          ? [req.body.data]
+          : [];
       if (data.length === 0)
         throw new CustomError("Please provide the data.", 400);
       if (data.length > 10)
         throw new CustomError(
           "You cannot provide more than 10 elements of data.",
-          400
+          400,
         );
 
       const result =
         await collectibleServices.createRecursiveInscriptionAndOrderItemInBatch(
           req.user.id,
           collectionId,
-          data
+          data,
         );
 
       return res.status(200).json({ success: true, data: result });
@@ -207,7 +201,7 @@ export const collectibleControllers = {
   createIpfsNftInBatch: async (
     req: AuthenticatedRequest,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ) => {
     try {
       if (!req.user?.id)
@@ -217,8 +211,8 @@ export const collectibleControllers = {
       const data: ipfsData = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data
-        ? [req.body.data]
-        : [];
+          ? [req.body.data]
+          : [];
       // if (data.length === 0)
       //   throw new CustomError("Please provide the data.", 400);
       // if (data.length > 10)
@@ -230,7 +224,7 @@ export const collectibleControllers = {
       const result = await collectibleServices.createIpfsNftAndOrderItemInBatch(
         req.user.id,
         collectionId,
-        data
+        data,
       );
 
       return res.status(200).json({ success: true, data: result });

@@ -2,7 +2,7 @@ import {
   CollectibleQueryParams,
   ipfsData,
   recursiveInscriptionParams,
-  traitFilter,
+  traitFilter
 } from "../controllers/collectibleController";
 import { CustomError } from "../exceptions/CustomError";
 import { collectibleRepository } from "../repositories/collectibleRepository";
@@ -10,9 +10,9 @@ import { collectionRepository } from "../repositories/collectionRepository";
 import { layerRepository } from "../repositories/layerRepository";
 import { listRepository } from "../repositories/listRepository";
 import { userRepository } from "../repositories/userRepository";
-import { EVMCollectibleService } from "../../blockchain/evm/services/evmIndexService";
-import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
-import { TransactionConfirmationService } from "../../blockchain/evm/services/transactionConfirmationService";
+import { EVMCollectibleService } from "../blockchain/evm/services/evmIndexService";
+import { EVM_CONFIG } from "../blockchain/evm/evm-config";
+import { TransactionConfirmationService } from "../blockchain/evm/services/transactionConfirmationService";
 import { orderRepository } from "../repositories/orderRepostory";
 import { db } from "../utils/db";
 import { randomUUID } from "crypto";
@@ -22,16 +22,25 @@ import {
   Collectible,
   CollectibleTrait,
   Collection,
-  OrderItem,
+  OrderItem
 } from "../types/db/types";
 import { orderItemRepository } from "../repositories/orderItemRepository";
 import { traitValueRepository } from "../repositories/traitValueRepository";
 import { collectibleTraitRepository } from "../repositories/collectibleTraitRepository";
-import { param } from "../routes/userRoutes";
 import { getBalance } from "../blockchain/bitcoin/libs";
-import { userLayerRepository } from "../repositories/userLayerRepository";
 import logger from "../config/winston";
 import { BADGE_BATCH_SIZE } from "../libs/constants";
+// import * as isIPFS from "is-ipfs";
+
+const validateCid = (cid: string): boolean => {
+  // CIDv0 starts with "Qm" and is 46 characters long
+  const cidv0Regex = /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/;
+
+  // CIDv1 - base32 or base58btc format
+  const cidv1Regex = /^(b[a-z2-7]{58}|[1-9A-HJ-NP-Za-km-z]{48})$/;
+
+  return cidv0Regex.test(cid) || cidv1Regex.test(cid);
+};
 
 const evmCollectibleService = new EVMCollectibleService(EVM_CONFIG.RPC_URL!);
 const confirmationService = new TransactionConfirmationService(
@@ -62,14 +71,12 @@ export const collectibleServices = {
       const collections = await collectionRepository.getCollectionsByLayer(
         user.layerId
       );
-      console.log("collections:", collections);
 
       if (collections?.length) {
         // Filter valid collections
         const validCollections = collections
           .filter((c) => c.contractAddress)
           .map((c) => c.contractAddress!);
-        console.log("🚀 ~ validCollections:", validCollections);
         // Process collections in batches using the new method
         const tokenResults = await evmCollectibleService.processCollections(
           validCollections,
@@ -106,14 +113,14 @@ export const collectibleServices = {
         collectibles: [],
         totalCount: 0,
         listCount: 0,
-        collections: [],
+        collections: []
       };
 
     const [
       listableCollectibles,
       totalCountResult,
       listedCountResult,
-      collections,
+      collections
     ] = await Promise.all([
       collectibleRepository.getListableCollectiblesByInscriptionIds(
         uniqueIdxs,
@@ -126,7 +133,7 @@ export const collectibleServices = {
       listRepository.getActiveListCountByUserId(userId),
       collectionRepository.getListedCollectionsWithCollectibleCountByInscriptionIds(
         uniqueIdxs
-      ),
+      )
     ]);
     const listedCount = Number(listedCountResult?.activeListCount ?? 0);
     const totalCount = Number(totalCountResult?.count ?? 0);
@@ -135,7 +142,7 @@ export const collectibleServices = {
       collectibles: listableCollectibles,
       totalCount: totalCount,
       listCount: listedCount,
-      collections,
+      collections
     };
   },
   getListableCollectiblesByCollectionId: async (
@@ -154,7 +161,7 @@ export const collectibleServices = {
         params,
         traitFilters
       ),
-      listRepository.getActiveListCountByCollectionid(collectionId),
+      listRepository.getActiveListCountByCollectionid(collectionId)
     ]);
     // if (!listableCollectibles[0].contractAddress) {
     //   throw new Error("Collectible with no contract address.");
@@ -166,7 +173,7 @@ export const collectibleServices = {
 
     return {
       listableCollectibles,
-      activeListCount: countResult?.activeListCount ?? 0,
+      activeListCount: countResult?.activeListCount ?? 0
       // totalOwnerCount,
     };
   },
@@ -210,7 +217,7 @@ export const collectibleServices = {
         const key = randomUUID().toString();
         if (file) await uploadToS3(key, file);
         return {
-          key,
+          key
         };
       })
     );
@@ -220,11 +227,10 @@ export const collectibleServices = {
         name: `${collection.name} #${startIndex + i}`,
         fileKey: fileKeys[i].key,
         collectionId: collection.id,
-        nftId: (startIndex + i).toString(),
+        nftId: (startIndex + i).toString()
       });
-    const collectibles = await collectibleRepository.bulkInsert(
-      collectiblesData
-    );
+    const collectibles =
+      await collectibleRepository.bulkInsert(collectiblesData);
 
     return collectibles;
   },
@@ -265,7 +271,7 @@ export const collectibleServices = {
       orderItemsData.push({
         collectibleId: collectibles[i].id,
         orderId: order.id,
-        type: "COLLECTIBLE",
+        type: "COLLECTIBLE"
       });
     const orderItems = await orderItemRepository.bulkInsert(orderItemsData);
 
@@ -285,7 +291,7 @@ export const collectibleServices = {
         id: collectibleId,
         name: `${collection.name} #${startIndex + i}`,
         collectionId: collection.id,
-        nftId: (startIndex + i).toString(),
+        nftId: (startIndex + i).toString()
       });
 
       for (const trait of data[i].traits) {
@@ -301,17 +307,15 @@ export const collectibleServices = {
 
         collectibleTraitData.push({
           collectibleId,
-          traitValueId: traitValue.id,
+          traitValueId: traitValue.id
         });
       }
     }
 
-    const collectibles = await collectibleRepository.bulkInsert(
-      collectiblesData
-    );
-    const collectibleTraits = await collectibleTraitRepository.bulkInsert(
-      collectibleTraitData
-    );
+    const collectibles =
+      await collectibleRepository.bulkInsert(collectiblesData);
+    const collectibleTraits =
+      await collectibleTraitRepository.bulkInsert(collectibleTraitData);
 
     return { collectibles, collectibleTraits };
   },
@@ -352,14 +356,14 @@ export const collectibleServices = {
       orderItemsData.push({
         collectibleId: result.collectibles[i].id,
         orderId: order.id,
-        type: "COLLECTIBLE",
+        type: "COLLECTIBLE"
       });
     const orderItems = await orderItemRepository.bulkInsert(orderItemsData);
 
     return {
       collectibles: result.collectibles,
       collectibleTraits: result.collectibleTraits,
-      orderItems,
+      orderItems
     };
   },
   createIpfsNftCollectibles: async (
@@ -370,9 +374,16 @@ export const collectibleServices = {
     startIndex++;
     const collectiblesData: Insertable<Collectible>[] = [];
     for (let i = 0; i < data.length; i++) {
-      //DG TODO: data[i].cid validation?
-      const isValidCid = true;
-      if (!isValidCid) throw new CustomError("Invalid cid.", 400);
+      //DG TODO done: data[i].cid validation? Test hiij uzeh
+      // Validate CID using is-ipfs library
+      const cid = data[i].trim();
+
+      // // Check if it's a valid CID using is-ipfs
+      // const isValidCid = isIPFS.cid(cid);
+      // if (!isValidCid) throw new CustomError("Invalid cid.", 400);
+      if (!validateCid(cid)) {
+        throw new CustomError(`Invalid IPFS CID at index ${i}: ${cid}`, 400);
+      }
 
       collectiblesData.push({
         name: `${collection.name} #${startIndex + i}`,
@@ -380,12 +391,11 @@ export const collectibleServices = {
         collectionId: collection.id,
         uniqueIdx:
           collection.contractAddress + "i" + (startIndex + i).toString(),
-        nftId: (startIndex + i).toString(),
+        nftId: (startIndex + i).toString()
       });
     }
-    const collectibles = await collectibleRepository.bulkInsert(
-      collectiblesData
-    );
+    const collectibles =
+      await collectibleRepository.bulkInsert(collectiblesData);
 
     return collectibles;
   },
@@ -410,7 +420,7 @@ export const collectibleServices = {
     if (!order.fundingAddress)
       throw new CustomError("Invalid order with undefined address.", 400);
 
-    //DG TODO: IPFS BALANCE CHECK
+    //DG TODO: IPFS BALANCE CHECK. CID ashiglaj bga gazar duudah heregtei bh. Shalgah ni good idea jhn hoishluulad hiiy
     // const balance = 0;
     // if (balance < order.fundingAmount)
     //   throw new CustomError("Fee has not been transferred yet.", 400);
@@ -427,7 +437,7 @@ export const collectibleServices = {
         {
           id: collection.id,
           name: collection.name,
-          badgeSupply: collection.badgeSupply,
+          badgeSupply: collection.badgeSupply
         },
         Number(existingCollectibleCount),
         collection.badgeCid,
@@ -449,7 +459,7 @@ export const collectibleServices = {
       orderItemsData.push({
         collectibleId: collectibles[i].id,
         orderId: order.id,
-        type: "COLLECTIBLE",
+        type: "COLLECTIBLE"
       });
     const orderItems = await orderItemRepository.bulkInsert(orderItemsData);
 
@@ -479,12 +489,11 @@ export const collectibleServices = {
         collectionId: collection.id,
         nftId: (startIndex + i).toString(),
         cid,
-        fileKey,
+        fileKey
       });
-    const collectibles = await collectibleRepository.bulkInsert(
-      collectiblesData
-    );
+    const collectibles =
+      await collectibleRepository.bulkInsert(collectiblesData);
 
     return collectibles;
-  },
+  }
 };

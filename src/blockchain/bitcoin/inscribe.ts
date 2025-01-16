@@ -4,7 +4,7 @@ import * as bitcoin from "bitcoinjs-lib";
 import * as ecc from "tiny-secp256k1";
 import { ECPairFactory } from "ecpair";
 import BIP32Factory from "bip32";
-import { CustomError } from "../../../src/exceptions/CustomError";
+import { CustomError } from "../../exceptions/CustomError";
 import { DUST_THRESHOLD } from "./constants";
 import { getEstimatedFee, getUtxos, selectUtxos } from "./libs";
 import logger from "../../config/winston";
@@ -22,7 +22,7 @@ export async function inscribe(
   // devFee: number,
   feeRate: number,
   toAddress?: string,
-  price: number = 0
+  price: number = 0,
 ) {
   const address = fundingAddress;
 
@@ -47,7 +47,7 @@ export async function inscribe(
   const inscriptionData = parseDataUrl(opreturnData);
 
   let leafScriptAsm = `${internalPubKey.toString(
-    "hex"
+    "hex",
   )} OP_CHECKSIG OP_FALSE OP_IF `;
   leafScriptAsm += `6f7264 `;
   leafScriptAsm += `01 `;
@@ -99,7 +99,7 @@ export async function inscribe(
     [inscriptionData.contentType.length],
     0,
     feeRate,
-    price
+    price,
   );
   const commitFee = fees.estimatedFee.commitFee;
   const revealFee = fees.estimatedFee.revealFee;
@@ -159,7 +159,7 @@ export async function inscribe(
   }
 
   const tweakedSigner = node.tweak(
-    Buffer.from(bitcoin.crypto.taggedHash("TapTweak", toXOnly(node.publicKey)))
+    Buffer.from(bitcoin.crypto.taggedHash("TapTweak", toXOnly(node.publicKey))),
   );
 
   for (let i = 0; i < commitPsbt.data.inputs.length; i++) {

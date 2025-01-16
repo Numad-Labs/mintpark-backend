@@ -17,7 +17,6 @@ import listRouter from "./routes/listRoutes";
 import launchRouter from "./routes/launchRoutes";
 import logger from "./config/winston";
 import { sizeLimitConstants } from "./libs/constants";
-import { rateLimiter } from "./middlewares/rateLimiter";
 import { db } from "./utils/db";
 import traitValueRouter from "./routes/traitValueRoutes";
 import { version } from "../package.json";
@@ -43,7 +42,7 @@ app.use(
   express.urlencoded({
     limit: sizeLimitConstants.formDataSizeLimit,
     extended: true,
-  })
+  }),
 );
 // app.use(rateLimiter);
 
@@ -63,14 +62,14 @@ app.use(errorHandler);
 
 const consumer = new SQSConsumer(
   "eu-central-1",
-  `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`
+  `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`,
 );
 logger.info("Starting SQS consumer...");
 consumer.start(processMessage);
 
 export const producer = new SQSProducer(
   "eu-central-1",
-  `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`
+  `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`,
 );
 
 const collectionOwnerCounterService = new CollectionOwnerCounterService();
