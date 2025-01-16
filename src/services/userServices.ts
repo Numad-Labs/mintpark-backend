@@ -112,6 +112,12 @@ export const userServices = {
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     } else if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
+      if (!isBitcoinTestnetAddress(address))
+        throw new CustomError(
+          `Please switch your wallet's Bitcoin network to TESTNET.`,
+          400
+        );
+
       if (!pubkey)
         throw new CustomError(
           "Pubkey must be provided for this operation.",
@@ -176,6 +182,12 @@ export const userServices = {
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     } else if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
+      if (!isBitcoinTestnetAddress(address))
+        throw new CustomError(
+          `Please switch your wallet's Bitcoin network to TESTNET.`,
+          400
+        );
+
       if (!pubkey)
         throw new CustomError(
           "Pubkey must be provided for this operation.",
