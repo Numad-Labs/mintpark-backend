@@ -14,21 +14,15 @@ import { inscribe } from "../blockchain/bitcoin/inscribe";
 import { userRepository } from "../repositories/userRepository";
 import { getObjectFromS3 } from "../utils/aws";
 import { sendRawTransaction } from "../blockchain/bitcoin/sendTransaction";
-import NFTService from "../../blockchain/evm/services/nftService";
-import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
-import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
-import { FundingAddressService } from "../../blockchain/evm/services/fundingAddress";
+import NFTService from "../blockchain/evm/services/nftService";
+import { EVM_CONFIG } from "../blockchain/evm/evm-config";
+import MarketplaceService from "../blockchain/evm/services/marketplaceService";
 import { getBalance } from "../blockchain/bitcoin/libs";
+import { bigint } from "hardhat/internal/core/params/argumentTypes";
 
 export const orderIdSchema = z.string().uuid();
 
-const nftService = new NFTService(
-  EVM_CONFIG.RPC_URL,
-  EVM_CONFIG.MARKETPLACE_ADDRESS,
-  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
-);
-
-const fundingService = new FundingAddressService(EVM_CONFIG.RPC_URL);
+const nftService = new NFTService(EVM_CONFIG.RPC_URL);
 
 export async function processMessage(message: Message) {
   // console.log("message", message, new Date());
@@ -118,7 +112,7 @@ export async function processMessage(message: Message) {
       address: vault.address,
       opReturnValues: `data:${file.contentType};base64,${(
         file.content as Buffer
-      ).toString("base64")}` as any,
+      ).toString("base64")}` as any
     };
     const { commitTxHex, revealTxHex } = await inscribe(
       inscriptionData,
@@ -145,14 +139,15 @@ export async function processMessage(message: Message) {
 
     const inscriptionId = revealTxResult + "i0";
     let mintTxId;
-
+    // l2Collectible.
     try {
       // Mint the NFT with the inscription ID
       mintTxId = await nftService.mintWithInscriptionId(
         L2Collection.contractAddress,
         creator.address,
         inscriptionId,
-        parentCollectible.nftId
+        parentCollectible.nftId,
+        0
       );
       logger.info(
         `Minted the order item: ${orderItem.id} in transaction: ${mintTxId}`
@@ -169,12 +164,12 @@ export async function processMessage(message: Message) {
 
     if (collection.status !== "CONFIRMED")
       await collectionRepository.update(db, collection.id, {
-        status: "CONFIRMED",
+        status: "CONFIRMED"
       });
 
     if (L2Collection.status !== "CONFIRMED")
       await collectionRepository.update(db, L2Collection.id, {
-        status: "CONFIRMED",
+        status: "CONFIRMED"
       });
 
     await collectibleRepository.update(db, parentCollectible.id, {
@@ -182,7 +177,7 @@ export async function processMessage(message: Message) {
       lockingPrivateKey: vault.privateKey,
       mintingTxId: revealTxResult,
       uniqueIdx: inscriptionId,
-      status: "CONFIRMED",
+      status: "CONFIRMED"
     });
 
     const l2Collectible = await collectibleRepository.create(db, {
@@ -193,7 +188,7 @@ export async function processMessage(message: Message) {
       mintingTxId: mintTxId,
       parentCollectibleId: parentCollectible.id,
       fileKey: parentCollectible.fileKey,
-      status: "CONFIRMED",
+      status: "CONFIRMED"
     });
 
     await collectionRepository.incrementCollectionSupplyById(db, collection.id);
@@ -236,7 +231,7 @@ export async function processMessage(message: Message) {
         );
 
       await orderItemRepository.update(traitOrderItem?.id, {
-        status: "MINTED",
+        status: "MINTED"
       });
 
       // const parentCollectible = await collectibleRepository.getById(
@@ -259,7 +254,7 @@ export async function processMessage(message: Message) {
       await traitValueRepository.updateById(traitValue?.id, {
         inscriptionId: mintTxId,
         lockingAddress: vault.address,
-        lockingPrivateKey: vault.privateKey,
+        lockingPrivateKey: vault.privateKey
       });
 
       producer.sendMessage(order.id, 120);
@@ -297,7 +292,7 @@ export async function processMessage(message: Message) {
         lockingAddress: vault.address,
         lockingPrivateKey: vault.privateKey,
         mintingTxId: mintTxId,
-        status: "CONFIRMED",
+        status: "CONFIRMED"
       });
 
       const l2Collectible = await collectibleRepository.create(db, {
@@ -307,7 +302,7 @@ export async function processMessage(message: Message) {
         nftId: parentCollectible.nftId,
         mintingTxId: mintTxId,
         parentCollectibleId: parentCollectible.id,
-        fileKey: parentCollectible.fileKey,
+        fileKey: parentCollectible.fileKey
       });
 
       await collectionRepository.incrementCollectionSupplyById(
@@ -364,7 +359,7 @@ export async function processMessage(message: Message) {
 
     await collectibleRepository.update(db, collectible.id, {
       mintingTxId: mintTxId,
-      status: "CONFIRMED",
+      status: "CONFIRMED"
     });
     await collectionRepository.incrementCollectionSupplyById(db, collection.id);
 

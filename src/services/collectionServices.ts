@@ -11,25 +11,17 @@ import {
 } from "../controllers/collectionController";
 import { layerRepository } from "../repositories/layerRepository";
 import { CustomError } from "../exceptions/CustomError";
-import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
-import NFTService from "../../blockchain/evm/services/nftService";
-import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
-import { EVMCollectibleService } from "../../blockchain/evm/services/evmIndexService";
+import { EVM_CONFIG } from "../blockchain/evm/evm-config";
+import NFTService from "../blockchain/evm/services/nftService";
+import MarketplaceService from "../blockchain/evm/services/marketplaceService";
 import { db } from "../utils/db";
 import { Insertable, Updateable } from "kysely";
 import { Collection } from "../types/db/types";
-import { collectibleRepository } from "../repositories/collectibleRepository";
 import { layerServices } from "./layerServices";
-import { serializeBigInt } from "../../blockchain/evm/utils";
+import { serializeBigInt } from "../blockchain/evm/utils";
 import { config } from "../config/config";
 
-const nftService = new NFTService(
-  EVM_CONFIG.RPC_URL,
-  EVM_CONFIG.MARKETPLACE_ADDRESS,
-  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
-);
-
-const evmCollectibleService = new EVMCollectibleService(EVM_CONFIG.RPC_URL!);
+const nftService = new NFTService(EVM_CONFIG.RPC_URL);
 
 export const collectionServices = {
   create: async (
@@ -38,19 +30,19 @@ export const collectionServices = {
     priceForLaunchpad: number,
     issuerId: string,
     userLayerId: string,
-    file?: Express.Multer.File
+    file?: Express.Multer.File,
   ) => {
     if (data.type === "SYNTHETIC")
       throw new CustomError(
         "You cannot directly create synthetic collection.",
-        400
+        400,
       );
 
     if (data.isBadge) data.type = "IPFS_CID";
 
     if (!data.layerId) throw new CustomError("Please provide a layerId.", 400);
     const layer = await layerServices.checkIfSupportedLayerOrThrow(
-      data.layerId
+      data.layerId,
     );
 
     const user = await userRepository.getByUserLayerId(userLayerId);
@@ -58,14 +50,14 @@ export const collectionServices = {
     if (user.id !== issuerId)
       throw new CustomError(
         "You are not allowed to create for this user.",
-        400
+        400,
       );
     if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
     if (user.layer !== layer.layer || user.network !== layer.network)
       throw new CustomError(
         "You cannot create collection for this layerId with the current active account.",
-        400
+        400,
       );
 
     let deployContractTxHex = null,
@@ -76,7 +68,11 @@ export const collectionServices = {
       const unsignedTx = await nftService.getUnsignedDeploymentTransaction(
         user.address,
         config.VAULT_ADDRESS,
-        name
+        name,
+        "MPMNFT",
+        EVM_CONFIG.DEFAULT_ROYALTY_FEE,
+        EVM_CONFIG.DEFAULT_PLATFORM_FEE,
+        config.VAULT_ADDRESS,
       );
       deployContractTxHex = serializeBigInt(unsignedTx);
     }

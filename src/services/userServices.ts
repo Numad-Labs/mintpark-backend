@@ -1,14 +1,11 @@
-import { Updateable } from "kysely";
-import { User } from "../types/db/types";
 import { userRepository } from "../repositories/userRepository";
 import { CustomError } from "../exceptions/CustomError";
 import { generateMessage } from "../libs/generateMessage";
 import { generateNonce } from "../libs/generateNonce";
 import { redis } from "..";
 import { generateTokens } from "../utils/jwt";
-import { verifySignedMessage as fractalVerifySignedMessage } from "../blockchain/bitcoin/verifySignedMessage";
 import { layerRepository } from "../repositories/layerRepository";
-import { verifySignedMessage as citreaVerifySignedMessage } from "../../blockchain/evm/utils";
+import { verifySignedMessage as citreaVerifySignedMessage } from "../blockchain/evm/utils";
 import { userLayerRepository } from "../repositories/userLayerRepository";
 import { verifyMessage as bitcoinVerifySignedMessage } from "@unisat/wallet-utils";
 import { isBitcoinTestnetAddress } from "../blockchain/bitcoin/libs";
@@ -25,7 +22,7 @@ export const userServices = {
     address: string,
     signedMessage: string,
     layerId: string,
-    pubkey?: string
+    pubkey?: string,
   ) => {
     const nonce = await redis.get(`nonce:${address}`);
     if (!nonce) throw new CustomError("No recorded nonce found.", 400);
@@ -39,7 +36,7 @@ export const userServices = {
       const isValid = await citreaVerifySignedMessage(
         message,
         signedMessage,
-        address
+        address,
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     } else if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
@@ -52,13 +49,13 @@ export const userServices = {
       if (!pubkey)
         throw new CustomError(
           "Pubkey must be provided for this operation.",
-          400
+          400,
         );
 
       const isValid = await bitcoinVerifySignedMessage(
         pubkey,
         message,
-        signedMessage
+        signedMessage,
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     } else throw new CustomError("Unsupported layer.", 400);
@@ -90,7 +87,7 @@ export const userServices = {
     address: string,
     signedMessage: string,
     layerId: string,
-    pubkey?: string
+    pubkey?: string,
   ) => {
     const user = await userRepository.getById(userId);
     if (!user) throw new CustomError("User not found.", 400);
@@ -108,7 +105,7 @@ export const userServices = {
       const isValid = await citreaVerifySignedMessage(
         message,
         signedMessage,
-        address
+        address,
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     } else if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
@@ -121,13 +118,13 @@ export const userServices = {
       if (!pubkey)
         throw new CustomError(
           "Pubkey must be provided for this operation.",
-          400
+          400,
         );
 
       const isValid = await bitcoinVerifySignedMessage(
         pubkey,
         message,
-        signedMessage
+        signedMessage,
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     } else throw new CustomError("Unsupported layer.", 400);
@@ -161,7 +158,7 @@ export const userServices = {
     address: string,
     signedMessage: string,
     layerId: string,
-    pubkey?: string
+    pubkey?: string,
   ) => {
     const user = await userRepository.getById(userId);
     if (!user) throw new CustomError("User not found.", 400);
@@ -178,7 +175,7 @@ export const userServices = {
       const isValid = await citreaVerifySignedMessage(
         message,
         signedMessage,
-        address
+        address,
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     } else if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
@@ -191,13 +188,13 @@ export const userServices = {
       if (!pubkey)
         throw new CustomError(
           "Pubkey must be provided for this operation.",
-          400
+          400,
         );
 
       const isValid = await bitcoinVerifySignedMessage(
         pubkey,
         message,
-        signedMessage
+        signedMessage,
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     } else throw new CustomError("Unsupported layer.", 400);
@@ -211,7 +208,7 @@ export const userServices = {
     if (isExistingUserLayer.userId === userId)
       throw new CustomError(
         "This account has already been linked to you.",
-        400
+        400,
       );
 
     await userLayerRepository.deactivateById(isExistingUserLayer.id);

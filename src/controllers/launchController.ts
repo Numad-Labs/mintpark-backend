@@ -3,16 +3,15 @@ import { CustomError } from "../exceptions/CustomError";
 import { LaunchQueryParams } from "../repositories/collectionRepository";
 import { AuthenticatedRequest } from "../../custom";
 import { launchServices } from "../services/launchServices";
-// import LaunchpadService from "../../blockchain/evm/services/launchpadService";
-import { EVM_CONFIG } from "../../blockchain/evm/evm-config";
-import MarketplaceService from "../../blockchain/evm/services/marketplaceService";
-import { serializeBigInt } from "../../blockchain/evm/utils";
+import { EVM_CONFIG } from "../blockchain/evm/evm-config";
+import MarketplaceService from "../blockchain/evm/services/marketplaceService";
+import { serializeBigInt } from "../blockchain/evm/utils";
 import { Insertable, Updateable } from "kysely";
 import { Launch } from "../types/db/types";
 import { launchRepository } from "../repositories/launchRepository";
 import { ipfsData, recursiveInscriptionParams } from "./collectibleController";
 import { userRepository } from "../repositories/userRepository";
-import LaunchpadService from "../../blockchain/evm/services/launchpadService";
+import LaunchpadService from "../blockchain/evm/services/launchpadService";
 import logger from "../config/winston";
 
 export interface LaunchOfferType {
@@ -34,6 +33,7 @@ export const launchController = {
       if (!req.user?.id)
         throw new CustomError("Cannot parse user from token", 401);
 
+      console.log("🚀 ~ req.body.data:", req.body.data);
       const parsedData = JSON.parse(req.body.data);
       const data: Insertable<Launch> = { ...parsedData };
       const { txid, totalFileSize, totalTraitCount, feeRate } = req.body;
@@ -129,8 +129,8 @@ export const launchController = {
       const data: recursiveInscriptionParams[] = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data
-        ? [req.body.data]
-        : [];
+          ? [req.body.data]
+          : [];
       if (data.length === 0)
         throw new CustomError("Please provide the data.", 400);
       if (data.length > 10)
@@ -165,8 +165,8 @@ export const launchController = {
       const data: ipfsData = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data
-        ? [req.body.data]
-        : [];
+          ? [req.body.data]
+          : [];
       // if (data.length === 0)
       //   throw new CustomError("Please provide the data.", 400);
       // if (data.length > 10)
@@ -245,12 +245,11 @@ export const launchController = {
         );
       const query: LaunchQueryParams = {
         layerId: layerId as string,
-        interval: interval as "all" | "live" | "past",
+        interval: interval as "all" | "live" | "past"
       };
 
-      const launches = await launchRepository.getConfirmedLaunchesByLayerId(
-        query
-      );
+      const launches =
+        await launchRepository.getConfirmedLaunchesByLayerId(query);
 
       return res.status(200).json({ success: true, data: launches });
     } catch (e) {
@@ -266,9 +265,8 @@ export const launchController = {
       const { collectionId } = req.params;
 
       try {
-        const launch = await launchRepository.getConfirmedLaunchById(
-          collectionId
-        );
+        const launch =
+          await launchRepository.getConfirmedLaunchById(collectionId);
         if (!launch) throw new CustomError("Collection not found", 404);
 
         return res.status(200).json({ success: true, data: launch });
@@ -279,37 +277,7 @@ export const launchController = {
       next(e);
     }
   },
-  generateUnsignedMintPriceChangeTx: async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      const { collectionTxid, mintFee } = req.body.data;
-      const { userLayerId } = req.body;
-      if (!req.user?.id)
-        throw new CustomError("Could not retrieve id from the token.", 400);
-      const user = await userRepository.getByUserLayerId(userLayerId);
-      if (!user || !user.address || user.id !== userLayerId)
-        throw new CustomError("User address not found from the token.", 400);
-      if (!user.isActive)
-        throw new CustomError("This account is deactivated.", 400);
 
-      const unsignedTx =
-        await launchPadService.createLaunchpadContractFeeChange(
-          collectionTxid,
-          user.address,
-          mintFee
-        );
-      const serializedTx = serializeBigInt(unsignedTx);
-      return res.status(200).json({
-        success: true,
-        data: { singleMintTxHex: serializedTx },
-      });
-    } catch (e) {
-      next(e);
-    }
-  },
   createOrderForReservedLaunchItems: async (
     req: AuthenticatedRequest,
     res: Response,
@@ -376,5 +344,5 @@ export const launchController = {
     } catch (e) {
       next(e);
     }
-  },
+  }
 };

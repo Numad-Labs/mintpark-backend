@@ -4,7 +4,7 @@ import "@nomicfoundation/hardhat-toolbox";
 const config: HardhatUserConfig = {
   solidity: "0.8.27",
   typechain: {
-    outDir: "./blockchain/evm/typechain-types",
+    outDir: "./src/blockchain/evm/typechain-types",
     target: "ethers-v6",
   },
   networks: {
@@ -13,10 +13,10 @@ const config: HardhatUserConfig = {
     },
   },
   paths: {
-    sources: "./blockchain/evm/contracts",
-    tests: "./blockchain/evm/test",
-    cache: "./blockchain/evm/cache",
-    artifacts: "./blockchain/evm/artifacts",
+    sources: "./src/blockchain/evm/contracts",
+    tests: "./src/blockchain/evm/test",
+    cache: "./src/blockchain/evm/cache",
+    artifacts: "./src/blockchain/evm/artifacts",
   },
 };
 
