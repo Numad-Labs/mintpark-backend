@@ -128,8 +128,9 @@ export const launchServices = {
       if (!layerType) throw new CustomError("Layer not found.", 400);
 
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail =
-        await confirmationService.getTransactionDetails(txid);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -178,8 +179,9 @@ export const launchServices = {
       }
 
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail =
-        await confirmationService.getTransactionDetails(txid);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -617,8 +619,9 @@ export const launchServices = {
     if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
 
-    const isLaunchItemOnHold =
-      await launchItemRepository.getOnHoldById(launchItemId);
+    const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
+      launchItemId
+    );
     if (isLaunchItemOnHold && isLaunchItemOnHold.onHoldBy !== user.id)
       throw new CustomError(
         "This launch item is currently reserved to another user.",
@@ -828,7 +831,8 @@ export const launchServices = {
         await collectibleRepository.update(trx, parentCollectible.id, {
           status: "CONFIRMED",
           mintingTxId: verification.txid,
-          cid: nftIpfsUrl
+          cid: nftIpfsUrl,
+          uniqueIdx: collection.contractAddress + "i" + parentCollectible.nftId
         });
       } else throw new CustomError("Unsupported collection type.", 400);
 
