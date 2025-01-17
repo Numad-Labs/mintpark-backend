@@ -13,25 +13,25 @@ import { MAX_SATOSHI_AMOUNT } from "../blockchain/bitcoin/constants";
 const tradingService = new TradingService(
   EVM_CONFIG.RPC_URL,
   EVM_CONFIG.MARKETPLACE_ADDRESS,
-  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS),
+  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
 );
 
 const marketplaceService = new MarketplaceService(
-  EVM_CONFIG.MARKETPLACE_ADDRESS,
+  EVM_CONFIG.MARKETPLACE_ADDRESS
 );
 
 export const listController = {
   createMarketplaceContractDeployment: async (
     req: Request,
     res: Response,
-    next: NextFunction,
+    next: NextFunction
   ) => {
     try {
       const { initialOwner, marketplaceFee } = req.body;
       const unsignedTx =
         await marketplaceService.getUnsignedDeploymentTransaction(
           initialOwner,
-          marketplaceFee,
+          marketplaceFee
         );
 
       // Serialize BigInt values before sending the response
@@ -44,7 +44,7 @@ export const listController = {
   generateApprovelTransactionOfTrading: async (
     req: AuthenticatedRequest,
     res: Response,
-    next: NextFunction,
+    next: NextFunction
   ) => {
     try {
       const { collectionId, userLayerId } = req.body;
@@ -68,7 +68,7 @@ export const listController = {
 
       const unsignedTx = await tradingService.getUnsignedApprovalTransaction(
         collection.contractAddress,
-        user?.address,
+        user?.address
       );
       const serializedTx = serializeBigInt(unsignedTx);
       return res
@@ -81,7 +81,7 @@ export const listController = {
   checkRegistration: async (
     req: AuthenticatedRequest,
     res: Response,
-    next: NextFunction,
+    next: NextFunction
   ) => {
     try {
       const { collectionId, userLayerId, tokenId } = req.body;
@@ -94,7 +94,7 @@ export const listController = {
         collectionId,
         issuerId,
         userLayerId,
-        tokenId,
+        tokenId
       );
 
       res.status(200).json({ success: true, data: result });
@@ -105,7 +105,7 @@ export const listController = {
   listCollectible: async (
     req: AuthenticatedRequest,
     res: Response,
-    next: NextFunction,
+    next: NextFunction
   ) => {
     try {
       const { collectibleId, price, txid } = req.body;
@@ -119,7 +119,7 @@ export const listController = {
         price,
         collectibleId,
         req.user.id,
-        txid,
+        txid
       );
       return res.status(200).json({ success: true, data: { list } });
     } catch (e) {
@@ -129,7 +129,7 @@ export const listController = {
   confirmPendingList: async (
     req: AuthenticatedRequest,
     res: Response,
-    next: NextFunction,
+    next: NextFunction
   ) => {
     try {
       const { id } = req.params;
@@ -141,7 +141,7 @@ export const listController = {
         txid,
         vout,
         inscribedAmount,
-        req.user.id,
+        req.user.id
       );
       return res.status(200).json({ success: true, data: { list } });
     } catch (e) {
@@ -151,7 +151,7 @@ export const listController = {
   generateTxHexToBuyListedCollectible: async (
     req: AuthenticatedRequest,
     res: Response,
-    next: NextFunction,
+    next: NextFunction
   ) => {
     try {
       const { id } = req.params;
@@ -165,7 +165,7 @@ export const listController = {
         id,
         userLayerId,
         feeRate,
-        req.user.id,
+        req.user.id
       );
       return res.status(200).json({ success: true, data: { txHex } });
     } catch (e) {
@@ -175,7 +175,7 @@ export const listController = {
   buyListedCollectible: async (
     req: AuthenticatedRequest,
     res: Response,
-    next: NextFunction,
+    next: NextFunction
   ) => {
     try {
       const { id } = req.params;
@@ -187,11 +187,11 @@ export const listController = {
         userLayerId,
         hex,
         req.user.id,
-        txid,
+        txid
       );
       return res.status(200).json({
         success: true,
-        data: { confirmedList: result.confirmedList, txid: result.txid },
+        data: { confirmedList: result.confirmedList, txid: result.txid }
       });
     } catch (e) {
       next(e);
@@ -200,7 +200,7 @@ export const listController = {
   generateCancelListingTx: async (
     req: AuthenticatedRequest,
     res: Response,
-    next: NextFunction,
+    next: NextFunction
   ) => {
     try {
       const { id } = req.params;
@@ -209,12 +209,12 @@ export const listController = {
         throw new CustomError("Could not retrieve id from the token.", 400);
       const result = await listServices.generateListingCancelTx(
         req.user.id,
-        id,
+        id
       );
 
       return res.status(200).json({
         success: true,
-        data: { result },
+        data: { result }
       });
     } catch (e) {
       next(e);
@@ -223,7 +223,7 @@ export const listController = {
   confirmCancelListingTx: async (
     req: AuthenticatedRequest,
     res: Response,
-    next: NextFunction,
+    next: NextFunction
   ) => {
     try {
       const { id } = req.params;
@@ -234,12 +234,12 @@ export const listController = {
 
       return res.status(200).json({
         success: true,
-        data: { result },
+        data: { result }
       });
     } catch (e) {
       next(e);
     }
-  },
+  }
   // getEstimatedFee: async (
   //   req: AuthenticatedRequest,
   //   res: Response,

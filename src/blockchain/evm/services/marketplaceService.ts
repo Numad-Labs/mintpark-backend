@@ -67,14 +67,15 @@ class MarketplaceService {
     sellerAddress: string
   ) {
     const contract = await this.getEthersMarketplaceContract();
+    const priceInWei = ethers.parseEther(price);
     const unsignedTx = await contract.createListing.populateTransaction(
       nftContract,
       tokenId,
-      ethers.parseEther(price)
+      priceInWei
     );
     console.log({
-      givenPrice: price,
-      savingPrice: ethers.parseEther(price)
+      givenPriceEther: price,
+      priceInWei: priceInWei.toString()
     });
     const nextListingId = await this.getNextListingId();
     console.log("🚀 ~ MarketplaceService ~ nextListingId:", nextListingId);
@@ -97,16 +98,18 @@ class MarketplaceService {
     nftContract: string,
     tokenId: string,
     listingId: number,
-    merkleProof: string[],
+    // merkleProof: string[],
     price: string,
     buyerAddress: string
   ) {
+    console.log("🚀 ~ MarketplaceService ~ price:", price);
     const contract = await this.getEthersMarketplaceContract();
 
     console.log("🚀 ~ MarketplaceService ~ listingId:", listingId);
 
     // Get all listings
     const allListings = await this.getAllListings();
+    console.log("🚀 ~ MarketplaceService ~ allListings:", allListings);
 
     // Find active listing with matching contract and token ID
     // Sort by listingId in descending order to get the most recent listing
@@ -128,17 +131,18 @@ class MarketplaceService {
     if (!targetListing.isActive) {
       throw new Error("Listing is not active");
     }
-    // Verify price matches
-    const listingPriceInEther = ethers.formatEther(targetListing.price);
-    if (listingPriceInEther !== price) {
+    const priceInWei = ethers.parseEther(price);
+
+    // Compare prices in Wei format
+    if (targetListing.price.toString() !== priceInWei.toString()) {
       throw new Error(
-        `Price mismatch. Expected: ${listingPriceInEther}, Got: ${price}`
+        `Price mismatch. Expected: ${ethers.formatEther(targetListing.price)}, Got: ${price}`
       );
     }
 
     console.log("Found listing:", {
       listingId: targetListing.listingId,
-      price: listingPriceInEther,
+      price: priceInWei,
       tokenId: targetListing.tokenId,
       nftContract: targetListing.nftContract
     });
@@ -149,16 +153,47 @@ class MarketplaceService {
     );
     const unsignedTx = await contract.purchaseListing.populateTransaction(
       targetListing.listingId,
-      merkleProof,
-      { value: targetListing.price }
+      // merkleProof,
+      { value: priceInWei }
     );
     return this.prepareUnsignedTransaction(unsignedTx, buyerAddress);
   }
 
-  async cancelListingTransaction(listingId: number, sellerAddress: string) {
+  async cancelListingTransaction(
+    contractAddress: string,
+    tokenId: string,
+    sellerAddress: string
+  ) {
     const contract = await this.getEthersMarketplaceContract();
-    const unsignedTx =
-      await contract.cancelListing.populateTransaction(listingId);
+
+    // Get all listings
+    const allListings = await this.getAllListings();
+    console.log("🚀 ~ MarketplaceService ~ allListings:", allListings);
+
+    // Find active listing with matching contract and token ID
+    // Sort by listingId in descending order to get the most recent listing
+    const matchingListings = allListings
+      .filter(
+        (listing) =>
+          listing.nftContract.toLowerCase() === contractAddress.toLowerCase() &&
+          listing.tokenId === parseInt(tokenId) &&
+          listing.isActive === true
+      )
+      .sort((a, b) => b.listingId - a.listingId);
+
+    if (matchingListings.length === 0) {
+      throw new Error("No active listing found for this NFT");
+    }
+
+    // Get the most recent active listing
+    const targetListing = matchingListings[0];
+    if (!targetListing.isActive) {
+      throw new Error("Listing is not active");
+    }
+    const unsignedTx = await contract.cancelListing.populateTransaction(
+      targetListing.listingId
+    );
+
     return this.prepareUnsignedTransaction(unsignedTx, sellerAddress);
   }
 
