@@ -786,9 +786,9 @@ export const launchServices = {
             status: "CONFIRMED"
           });
       } else if (collection.type === "IPFS_CID") {
-        if (!verification?.txid)
+        if (!verification?.txid || !verification?.orderId)
           throw new CustomError(
-            "You must provide mint txid for this operation.",
+            "You must provide mint txid and orderId for this operation.",
             400
           );
         if (!collection.contractAddress)
@@ -833,6 +833,10 @@ export const launchServices = {
           mintingTxId: verification.txid,
           cid: nftIpfsUrl,
           uniqueIdx: collection.contractAddress + "i" + parentCollectible.nftId
+        });
+
+        await orderRepository.update(trx, verification.orderId, {
+          orderStatus: "DONE"
         });
       } else throw new CustomError("Unsupported collection type.", 400);
 
