@@ -3,10 +3,11 @@ import { db } from "../utils/db";
 import { Collectible, DB } from "../types/db/types";
 import {
   CollectibleQueryParams,
-  traitFilter,
+  traitFilter
 } from "../controllers/collectibleController";
 import logger from "../config/winston";
 import { log } from "console";
+import { to_tsquery, to_tsvector } from "../libs/queryHelper";
 
 export const collectibleRepository = {
   create: async (
@@ -59,7 +60,7 @@ export const collectibleRepository = {
         "Collectible.nftId",
         "Collectible.highResolutionImageUrl",
         "Layer.layer",
-        "Layer.network",
+        "Layer.network"
       ])
       .where("Collectible.id", "=", id)
       .executeTakeFirst();
@@ -116,7 +117,7 @@ export const collectibleRepository = {
                 .limit(1),
               sql<number>`0`
             )
-            .as("floor"),
+            .as("floor")
         ]);
 
       // Base condition - match inscription IDs for the specific collection
@@ -142,23 +143,53 @@ export const collectibleRepository = {
         query = query.where("CurrentList.status", "=", "ACTIVE");
       }
 
-      // Add sorting
+      if (params.query) {
+        query = query.where((eb) =>
+          eb(
+            to_tsvector(eb.ref("Collectible.nftId")),
+            "@@",
+            to_tsquery(`${params.query}`)
+          )
+        );
+      }
+
       switch (params.orderBy) {
         case "price":
+          query = query
+            .orderBy(
+              sql`CASE WHEN COALESCE("CurrentList"."price", 0) > 0 THEN 0 ELSE 1 END`,
+              "asc" // Always keep items with price > 0 first
+            )
+            .orderBy(
+              sql`COALESCE("CurrentList"."price", 0)`,
+              params.orderDirection === "desc" ? "desc" : "asc"
+            );
+          break;
+
+        case "recent":
+          query = query
+            .orderBy(
+              sql`CASE WHEN "CurrentList"."listedAt" IS NOT NULL THEN 0 ELSE 1 END`,
+              "asc" // Always keep listed items first
+            )
+            .orderBy(
+              sql`COALESCE("CurrentList"."listedAt", '1970-01-01')`, // Use Unix epoch as default
+              params.orderDirection === "desc" ? "desc" : "asc"
+            );
+          break;
+
+        default:
           query = query.orderBy(
-            "CurrentList.price",
+            "Collectible.createdAt",
             params.orderDirection === "desc" ? "desc" : "asc"
           );
-          break;
-        case "recent":
-          query = query.orderBy("CurrentList.listedAt", "asc");
-          break;
-        default:
-          query = query.orderBy("Collectible.createdAt", "asc");
       }
 
       // Execute query and log results for debugging
-      const collectibles = await query.execute();
+      const collectibles = await query
+        .offset(params.offset)
+        .limit(params.limit)
+        .execute();
 
       return collectibles;
     } catch (error) {
@@ -172,7 +203,7 @@ export const collectibleRepository = {
     const result = await db
       .selectFrom("Collectible")
       .select((eb) => [
-        eb.fn.count<number>("Collectible.id").$castTo<number>().as("count"),
+        eb.fn.count<number>("Collectible.id").$castTo<number>().as("count")
       ])
       .where("Collectible.uniqueIdx", "in", inscriptionIds)
       .executeTakeFirst();
@@ -193,7 +224,7 @@ export const collectibleRepository = {
             "Collectible.collectionId",
             eb.fn
               .coalesce(sql<number>`MIN("List"."price")`, sql<number>`0`)
-              .as("floor"),
+              .as("floor")
           ])
           .where("List.price", ">", 0)
           .groupBy("Collectible.collectionId")
@@ -233,13 +264,23 @@ export const collectibleRepository = {
           .as("floorDifference"),
         "CurrentList.address as ownedBy",
         "CurrentList.listedAt",
-        "CurrentList.id as listId",
+        "CurrentList.id as listId"
       ])
       .where("Collectible.status", "=", "CONFIRMED")
       .where("Collectible.collectionId", "=", collectionId);
 
     if (params.isListed)
       query = query.where("CurrentList.status", "=", "ACTIVE");
+
+    if (params.query) {
+      query = query.where((eb) =>
+        eb(
+          to_tsvector(eb.ref("Collectible.nftId")),
+          "@@",
+          to_tsquery(`${params.query}`)
+        )
+      );
+    }
 
     // if (traitsFilters.length > 0) {
     //   query = query.where((eb) =>
@@ -266,24 +307,42 @@ export const collectibleRepository = {
     //   );
     // }
 
-    logger.info(params.orderBy);
     switch (params.orderBy) {
       case "price":
-        logger.info(params.orderBy);
+        query = query
+          .orderBy(
+            sql`CASE WHEN COALESCE("CurrentList"."price", 0) > 0 THEN 0 ELSE 1 END`,
+            "asc" // Always keep items with price > 0 first
+          )
+          .orderBy(
+            sql`COALESCE("CurrentList"."price", 0)`,
+            params.orderDirection === "desc" ? "desc" : "asc"
+          );
+        break;
+
+      case "recent":
+        query = query
+          .orderBy(
+            sql`CASE WHEN "CurrentList"."listedAt" IS NOT NULL THEN 0 ELSE 1 END`,
+            "asc" // Always keep listed items first
+          )
+          .orderBy(
+            sql`COALESCE("CurrentList"."listedAt", '1970-01-01')`, // Use Unix epoch as default
+            params.orderDirection === "desc" ? "desc" : "asc"
+          );
+        break;
+
+      default:
         query = query.orderBy(
-          "CurrentList.price",
+          "Collectible.createdAt",
           params.orderDirection === "desc" ? "desc" : "asc"
         );
-        break;
-      case "recent":
-        logger.info(params.orderBy);
-        query = query.orderBy("CurrentList.listedAt", "asc");
-        break;
-      default:
-        query = query.orderBy("Collectible.createdAt", "desc");
     }
 
-    const collectibles = await query.execute();
+    const collectibles = await query
+      .offset(params.offset)
+      .limit(params.limit)
+      .execute();
 
     return collectibles;
   },
@@ -297,7 +356,7 @@ export const collectibleRepository = {
             "Collectible.collectionId",
             eb.fn
               .coalesce(sql<number>`MIN("List"."price")`, sql<number>`0`)
-              .as("floor"),
+              .as("floor")
           ])
           .where("List.price", ">", 0)
           .groupBy("Collectible.collectionId")
@@ -342,32 +401,30 @@ export const collectibleRepository = {
         "parentCollectible.uniqueIdx as inscriptionId",
         "CurrentList.address as ownedBy",
         "CurrentList.listedAt",
-        "CurrentList.id as listId",
+        "CurrentList.id as listId"
       ])
       .where("Collectible.id", "=", id)
       .execute();
 
     return collectibles;
   },
-  getListableCollectiblesCountByCollectionId: async (collectionId: string) => {
+  getConfirmedCollectiblesCountByCollectionId: async (collectionId: string) => {
     const countResult = await db
       .selectFrom("Collectible")
-      .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
       .select(({ eb }) => [
         eb.fn
           .coalesce(
             eb.fn.count("Collectible.id").$castTo<number>(),
             sql<number>`0`
           )
-          .as("collectibleCount"),
+          .as("collectibleCount")
       ])
       .where("Collectible.collectionId", "=", collectionId)
-      .execute();
+      .where("Collectible.status", "=", "CONFIRMED")
+      .executeTakeFirst();
 
     return countResult;
   },
-
-  // New function to get total count across collections
   getListableCollectiblesCountByCollections: async (
     collectionIds: string[]
   ) => {
@@ -393,7 +450,7 @@ export const collectibleRepository = {
         "Collectible.highResolutionImageUrl",
         "Collectible.collectionId",
         "Layer.layer",
-        "Layer.network",
+        "Layer.network"
       ])
       .where("Collectible.uniqueIdx", "=", uniqueIdx)
       .executeTakeFirst();
@@ -408,5 +465,5 @@ export const collectibleRepository = {
       .execute();
 
     return collectibles;
-  },
+  }
 };

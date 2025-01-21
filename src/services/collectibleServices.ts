@@ -137,11 +137,13 @@ export const collectibleServices = {
     ]);
     const listedCount = Number(listedCountResult?.activeListCount ?? 0);
     const totalCount = Number(totalCountResult?.count ?? 0);
+    const hasMore = params.offset + params.limit < totalCount;
 
     return {
       collectibles: listableCollectibles,
       totalCount: totalCount,
       listCount: listedCount,
+      hasMore,
       collections
     };
   },
@@ -155,26 +157,26 @@ export const collectibleServices = {
         const [name, value] = trait.split(":");
         return { name, value };
       });
-    const [listableCollectibles, countResult] = await Promise.all([
-      collectibleRepository.getListableCollectiblesByCollectionId(
-        collectionId,
-        params,
-        traitFilters
-      ),
-      listRepository.getActiveListCountByCollectionid(collectionId)
-    ]);
-    // if (!listableCollectibles[0].contractAddress) {
-    //   throw new Error("Collectible with no contract address.");
-    // }
-    // const totalOwnerCount =
-    //   await evmCollectibleService.getCollectionOwnersCount(
-    //     listableCollectibles[0].contractAddress
-    //   );
+    const [listableCollectibles, countResult, totalCountResult] =
+      await Promise.all([
+        collectibleRepository.getListableCollectiblesByCollectionId(
+          collectionId,
+          params,
+          traitFilters
+        ),
+        listRepository.getActiveListCountByCollectionid(collectionId),
+        collectibleRepository.getConfirmedCollectiblesCountByCollectionId(
+          collectionId
+        )
+      ]);
+
+    const totalCount = Number(totalCountResult?.collectibleCount ?? 0);
+    const hasMore = params.offset + params.limit < totalCount;
 
     return {
       listableCollectibles,
-      activeListCount: countResult?.activeListCount ?? 0
-      // totalOwnerCount,
+      activeListCount: countResult?.activeListCount ?? 0,
+      hasMore
     };
   },
   getActivityByCollectibleId: async (collectibleId: string) => {
@@ -229,8 +231,9 @@ export const collectibleServices = {
         collectionId: collection.id,
         nftId: (startIndex + i).toString()
       });
-    const collectibles =
-      await collectibleRepository.bulkInsert(collectiblesData);
+    const collectibles = await collectibleRepository.bulkInsert(
+      collectiblesData
+    );
 
     return collectibles;
   },
@@ -312,10 +315,12 @@ export const collectibleServices = {
       }
     }
 
-    const collectibles =
-      await collectibleRepository.bulkInsert(collectiblesData);
-    const collectibleTraits =
-      await collectibleTraitRepository.bulkInsert(collectibleTraitData);
+    const collectibles = await collectibleRepository.bulkInsert(
+      collectiblesData
+    );
+    const collectibleTraits = await collectibleTraitRepository.bulkInsert(
+      collectibleTraitData
+    );
 
     return { collectibles, collectibleTraits };
   },
@@ -394,8 +399,9 @@ export const collectibleServices = {
         nftId: (startIndex + i).toString()
       });
     }
-    const collectibles =
-      await collectibleRepository.bulkInsert(collectiblesData);
+    const collectibles = await collectibleRepository.bulkInsert(
+      collectiblesData
+    );
 
     return collectibles;
   },
@@ -491,8 +497,9 @@ export const collectibleServices = {
         cid,
         fileKey
       });
-    const collectibles =
-      await collectibleRepository.bulkInsert(collectiblesData);
+    const collectibles = await collectibleRepository.bulkInsert(
+      collectiblesData
+    );
 
     return collectibles;
   }

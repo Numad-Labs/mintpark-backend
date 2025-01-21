@@ -17,7 +17,7 @@ import type {
   LIST_STATUS,
   LAYER,
   NETWORK,
-  ROLES,
+  ROLES
 } from "./enums";
 
 export type Collectible = {
@@ -61,6 +61,7 @@ export type Collection = {
   type: Generated<COLLECTION_TYPE>;
   status: Generated<COLLECTION_STATUS>;
   createdAt: Generated<Timestamp>;
+  updatedAt: Timestamp | null;
   isBadge: Generated<boolean>;
   badgeCid: string | null;
   badgeSupply: number | null;
@@ -88,6 +89,7 @@ export type Launch = {
   poMintPrice: number;
   poMaxMintPerWallet: number;
   createdAt: Generated<Timestamp>;
+  updatedAt: Timestamp | null;
   status: Generated<LAUNCH_STATUS>;
   reservedCount: Generated<number>;
   userLayerId: string;
@@ -133,9 +135,7 @@ export type Order = {
   fundingTxId: string | null;
   privateKey: string | null;
   createdAt: Generated<Timestamp>;
-  paidAt: Timestamp | null;
   mintedAt: Timestamp | null;
-  expiredAt: Timestamp | null;
   orderType: Generated<ORDER_TYPE>;
   orderStatus: Generated<ORDER_STATUS>;
   userId: string;
@@ -173,7 +173,7 @@ export type TraitValue = {
   inscriptionId: string | null;
   fileKey: string;
   createdAt: Generated<Timestamp>;
-  mintedAt: Generated<Timestamp>;
+  mintedAt: Timestamp | null;
   lockingAddress: string | null;
   lockingPrivateKey: string | null;
   traitTypeId: string;
