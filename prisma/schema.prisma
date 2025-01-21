@@ -77,9 +77,7 @@ model Order {
   privateKey     String?
 
   createdAt DateTime  @default(now())
-  paidAt    DateTime?
   mintedAt  DateTime?
-  expiredAt DateTime?
 
   orderType   ORDER_TYPE   @default(MINT_COLLECTIBLE)
   orderStatus ORDER_STATUS @default(PENDING)
@@ -132,6 +130,7 @@ model Collection {
   type            COLLECTION_TYPE   @default(RECURSIVE_INSCRIPTION)
   status          COLLECTION_STATUS @default(UNCONFIRMED)
   createdAt       DateTime          @default(now())
+  updatedAt DateTime?
 
   isBadge     Boolean @default(false)
   badgeCid    String?
@@ -198,7 +197,7 @@ model TraitValue {
   inscriptionId String?
   fileKey       String
   createdAt     DateTime @default(now())
-  mintedAt      DateTime @default(now())
+  mintedAt      DateTime?
 
   lockingAddress    String?
   lockingPrivateKey String?
@@ -233,6 +232,7 @@ model Launch {
   poMintPrice        Float
   poMaxMintPerWallet Int
   createdAt          DateTime      @default(now())
+  updatedAt DateTime?
   status             LAUNCH_STATUS @default(UNCONFIRMED)
   reservedCount      Int           @default(0)
 

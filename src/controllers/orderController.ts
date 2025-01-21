@@ -5,42 +5,6 @@ import { CustomError } from "../exceptions/CustomError";
 import { hideSensitiveData } from "../libs/hideDataHelper";
 
 export const orderController = {
-  // createCollectible: async (
-  //   req: AuthenticatedRequest,
-  //   res: Response,
-  //   next: NextFunction
-  // ) => {
-  //   try {
-  //     if (!req.user) throw new CustomError("Cannot parse user from token", 401);
-  //     const { collectionId, feeRate, txid, userLayerId } = req.body;
-  //     if (!feeRate)
-  //       throw new CustomError("Order type and fee rate are required.", 400);
-  //     if (!userLayerId)
-  //       throw new CustomError("Please provide an userLayerId.", 400);
-  //     if (!collectionId)
-  //       throw new CustomError(
-  //         "CollectionId is required when creating order for collection or launch.",
-  //         400
-  //       );
-  //     const file = req.file as Express.Multer.File;
-  //     const { order, orderItem, batchMintTxHex } =
-  //       await orderServices.createCollectible(
-  //         req.user.id,
-  //         userLayerId,
-  //         Number(feeRate),
-  //         [file],
-  //         collectionId,
-  //         txid
-  //       );
-  //     const sanitazedOrder = hideSensitiveData(order, ["privateKey"]);
-  //     return res.status(200).json({
-  //       success: true,
-  //       data: { order: sanitazedOrder, orderItems: orderItem, batchMintTxHex },
-  //     });
-  //   } catch (e) {
-  //     next(e);
-  //   }
-  // },
   createMintOrder: async (
     req: AuthenticatedRequest,
     res: Response,
@@ -54,7 +18,7 @@ export const orderController = {
         userLayerId,
         totalFileSize,
         totalTraitCount,
-        totalCollectibleCount,
+        totalCollectibleCount
       } = req.body;
 
       const file = req.file as Express.Multer.File;
@@ -91,7 +55,7 @@ export const orderController = {
 
       return res.status(200).json({
         success: true,
-        data: { order: sanitazedOrder, txHex },
+        data: { order: sanitazedOrder, txHex }
       });
     } catch (e) {
       next(e);
@@ -121,30 +85,6 @@ export const orderController = {
       next(e);
     }
   },
-  // generateMintTxHex: async (
-  //   req: AuthenticatedRequest,
-  //   res: Response,
-  //   next: NextFunction
-  // ) => {
-  //   try {
-  //     const { orderId, layerId } = req.body;
-  //     if (!req.user) throw new CustomError("Cannot parse user from token", 400);
-  //     if (!orderId) throw new CustomError("Cannot parse orderId", 400);
-  //     if (!layerId) throw new CustomError("Cannot parse orderId", 400);
-  //     const { order, batchMintTxHex } = await orderServices.generateMintTxHex(
-  //       orderId,
-  //       layerId,
-  //       req.user.id
-  //     );
-  //     const sanitazedOrder = hideSensitiveData(order, ["privateKey"]);
-  //     res.status(200).json({
-  //       success: true,
-  //       data: { order: sanitazedOrder, batchMintTxHex },
-  //     });
-  //   } catch (e) {
-  //     next(e);
-  //   }
-  // },
   getByUserId: async (
     req: AuthenticatedRequest,
     res: Response,
@@ -179,7 +119,7 @@ export const orderController = {
     } catch (e) {
       next(e);
     }
-  },
+  }
   // checkOrderIsPaid: async (
   //   req: AuthenticatedRequest,
   //   res: Response,
