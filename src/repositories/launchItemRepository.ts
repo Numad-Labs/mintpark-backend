@@ -61,7 +61,7 @@ export const launchItemRepository = {
 
     return launchItems;
   },
-  getRandomItemByLauchId: async (launchId: string) => {
+  getRandomItemByLaunchId: async (launchId: string) => {
     const launchItem = await db
       .selectFrom("LaunchItem")
       .selectAll()
@@ -72,7 +72,7 @@ export const launchItemRepository = {
           eb("LaunchItem.onHoldUntil", "is", null),
           sql`${eb.ref(
             "onHoldUntil"
-          )} < NOW() - INTERVAL '1 minute'`.$castTo<boolean>(),
+          )} < NOW() - INTERVAL '1 minute'`.$castTo<boolean>()
         ])
       )
       .orderBy(sql`RANDOM()`)
@@ -99,7 +99,7 @@ export const launchItemRepository = {
           eb("LaunchItem.onHoldUntil", "is", null),
           sql`${eb.ref(
             "onHoldUntil"
-          )} < NOW() - INTERVAL '1 minute'`.$castTo<boolean>(),
+          )} < NOW() - INTERVAL '1 minute'`.$castTo<boolean>()
         ])
       )
       .executeTakeFirstOrThrow(
@@ -137,7 +137,7 @@ export const launchItemRepository = {
       .where((eb) =>
         sql`${eb.ref(
           "onHoldUntil"
-        )} < NOW() - INTERVAL '2 minute'`.$castTo<boolean>()
+        )} < NOW() - INTERVAL '1 minute'`.$castTo<boolean>()
       )
       .executeTakeFirst();
 
@@ -183,5 +183,5 @@ export const launchItemRepository = {
       );
 
     return launchItem;
-  },
+  }
 };

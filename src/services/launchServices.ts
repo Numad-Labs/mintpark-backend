@@ -497,10 +497,10 @@ export const launchServices = {
         launch.id,
         user.id
       );
-    if (Number(userOnHoldItemCount) >= 15)
+    if (Number(userOnHoldItemCount) >= 3)
       throw new CustomError("You have too many items reserved.", 400);
 
-    const launchItem = await launchItemRepository.getRandomItemByLauchId(
+    const launchItem = await launchItemRepository.getRandomItemByLaunchId(
       launch.id
     );
     const result = await db.transaction().execute(async (trx) => {
