@@ -119,12 +119,12 @@ export const listServices = {
           );
         }
 
-        const signer = await nftService.provider.getSigner();
-        const nftContract = new ethers.Contract(
-          collection.contractAddress,
-          EVM_CONFIG.NFT_CONTRACT_ABI,
-          signer
-        );
+        // const signer = await nftService.provider.getSigner();
+        // const nftContract = new ethers.Contract(
+        //   collection.contractAddress,
+        //   EVM_CONFIG.NFT_CONTRACT_ABI,
+        //   signer
+        // );
 
         // Check marketplace approval using NFT service
         const isApproved = await nftService.checkMarketplaceApproval(
