@@ -309,6 +309,112 @@ class NFTService {
     return this.prepareUnsignedTransaction(approvalTx, ownerAddress);
   }
 
+  async estimateMintGasFee(
+    collectionAddress: string,
+    recipientAddress: string,
+    nftId: string,
+    uri: string,
+    mintPrice: number
+  ) {
+    try {
+      const minterWallet = new ethers.Wallet(
+        config.VAULT_PRIVATE_KEY,
+        this.provider
+      );
+
+      const contract = new ethers.Contract(
+        collectionAddress,
+        EVM_CONFIG.NFT_CONTRACT_ABI,
+        minterWallet
+      );
+
+      // Create an unsigned transaction to estimate gas
+      const priceInWei = ethers.parseEther(mintPrice.toString());
+      const unsignedTx = await contract.mint.populateTransaction(
+        recipientAddress,
+        nftId,
+        "",
+        uri,
+        priceInWei,
+        {
+          value: priceInWei
+        }
+      );
+
+      // Estimate gas
+      const gasLimit = await this.provider.estimateGas({
+        ...unsignedTx,
+        from: minterWallet.address
+      });
+
+      // Get current gas price
+      const feeData = await this.provider.getFeeData();
+      const baseFee = feeData.gasPrice || ethers.parseUnits("5", "gwei");
+      const maxPriorityFeePerGas = ethers.parseUnits("0.1", "gwei");
+      const maxFeePerGas = baseFee + maxPriorityFeePerGas;
+
+      // Calculate total gas cost
+      const estimatedGasCost = gasLimit * maxFeePerGas;
+
+      return {
+        estimatedGasCost,
+        gasLimit,
+        maxFeePerGas,
+        maxPriorityFeePerGas
+      };
+    } catch (error) {
+      throw new CustomError(`Failed to estimate mint gas fee: ${error}`, 500);
+    }
+  }
+
+  async getUnsignedFeeTransaction(
+    fromAddress: string,
+    collectionAddress: string,
+    nftId: string,
+    mintPrice: number
+  ) {
+    try {
+      // First estimate gas fees for the future mint
+      const dummyUri = "ipfs://dummy"; // Temporary URI for estimation
+      const gasFeeEstimate = await this.estimateMintGasFee(
+        collectionAddress,
+        fromAddress,
+        nftId,
+        dummyUri,
+        mintPrice
+      );
+
+      // Calculate total amount needed (mint price + gas fee)
+      const mintPriceWei = ethers.parseEther(mintPrice.toString());
+      const totalRequired = mintPriceWei + gasFeeEstimate.estimatedGasCost;
+
+      // Get network details
+      const [nonce, network] = await Promise.all([
+        this.provider.getTransactionCount(fromAddress),
+        this.provider.getNetwork()
+      ]);
+
+      // Create transaction to transfer total amount to vault
+      const unsignedTx: ethers.ContractTransaction = {
+        to: config.VAULT_ADDRESS,
+        value: totalRequired,
+        from: fromAddress,
+        nonce: nonce,
+        chainId: network.chainId,
+        data: "0x", // Add empty data field for basic ETH transfer
+        type: 2 // EIP-1559 transaction type
+      };
+
+      // Prepare the transaction with appropriate gas settings
+      return this.prepareUnsignedTransaction(unsignedTx, fromAddress);
+    } catch (error) {
+      throw new CustomError(
+        `Failed to create unsigned fee transaction: ${error}`,
+        500
+      );
+    }
+  }
+
   async prepareUnsignedTransaction(
     unsignedTx: ethers.ContractTransaction | ethers.ContractDeployTransaction,
     from: string
