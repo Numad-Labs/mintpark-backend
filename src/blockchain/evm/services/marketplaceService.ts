@@ -31,12 +31,12 @@ class MarketplaceService {
     initialOwner: string,
     marketplaceFee: number
   ) {
-    const signer = await this.provider.getSigner();
+    // const signer = await this.provider.getSigner();
 
     const factory = new ethers.ContractFactory(
       EVM_CONFIG.MARKETPLACE_ABI,
       EVM_CONFIG.MARKETPLACE_CONTRACT_BYTECODE,
-      signer
+      this.provider
     );
 
     const unsignedTx = await factory.getDeployTransaction(
