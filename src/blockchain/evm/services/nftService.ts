@@ -33,11 +33,11 @@ class NFTService {
     platformFee: number,
     platformFeeRecipient: string
   ) {
-    const signer = await this.provider.getSigner();
+    // const signer = await this.provider.getSigner();
     const factory = new ethers.ContractFactory(
       EVM_CONFIG.NFT_CONTRACT_ABI,
       EVM_CONFIG.NFT_CONTRACT_BYTECODE,
-      signer
+      this.provider
     );
 
     const unsignedTx = await factory.getDeployTransaction(
