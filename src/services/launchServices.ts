@@ -43,6 +43,7 @@ import { orderItemRepository } from "../repositories/orderItemRepository";
 import { producer } from "..";
 import { wlRepository } from "../repositories/wlRepository";
 import { FundingAddressService } from "../blockchain/evm/services/fundingAddress";
+import { ethers } from "ethers";
 
 const launchPadService = new LaunchpadService(
   EVM_CONFIG.RPC_URL,
@@ -128,9 +129,8 @@ export const launchServices = {
       if (!layerType) throw new CustomError("Layer not found.", 400);
 
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
+      const transactionDetail =
+        await confirmationService.getTransactionDetails(txid);
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -179,9 +179,8 @@ export const launchServices = {
       }
 
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
+      const transactionDetail =
+        await confirmationService.getTransactionDetails(txid);
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -566,11 +565,31 @@ export const launchServices = {
         if (!collectible.cid)
           throw new CustomError("Collectible with no cid.", 400);
 
+        // if (!collectible.chainId)
+        //   throw new CustomError("Collectible with no chainId.", 400);
+        // const chainConfig = EVM_CONFIG.CHAINS[collectible.chainId];
+
+        // First estimate the gas fee for vault minting
+        const dummyUri = collectible.cid || "ipfs://dummy"; // Use existing CID if available
+        const gasFeeEstimate = await nftService.estimateMintGasFee(
+          collection.contractAddress,
+          user.address,
+          collectible.nftId,
+          dummyUri,
+          mintPrice
+        );
+
+        // Calculate total required amount (mint price + gas fee)
+        const mintPriceWei = ethers.parseEther(mintPrice.toString());
+        const totalRequired = mintPriceWei + gasFeeEstimate.estimatedGasCost;
+        const formattedTotal = ethers.formatEther(totalRequired);
+
         //DG TODO: generate txHex to transfer gasFee + serviceFee + mintFee... to vault
         const unsignedTx = await fundingService.getUnsignedFeeTransaction(
           user.address,
-          mintPrice.toString()
+          formattedTotal.toString()
         );
+
         if (!unsignedTx)
           throw new CustomError("No unsigned transaction built", 400);
         if (!unsignedTx.value)
@@ -619,9 +638,8 @@ export const launchServices = {
     if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
 
-    const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
-      launchItemId
-    );
+    const isLaunchItemOnHold =
+      await launchItemRepository.getOnHoldById(launchItemId);
     if (isLaunchItemOnHold && isLaunchItemOnHold.onHoldBy !== user.id)
       throw new CustomError(
         "This launch item is currently reserved to another user.",
