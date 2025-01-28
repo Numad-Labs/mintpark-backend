@@ -1,27 +1,24 @@
 import {
   collectionRepository,
-  LaunchQueryParams,
+  LaunchQueryParams
 } from "../repositories/collectionRepository";
 import { deleteFromS3, uploadToS3 } from "../utils/aws";
 import { randomUUID } from "crypto";
 import { userRepository } from "../repositories/userRepository";
 import {
   CollectionQueryParams,
-  updateCollection,
+  updateCollection
 } from "../controllers/collectionController";
 import { layerRepository } from "../repositories/layerRepository";
 import { CustomError } from "../exceptions/CustomError";
 import { EVM_CONFIG } from "../blockchain/evm/evm-config";
 import NFTService from "../blockchain/evm/services/nftService";
-import MarketplaceService from "../blockchain/evm/services/marketplaceService";
 import { db } from "../utils/db";
 import { Insertable, Updateable } from "kysely";
 import { Collection } from "../types/db/types";
 import { layerServices } from "./layerServices";
 import { serializeBigInt } from "../blockchain/evm/utils";
 import { config } from "../config/config";
-
-const nftService = new NFTService(EVM_CONFIG.RPC_URL);
 
 export const collectionServices = {
   create: async (
@@ -30,19 +27,19 @@ export const collectionServices = {
     priceForLaunchpad: number,
     issuerId: string,
     userLayerId: string,
-    file?: Express.Multer.File,
+    file?: Express.Multer.File
   ) => {
     if (data.type === "SYNTHETIC")
       throw new CustomError(
         "You cannot directly create synthetic collection.",
-        400,
+        400
       );
 
     if (data.isBadge) data.type = "IPFS_CID";
 
     if (!data.layerId) throw new CustomError("Please provide a layerId.", 400);
     const layer = await layerServices.checkIfSupportedLayerOrThrow(
-      data.layerId,
+      data.layerId
     );
 
     const user = await userRepository.getByUserLayerId(userLayerId);
@@ -50,29 +47,40 @@ export const collectionServices = {
     if (user.id !== issuerId)
       throw new CustomError(
         "You are not allowed to create for this user.",
-        400,
+        400
       );
     if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
     if (user.layer !== layer.layer || user.network !== layer.network)
       throw new CustomError(
         "You cannot create collection for this layerId with the current active account.",
-        400,
+        400
+      );
+
+    if (user.layer !== layer.layer || user.network !== layer.network)
+      throw new CustomError(
+        "You cannot create collection for this layerId with the current active account.",
+        400
       );
 
     let deployContractTxHex = null,
       ordinalCollection = null,
       l2Collection = null;
 
-    if (user.layer === "CITREA" && user.network === "TESTNET") {
+    // Check if this is an EVM chain
+    if (layer.chainId && EVM_CONFIG.CHAINS[layer.chainId]) {
+      const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+      console.log("🚀 ~ chainConfig:", chainConfig);
+      const nftService = new NFTService(chainConfig.RPC_URL);
+
       const unsignedTx = await nftService.getUnsignedDeploymentTransaction(
         user.address,
         config.VAULT_ADDRESS,
         name,
         "MPMNFT",
-        EVM_CONFIG.DEFAULT_ROYALTY_FEE,
-        EVM_CONFIG.DEFAULT_PLATFORM_FEE,
-        config.VAULT_ADDRESS,
+        chainConfig.DEFAULT_ROYALTY_FEE,
+        chainConfig.DEFAULT_PLATFORM_FEE,
+        config.VAULT_ADDRESS
       );
       deployContractTxHex = serializeBigInt(unsignedTx);
     }
@@ -91,7 +99,7 @@ export const collectionServices = {
         status: "UNCONFIRMED",
         creatorId: user.id,
         layerId: bitcoinLayer.id,
-        ownerCount: 0,
+        ownerCount: 0
         // creatorUserLayerId: userLayerId,
       });
 
@@ -102,7 +110,7 @@ export const collectionServices = {
         parentCollectionId: ordinalCollection.id,
         creatorId: user.id,
         creatorUserLayerId: userLayerId,
-        ownerCount: 0,
+        ownerCount: 0
       });
     } else if (data.type === "IPFS_CID" || data.type === "IPFS_FILE") {
       l2Collection = await collectionRepository.create({
@@ -111,7 +119,7 @@ export const collectionServices = {
         status: "UNCONFIRMED",
         creatorId: user.id,
         creatorUserLayerId: userLayerId,
-        ownerCount: 0,
+        ownerCount: 0
       });
     }
 
@@ -177,7 +185,7 @@ export const collectionServices = {
     // return collectionsWithOwners;
 
     return collections;
-  },
+  }
   // update: async (
   //   id: string,
   //   data: updateCollection,

@@ -15,19 +15,64 @@ const DEFAULT_ROYALTY_FEE = 250; // 2.5%
 const DEFAULT_PLATFORM_FEE = 300; // 3%
 const MAX_FEE = 1000; // 10%
 
-const EVM_CONFIG = {
-  MARKETPLACE_ABI,
-  MARKETPLACE_CONTRACT_BYTECODE,
-  MARKETPLACE_ADDRESS,
-  RPC_URL,
+export interface EVMChainConfig {
+  RPC_URL: string;
+  CHAIN_ID: number;
+  MARKETPLACE_ADDRESS: string;
+  DEFAULT_PUBLIC_MAX_MINT: number;
+  DEFAULT_ROYALTY_FEE: number;
+  DEFAULT_PLATFORM_FEE: number;
+  MAX_FEE: number;
+  useLegacyGas: boolean;
+  gasPriceMultiplier?: number;
+}
+
+interface EVMConfig {
+  NFT_CONTRACT_ABI: any;
+  NFT_CONTRACT_BYTECODE: any;
+  MARKETPLACE_ABI: any;
+  MARKETPLACE_CONTRACT_BYTECODE: any;
+  CHAINS: {
+    [key: string]: EVMChainConfig;
+  };
+}
+
+export const EVM_CONFIG: EVMConfig = {
   NFT_CONTRACT_ABI,
   NFT_CONTRACT_BYTECODE,
-
-  CHAIN_ID,
-  DEFAULT_PUBLIC_MAX_MINT,
-  DEFAULT_ROYALTY_FEE,
-  DEFAULT_PLATFORM_FEE,
-  MAX_FEE
+  MARKETPLACE_ABI,
+  MARKETPLACE_CONTRACT_BYTECODE,
+  CHAINS: {
+    CITREA_TESTNET: {
+      RPC_URL: "https://rpc.testnet.citrea.xyz",
+      CHAIN_ID: 5115,
+      MARKETPLACE_ADDRESS: "0x3415be106ea2680deDD2A6F1BB6B93d1111F44dC",
+      DEFAULT_PUBLIC_MAX_MINT,
+      DEFAULT_ROYALTY_FEE,
+      DEFAULT_PLATFORM_FEE,
+      MAX_FEE,
+      useLegacyGas: false
+    },
+    SEPOLIA: {
+      RPC_URL: "https://rpc.sepolia.org",
+      CHAIN_ID: 11155111,
+      MARKETPLACE_ADDRESS: "YOUR_SEPOLIA_MARKETPLACE_ADDRESS",
+      DEFAULT_PUBLIC_MAX_MINT,
+      DEFAULT_ROYALTY_FEE,
+      DEFAULT_PLATFORM_FEE,
+      MAX_FEE,
+      useLegacyGas: false
+    },
+    "743111": {
+      RPC_URL: "https://testnet.rpc.imeh.net/rpc",
+      CHAIN_ID: 743111,
+      MARKETPLACE_ADDRESS: "YOUR_HEMI_MARKETPLACE_ADDRESS",
+      DEFAULT_PUBLIC_MAX_MINT,
+      DEFAULT_ROYALTY_FEE,
+      DEFAULT_PLATFORM_FEE,
+      MAX_FEE,
+      useLegacyGas: true,
+      gasPriceMultiplier: 1.1
+    }
+  }
 };
-
-export { EVM_CONFIG };

@@ -42,10 +42,10 @@ const validateCid = (cid: string): boolean => {
   return cidv0Regex.test(cid) || cidv1Regex.test(cid);
 };
 
-const evmCollectibleService = new EVMCollectibleService(EVM_CONFIG.RPC_URL!);
-const confirmationService = new TransactionConfirmationService(
-  EVM_CONFIG.RPC_URL!
-);
+// const evmCollectibleService = new EVMCollectibleService(EVM_CONFIG.RPC_URL!);
+// const confirmationService = new TransactionConfirmationService(
+//   EVM_CONFIG.RPC_URL!
+// );
 
 export const collectibleServices = {
   getListableCollectibles: async (
@@ -66,12 +66,19 @@ export const collectibleServices = {
 
     const layerType = await layerRepository.getById(user.layerId!);
     if (!layerType) throw new CustomError("Unsupported layer type.", 400);
+    if (!layerType.chainId)
+      throw new CustomError("Chain config not found.", 400);
+    const chainConfig = EVM_CONFIG.CHAINS[layerType.chainId];
+
     const uniqueIdxs: string[] = [];
     if (layerType.layer === "CITREA" && layerType.network === "TESTNET") {
       const collections = await collectionRepository.getCollectionsByLayer(
         user.layerId
       );
 
+      const evmCollectibleService = new EVMCollectibleService(
+        chainConfig.RPC_URL
+      );
       if (collections?.length) {
         // Filter valid collections
         const validCollections = collections
@@ -186,6 +193,13 @@ export const collectibleServices = {
     if (!collectible.uniqueIdx)
       throw new CustomError("Collectible does not have unique index.", 400);
 
+    if (!collectible.chainId) throw new CustomError("ChainId not found", 400);
+    const layer = await layerRepository.getById(collectible.chainId);
+    if (!layer || !layer.chainId)
+      throw new CustomError("Chain config not found", 400);
+
+    const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+
     const collection = await collectionRepository.getById(
       db,
       collectible.collectionId
@@ -195,13 +209,21 @@ export const collectibleServices = {
       throw new CustomError("contractAddress not found", 400);
     // const collectionAddress = collectible.uniqueIdx.split("i")[0];
     const tokenId = collectible.uniqueIdx.split("i")[1];
+    const confirmationService = new TransactionConfirmationService(
+      chainConfig.RPC_URL!
+    );
     const transactionDetail = await confirmationService.getTransactionDetails(
       collectible.mintingTxId
+    );
+
+    const evmCollectibleService = new EVMCollectibleService(
+      chainConfig.RPC_URL
     );
     const activities = await evmCollectibleService.getActivityByTokenId(
       collection.contractAddress,
       tokenId,
-      transactionDetail.blockNumber
+      transactionDetail.blockNumber,
+      layer.chainId
     );
 
     return activities;
@@ -232,9 +254,8 @@ export const collectibleServices = {
         nftId: (startIndex + i).toString(),
         fileName: fileKeys[i].fileName
       });
-    const collectibles = await collectibleRepository.bulkInsert(
-      collectiblesData
-    );
+    const collectibles =
+      await collectibleRepository.bulkInsert(collectiblesData);
 
     return collectibles;
   },
@@ -316,12 +337,10 @@ export const collectibleServices = {
       }
     }
 
-    const collectibles = await collectibleRepository.bulkInsert(
-      collectiblesData
-    );
-    const collectibleTraits = await collectibleTraitRepository.bulkInsert(
-      collectibleTraitData
-    );
+    const collectibles =
+      await collectibleRepository.bulkInsert(collectiblesData);
+    const collectibleTraits =
+      await collectibleTraitRepository.bulkInsert(collectibleTraitData);
 
     return { collectibles, collectibleTraits };
   },
@@ -400,9 +419,8 @@ export const collectibleServices = {
         nftId: (startIndex + i).toString()
       });
     }
-    const collectibles = await collectibleRepository.bulkInsert(
-      collectiblesData
-    );
+    const collectibles =
+      await collectibleRepository.bulkInsert(collectiblesData);
 
     return collectibles;
   },
@@ -498,9 +516,8 @@ export const collectibleServices = {
         cid,
         fileKey
       });
-    const collectibles = await collectibleRepository.bulkInsert(
-      collectiblesData
-    );
+    const collectibles =
+      await collectibleRepository.bulkInsert(collectiblesData);
 
     return collectibles;
   }

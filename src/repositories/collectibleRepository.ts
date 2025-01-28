@@ -60,7 +60,8 @@ export const collectibleRepository = {
         "Collectible.nftId",
         "Collectible.highResolutionImageUrl",
         "Layer.layer",
-        "Layer.network"
+        "Layer.network",
+        "Layer.chainId"
       ])
       .where("Collectible.id", "=", id)
       .executeTakeFirst();

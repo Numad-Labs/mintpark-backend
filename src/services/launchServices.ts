@@ -20,8 +20,6 @@ import {
 } from "../types/db/types";
 import { EVM_CONFIG } from "../blockchain/evm/evm-config";
 import { TransactionConfirmationService } from "../blockchain/evm/services/transactionConfirmationService";
-import LaunchpadService from "../blockchain/evm/services/launchpadService";
-import MarketplaceService from "../blockchain/evm/services/marketplaceService";
 import { BADGE_BATCH_SIZE, FILE_COUNT_LIMIT } from "../libs/constants";
 import { db } from "../utils/db";
 import logger from "../config/winston";
@@ -56,7 +54,7 @@ const launchPadService = new LaunchpadService(
   new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
 );
 
-const nftService = new NFTService(EVM_CONFIG.RPC_URL);
+// const nftService = new NFTService(EVM_CONFIG.RPC_URL);
 
 const confirmationService = new TransactionConfirmationService(
   EVM_CONFIG.RPC_URL!
@@ -137,9 +135,16 @@ export const launchServices = {
       if (!layerType) throw new CustomError("Layer not found.", 400);
 
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
+
+      if (!layerType.chainId)
+        throw new CustomError("Chaind id not found.", 400);
+      const chainConfig = EVM_CONFIG.CHAINS[layerType.chainId];
+
+      const confirmationService = new TransactionConfirmationService(
+        chainConfig.RPC_URL
       );
+      const transactionDetail =
+        await confirmationService.getTransactionDetails(txid);
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -160,6 +165,9 @@ export const launchServices = {
       collection.type === "IPFS_CID" ||
       collection.type === "IPFS_FILE"
     ) {
+      const layer = await layerRepository.getById(collection.layerId);
+      if (!layer || !layer.chainId) throw new CustomError("Invalid layer", 400);
+
       if (collection.isBadge) {
         if (!badge) throw new CustomError("Badge file must be provided.", 400);
         if (!badgeSupply)
@@ -174,6 +182,9 @@ export const launchServices = {
         // const badgeCid = await nftService.uploadImage(badge)
         // ;
 
+        const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+        const nftService = new NFTService(chainConfig.RPC_URL);
+
         const ipfsUri = await nftService.uploadNFTMetadata(
           badge,
           collection.name || "Unnamed NFT"
@@ -187,10 +198,15 @@ export const launchServices = {
         });
       }
 
-      if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
+      if (!layer.chainId) throw new CustomError("Chaind id not found.", 400);
+      const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+
+      const confirmationService = new TransactionConfirmationService(
+        chainConfig.RPC_URL
       );
+      if (!txid) throw new CustomError("txid not found.", 400);
+      const transactionDetail =
+        await confirmationService.getTransactionDetails(txid);
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",

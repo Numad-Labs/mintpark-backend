@@ -61,6 +61,6 @@ export function convertMulterToFileObject(
         multerFile.buffer.byteOffset,
         multerFile.buffer.byteOffset + multerFile.buffer.byteLength
       );
-    },
+    }
   };
 }

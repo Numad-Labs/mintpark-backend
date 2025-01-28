@@ -33,6 +33,7 @@ model UserLayer {
   address       String
   pubkey        String?
   xpub          String?
+
   createdAt     DateTime  @default(now())
   isActive      Boolean   @default(true)
   deactivatedAt DateTime?
@@ -63,6 +64,7 @@ model Layer {
   name       String
   layer      LAYER        @default(CITREA)
   network    NETWORK      @default(TESTNET)
+    chainId    String?
   currencyId String
   currency   Currency     @relation(fields: [currencyId], references: [id])
   Collection Collection[]
@@ -390,6 +392,7 @@ enum LAYER {
   BITCOIN
   FRACTAL
   CITREA
+  HEMI
 }
 
 enum NETWORK {

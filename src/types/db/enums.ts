@@ -72,7 +72,8 @@ export type LIST_STATUS = (typeof LIST_STATUS)[keyof typeof LIST_STATUS];
 export const LAYER = {
   BITCOIN: "BITCOIN",
   FRACTAL: "FRACTAL",
-  CITREA: "CITREA"
+  CITREA: "CITREA",
+  HEMI: "HEMI"
 } as const;
 export type LAYER = (typeof LAYER)[keyof typeof LAYER];
 export const NETWORK = {

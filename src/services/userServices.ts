@@ -58,6 +58,13 @@ export const userServices = {
         signedMessage
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
+    } else if (layer.layer === "HEMI" && layer.network === "TESTNET") {
+      const isValid = await citreaVerifySignedMessage(
+        message,
+        signedMessage,
+        address
+      );
+      if (!isValid) throw new CustomError("Invalid signature.", 400);
     } else throw new CustomError("Unsupported layer.", 400);
 
     const isExistingUserLayer =

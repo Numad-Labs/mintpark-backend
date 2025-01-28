@@ -16,7 +16,7 @@ export class CollectionOwnerCounterService {
   private readonly instanceId: string;
   private heartbeatInterval?: NodeJS.Timeout;
   private readonly TWO_HOURS_MS = 2 * 60 * 60 * 1000; // 2 hours in millisecond
-  private readonly evmService: EVMCollectibleService;
+  // private readonly evmService: EVMCollectibleService;
 
   constructor() {
     this.LOCK_TTL = 5 * 60; // 5 minutes
@@ -27,7 +27,7 @@ export class CollectionOwnerCounterService {
       .toString(36)
       .slice(2)}`;
 
-    this.evmService = new EVMCollectibleService(EVM_CONFIG.RPC_URL);
+    // this.evmService = new EVMCollectibleService(EVM_CONFIG.RPC_URL);
   }
 
   async startHeartbeat(): Promise<void> {
@@ -35,6 +35,7 @@ export class CollectionOwnerCounterService {
       await redis.setex(
         `heartbeat:nft_counter:${this.instanceId}`,
         this.INSTANCE_HEARTBEAT_TTL,
+        Date.now()
         Date.now()
       );
     };
@@ -119,7 +120,11 @@ export class CollectionOwnerCounterService {
   }
 
   async processCollectionBatch(
-    collections: Array<{ id: string; contractAddress?: string | null }>
+    collections: Array<{
+      id: string;
+      contractAddress?: string | null;
+      chainId: string | null;
+    }>
   ): Promise<void> {
     for (const collection of collections) {
       try {
@@ -134,9 +139,19 @@ export class CollectionOwnerCounterService {
           );
           continue;
         }
+        if (!collection.chainId) {
+          logger.warn(`Collection ${collection.id} has no chainId`);
+          continue;
+        }
+
+        const chainConfig = EVM_CONFIG.CHAINS[collection.chainId];
+
+        const evmCollectibleService = new EVMCollectibleService(
+          chainConfig.RPC_URL
+        );
 
         const uniqueOwnersCount =
-          await this.evmService.getCollectionOwnersCount(
+          await evmCollectibleService.getCollectionOwnersCount(
             collection.contractAddress
           );
 
@@ -205,7 +220,7 @@ export class CollectionOwnerCounterService {
           console.log("The collections to be processed: ", collections);
 
           if (collections.length === 0) break;
-
+          // collections[0].chainId
           await this.processCollectionBatch(collections);
           processedCount += collections.length;
           offset += batchSize;

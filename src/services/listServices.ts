@@ -13,17 +13,18 @@ import { collectionRepository } from "../repositories/collectionRepository";
 
 import { db } from "../utils/db";
 import { launchRepository } from "../repositories/launchRepository";
+import { layerRepository } from "../repositories/layerRepository";
 // import { merkleService } from "../blockchain/evm/services/merkleTreeService";
 
 // import MarketplaceService from "./marketplaceService";
-const marketplaceService = new MarketplaceService(
-  EVM_CONFIG.MARKETPLACE_ADDRESS
-);
+// const marketplaceService = new MarketplaceService(
+//   EVM_CONFIG.MARKETPLACE_ADDRESS
+// );
 
-const confirmationService = new TransactionConfirmationService(
-  EVM_CONFIG.RPC_URL
-);
-const nftService = new NFTService(EVM_CONFIG.RPC_URL);
+// const confirmationService = new TransactionConfirmationService(
+//   EVM_CONFIG.RPC_URL
+// );
+// const nftService = new NFTService(EVM_CONFIG.RPC_URL);
 
 export const listServices = {
   checkAndPrepareRegistration: async (
@@ -39,6 +40,15 @@ export const listServices = {
 
     const collection = await collectionRepository.getById(db, collectionId);
     if (!collection) throw new CustomError("Collection not found.", 400);
+    const layer = await layerRepository.getById(collection.layerId);
+    if (!layer || !layer.chainId)
+      throw new CustomError("Layer or chainid not found", 400);
+
+    const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+    const marketplaceService = new MarketplaceService(
+      chainConfig.MARKETPLACE_ADDRESS,
+      chainConfig.RPC_URL
+    );
 
     const listings = await marketplaceService.getAllListings();
     const tokenListings = listings.filter(
@@ -97,6 +107,21 @@ export const listServices = {
 
     let list;
 
+    const layer = await layerRepository.getById(collection.layerId);
+    if (!layer) throw new CustomError("Layer not found", 400);
+
+    if (!layer.chainId) throw new CustomError("Layer chainid not found", 400);
+
+    const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+    const marketplaceService = new MarketplaceService(
+      chainConfig.MARKETPLACE_ADDRESS,
+      chainConfig.RPC_URL
+    );
+    const nftService = new NFTService(chainConfig.RPC_URL);
+    const confirmationService = new TransactionConfirmationService(
+      chainConfig.RPC_URL
+    );
+
     return await db.transaction().execute(async (trx) => {
       if (collectible.layer === "CITREA") {
         if (!collection || !collection.contractAddress)
@@ -119,17 +144,14 @@ export const listServices = {
           );
         }
 
-        // const signer = await nftService.provider.getSigner();
-        // const nftContract = new ethers.Contract(
-        //   collection.contractAddress,
-        //   EVM_CONFIG.NFT_CONTRACT_ABI,
-        //   signer
-        // );
+        if (!layer.chainId)
+          throw new CustomError("Layer chainid not found", 400);
 
         // Check marketplace approval using NFT service
         const isApproved = await nftService.checkMarketplaceApproval(
           collection.contractAddress,
-          issuer.address
+          issuer.address,
+          layer.chainId
         );
 
         if (!isApproved) {
@@ -208,6 +230,14 @@ export const listServices = {
         "You are not allowed to confirm this listing.",
         400
       );
+
+    // list.
+    if (!list.chainId) throw new CustomError("chainid not found", 400);
+
+    const chainConfig = EVM_CONFIG.CHAINS[list.chainId];
+    const confirmationService = new TransactionConfirmationService(
+      chainConfig.RPC_URL
+    );
 
     return await db.transaction().execute(async (trx) => {
       if (list.layer === "CITREA") {
@@ -335,6 +365,15 @@ export const listServices = {
       //   txHex,
       //   buyer.address
       // );
+      const layer = await layerRepository.getById(collection.layerId);
+      if (!layer || !layer.chainId)
+        throw new CustomError("Layer or chainid not found", 400);
+
+      const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+      const marketplaceService = new MarketplaceService(
+        chainConfig.MARKETPLACE_ADDRESS,
+        chainConfig.RPC_URL
+      );
 
       console.log("🚀 ~ list.price:", list.price);
       console.log("Listing price:", list.price.toString());
@@ -432,6 +471,12 @@ export const listServices = {
     //   layerId
     // );
     // if (!seller) throw new CustomError("Seller not found.", 400);
+    if (!list.chainId) throw new CustomError(" chainid not found", 400);
+    const chainConfig = EVM_CONFIG.CHAINS[list.chainId];
+
+    const confirmationService = new TransactionConfirmationService(
+      chainConfig.RPC_URL
+    );
 
     return await db.transaction().execute(async (trx) => {
       if (list.layer === "CITREA") {
@@ -485,6 +530,14 @@ export const listServices = {
     //DG TODO: GENERATE CANCEL LISTING TX
 
     if (!collectible.uniqueIdx) throw new CustomError("NFT ID is missing", 400);
+
+    if (!collectible.chainId) throw new CustomError("chainid not found", 400);
+
+    const chainConfig = EVM_CONFIG.CHAINS[collectible.chainId];
+    const marketplaceService = new MarketplaceService(
+      chainConfig.MARKETPLACE_ADDRESS,
+      chainConfig.RPC_URL
+    );
 
     const txHex = serializeBigInt(
       await marketplaceService.cancelListingTransaction(

@@ -252,7 +252,8 @@ export class EVMCollectibleService {
   async getActivityByTokenId(
     nftContractAddress: string,
     tokenId: string,
-    fromBlock: number = 0
+    fromBlock: number = 0,
+    chainId: string
   ): Promise<NFTActivity[]> {
     const activities: NFTActivity[] = [];
 
@@ -264,9 +265,10 @@ export class EVMCollectibleService {
         EVM_CONFIG.NFT_CONTRACT_ABI,
         this.provider
       );
+      const chainConfig = EVM_CONFIG.CHAINS[chainId];
 
       const marketplaceContract = new ethers.Contract(
-        EVM_CONFIG.MARKETPLACE_ADDRESS,
+        chainConfig.MARKETPLACE_ADDRESS,
         EVM_CONFIG.MARKETPLACE_ABI,
         this.provider
       );
@@ -286,7 +288,7 @@ export class EVMCollectibleService {
           // All ItemListed events
           this.getPaginatedLogs(
             {
-              address: EVM_CONFIG.MARKETPLACE_ADDRESS,
+              address: chainConfig.MARKETPLACE_ADDRESS,
               topics: [
                 ethers.id("ListingCreated(uint256,address,uint256,uint256)")
               ]
@@ -297,7 +299,7 @@ export class EVMCollectibleService {
           // All ItemSold events
           this.getPaginatedLogs(
             {
-              address: EVM_CONFIG.MARKETPLACE_ADDRESS,
+              address: chainConfig.MARKETPLACE_ADDRESS,
               topics: [ethers.id("ListingSold(uint256,address,uint256)")]
             },
             fromBlock,
@@ -306,7 +308,7 @@ export class EVMCollectibleService {
           // All ListingCancelled events
           this.getPaginatedLogs(
             {
-              address: EVM_CONFIG.MARKETPLACE_ADDRESS,
+              address: chainConfig.MARKETPLACE_ADDRESS,
               topics: [ethers.id("ListingCancelled(uint256)")]
             },
             fromBlock,

@@ -3,25 +3,13 @@ import { CustomError } from "../exceptions/CustomError";
 import { LaunchQueryParams } from "../repositories/collectionRepository";
 import { AuthenticatedRequest } from "../../custom";
 import { launchServices } from "../services/launchServices";
-import { EVM_CONFIG } from "../blockchain/evm/evm-config";
-import MarketplaceService from "../blockchain/evm/services/marketplaceService";
-import { serializeBigInt } from "../blockchain/evm/utils";
 import { Insertable, Updateable } from "kysely";
 import { Launch } from "../types/db/types";
 import { launchRepository } from "../repositories/launchRepository";
 import { ipfsData, recursiveInscriptionParams } from "./collectibleController";
-import { userRepository } from "../repositories/userRepository";
-import LaunchpadService from "../blockchain/evm/services/launchpadService";
-import logger from "../config/winston";
-
 export interface LaunchOfferType {
   offerType: "public" | "whitelist";
 }
-
-const launchPadService = new LaunchpadService(
-  EVM_CONFIG.RPC_URL,
-  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
-);
 
 export const launchController = {
   create: async (

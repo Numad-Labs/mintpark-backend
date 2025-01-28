@@ -41,8 +41,9 @@ export const layerRepository = {
         "Layer.layer",
         "Layer.name",
         "Layer.network",
+        "Layer.chainId",
         "Currency.ticker",
-        "Currency.price",
+        "Currency.price"
       ])
       .where("Layer.id", "=", id)
       .executeTakeFirst();
@@ -72,5 +73,5 @@ export const layerRepository = {
       .executeTakeFirstOrThrow();
 
     return layer;
-  },
+  }
 };

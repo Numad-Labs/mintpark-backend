@@ -503,9 +503,11 @@ export const collectionRepository = {
   ) => {
     const result = await db
       .selectFrom("Collection")
+      .innerJoin("Layer", "Layer.id", "Collection.layerId")
       .selectAll()
       .where("Collection.type", "in", ["IPFS_CID", "IPFS_FILE", "SYNTHETIC"])
       .where("Collection.status", "=", "CONFIRMED")
+
       .offset(offset)
       .limit(pagination)
       .orderBy("createdAt asc")
