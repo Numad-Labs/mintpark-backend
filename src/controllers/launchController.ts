@@ -50,7 +50,7 @@ export const launchController = {
         if (
           !data.wlEndsAt ||
           !data.wlStartsAt ||
-          !data.wlMintPrice ||
+          data.wlMintPrice === undefined ||
           !data.wlMaxMintPerWallet
         )
           throw new CustomError("Invalid whitelist info.", 400);
