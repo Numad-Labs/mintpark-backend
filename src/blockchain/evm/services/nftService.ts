@@ -53,21 +53,6 @@ class NFTService {
     return this.prepareUnsignedTransaction(unsignedTx, initialOwner);
   }
 
-  async checkMarketplaceApproval(
-    contractAddress: string,
-    userAddress: string
-  ): Promise<boolean> {
-    const nftContract = new ethers.Contract(
-      contractAddress,
-      EVM_CONFIG.NFT_CONTRACT_ABI,
-      this.provider
-    );
-
-    return nftContract.isApprovedForAll(
-      userAddress,
-      EVM_CONFIG.MARKETPLACE_ADDRESS
-    );
-  }
   async uploadNFTMetadata(
     file: Express.Multer.File,
     name: string
@@ -279,33 +264,39 @@ class NFTService {
 
   async isApprovedForMarketplace(
     collectionAddress: string,
-    ownerAddress: string
+    ownerAddress: string,
+    chainId: string
   ): Promise<boolean> {
     const contract = new ethers.Contract(
       collectionAddress,
       EVM_CONFIG.NFT_CONTRACT_ABI,
       this.provider
     );
+    const chainConfig = EVM_CONFIG.CHAINS[chainId];
 
     return await contract.isApprovedForAll(
       ownerAddress,
-      EVM_CONFIG.MARKETPLACE_ADDRESS
+      chainConfig.MARKETPLACE_ADDRESS
     );
   }
   async getMarketplaceApprovalTransaction(
     collectionAddress: string,
-    ownerAddress: string
+    ownerAddress: string,
+    chainId: string
   ): Promise<ethers.TransactionRequest> {
     const contract = new ethers.Contract(
       collectionAddress,
       EVM_CONFIG.NFT_CONTRACT_ABI,
       this.provider
     );
+    const chainConfig = EVM_CONFIG.CHAINS[chainId];
 
     const approvalTx = await contract.setApprovalForAll.populateTransaction(
-      EVM_CONFIG.MARKETPLACE_ADDRESS,
+      chainConfig.MARKETPLACE_ADDRESS,
       true
     );
+
+    // approvalTx.da
 
     return this.prepareUnsignedTransaction(approvalTx, ownerAddress);
   }
@@ -421,31 +412,58 @@ class NFTService {
     unsignedTx: ethers.ContractTransaction | ethers.ContractDeployTransaction,
     from: string
   ) {
+    const { chainId } = await this.provider.getNetwork();
+    const chainConfig = EVM_CONFIG.CHAINS[chainId.toString()];
+
     const estimatedGas = await this.provider.estimateGas({
       ...unsignedTx,
       from: from
     });
-    const feeData = await this.provider.getFeeData();
-    const nonce = await this.provider.getTransactionCount(from);
-    const { chainId } = await this.provider.getNetwork();
 
-    const preparedTx: ethers.TransactionRequest = {
+    // Base transaction fields
+    const baseTx: Partial<ethers.TransactionRequest> = {
       from: from,
       data: unsignedTx.data,
       value: unsignedTx.value || "0x0",
       gasLimit: estimatedGas,
-      maxFeePerGas: feeData.maxFeePerGas,
-      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
-      nonce: nonce,
-      chainId: chainId,
-      type: 2
+      nonce: await this.provider.getTransactionCount(from),
+      chainId: chainId
     };
 
-    if ("to" in unsignedTx && unsignedTx.to) {
-      preparedTx.to = unsignedTx.to;
-    }
+    // Get fee data for both legacy and EIP-1559 transactions
+    const feeData = await this.provider.getFeeData();
+    const multiplier = chainConfig?.gasPriceMultiplier || 1;
 
-    return preparedTx;
+    // Handle chain-specific gas pricing
+    if (chainConfig?.useLegacyGas) {
+      // Legacy transaction (e.g., for some L2s)
+      // Use gasPrice from feeData for legacy transactions
+      if (!feeData.gasPrice) {
+        throw new Error("Unable to get gas price for legacy transaction");
+      }
+
+      return {
+        ...baseTx,
+        gasPrice:
+          (feeData.gasPrice * BigInt(Math.floor(multiplier * 100))) /
+          BigInt(100),
+        type: 0
+      };
+    } else {
+      // EIP-1559 transaction
+      if (!feeData.maxFeePerGas || !feeData.maxPriorityFeePerGas) {
+        throw new Error("Unable to get EIP-1559 fee data");
+      }
+
+      return {
+        ...baseTx,
+        maxFeePerGas:
+          (feeData.maxFeePerGas * BigInt(Math.floor(multiplier * 100))) /
+          BigInt(100),
+        maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
+        type: 2
+      };
+    }
   }
 }
 

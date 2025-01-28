@@ -17,7 +17,7 @@ export const layerServices = {
       name,
       layer,
       network,
-      currencyId,
+      currencyId
     });
 
     return newLayer;
@@ -56,9 +56,10 @@ export const layerServices = {
   checkIfSupportedLayerOrThrow: async (layerId: string) => {
     const layer = await layerRepository.getById(layerId);
     if (!layer) throw new CustomError("Layer not found.", 400);
-    if (layer.layer !== "CITREA" || layer.network !== "TESTNET")
-      throw new CustomError("Unsupported layer.", 400);
 
-    return layer;
-  },
+    if (layer.layer === "CITREA" && layer.network === "TESTNET") return layer;
+    if (layer.layer === "HEMI" && layer.network === "TESTNET") return layer;
+
+    throw new CustomError("Unsupported layer.", 400);
+  }
 };

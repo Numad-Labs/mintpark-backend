@@ -17,13 +17,6 @@ listRouter.post(
 );
 
 listRouter.post(
-  "/deploy-contract",
-  authenticateToken,
-  authorize("SUPER_ADMIN"),
-  listController.createMarketplaceContractDeployment
-);
-
-listRouter.post(
   "/:id/confirm",
   authenticateToken,
   listController.confirmPendingList

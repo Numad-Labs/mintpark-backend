@@ -99,6 +99,7 @@ export const userRepository = {
         "UserLayer.xpub",
         "Layer.layer",
         "Layer.network",
+        "Layer.chainId",
         "UserLayer.isActive"
       ])
       .where("UserLayer.id", "=", userLayerId)

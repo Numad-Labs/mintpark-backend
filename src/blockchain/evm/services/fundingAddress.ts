@@ -17,6 +17,7 @@ export class FundingAddressService {
     this.vaultAddress = new ethers.Wallet(
       config.VAULT_PRIVATE_KEY,
       this.provider
+      this.provider
     );
   }
 
@@ -26,6 +27,7 @@ export class FundingAddressService {
   async estimateTransactionFee(
     to: string,
     value: string,
+    data: string = "0x"
     data: string = "0x"
   ): Promise<TransactionFee> {
     const gasPrice = (await this.provider.getFeeData()).gasPrice;
@@ -44,61 +46,69 @@ export class FundingAddressService {
       estimatedFee: Number(ethers.formatEther(estimatedFee)),
       actualFee: 0, // Will be updated after transaction
       gasPriceGwei: Number(ethers.formatUnits(gasPrice, "gwei"))
+      gasPriceGwei: Number(ethers.formatUnits(gasPrice, "gwei"))
     };
   }
 
   async getUnsignedFeeTransaction(
-    from: string,
-    // to: string,
-    feeAmount: string
+    fromAddress: string,
+    value: string
   ): Promise<ethers.TransactionRequest> {
-    const to = this.vaultAddress.address;
     try {
-      // Get current network gas settings
-      const feeData = await this.provider.getFeeData();
-      if (!feeData.gasPrice && !feeData.maxFeePerGas) {
-        throw new CustomError("Failed to get network fee data", 500);
-      }
+      // Get user's balance first
+      const balance = await this.provider.getBalance(fromAddress);
+      const valueInWei = ethers.parseEther(value);
 
-      // Estimate gas with 20% buffer
-      const estimatedGas = await this.provider.estimateGas({
-        from,
-        to,
-        value: ethers.parseEther(feeAmount)
-      });
-      const gasLimit = estimatedGas + (estimatedGas * BigInt(20)) / BigInt(100);
-
-      // Get nonce for the sender
-      const nonce = await this.provider.getTransactionCount(from);
-      const { chainId } = await this.provider.getNetwork();
-
-      // Prepare unsigned transaction
-      const unsignedTx: ethers.TransactionRequest = {
-        from,
-        to,
-        value: ethers.parseEther(feeAmount),
-        gasLimit,
-        nonce,
-        chainId,
-        type: 2 // EIP-1559 transaction type
+      // Create basic transaction
+      const tx = {
+        from: fromAddress,
+        to: config.VAULT_ADDRESS,
+        value: valueInWei,
+        data: "0x"
       };
 
-      // Set gas price based on network type (EIP-1559 or legacy)
-      if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
-        // EIP-1559 transaction
-        unsignedTx.maxFeePerGas = feeData.maxFeePerGas;
-        unsignedTx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
-      } else if (feeData.gasPrice) {
-        // Legacy transaction
-        unsignedTx.gasPrice = feeData.gasPrice;
-        unsignedTx.type = 0;
+      // Get network conditions with reasonable defaults
+      const [gasLimit, feeData, nonce, network] = await Promise.all([
+        this.provider.estimateGas(tx).catch(() => ethers.getBigInt(21000)), // Default to 21000 if estimation fails
+        this.provider.getFeeData(),
+        this.provider.getTransactionCount(fromAddress),
+        this.provider.getNetwork()
+      ]);
+
+      // Use conservative gas settings
+      const maxPriorityFeePerGas = ethers.parseUnits("0.1", "gwei");
+      const baseFee = feeData.gasPrice || ethers.parseUnits("5", "gwei");
+      const maxFeePerGas = baseFee + maxPriorityFeePerGas;
+
+      // Calculate total cost
+      const maxGasCost = gasLimit * maxFeePerGas;
+      const totalCost = valueInWei + maxGasCost;
+
+      // Check if user has enough balance
+      if (totalCost > balance) {
+        throw new CustomError(
+          `Insufficient funds. Required: ${ethers.formatEther(totalCost)} ETH, ` +
+            `Available: ${ethers.formatEther(balance)} ETH`,
+          400
+        );
       }
 
-      return unsignedTx;
+      const preparedTx: ethers.TransactionRequest = {
+        from: fromAddress,
+        to: config.VAULT_ADDRESS,
+        value: valueInWei,
+        gasLimit,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+        nonce,
+        chainId: Number(network.chainId),
+        data: "0x",
+        type: 2
+      };
+
+      return preparedTx;
     } catch (error) {
-      if (error instanceof CustomError) {
-        throw error;
-      }
+      if (error instanceof CustomError) throw error;
       throw new CustomError(
         `Failed to create unsigned fee transaction: ${error}`,
         500

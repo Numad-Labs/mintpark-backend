@@ -121,6 +121,7 @@ export type Layer = {
   name: string;
   layer: Generated<LAYER>;
   network: Generated<NETWORK>;
+  chainId: string | null;
   currencyId: string;
 };
 export type List = {

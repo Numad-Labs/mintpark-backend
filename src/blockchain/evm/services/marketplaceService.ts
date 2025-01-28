@@ -22,9 +22,9 @@ class MarketplaceService {
   private marketplaceAddress: string;
   private provider: ethers.JsonRpcProvider;
 
-  constructor(marketplaceAddress: string) {
+  constructor(marketplaceAddress: string, providerUrl: string) {
     this.marketplaceAddress = marketplaceAddress;
-    this.provider = new ethers.JsonRpcProvider(EVM_CONFIG.RPC_URL);
+    this.provider = new ethers.JsonRpcProvider(providerUrl);
   }
 
   async getUnsignedDeploymentTransaction(
@@ -35,6 +35,7 @@ class MarketplaceService {
 
     const factory = new ethers.ContractFactory(
       EVM_CONFIG.MARKETPLACE_ABI,
+
       EVM_CONFIG.MARKETPLACE_CONTRACT_BYTECODE,
       this.provider
     );
@@ -58,6 +59,38 @@ class MarketplaceService {
   async getListing(nftContract: string, tokenId: string) {
     const contract = await this.getEthersMarketplaceContract();
     return contract.getListing(nftContract, tokenId);
+  }
+  async getUnsignedApprovalTransaction(from: string) {
+    const nftContract = await this.getEthersMarketplaceContract();
+
+    // Check if the marketplace is already approved
+    const isApproved = await nftContract.isApprovedForAll(
+      from,
+      this.marketplaceAddress
+    );
+
+    if (!isApproved) {
+      console.log("Approval needed. Preparing approval transaction...");
+      const approvalTx =
+        await nftContract.setApprovalForAll.populateTransaction(
+          this.marketplaceAddress,
+          true
+        );
+      const preparedApprovalTx = await this.prepareUnsignedTransaction(
+        approvalTx,
+        from
+      );
+
+      return {
+        isApproved: false,
+        transaction: preparedApprovalTx
+      };
+    } else {
+      return {
+        isApproved: true,
+        transaction: null
+      };
+    }
   }
 
   async createListingTransaction(

@@ -70,7 +70,8 @@ export const listRepository = {
         "List.sellerId",
         "Layer.layer",
         "Layer.network",
-        "Collectible.uniqueIdx",
+        "Layer.chainId",
+        "Collectible.uniqueIdx"
       ])
       .where("List.id", "=", id)
       .executeTakeFirst();
@@ -102,7 +103,7 @@ export const listRepository = {
         "List.sellerId",
         "Layer.layer",
         "Layer.network",
-        "Collectible.uniqueIdx",
+        "Collectible.uniqueIdx"
       ])
       .where("List.id", "=", id)
       .executeTakeFirst();
@@ -130,7 +131,7 @@ export const listRepository = {
       .select((eb) => [
         eb.fn
           .coalesce(eb.fn.count("List.id").$castTo<number>(), sql<number>`0`)
-          .as("activeListCount"),
+          .as("activeListCount")
       ])
       .where("Collectible.collectionId", "=", collectionId)
       .where("Collectible.status", "=", "CONFIRMED")
@@ -145,12 +146,12 @@ export const listRepository = {
       .select((eb) => [
         eb.fn
           .coalesce(eb.fn.count("List.id").$castTo<number>(), sql<number>`0`)
-          .as("activeListCount"),
+          .as("activeListCount")
       ])
       .where("List.sellerId", "=", userId)
       .where("List.status", "=", "ACTIVE")
       .executeTakeFirst();
 
     return result;
-  },
+  }
 };
