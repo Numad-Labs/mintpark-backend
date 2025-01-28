@@ -152,7 +152,7 @@ export const launchController = {
       next(e);
     }
   },
-  createIpfsNftAndLaunchItemsInBatch: async (
+  createIpfsFileAndLaunchItemsInBatch: async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
@@ -181,7 +181,7 @@ export const launchController = {
       next(e);
     }
   },
-  createIpfsFileAndLaunchItemsInBatch: async (
+  createIpfsNftAndLaunchItemsInBatch: async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction

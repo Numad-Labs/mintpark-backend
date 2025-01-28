@@ -43,13 +43,7 @@ launchRouter.post(
   authenticateToken,
   authorize("SUPER_ADMIN"),
   parseFiles("files", false),
-  launchController.createIpfsNftAndLaunchItemsInBatch
-);
-launchRouter.post(
-  "/ipfs-file",
-  authenticateToken,
-  authorize("SUPER_ADMIN"),
-  launchController.createIpfsNftAndLaunchItemsInBatch
+  launchController.createIpfsFileAndLaunchItemsInBatch
 );
 launchRouter.post("/:id/buy", authenticateToken, launchController.buy);
 launchRouter.post("/mint", authenticateToken, launchController.mint);
