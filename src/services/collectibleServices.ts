@@ -207,7 +207,7 @@ export const collectibleServices = {
 
     return activities;
   },
-  createInscriptions: async (
+  createCollectiblesByFiles: async (
     collection: { id: string; name: string },
     startIndex: number,
     files: Express.Multer.File[]
@@ -263,7 +263,7 @@ export const collectibleServices = {
 
     const existingCollectibleCount =
       await orderItemRepository.getOrderItemCountByCollectionId(collection.id);
-    const collectibles = await collectibleServices.createInscriptions(
+    const collectibles = await collectibleServices.createCollectiblesByFiles(
       { id: collection.id, name: collection.name },
       Number(existingCollectibleCount),
       files

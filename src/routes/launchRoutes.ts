@@ -9,33 +9,47 @@ const launchRouter = Router();
 launchRouter.get("/", launchController.getAllLaunchesByLayerId);
 launchRouter.get(
   "/collections/:collectionId",
-  launchController.getLaunchByCollectionId,
+  launchController.getLaunchByCollectionId
 );
+
 launchRouter.post(
   "/",
   authenticateToken,
   authorize("SUPER_ADMIN"),
   parseFiles("badge", true),
-  launchController.create,
+  launchController.create
 );
 launchRouter.post(
   "/inscription",
   authenticateToken,
   authorize("SUPER_ADMIN"),
   parseFiles("files", false),
-  launchController.createInscriptionAndLaunchItemsInBatch,
+  launchController.createInscriptionAndLaunchItemsInBatch
 );
 launchRouter.post(
   "/recursive-inscription",
   authenticateToken,
   authorize("SUPER_ADMIN"),
-  launchController.createRecursiveInscriptionAndLaunchItemsInBatch,
+  launchController.createRecursiveInscriptionAndLaunchItemsInBatch
 );
 launchRouter.post(
   "/ipfs",
   authenticateToken,
   authorize("SUPER_ADMIN"),
-  launchController.createIpfsNftAndLaunchItemsInBatch,
+  launchController.createIpfsNftAndLaunchItemsInBatch
+);
+launchRouter.post(
+  "/ipfs-file",
+  authenticateToken,
+  authorize("SUPER_ADMIN"),
+  parseFiles("files", false),
+  launchController.createIpfsNftAndLaunchItemsInBatch
+);
+launchRouter.post(
+  "/ipfs-file",
+  authenticateToken,
+  authorize("SUPER_ADMIN"),
+  launchController.createIpfsNftAndLaunchItemsInBatch
 );
 launchRouter.post("/:id/buy", authenticateToken, launchController.buy);
 launchRouter.post("/mint", authenticateToken, launchController.mint);
@@ -43,7 +57,7 @@ launchRouter.post(
   "/whitelist-addresses",
   authenticateToken,
   authorize("SUPER_ADMIN"),
-  launchController.addWhitelistAddress,
+  launchController.addWhitelistAddress
 );
 
 // launchRouter.post(

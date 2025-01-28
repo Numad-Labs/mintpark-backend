@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { userController } from "../controllers/userController";
 import { authenticateToken } from "../middlewares/authenticateToken";
+import { parseFiles } from "../middlewares/fileParser";
 const userRouter = Router();
 
 userRouter.post("/generate-message", userController.generateMessageToSign);
@@ -23,5 +24,7 @@ userRouter.get(
   authenticateToken,
   userController.getAccountsByUserId
 );
+
+// userRouter.post("/test", parseFiles("hehe", true), userController.hehe);
 
 export = userRouter;
