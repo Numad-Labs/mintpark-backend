@@ -750,8 +750,8 @@ export const launchServices = {
     } else {
       mintPrice = launch.poMintPrice;
     }
-    if (!mintPrice)
-      throw new CustomError("Mint price not found try again", 400);
+    // if (!mintPrice)
+    //   throw new CustomError("Mint price not found try again", 400);
 
     let nftIpfsUrl;
 
@@ -826,7 +826,7 @@ export const launchServices = {
             user.address,
             inscriptionId,
             parentCollectible.nftId,
-            mintPrice
+            Number(mintPrice)
           );
           // vault.address = fundingService.getVaultAddress();
 
@@ -919,7 +919,7 @@ export const launchServices = {
           parentCollectible.nftId,
           //DG TODO: "uri ? eniig ashiglah zov eseh",
           nftIpfsUrl,
-          mintPrice
+          Number(mintPrice)
         );
         await collectibleRepository.update(trx, parentCollectible.id, {
           status: "CONFIRMED",
