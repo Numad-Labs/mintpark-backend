@@ -129,8 +129,8 @@ export const launchController = {
       const data: recursiveInscriptionParams[] = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data
-          ? [req.body.data]
-          : [];
+        ? [req.body.data]
+        : [];
       if (data.length === 0)
         throw new CustomError("Please provide the data.", 400);
       if (data.length > 10)
@@ -162,11 +162,40 @@ export const launchController = {
         throw new CustomError("Could not parse the id from the token.", 400);
 
       const { collectionId, isLastBatch } = req.body;
+      const files: Express.Multer.File[] = req.files as Express.Multer.File[];
+
+      if (files.length === 0)
+        throw new CustomError("Please provide the files.", 400);
+      if (files.length > 10)
+        throw new CustomError("You cannot provide more than 10 files.", 400);
+
+      const result = await launchServices.createIpfsFileAndLaunchItemInBatch(
+        req.user.id,
+        collectionId,
+        files,
+        isLastBatch === "true"
+      );
+
+      return res.status(200).json({ success: true, data: result });
+    } catch (e) {
+      next(e);
+    }
+  },
+  createIpfsFileAndLaunchItemsInBatch: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user?.id)
+        throw new CustomError("Could not parse the id from the token.", 400);
+
+      const { collectionId, isLastBatch } = req.body;
       const data: ipfsData = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data
-          ? [req.body.data]
-          : [];
+        ? [req.body.data]
+        : [];
       // if (data.length === 0)
       //   throw new CustomError("Please provide the data.", 400);
       // if (data.length > 10)
@@ -248,8 +277,9 @@ export const launchController = {
         interval: interval as "all" | "live" | "past"
       };
 
-      const launches =
-        await launchRepository.getConfirmedLaunchesByLayerId(query);
+      const launches = await launchRepository.getConfirmedLaunchesByLayerId(
+        query
+      );
 
       return res.status(200).json({ success: true, data: launches });
     } catch (e) {
@@ -265,8 +295,9 @@ export const launchController = {
       const { collectionId } = req.params;
 
       try {
-        const launch =
-          await launchRepository.getConfirmedLaunchById(collectionId);
+        const launch = await launchRepository.getConfirmedLaunchById(
+          collectionId
+        );
         if (!launch) throw new CustomError("Collection not found", 404);
 
         return res.status(200).json({ success: true, data: launch });

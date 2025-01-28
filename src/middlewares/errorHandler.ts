@@ -29,7 +29,7 @@ export function errorHandler(
   const errorResponse: ErrorResponse = {
     success: false,
     data: null,
-    error: message,
+    error: message
   };
 
   if (config.NODE_ENV === "development") {
@@ -68,9 +68,9 @@ function logError(
 
   if (statusCode >= 500) {
     logger.error(logData);
-  } else if (statusCode === 429 || statusCode === 404 || statusCode === 409) {
-    logger.warn(logData);
   } else if (statusCode >= 400) {
+    logger.warn(logData);
+  } else if (statusCode >= 200) {
     logger.info(logData);
   }
 }

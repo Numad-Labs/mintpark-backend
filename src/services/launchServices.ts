@@ -75,7 +75,7 @@ export const launchServices = {
     if (!collection) throw new CustomError("Invalid collectionId.", 400);
     if (
       collection.type === "SYNTHETIC" ||
-      collection.type === "IPFS_FILE" ||
+      // collection.type === "IPFS_FILE" ||
       collection.parentCollectionId
     )
       throw new CustomError("Invalid collection type.", 400);
@@ -129,8 +129,9 @@ export const launchServices = {
       if (!layerType) throw new CustomError("Layer not found.", 400);
 
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail =
-        await confirmationService.getTransactionDetails(txid);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -179,8 +180,9 @@ export const launchServices = {
       }
 
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail =
-        await confirmationService.getTransactionDetails(txid);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -261,7 +263,7 @@ export const launchServices = {
 
     const existingLaunchItemCount =
       await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
-    const collectibles = await collectibleServices.createInscriptions(
+    const collectibles = await collectibleServices.createCollectiblesByFiles(
       { id: collection.id, name: collection.name },
       Number(existingLaunchItemCount),
       files
@@ -342,6 +344,52 @@ export const launchServices = {
       collectibleTraits: result.collectibleTraits,
       launchItems
     };
+  },
+  createIpfsFileAndLaunchItemInBatch: async (
+    userId: string,
+    collectionId: string,
+    files: Express.Multer.File[],
+    isLastBatch: boolean
+  ) => {
+    const collection = await collectionRepository.getById(db, collectionId);
+    if (!collection) throw new CustomError("Invalid collectionId.", 400);
+    if (collection?.type !== "IPFS_FILE")
+      throw new CustomError("Invalid collection type.", 400);
+    if (collection.creatorId !== userId)
+      throw new CustomError("You are not the creator of this collection.", 400);
+
+    const launch = await launchRepository.getByCollectionId(collectionId);
+    if (!launch) throw new CustomError("Launch not found.", 400);
+    if (launch.status === "CONFIRMED")
+      throw new CustomError("This launch has already been confirmed.", 400);
+
+    const existingLaunchItemCount =
+      await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
+    const collectibles = await collectibleServices.createCollectiblesByFiles(
+      { id: collection.id, name: collection.name },
+      Number(existingLaunchItemCount),
+      files
+    );
+
+    const launchItemsData: Insertable<LaunchItem>[] = [];
+    for (let i = 0; i < collectibles.length; i++)
+      launchItemsData.push({
+        collectibleId: collectibles[i].id,
+        launchId: launch.id
+      });
+    const launchItems = await launchItemRepository.bulkInsert(
+      db,
+      launchItemsData
+    );
+
+    if (isLastBatch) {
+      if (Number(existingLaunchItemCount) + launchItems.length <= 0)
+        throw new CustomError("Launch with no launch items.", 400);
+
+      await launchRepository.update(launch.id, { status: "CONFIRMED" });
+    }
+
+    return { collectibles, launchItems };
   },
   createIpfsCollectiblesAndLaunchItemInBatch: async (
     userId: string,
@@ -559,7 +607,10 @@ export const launchServices = {
         });
 
         order = hideSensitiveData(order, ["privateKey"]);
-      } else if (collection.type === "IPFS_CID") {
+      } else if (
+        collection.type === "IPFS_CID" ||
+        collection.type === "IPFS_FILE"
+      ) {
         if (!collection.contractAddress)
           throw new Error("Collection with no contract address not found.");
         if (!collectible.cid)
@@ -583,6 +634,19 @@ export const launchServices = {
         const mintPriceWei = ethers.parseEther(mintPrice.toString());
         const totalRequired = mintPriceWei + gasFeeEstimate.estimatedGasCost;
         const formattedTotal = ethers.formatEther(totalRequired);
+
+        if (collection.type === "IPFS_FILE" && !collectible.cid) {
+          if (!collectible.fileKey)
+            throw new CustomError("Collectible has no file key.", 400);
+
+          //fetch file from S3 & upload file to ipfs & update the collectible to set the cid
+          const cid = await nftService.uploadS3FileToIpfs(
+            collectible.fileKey,
+            collectible.name
+          );
+
+          await collectibleRepository.update(trx, collectible.id, { cid });
+        }
 
         //DG TODO: generate txHex to transfer gasFee + serviceFee + mintFee... to vault
         const unsignedTx = await fundingService.getUnsignedFeeTransaction(
@@ -638,8 +702,9 @@ export const launchServices = {
     if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
 
-    const isLaunchItemOnHold =
-      await launchItemRepository.getOnHoldById(launchItemId);
+    const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
+      launchItemId
+    );
     if (isLaunchItemOnHold && isLaunchItemOnHold.onHoldBy !== user.id)
       throw new CustomError(
         "This launch item is currently reserved to another user.",
@@ -803,7 +868,10 @@ export const launchServices = {
           await collectionRepository.update(trx, L2Collection.id, {
             status: "CONFIRMED"
           });
-      } else if (collection.type === "IPFS_CID") {
+      } else if (
+        collection.type === "IPFS_CID" ||
+        collection.type === "IPFS_FILE"
+      ) {
         if (!verification?.txid || !verification?.orderId)
           throw new CustomError(
             "You must provide mint txid and orderId for this operation.",
@@ -822,10 +890,10 @@ export const launchServices = {
           );
         }
 
+        if (collection.type === "IPFS_FILE" && !parentCollectible.cid)
+          throw new CustomError("File has not been uploaded to the ipfs.", 400);
+
         //DG TODO NEW: transaction detail deeres mintprice, vault address validate hiideg bh
-
-        //DG TODO done: MINT NFT BY VAULT
-
         if (!parentCollectible.fileKey)
           throw new CustomError("File key must be provided", 400);
 

@@ -8,6 +8,8 @@ import { CustomError } from "../exceptions/CustomError";
 import { AuthenticatedRequest } from "../../custom";
 import { hideSensitiveData } from "../libs/hideDataHelper";
 import { JsonWebTokenError, TokenExpiredError } from "jsonwebtoken";
+import NFTService from "../blockchain/evm/services/nftService";
+import { EVM_CONFIG } from "../blockchain/evm/evm-config";
 
 export const userController = {
   generateMessageToSign: async (
@@ -50,8 +52,8 @@ export const userController = {
         data: {
           user: user,
           userLayer,
-          auth: tokens,
-        },
+          auth: tokens
+        }
       });
     } catch (e) {
       next(e);
@@ -83,7 +85,7 @@ export const userController = {
 
       return res.status(200).json({
         success: true,
-        data: result,
+        data: result
       });
     } catch (e) {
       next(e);
@@ -115,7 +117,7 @@ export const userController = {
 
       return res.status(200).json({
         success: true,
-        data: result,
+        data: result
       });
     } catch (e) {
       next(e);
@@ -133,21 +135,21 @@ export const userController = {
 
       return res.status(200).json({
         success: true,
-        data: tokens,
+        data: tokens
       });
     } catch (e) {
       if (e instanceof TokenExpiredError)
         return res.status(401).json({
           success: false,
           data: null,
-          error: "Refresh token has expired.",
+          error: "Refresh token has expired."
         });
 
       if (e instanceof JsonWebTokenError)
         return res.status(401).json({
           success: false,
           data: null,
-          error: "Invalid refresh token.",
+          error: "Invalid refresh token."
         });
 
       next(e);
@@ -192,11 +194,23 @@ export const userController = {
       return res.status(200).json({
         success: true,
         data: {
-          accounts,
-        },
+          accounts
+        }
       });
     } catch (e) {
       next(e);
     }
-  },
+  }
+  // hehe: async (req: Request, res: Response, next: NextFunction) => {
+  //   const file = req.file as Express.Multer.File;
+
+  //   const nftService = new NFTService(EVM_CONFIG.RPC_URL);
+
+  //   const startingUnix = Date.now();
+  //   const result = await nftService.uploadNFTMetadata(file, "TEST");
+  //   const endingUnix = Date.now();
+  //   console.log(`The upload process took ${endingUnix - startingUnix}ms`);
+
+  //   res.send(result);
+  // }
 };
