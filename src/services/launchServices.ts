@@ -528,6 +528,13 @@ export const launchServices = {
           "You are not allowed to participate in this phase.",
           400
         );
+    } else if (Number(launch.poStartsAt) > currentUnixTimeStamp) {
+      throw new CustomError("Launch hasn't started.", 400);
+    } else if (
+      launch.poEndsAt &&
+      Number(launch.poEndsAt) < currentUnixTimeStamp
+    ) {
+      throw new CustomError("Launch has ended.", 400);
     }
 
     if (
