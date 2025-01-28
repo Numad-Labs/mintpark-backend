@@ -613,7 +613,7 @@ export const launchServices = {
       ) {
         if (!collection.contractAddress)
           throw new Error("Collection with no contract address not found.");
-        if (!collectible.cid)
+        if (collection.type === "IPFS_CID" && !collectible.cid)
           throw new CustomError("Collectible with no cid.", 400);
 
         // if (!collectible.chainId)
