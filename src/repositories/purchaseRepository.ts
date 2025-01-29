@@ -1,4 +1,4 @@
-import { Updateable, Insertable, Kysely, Transaction } from "kysely";
+import { Updateable, Insertable, Kysely, Transaction, sql } from "kysely";
 import { DB, Purchase } from "../types/db/types";
 import { db } from "../utils/db";
 
@@ -63,7 +63,11 @@ export const purchaseRepository = {
 
     return purchases;
   },
-  getCountByUserIdAndLaunchId: async (launchId: string, userId: string) => {
+  getCountByUserIdLaunchIdAndUnixTimestamp: async (
+    launchId: string,
+    userId: string,
+    unixTimestamp: number
+  ) => {
     const result = await db
       .selectFrom("Purchase")
       .innerJoin("LaunchItem", "Purchase.launchItemId", "LaunchItem.id")
@@ -71,8 +75,13 @@ export const purchaseRepository = {
       .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
       .where("Launch.id", "=", launchId)
       .where("Purchase.userId", "=", userId)
+      .where(
+        "Purchase.purchasedAt",
+        ">=",
+        sql`TO_TIMESTAMP(${unixTimestamp})`.$castTo<Date>()
+      )
       .executeTakeFirst();
 
     return result?.count;
-  },
+  }
 };

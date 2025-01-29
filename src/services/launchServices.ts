@@ -497,28 +497,13 @@ export const launchServices = {
     if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
       throw new CustomError("You cannot buy the item of this collection.", 400);
 
-    const userPurchaseCount =
-      await purchaseRepository.getCountByUserIdAndLaunchId(launch.id, user.id);
-
-    //TODO: whitelisting phase purchase count validation
     const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
-    let mintPrice;
+    let mintPrice = launch.poMintPrice;
     if (
       launch.isWhitelisted &&
       Number(launch.wlStartsAt) < currentUnixTimeStamp &&
       Number(launch.wlEndsAt) > currentUnixTimeStamp
     ) {
-      mintPrice = launch.wlMintPrice;
-
-      if (
-        userPurchaseCount &&
-        userPurchaseCount >= Number(launch.wlMaxMintPerWallet)
-      )
-        throw new CustomError(
-          "Wallet limit has been reached for whitelist phase.",
-          400
-        );
-
       const wlAddress = await wlRepository.getByLaunchIdAndAddress(
         launch.id,
         user.address
@@ -526,6 +511,44 @@ export const launchServices = {
       if (!wlAddress)
         throw new CustomError(
           "You are not allowed to participate in this phase.",
+          400
+        );
+
+      mintPrice = Number(launch.wlMintPrice);
+
+      const wlUserPurchaseCount =
+        await purchaseRepository.getCountByUserIdLaunchIdAndUnixTimestamp(
+          launch.id,
+          user.id,
+          Number(launch.wlStartsAt)
+        );
+
+      if (
+        wlUserPurchaseCount &&
+        wlUserPurchaseCount >= Number(launch.wlMaxMintPerWallet)
+      )
+        throw new CustomError(
+          "Wallet limit has been reached for whitelist phase.",
+          400
+        );
+    } else if (
+      Number(launch.poStartsAt) < currentUnixTimeStamp &&
+      (!launch.poEndsAt || Number(launch.poEndsAt) > currentUnixTimeStamp)
+    ) {
+      //PO ACTIVE
+      const poUserPurchaseCount =
+        await purchaseRepository.getCountByUserIdLaunchIdAndUnixTimestamp(
+          launch.id,
+          user.id,
+          Number(launch.poStartsAt)
+        );
+
+      if (
+        poUserPurchaseCount &&
+        poUserPurchaseCount >= Number(launch.poMaxMintPerWallet)
+      )
+        throw new CustomError(
+          "Wallet limit has been reached for public offering phase.",
           400
         );
     } else if (Number(launch.poStartsAt) > currentUnixTimeStamp) {
@@ -536,15 +559,6 @@ export const launchServices = {
     ) {
       throw new CustomError("Launch has ended.", 400);
     }
-
-    if (
-      userPurchaseCount &&
-      userPurchaseCount >=
-        launch.poMaxMintPerWallet + Number(launch.wlMaxMintPerWallet)
-    )
-      throw new CustomError("Wallet limit has been reached.", 400);
-
-    mintPrice = launch.poMintPrice;
 
     const userOnHoldItemCount =
       await launchItemRepository.getOnHoldCountByLaunchIdAndUserId(
