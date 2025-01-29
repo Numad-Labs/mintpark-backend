@@ -74,7 +74,7 @@ export const listServices = {
     issuerId: string,
     txid?: string
   ) => {
-    const collectible = await collectibleRepository.getById(collectibleId);
+    const collectible = await collectibleRepository.getById(db, collectibleId);
     if (!collectible || !collectible.collectionId)
       throw new CustomError("Collectible not found.", 400);
 
@@ -298,6 +298,7 @@ export const listServices = {
 
     if (list.layer === "CITREA") {
       const collectible = await collectibleRepository.getById(
+        db,
         list.collectibleId
       );
       if (!collectible) throw new CustomError("Collectible not found", 400);
@@ -472,7 +473,10 @@ export const listServices = {
   generateListingCancelTx: async (issuerId: string, id: string) => {
     const list = await listRepository.getById(id);
     if (!list) throw new CustomError("List not found.", 400);
-    const collectible = await collectibleRepository.getById(list.collectibleId);
+    const collectible = await collectibleRepository.getById(
+      db,
+      list.collectibleId
+    );
     if (!collectible) throw new CustomError("Collectible not found.", 400);
 
     if (list.sellerId !== issuerId)

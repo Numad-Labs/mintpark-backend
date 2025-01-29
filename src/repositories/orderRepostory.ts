@@ -36,7 +36,7 @@ export const orderRepository = {
 
     return order;
   },
-  getById: async (id: string) => {
+  getById: async (db: Kysely<DB> | Transaction<DB>, id: string) => {
     const order = await db
       .selectFrom("Order")
       .selectAll()
@@ -86,5 +86,5 @@ export const orderRepository = {
       .executeTakeFirst();
 
     return order;
-  },
+  }
 };

@@ -44,6 +44,7 @@ import { producer } from "..";
 import { wlRepository } from "../repositories/wlRepository";
 import { FundingAddressService } from "../blockchain/evm/services/fundingAddress";
 import { ethers } from "ethers";
+import { DatabaseError } from "pg";
 
 const launchPadService = new LaunchpadService(
   EVM_CONFIG.RPC_URL,
@@ -117,6 +118,7 @@ export const launchServices = {
     ) {
       const childCollection =
         await collectionRepository.getChildCollectionByParentCollectionId(
+          db,
           collection.id
         );
       if (!childCollection)
@@ -484,7 +486,7 @@ export const launchServices = {
     if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
 
-    const launch = await launchRepository.getById(id);
+    const launch = await launchRepository.getById(db, id);
     if (!launch) throw new CustomError("Launch not found.", 400);
     if (launch.status === "UNCONFIRMED")
       throw new CustomError("Unconfirmed launch.", 400);
@@ -497,87 +499,106 @@ export const launchServices = {
     if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
       throw new CustomError("You cannot buy the item of this collection.", 400);
 
-    const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
-    let mintPrice = launch.poMintPrice;
-    if (
-      launch.isWhitelisted &&
-      Number(launch.wlStartsAt) < currentUnixTimeStamp &&
-      Number(launch.wlEndsAt) > currentUnixTimeStamp
-    ) {
-      const wlAddress = await wlRepository.getByLaunchIdAndAddress(
-        launch.id,
-        user.address
-      );
-      if (!wlAddress)
-        throw new CustomError(
-          "You are not allowed to participate in this phase.",
-          400
-        );
-
-      mintPrice = Number(launch.wlMintPrice);
-
-      const wlUserPurchaseCount =
-        await purchaseRepository.getCountByUserIdLaunchIdAndUnixTimestamp(
-          launch.id,
-          user.id,
-          Number(launch.wlStartsAt)
-        );
-
-      if (
-        wlUserPurchaseCount &&
-        wlUserPurchaseCount >= Number(launch.wlMaxMintPerWallet)
-      )
-        throw new CustomError(
-          "Wallet limit has been reached for whitelist phase.",
-          400
-        );
-    } else if (
-      Number(launch.poStartsAt) < currentUnixTimeStamp &&
-      (!launch.poEndsAt || Number(launch.poEndsAt) > currentUnixTimeStamp)
-    ) {
-      //PO ACTIVE
-      const poUserPurchaseCount =
-        await purchaseRepository.getCountByUserIdLaunchIdAndUnixTimestamp(
-          launch.id,
-          user.id,
-          Number(launch.poStartsAt)
-        );
-
-      if (
-        poUserPurchaseCount &&
-        poUserPurchaseCount >= Number(launch.poMaxMintPerWallet)
-      )
-        throw new CustomError(
-          "Wallet limit has been reached for public offering phase.",
-          400
-        );
-    } else if (Number(launch.poStartsAt) > currentUnixTimeStamp) {
-      throw new CustomError("Launch hasn't started.", 400);
-    } else if (
-      launch.poEndsAt &&
-      Number(launch.poEndsAt) < currentUnixTimeStamp
-    ) {
-      throw new CustomError("Launch has ended.", 400);
-    }
-
-    const userOnHoldItemCount =
-      await launchItemRepository.getOnHoldCountByLaunchIdAndUserId(
-        launch.id,
-        user.id
-      );
-    if (Number(userOnHoldItemCount) >= 3)
-      throw new CustomError("You have too many items reserved.", 400);
-
-    const launchItem = await launchItemRepository.getRandomItemByLaunchId(
-      launch.id
-    );
     const result = await db.transaction().execute(async (trx) => {
+      try {
+        await userRepository.acquireLockByUserLayerId(trx, userLayerId);
+      } catch (error) {
+        if (error instanceof DatabaseError && error.code === "55P03") {
+          throw new CustomError(
+            "Previous request is currently being processed. Please try again in a moment.",
+            409
+          );
+        }
+
+        throw error;
+      }
+
+      const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
+      let mintPrice = launch.poMintPrice;
+      if (
+        launch.isWhitelisted &&
+        Number(launch.wlStartsAt) < currentUnixTimeStamp &&
+        Number(launch.wlEndsAt) > currentUnixTimeStamp
+      ) {
+        const wlAddress = await wlRepository.getByLaunchIdAndAddress(
+          trx,
+          launch.id,
+          user.address
+        );
+        if (!wlAddress)
+          throw new CustomError(
+            "You are not allowed to participate in this phase.",
+            400
+          );
+
+        mintPrice = Number(launch.wlMintPrice);
+
+        const wlUserPurchaseCount =
+          await purchaseRepository.getCountByUserIdLaunchIdAndUnixTimestamp(
+            trx,
+            launch.id,
+            user.id,
+            Number(launch.wlStartsAt)
+          );
+
+        if (
+          wlUserPurchaseCount &&
+          wlUserPurchaseCount >= Number(launch.wlMaxMintPerWallet)
+        )
+          throw new CustomError(
+            "Wallet limit has been reached for whitelist phase.",
+            400
+          );
+      } else if (
+        Number(launch.poStartsAt) < currentUnixTimeStamp &&
+        (!launch.poEndsAt || Number(launch.poEndsAt) > currentUnixTimeStamp)
+      ) {
+        //PO ACTIVE
+        const poUserPurchaseCount =
+          await purchaseRepository.getCountByUserIdLaunchIdAndUnixTimestamp(
+            trx,
+            launch.id,
+            user.id,
+            Number(launch.poStartsAt)
+          );
+
+        if (
+          poUserPurchaseCount &&
+          poUserPurchaseCount >= Number(launch.poMaxMintPerWallet)
+        )
+          throw new CustomError(
+            "Wallet limit has been reached for public offering phase.",
+            400
+          );
+      } else if (Number(launch.poStartsAt) > currentUnixTimeStamp) {
+        throw new CustomError("Launch hasn't started.", 400);
+      } else if (
+        launch.poEndsAt &&
+        Number(launch.poEndsAt) < currentUnixTimeStamp
+      ) {
+        throw new CustomError("Launch has ended.", 400);
+      }
+
+      const userOnHoldItemCount =
+        await launchItemRepository.getOnHoldCountByLaunchIdAndUserId(
+          trx,
+          launch.id,
+          user.id
+        );
+      if (Number(userOnHoldItemCount) >= 3)
+        throw new CustomError("You have too many items reserved.", 400);
+
+      const launchItem = await launchItemRepository.getRandomItemByLaunchId(
+        launch.id
+      );
+
       const pickedLaunchItem = await launchItemRepository.setOnHoldById(
         trx,
         launchItem.id,
         user.id
       );
       const collectible = await collectibleRepository.getById(
+        trx,
         launchItem.collectibleId
       );
       if (!collectible) throw new CustomError("Collectible not found.", 400);
@@ -699,7 +720,7 @@ export const launchServices = {
     });
 
     return {
-      launchItem: launchItem,
+      launchItem: result.launchItem,
       order: result.order,
       singleMintTxHex: result.singleMintTxHex
     };
@@ -723,53 +744,71 @@ export const launchServices = {
     if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
 
-    const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
-      launchItemId
-    );
-    if (isLaunchItemOnHold && isLaunchItemOnHold.onHoldBy !== user.id)
-      throw new CustomError(
-        "This launch item is currently reserved to another user.",
-        400
-      );
-    if (isLaunchItemOnHold && isLaunchItemOnHold.status === "SOLD")
-      throw new CustomError("Launch item has already been sold.", 400);
-
-    const launchItem = await launchItemRepository.getById(launchItemId);
-    if (!launchItem) throw new CustomError("Launch item not found.", 400);
-
-    const launch = await launchRepository.getById(launchItem.launchId);
-    if (!launch) throw new CustomError("Launch not found.", 400);
-    if (launch.status === "UNCONFIRMED")
-      throw new CustomError("Unconfirmed launch.", 400);
-
-    const collection = await collectionRepository.getById(
-      db,
-      launch.collectionId
-    );
-    if (!collection) throw new CustomError("Collection not found.", 400);
-    if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
-      throw new CustomError("You cannot buy the item of this collection.", 400);
-
-    const parentCollectible = await collectibleRepository.getById(
-      launchItem.collectibleId
-    );
-    if (!parentCollectible)
-      throw new CustomError("Collectible not found.", 400);
-    if (!parentCollectible.fileKey)
-      throw new CustomError("Collectible file key not found.", 400);
-
-    let mintPrice;
-    if (launch.isWhitelisted) {
-      mintPrice = launch.wlMintPrice;
-    } else {
-      mintPrice = launch.poMintPrice;
-    }
-    // if (!mintPrice)
-    //   throw new CustomError("Mint price not found try again", 400);
-
-    let nftIpfsUrl;
-
     const result = await db.transaction().execute(async (trx) => {
+      try {
+        await userRepository.acquireLockByUserLayerId(trx, userLayerId);
+      } catch (error) {
+        if (error instanceof DatabaseError && error.code === "55P03") {
+          throw new CustomError(
+            "Previous request is currently being processed. Please try again in a moment.",
+            409
+          );
+        }
+
+        throw error;
+      }
+
+      const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
+        trx,
+        launchItemId
+      );
+      if (isLaunchItemOnHold && isLaunchItemOnHold.onHoldBy !== user.id)
+        throw new CustomError(
+          "This launch item is currently reserved to another user.",
+          400
+        );
+      if (isLaunchItemOnHold && isLaunchItemOnHold.status === "SOLD")
+        throw new CustomError("Launch item has already been sold.", 400);
+
+      const launchItem = await launchItemRepository.getById(trx, launchItemId);
+      if (!launchItem) throw new CustomError("Launch item not found.", 400);
+
+      const launch = await launchRepository.getById(trx, launchItem.launchId);
+      if (!launch) throw new CustomError("Launch not found.", 400);
+      if (launch.status === "UNCONFIRMED")
+        throw new CustomError("Unconfirmed launch.", 400);
+
+      const collection = await collectionRepository.getById(
+        db,
+        launch.collectionId
+      );
+      if (!collection) throw new CustomError("Collection not found.", 400);
+      if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
+        throw new CustomError(
+          "You cannot buy the item of this collection.",
+          400
+        );
+
+      const parentCollectible = await collectibleRepository.getById(
+        trx,
+        launchItem.collectibleId
+      );
+      if (!parentCollectible)
+        throw new CustomError("Collectible not found.", 400);
+      if (!parentCollectible.fileKey)
+        throw new CustomError("Collectible file key not found.", 400);
+
+      let mintPrice;
+      if (launch.isWhitelisted) {
+        mintPrice = launch.wlMintPrice;
+      } else {
+        mintPrice = launch.poMintPrice;
+      }
+      // if (!mintPrice)
+      //   throw new CustomError("Mint price not found try again", 400);
+
+      let nftIpfsUrl;
+
       if (
         collection.type === "INSCRIPTION" ||
         collection.type === "RECURSIVE_INSCRIPTION"
@@ -782,6 +821,7 @@ export const launchServices = {
 
         const L2Collection =
           await collectionRepository.getChildCollectionByParentCollectionId(
+            trx,
             collection.id
           );
         if (
@@ -795,7 +835,7 @@ export const launchServices = {
           //TODO: Validate if all traits of the collection has already been minted or not
         }
 
-        const order = await orderRepository.getById(verification.orderId);
+        const order = await orderRepository.getById(trx, verification.orderId);
         if (!order) throw new CustomError("Order not found.", 400);
         if (!order.fundingAddress || !order.privateKey)
           throw new CustomError(
@@ -969,9 +1009,14 @@ export const launchServices = {
         userId: user.id,
         launchItemId: soldLaunchItem.id
       });
+
+      return { launchItem, parentCollectible };
     });
 
-    return { launchItem, collectible: parentCollectible };
+    return {
+      launchItem: result.launchItem,
+      collectible: result.parentCollectible
+    };
   },
   createOrderForReservedLaunchItems: async (
     launchId: string,
@@ -993,7 +1038,7 @@ export const launchServices = {
     if (!issuer.isActive)
       throw new CustomError("This account is deactivated.", 400);
 
-    const launch = await launchRepository.getById(launchId);
+    const launch = await launchRepository.getById(db, launchId);
     if (!launch) throw new CustomError("Launch not found.", 400);
 
     // const reservedLaunchItemsCount =
@@ -1064,7 +1109,7 @@ export const launchServices = {
     if (!issuer.isActive)
       throw new CustomError("This account is deactivated.", 400);
 
-    const launch = await launchRepository.getById(launchId);
+    const launch = await launchRepository.getById(db, launchId);
     if (!launch) throw new CustomError("Launch not found.", 400);
 
     await orderRepository.updateOrderStatus(orderId, "IN_QUEUE");
@@ -1085,7 +1130,7 @@ export const launchServices = {
     launchId: string,
     addresses: string[]
   ) => {
-    const launch = await launchRepository.getById(launchId);
+    const launch = await launchRepository.getById(db, launchId);
     if (!launch) throw new CustomError("Launch not found.", 400);
     if (!launch.isWhitelisted)
       throw new CustomError("Launch is not whitelisted.", 400);

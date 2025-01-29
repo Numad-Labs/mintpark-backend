@@ -64,6 +64,7 @@ export const purchaseRepository = {
     return purchases;
   },
   getCountByUserIdLaunchIdAndUnixTimestamp: async (
+    db: Kysely<DB> | Transaction<DB>,
     launchId: string,
     userId: string,
     unixTimestamp: number

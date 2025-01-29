@@ -34,7 +34,7 @@ export async function processMessage(message: Message) {
 
   logger.info(`Received message: ${isValidMessage.data}`);
 
-  const order = await orderRepository.getById(isValidMessage.data);
+  const order = await orderRepository.getById(db, isValidMessage.data);
   if (!order) throw new CustomError(`Order not found: ${message.Body}`, 400);
   if (order.orderStatus === "DONE")
     throw new CustomError(`Order has already been minted: ${order.id}`, 400);
@@ -77,6 +77,7 @@ export async function processMessage(message: Message) {
   if (collection.type === "INSCRIPTION") {
     const L2Collection =
       await collectionRepository.getChildCollectionByParentCollectionId(
+        db,
         collection.id
       );
     if (!L2Collection || L2Collection.type !== "SYNTHETIC")
@@ -99,6 +100,7 @@ export async function processMessage(message: Message) {
     logger.info(`Started processing order item: ${orderItem.id}`);
 
     const parentCollectible = await collectibleRepository.getById(
+      db,
       orderItem.collectibleId
     );
     if (!parentCollectible)
@@ -213,6 +215,7 @@ export async function processMessage(message: Message) {
   } else if (collection.type === "RECURSIVE_INSCRIPTION") {
     const L2Collection =
       await collectionRepository.getChildCollectionByParentCollectionId(
+        db,
         collection.id
       );
     if (!L2Collection || L2Collection.type !== "SYNTHETIC")
@@ -276,6 +279,7 @@ export async function processMessage(message: Message) {
       await orderItemRepository.update(orderItem?.id, { status: "MINTED" });
 
       const parentCollectible = await collectibleRepository.getById(
+        db,
         orderItem.collectibleId
       );
       if (!parentCollectible)
@@ -344,6 +348,7 @@ export async function processMessage(message: Message) {
     await orderItemRepository.update(orderItem?.id, { status: "MINTED" });
 
     const collectible = await collectibleRepository.getById(
+      db,
       orderItem.collectibleId
     );
     if (!collectible)

@@ -40,7 +40,7 @@ export const collectibleRepository = {
 
     return collectible;
   },
-  getById: async (id: string) => {
+  getById: async (db: Kysely<DB> | Transaction<DB>, id: string) => {
     const collectible = await db
       .selectFrom("Collectible")
       .innerJoin("Collection", "Collection.id", "Collectible.collectionId")

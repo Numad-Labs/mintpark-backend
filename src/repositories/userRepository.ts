@@ -1,6 +1,6 @@
-import { Insertable, Updateable } from "kysely";
+import { Insertable, Kysely, Transaction, Updateable } from "kysely";
 import { db } from "../utils/db";
-import { User } from "../types/db/types";
+import { DB, User } from "../types/db/types";
 
 export const userRepository = {
   create: async (data: Insertable<User>) => {
@@ -54,7 +54,7 @@ export const userRepository = {
         "UserLayer.pubkey",
         "UserLayer.xpub",
         "Layer.layer",
-        "Layer.network",
+        "Layer.network"
       ])
       .where("UserLayer.address", "=", address)
       .where("UserLayer.layerId", "=", layerId)
@@ -76,7 +76,7 @@ export const userRepository = {
         "UserLayer.pubkey",
         "UserLayer.xpub",
         "Layer.layer",
-        "Layer.network",
+        "Layer.network"
       ])
       .where("User.id", "=", id)
       .where("UserLayer.layerId", "=", layerId)
@@ -99,7 +99,7 @@ export const userRepository = {
         "UserLayer.xpub",
         "Layer.layer",
         "Layer.network",
-        "UserLayer.isActive",
+        "UserLayer.isActive"
       ])
       .where("UserLayer.id", "=", userLayerId)
       .executeTakeFirst();
@@ -120,7 +120,7 @@ export const userRepository = {
         "UserLayer.pubkey",
         "UserLayer.xpub",
         "Layer.layer",
-        "Layer.network",
+        "Layer.network"
       ])
       .where("UserLayer.userId", "=", userId)
       .where("UserLayer.isActive", "=", true)
@@ -128,4 +128,15 @@ export const userRepository = {
 
     return accounts;
   },
+  acquireLockByUserLayerId: async (
+    db: Kysely<DB> | Transaction<DB>,
+    userLayerId: string
+  ) => {
+    await db
+      .selectFrom("UserLayer")
+      .where("UserLayer.id", "=", userLayerId)
+      .forUpdate()
+      .noWait()
+      .execute();
+  }
 };

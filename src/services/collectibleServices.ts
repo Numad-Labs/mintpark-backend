@@ -180,7 +180,7 @@ export const collectibleServices = {
     };
   },
   getActivityByCollectibleId: async (collectibleId: string) => {
-    const collectible = await collectibleRepository.getById(collectibleId);
+    const collectible = await collectibleRepository.getById(db, collectibleId);
     if (!collectible) throw new CustomError("Collectible not found.", 400);
     if (!collectible.mintingTxId)
       throw new CustomError("Collectible does not have txid.", 400);

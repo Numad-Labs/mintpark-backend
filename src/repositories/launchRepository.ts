@@ -37,7 +37,7 @@ export const launchRepository = {
 
     return launch;
   },
-  getById: async (id: string) => {
+  getById: async (db: Kysely<DB> | Transaction<DB>, id: string) => {
     const launch = await db
       .selectFrom("Launch")
       .selectAll()

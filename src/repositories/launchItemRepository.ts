@@ -43,7 +43,7 @@ export const launchItemRepository = {
 
     return launchItem;
   },
-  getById: async (id: string) => {
+  getById: async (db: Kysely<DB> | Transaction<DB>, id: string) => {
     const launchItem = await db
       .selectFrom("LaunchItem")
       .selectAll()
@@ -110,7 +110,7 @@ export const launchItemRepository = {
 
     return launchItem;
   },
-  getOnHoldById: async (id: string) => {
+  getOnHoldById: async (db: Kysely<DB> | Transaction<DB>, id: string) => {
     const launchItem = await db
       .selectFrom("LaunchItem")
       .selectAll()
@@ -122,6 +122,7 @@ export const launchItemRepository = {
     return launchItem;
   },
   getOnHoldCountByLaunchIdAndUserId: async (
+    db: Kysely<DB> | Transaction<DB>,
     launchId: string,
     userId: string
   ) => {

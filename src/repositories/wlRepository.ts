@@ -1,9 +1,13 @@
-import { Insertable, Updateable } from "kysely";
+import { Insertable, Kysely, Transaction, Updateable } from "kysely";
 import { db } from "../utils/db";
-import { WlAddress } from "../types/db/types";
+import { DB, WlAddress } from "../types/db/types";
 
 export const wlRepository = {
-  getByLaunchIdAndAddress: async (launchId: string, address: string) => {
+  getByLaunchIdAndAddress: async (
+    db: Kysely<DB> | Transaction<DB>,
+    launchId: string,
+    address: string
+  ) => {
     const wlAddress = await db
       .selectFrom("WlAddress")
       .selectAll()
@@ -32,5 +36,5 @@ export const wlRepository = {
       .execute();
 
     return wlAddress;
-  },
+  }
 };

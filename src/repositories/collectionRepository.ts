@@ -4,7 +4,7 @@ import {
   Kysely,
   sql,
   Transaction,
-  Updateable,
+  Updateable
 } from "kysely";
 import { db } from "../utils/db";
 import { Collection, DB } from "../types/db/types";
@@ -93,7 +93,7 @@ export const collectionRepository = {
   // },
   getAllLaunchedCollectionsByLayerId: async ({
     layerId,
-    interval,
+    interval
   }: LaunchQueryParams) => {
     // Get current timestamp in milliseconds
     const now = BigInt(Math.floor(Date.now() / 1000));
@@ -133,7 +133,7 @@ export const collectionRepository = {
           SELECT COUNT(*)::integer
           FROM "LaunchItem"
           WHERE "LaunchItem"."launchId" = "Launch"."id"
-        ), 0)`.as("supply"),
+        ), 0)`.as("supply")
       ])
       .where("Collection.layerId", "=", layerId)
       .where("Collection.status", "!=", "UNCONFIRMED")
@@ -144,7 +144,7 @@ export const collectionRepository = {
         if (interval === "live") {
           return eb.or([
             eb("Launch.poEndsAt", ">", now.toString()),
-            eb("Launch.poEndsAt", "=", null),
+            eb("Launch.poEndsAt", "=", null)
             // eb.and([
             //   eb("Launch.wlStartsAt", "is not", null),
             //   eb("Launch.wlEndsAt", "is not", null),
@@ -172,7 +172,7 @@ export const collectionRepository = {
       wlStartsAt: collection.wlStartsAt ? Number(collection.wlStartsAt) : null,
       wlEndsAt: collection.wlEndsAt ? Number(collection.wlEndsAt) : null,
       poStartsAt: Number(collection.poStartsAt),
-      poEndsAt: Number(collection.poEndsAt),
+      poEndsAt: Number(collection.poEndsAt)
     }));
   },
   getLaunchedCollectionById: async (id: string) => {
@@ -213,7 +213,7 @@ export const collectionRepository = {
           SELECT COUNT(*)::integer
           FROM "LaunchItem"
           WHERE "LaunchItem"."launchId" = "Launch"."id"
-        ), 0)`.as("supply"),
+        ), 0)`.as("supply")
       ])
       .where("Collection.id", "=", id)
       .where("Launch.id", "is not", null)
@@ -226,7 +226,7 @@ export const collectionRepository = {
       wlStartsAt: collection.wlStartsAt ? Number(collection.wlStartsAt) : null,
       wlEndsAt: collection.wlEndsAt ? Number(collection.wlEndsAt) : null,
       poStartsAt: Number(collection.poStartsAt),
-      poEndsAt: Number(collection.poEndsAt),
+      poEndsAt: Number(collection.poEndsAt)
     };
   },
   getListedCollections: async (params: CollectionQueryParams) => {
@@ -237,7 +237,7 @@ export const collectionRepository = {
           selectFrom("List")
             .rightJoin("Collectible", "Collectible.id", "List.collectibleId")
             .select((eb) => [
-              sql<number>`COALESCE(MIN("List"."price"), 0)`.as("floor"),
+              sql<number>`COALESCE(MIN("List"."price"), 0)`.as("floor")
             ])
             .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
             .where("List.status", "in", ["ACTIVE", "SOLD"])
@@ -251,7 +251,7 @@ export const collectionRepository = {
           selectFrom("List")
             .rightJoin("Collectible", "Collectible.id", "List.collectibleId")
             .select((eb) => [
-              sql<number>`COALESCE(SUM("List"."price"), 0)`.as("volume"),
+              sql<number>`COALESCE(SUM("List"."price"), 0)`.as("volume")
             ])
             .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
             .where("List.status", "=", "SOLD")
@@ -267,7 +267,7 @@ export const collectionRepository = {
             .select((eb) => [
               sql<number>`COALESCE(COUNT("List"."price"), 0)`
                 .$castTo<number>()
-                .as("listedCount"),
+                .as("listedCount")
             ])
             .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
             .where(
@@ -282,7 +282,7 @@ export const collectionRepository = {
             .select((eb) => [
               sql<number>`COALESCE(COUNT("List"."price"), 0)`
                 .$castTo<number>()
-                .as("soldCount"),
+                .as("soldCount")
             ])
             .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
             .where("List.status", "=", "SOLD")
@@ -292,7 +292,7 @@ export const collectionRepository = {
                 "listedAt"
               ).$castTo<boolean>()
             )
-            .as("soldCount"),
+            .as("soldCount")
         ])
       )
       .selectFrom("Collection")
@@ -320,7 +320,7 @@ export const collectionRepository = {
         "Collection.websiteUrl",
         "Collection.iconUrl",
         "Collection.inscriptionIcon",
-        "Collection.slug",
+        "Collection.slug"
       ])
       .where("Collection.layerId", "=", params.layerId)
       .where("Collection.status", "=", "CONFIRMED");
@@ -348,7 +348,7 @@ export const collectionRepository = {
           selectFrom("List")
             .rightJoin("Collectible", "Collectible.id", "List.collectibleId")
             .select((eb) => [
-              sql<number>`COALESCE(MIN("List"."price"), 0)`.as("floor"),
+              sql<number>`COALESCE(MIN("List"."price"), 0)`.as("floor")
             ])
             .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
             .where("List.status", "in", ["ACTIVE", "SOLD"])
@@ -356,7 +356,7 @@ export const collectionRepository = {
           selectFrom("List")
             .rightJoin("Collectible", "Collectible.id", "List.collectibleId")
             .select((eb) => [
-              sql<number>`COALESCE(SUM("List"."price"), 0)`.as("volume"),
+              sql<number>`COALESCE(SUM("List"."price"), 0)`.as("volume")
             ])
             .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
             .where("List.status", "=", "SOLD")
@@ -366,7 +366,7 @@ export const collectionRepository = {
             .select((eb) => [
               sql<number>`COALESCE(COUNT("List"."price"), 0)`
                 .$castTo<number>()
-                .as("listedCount"),
+                .as("listedCount")
             ])
             .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
             .as("listedCount"),
@@ -375,11 +375,11 @@ export const collectionRepository = {
             .select((eb) => [
               sql<number>`COALESCE(COUNT("List"."price"), 0)`
                 .$castTo<number>()
-                .as("soldCount"),
+                .as("soldCount")
             ])
             .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
             .where("List.status", "=", "SOLD")
-            .as("soldCount"),
+            .as("soldCount")
         ])
       )
       .selectFrom("Collection")
@@ -405,7 +405,7 @@ export const collectionRepository = {
         "Collection.websiteUrl",
         "Collection.iconUrl",
         "Collection.inscriptionIcon",
-        "Collection.slug",
+        "Collection.slug"
       ])
       .where("Collection.status", "=", "CONFIRMED")
       .where("Collection.id", "=", id)
@@ -429,7 +429,7 @@ export const collectionRepository = {
           .count<number>("Collectible.id")
           .filterWhere("Collectible.collectionId", "=", eb.ref("Collection.id"))
           .filterWhere("Collectible.uniqueIdx", "in", inscriptionIds)
-          .as("collectibleCount"),
+          .as("collectibleCount")
       ])
       .where("Collectible.uniqueIdx", "in", inscriptionIds)
       .groupBy("Collection.id")
@@ -473,7 +473,10 @@ export const collectionRepository = {
 
     return collection;
   },
-  getChildCollectionByParentCollectionId: async (collectionId: string) => {
+  getChildCollectionByParentCollectionId: async (
+    db: Kysely<DB> | Transaction<DB>,
+    collectionId: string
+  ) => {
     const collection = await db
       .selectFrom("Collection")
       .selectAll()
@@ -509,5 +512,5 @@ export const collectionRepository = {
       .execute();
 
     return result;
-  },
+  }
 };
