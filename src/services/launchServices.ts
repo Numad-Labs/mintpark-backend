@@ -778,6 +778,65 @@ export const launchServices = {
       if (launch.status === "UNCONFIRMED")
         throw new CustomError("Unconfirmed launch.", 400);
 
+      const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
+      let mintPrice = launch.poMintPrice;
+      if (
+        launch.isWhitelisted &&
+        Number(launch.wlStartsAt) < currentUnixTimeStamp &&
+        Number(launch.wlEndsAt) > currentUnixTimeStamp
+      ) {
+        const wlAddress = await wlRepository.getByLaunchIdAndAddress(
+          trx,
+          launch.id,
+          user.address
+        );
+        if (!wlAddress)
+          throw new CustomError(
+            "You are not allowed to participate in this phase.",
+            400
+          );
+
+        mintPrice = Number(launch.wlMintPrice);
+
+        const wlUserPurchaseCount =
+          await purchaseRepository.getCountByUserIdLaunchIdAndUnixTimestamp(
+            trx,
+            launch.id,
+            user.id,
+            Number(launch.wlStartsAt)
+          );
+
+        if (
+          wlUserPurchaseCount &&
+          wlUserPurchaseCount >= Number(launch.wlMaxMintPerWallet)
+        )
+          throw new CustomError(
+            "Wallet limit has been reached for whitelist phase.",
+            400
+          );
+      } else if (
+        Number(launch.poStartsAt) < currentUnixTimeStamp &&
+        (!launch.poEndsAt || Number(launch.poEndsAt) > currentUnixTimeStamp)
+      ) {
+        //PO ACTIVE
+        const poUserPurchaseCount =
+          await purchaseRepository.getCountByUserIdLaunchIdAndUnixTimestamp(
+            trx,
+            launch.id,
+            user.id,
+            Number(launch.poStartsAt)
+          );
+
+        if (
+          poUserPurchaseCount &&
+          poUserPurchaseCount >= Number(launch.poMaxMintPerWallet)
+        )
+          throw new CustomError(
+            "Wallet limit has been reached for public offering phase.",
+            400
+          );
+      }
+
       const collection = await collectionRepository.getById(
         db,
         launch.collectionId
@@ -798,12 +857,12 @@ export const launchServices = {
       if (!parentCollectible.fileKey)
         throw new CustomError("Collectible file key not found.", 400);
 
-      let mintPrice;
-      if (launch.isWhitelisted) {
-        mintPrice = launch.wlMintPrice;
-      } else {
-        mintPrice = launch.poMintPrice;
-      }
+      // let mintPrice;
+      // if (launch.isWhitelisted) {
+      //   mintPrice = launch.wlMintPrice;
+      // } else {
+      //   mintPrice = launch.poMintPrice;
+      // }
       // if (!mintPrice)
       //   throw new CustomError("Mint price not found try again", 400);
 
