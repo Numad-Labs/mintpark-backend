@@ -69,7 +69,7 @@ export const launchRepository = {
   },
   getConfirmedLaunchesByLayerId: async ({
     layerId,
-    interval,
+    interval
   }: LaunchQueryParams) => {
     const now = BigInt(Math.floor(Date.now() / 1000));
 
@@ -120,12 +120,12 @@ export const launchRepository = {
               SELECT COUNT(*)::integer
               FROM "LaunchItem"
               WHERE "LaunchItem"."launchId" = "Launch"."id"
-            ), 0)`.as("supply"),
+            ), 0)`.as("supply")
       ])
       .where((eb) =>
         eb.or([
           eb("childCollection.layerId", "=", layerId),
-          eb("parentCollection.layerId", "=", layerId),
+          eb("parentCollection.layerId", "=", layerId)
         ])
       )
       .where("Launch.status", "=", "CONFIRMED");
@@ -135,7 +135,7 @@ export const launchRepository = {
         if (interval === "live") {
           return eb.or([
             eb("Launch.poEndsAt", ">", now.toString()),
-            eb("Launch.poEndsAt", "=", null),
+            eb("Launch.poEndsAt", "=", null)
             // eb.and([
             //   eb("Launch.wlStartsAt", "is not", null),
             //   eb("Launch.wlEndsAt", "is not", null),
@@ -155,14 +155,14 @@ export const launchRepository = {
       });
     }
 
-    const collections = await query.execute();
+    const collections = await query.orderBy("Launch.createdAt desc").execute();
 
     return collections.map((collection) => ({
       ...collection,
       wlStartsAt: collection.wlStartsAt ? Number(collection.wlStartsAt) : null,
       wlEndsAt: collection.wlEndsAt ? Number(collection.wlEndsAt) : null,
       poStartsAt: Number(collection.poStartsAt),
-      poEndsAt: Number(collection.poEndsAt),
+      poEndsAt: Number(collection.poEndsAt)
     }));
   },
   getConfirmedLaunchById: async (collectionId: string) => {
@@ -213,7 +213,7 @@ export const launchRepository = {
         SELECT COUNT(*)::integer
         FROM "LaunchItem"
         WHERE "LaunchItem"."launchId" = "Launch"."id"
-      ), 0)`.as("supply"),
+      ), 0)`.as("supply")
       ])
       .where("parentCollection.id", "=", collectionId)
       .where("Launch.status", "=", "CONFIRMED")
@@ -226,7 +226,7 @@ export const launchRepository = {
       wlStartsAt: collection.wlStartsAt ? Number(collection.wlStartsAt) : null,
       wlEndsAt: collection.wlEndsAt ? Number(collection.wlEndsAt) : null,
       poStartsAt: Number(collection.poStartsAt),
-      poEndsAt: Number(collection.poEndsAt),
+      poEndsAt: Number(collection.poEndsAt)
     };
   },
   getLaunchItemCountByLaunchIdAndStatus: async (
@@ -241,5 +241,5 @@ export const launchRepository = {
       .executeTakeFirst();
 
     return result?.count;
-  },
+  }
 };
