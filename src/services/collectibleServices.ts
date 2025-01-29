@@ -220,7 +220,7 @@ export const collectibleServices = {
         if (file) await uploadToS3(key, file);
         return {
           key,
-          fileName: file.filename
+          fileName: file.originalname
         };
       })
     );
