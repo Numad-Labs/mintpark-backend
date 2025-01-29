@@ -720,7 +720,7 @@ export const launchServices = {
     });
 
     return {
-      launchItem: result.launchItem,
+      launchItem: hideSensitiveData(result.launchItem, ["collectibleId"]),
       order: result.order,
       singleMintTxHex: result.singleMintTxHex
     };
