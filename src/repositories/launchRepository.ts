@@ -134,23 +134,41 @@ export const launchRepository = {
       query = query.where((eb) => {
         if (interval === "live") {
           return eb.or([
-            eb("Launch.poEndsAt", ">", now.toString()),
-            eb("Launch.poEndsAt", "=", null)
-            // eb.and([
-            //   eb("Launch.wlStartsAt", "is not", null),
-            //   eb("Launch.wlEndsAt", "is not", null),
-            //   eb("Launch.wlEndsAt", "<=", now.toString()),
-            // ]),
+            // Whitelist is active
+            eb.and([
+              eb("Launch.wlStartsAt", "is not", null),
+              eb("Launch.wlEndsAt", "is not", null),
+              eb("Launch.wlStartsAt", "<=", now.toString()),
+              eb("Launch.wlEndsAt", ">=", now.toString())
+            ]),
+            // Public sale is active
+            eb.and([
+              eb("Launch.poStartsAt", "<=", now.toString()),
+              eb.or([
+                eb("Launch.poEndsAt", "is", null),
+                eb("Launch.poEndsAt", ">", now.toString())
+              ])
+            ]),
+            //Whitelist hasn't started
+            eb("Launch.wlStartsAt", ">", now.toString())
           ]);
         } else {
-          // return eb.and([
-          //   eb("Launch.poEndsAt", ">", now.toString()),
-          //   eb.or([
-          //     eb("Launch.wlEndsAt", "is not", null),
-          //     eb("Launch.wlEndsAt", ">", now.toString()),
-          //   ]),
-          // ]);
-          return eb("Launch.poEndsAt", "<=", now.toString());
+          // Ended interval
+          return eb.and([
+            // Public sale has ended
+            eb("Launch.poEndsAt", "is not", null),
+            eb("Launch.poEndsAt", "<=", now.toString()),
+            // Whitelist either never existed or has ended
+            eb.or([
+              // No whitelist
+              eb.or([
+                eb("Launch.wlStartsAt", "is", null),
+                eb("Launch.wlEndsAt", "is", null)
+              ]),
+              // Whitelist has ended
+              eb("Launch.wlEndsAt", "<=", now.toString())
+            ])
+          ]);
         }
       });
     }
