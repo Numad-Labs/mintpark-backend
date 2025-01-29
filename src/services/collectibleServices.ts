@@ -219,7 +219,8 @@ export const collectibleServices = {
         const key = randomUUID().toString();
         if (file) await uploadToS3(key, file);
         return {
-          key
+          key,
+          fileName: file.filename
         };
       })
     );
@@ -229,7 +230,8 @@ export const collectibleServices = {
         name: `${collection.name} #${startIndex + i}`,
         fileKey: fileKeys[i].key,
         collectionId: collection.id,
-        nftId: (startIndex + i).toString()
+        nftId: (startIndex + i).toString(),
+        fileName: fileKeys[i].fileName
       });
     const collectibles = await collectibleRepository.bulkInsert(
       collectiblesData
