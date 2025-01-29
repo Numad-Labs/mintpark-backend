@@ -130,7 +130,7 @@ model Collection {
   type            COLLECTION_TYPE   @default(RECURSIVE_INSCRIPTION)
   status          COLLECTION_STATUS @default(UNCONFIRMED)
   createdAt       DateTime          @default(now())
-  updatedAt DateTime?
+  updatedAt       DateTime?
 
   isBadge     Boolean @default(false)
   badgeCid    String?
@@ -156,6 +156,7 @@ model Collectible {
   id                     String             @id @default(dbgenerated("gen_random_uuid()"))
   name                   String
   fileKey                String?
+  fileName               String?
   highResolutionImageUrl String?
   cid                    String?
   uniqueIdx              String?
@@ -192,11 +193,11 @@ model TraitType {
 }
 
 model TraitValue {
-  id            String   @id @default(dbgenerated("gen_random_uuid()"))
+  id            String    @id @default(dbgenerated("gen_random_uuid()"))
   value         String
   inscriptionId String?
   fileKey       String
-  createdAt     DateTime @default(now())
+  createdAt     DateTime  @default(now())
   mintedAt      DateTime?
 
   lockingAddress    String?
@@ -232,7 +233,7 @@ model Launch {
   poMintPrice        Float
   poMaxMintPerWallet Int
   createdAt          DateTime      @default(now())
-  updatedAt DateTime?
+  updatedAt          DateTime?
   status             LAUNCH_STATUS @default(UNCONFIRMED)
   reservedCount      Int           @default(0)
 

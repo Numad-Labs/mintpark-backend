@@ -24,6 +24,7 @@ export type Collectible = {
   id: Generated<string>;
   name: string;
   fileKey: string | null;
+  fileName: string | null;
   highResolutionImageUrl: string | null;
   cid: string | null;
   uniqueIdx: string | null;
