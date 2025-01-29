@@ -497,14 +497,14 @@ export const collectionRepository = {
 
     return result?.count;
   },
-  getSyntheticCollectionsWithOffsetAndPagination: async (
+  getEvmCollectionsWithOffsetAndPagination: async (
     offset: number,
     pagination: number
   ) => {
     const result = await db
       .selectFrom("Collection")
       .selectAll()
-      .where("Collection.type", "=", "SYNTHETIC")
+      .where("Collection.type", "in", ["IPFS_CID", "IPFS_FILE", "SYNTHETIC"])
       .where("Collection.status", "=", "CONFIRMED")
       .offset(offset)
       .limit(pagination)

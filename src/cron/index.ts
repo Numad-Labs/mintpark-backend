@@ -35,14 +35,14 @@ export class CollectionOwnerCounterService {
       await redis.setex(
         `heartbeat:nft_counter:${this.instanceId}`,
         this.INSTANCE_HEARTBEAT_TTL,
-        Date.now(),
+        Date.now()
       );
     };
 
     await heartbeat();
     this.heartbeatInterval = setInterval(
       heartbeat,
-      (this.INSTANCE_HEARTBEAT_TTL * 1000) / 2,
+      (this.INSTANCE_HEARTBEAT_TTL * 1000) / 2
     );
   }
 
@@ -65,7 +65,7 @@ export class CollectionOwnerCounterService {
 
     const activeInstances = await this.getActiveInstanceCount();
     const collectionsPerInstance = Math.ceil(
-      totalCollections / activeInstances,
+      totalCollections / activeInstances
     );
     let calculatedBatchSize = Math.ceil(collectionsPerInstance / 10);
 
@@ -76,13 +76,13 @@ export class CollectionOwnerCounterService {
       calculatedBatchSize,
       finalBatchSize: Math.max(
         this.MIN_BATCH_SIZE,
-        Math.min(this.MAX_BATCH_SIZE, calculatedBatchSize),
-      ),
+        Math.min(this.MAX_BATCH_SIZE, calculatedBatchSize)
+      )
     });
 
     return Math.max(
       this.MIN_BATCH_SIZE,
-      Math.min(this.MAX_BATCH_SIZE, calculatedBatchSize),
+      Math.min(this.MAX_BATCH_SIZE, calculatedBatchSize)
     );
   }
   async acquireLock(lockKey: string): Promise<boolean> {
@@ -91,7 +91,7 @@ export class CollectionOwnerCounterService {
       this.instanceId,
       "EX",
       this.LOCK_TTL,
-      "NX",
+      "NX"
     );
     return acquired === "OK";
   }
@@ -113,14 +113,14 @@ export class CollectionOwnerCounterService {
   }
 
   private async shouldProcessCollection(
-    collectionId: string,
+    collectionId: string
   ): Promise<boolean> {
     const lastProcessed = await this.getLastProcessedTime(collectionId);
     return Date.now() - lastProcessed >= this.TWO_HOURS_MS;
   }
 
   async processCollectionBatch(
-    collections: Array<{ id: string; contractAddress?: string | null }>,
+    collections: Array<{ id: string; contractAddress?: string | null }>
   ): Promise<void> {
     for (const collection of collections) {
       try {
@@ -131,29 +131,29 @@ export class CollectionOwnerCounterService {
 
         if (!(await this.shouldProcessCollection(collection.id))) {
           logger.info(
-            `Skipping collection ${collection.id} - Not due for processing yet`,
+            `Skipping collection ${collection.id} - Not due for processing yet`
           );
           continue;
         }
 
         const uniqueOwnersCount =
           await this.evmService.getCollectionOwnersCount(
-            collection.contractAddress,
+            collection.contractAddress
           );
 
         await collectionRepository.update(db, collection.id, {
-          ownerCount: uniqueOwnersCount,
+          ownerCount: uniqueOwnersCount
         });
 
         await this.setLastProcessedTime(collection.id);
 
         logger.info(
-          `Updated owner count for collection ${collection.id}: ${uniqueOwnersCount} owners`,
+          `Updated owner count for collection ${collection.id}: ${uniqueOwnersCount} owners`
         );
       } catch (error) {
         logger.error(
           `Failed to update owner count for collection ${collection.id}:`,
-          error,
+          error
         );
       }
     }
@@ -180,7 +180,7 @@ export class CollectionOwnerCounterService {
       let processedCount = 0;
 
       logger.info(
-        `Starting update process for ${totalCollections} collections with batch size ${batchSize}`,
+        `Starting update process for ${totalCollections} collections with batch size ${batchSize}`
       );
 
       while (true) {
@@ -194,14 +194,14 @@ export class CollectionOwnerCounterService {
         }
 
         logger.info(
-          `${this.instanceId} has started processing the batch: ${batchLockKey}`,
+          `${this.instanceId} has started processing the batch: ${batchLockKey}`
         );
 
         try {
           const collections =
-            await collectionRepository.getSyntheticCollectionsWithOffsetAndPagination(
+            await collectionRepository.getEvmCollectionsWithOffsetAndPagination(
               offset,
-              batchSize,
+              batchSize
             );
 
           console.log("The collections to be processed: ", collections);
@@ -214,8 +214,8 @@ export class CollectionOwnerCounterService {
 
           logger.info(
             `Progress: ${processedCount}/${totalCollections} collections processed (${Math.round(
-              (processedCount / totalCollections) * 100,
-            )}%)`,
+              (processedCount / totalCollections) * 100
+            )}%)`
           );
         } finally {
           await this.releaseLock(batchLockKey);
@@ -254,7 +254,7 @@ export class CollectionOwnerCounterService {
       const lockAcquired = await this.acquireLock(globalLockKey);
       if (!lockAcquired) {
         logger.info(
-          'The task "bitcoin_fee_rate_update_task_lock" is already running on another instance',
+          'The task "bitcoin_fee_rate_update_task_lock" is already running on another instance'
         );
         return;
       }
