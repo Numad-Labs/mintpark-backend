@@ -59,8 +59,7 @@ export class CollectionOwnerCounterService {
   }
 
   async calculateOptimalBatchSize(): Promise<number> {
-    const totalCollections =
-      await collectionRepository.countSyntheticCollections();
+    const totalCollections = await collectionRepository.countEvmCollections();
     if (!totalCollections) throw new Error("Could not count the collections.");
 
     const activeInstances = await this.getActiveInstanceCount();
@@ -171,8 +170,7 @@ export class CollectionOwnerCounterService {
   async updateOwnerCounts(): Promise<void> {
     try {
       const batchSize = await this.calculateOptimalBatchSize();
-      const totalCollections =
-        await collectionRepository.countSyntheticCollections();
+      const totalCollections = await collectionRepository.countEvmCollections();
       if (!totalCollections)
         throw new Error("Could not count the collections.");
 

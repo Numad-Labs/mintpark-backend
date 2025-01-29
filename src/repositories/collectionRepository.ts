@@ -486,11 +486,11 @@ export const collectionRepository = {
 
     return collection;
   },
-  countSyntheticCollections: async () => {
+  countEvmCollections: async () => {
     const result = await db
       .selectFrom("Collection")
       .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
-      .where("Collection.type", "=", "SYNTHETIC")
+      .where("Collection.type", "in", ["SYNTHETIC", "IPFS_CID", "IPFS_FILE"])
       .where("Collection.status", "=", "CONFIRMED")
       .where("contractAddress", "is not", null)
       .executeTakeFirst();
