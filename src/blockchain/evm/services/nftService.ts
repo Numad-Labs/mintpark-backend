@@ -11,9 +11,57 @@ interface S3FileResponse {
   contentLength?: number;
 }
 
+class NonceManager {
+  private currentNonce: number;
+  private pendingNonces: Set<number>;
+  private provider: ethers.JsonRpcProvider;
+  private lastNonceCheck: number;
+  private nonceCheckInterval: number;
+
+  constructor(provider: ethers.JsonRpcProvider) {
+    this.provider = provider;
+    this.pendingNonces = new Set();
+    this.currentNonce = 0;
+    this.lastNonceCheck = 0;
+    this.nonceCheckInterval = 5000; // 5 seconds
+  }
+
+  async initialize(address: string) {
+    this.currentNonce = await this.provider.getTransactionCount(address);
+    this.lastNonceCheck = Date.now();
+  }
+
+  async syncNonce(address: string) {
+    const now = Date.now();
+    if (now - this.lastNonceCheck > this.nonceCheckInterval) {
+      const networkNonce = await this.provider.getTransactionCount(address);
+      this.currentNonce = Math.max(this.currentNonce, networkNonce);
+      this.lastNonceCheck = now;
+    }
+  }
+
+  async getNonce(address: string): Promise<number> {
+    await this.syncNonce(address);
+
+    let nonce = this.currentNonce;
+    while (this.pendingNonces.has(nonce)) {
+      nonce++;
+    }
+
+    this.pendingNonces.add(nonce);
+    this.currentNonce = nonce + 1;
+    return nonce;
+  }
+
+  releaseNonce(nonce: number) {
+    this.pendingNonces.delete(nonce);
+  }
+}
+
 class NFTService {
   provider: ethers.JsonRpcProvider;
   private storage: PinataSDK;
+  private nonceManager: NonceManager;
 
   constructor(providerUrl: string) {
     this.provider = new ethers.JsonRpcProvider(providerUrl);
@@ -22,6 +70,29 @@ class NFTService {
       pinataJwt: config.PINATA_JWT,
       pinataGateway: config.PINATA_GATEWAY_URL
     });
+    this.nonceManager = new NonceManager(this.provider);
+  }
+  async initialize() {
+    await this.nonceManager.initialize(config.VAULT_ADDRESS);
+  }
+
+  private async getOptimizedGasPrice(): Promise<{
+    maxFeePerGas: bigint;
+    maxPriorityFeePerGas: bigint;
+  }> {
+    const feeData = await this.provider.getFeeData();
+
+    // Get base fee from latest block
+    const latestBlock = await this.provider.getBlock("latest");
+    const baseFee = latestBlock?.baseFeePerGas || feeData.gasPrice || BigInt(0);
+
+    // Calculate max fees with 20% buffer
+    const maxPriorityFeePerGas =
+      feeData.maxPriorityFeePerGas || BigInt(1500000000); // 1.5 gwei
+    const maxFeePerGas =
+      (baseFee * BigInt(120)) / BigInt(100) + maxPriorityFeePerGas;
+
+    return { maxFeePerGas, maxPriorityFeePerGas };
   }
 
   async getUnsignedDeploymentTransaction(
@@ -162,48 +233,93 @@ class NFTService {
     uri: string,
     mintPrice: number
   ): Promise<string> {
-    try {
-      const minterWallet = new ethers.Wallet(
-        config.VAULT_PRIVATE_KEY,
-        this.provider
-      );
+    const baseDelay = 1000; // 1 second
+    const maxRetries = 3;
+    let lastError: any;
 
-      const contract = new ethers.Contract(
-        collectionAddress,
-        EVM_CONFIG.NFT_CONTRACT_ABI,
-        minterWallet
-      );
-
-      const contractMinterAddress = await contract.minterAddress();
-
-      if (
-        contractMinterAddress.toLowerCase() !==
-        minterWallet.address.toLowerCase()
-      ) {
-        throw new CustomError(
-          `Wallet address (${minterWallet.address}) does not match contract's minter address (${contractMinterAddress})`,
-          400
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const nonce = await this.nonceManager.getNonce(config.VAULT_ADDRESS);
+        // await this.nonceManager.waitForNonce(nonce);
+        const minterWallet = new ethers.Wallet(
+          config.VAULT_PRIVATE_KEY,
+          this.provider
         );
+        // Get latest gas prices with increased priority fee for each retry
+        const baseFeeData = await this.getOptimizedGasPrice();
+        const maxPriorityFeePerGas =
+          baseFeeData.maxPriorityFeePerGas +
+          BigInt(attempt - 1) * ethers.parseUnits("0.1", "gwei"); // Increase priority fee with each retry
+        const maxFeePerGas =
+          baseFeeData.maxFeePerGas +
+          BigInt(attempt - 1) * ethers.parseUnits("0.2", "gwei"); // Increase max fee accordingly
+
+        const contract = new ethers.Contract(
+          collectionAddress,
+          EVM_CONFIG.NFT_CONTRACT_ABI,
+          minterWallet
+        );
+        const priceInWei = ethers.parseEther(mintPrice.toString());
+
+        // Estimate gas with buffer
+        const gasEstimate = await contract.mint.estimateGas(
+          recipient,
+          nftId,
+          "",
+          uri,
+          priceInWei,
+          { value: priceInWei }
+        );
+        const gasBuffer = 120 + attempt * 5; // Increase buffer with each retry
+        const gasLimit = (gasEstimate * BigInt(gasBuffer)) / BigInt(100);
+
+        const contractMinterAddress = await contract.minterAddress();
+
+        if (
+          contractMinterAddress.toLowerCase() !==
+          minterWallet.address.toLowerCase()
+        ) {
+          throw new CustomError(
+            `Wallet address (${minterWallet.address}) does not match contract's minter address (${contractMinterAddress})`,
+            400
+          );
+        }
+        const tx = await contract.mint(recipient, nftId, "", uri, priceInWei, {
+          value: priceInWei,
+          nonce,
+          maxFeePerGas,
+          maxPriorityFeePerGas,
+          gasLimit
+        });
+        const receipt = await tx.wait();
+
+        if (!receipt || receipt.status === 0) {
+          throw new CustomError("Transaction failed during execution", 500);
+        }
+        // Mark nonce as complete
+        this.nonceManager.releaseNonce(nonce);
+
+        return receipt.hash;
+      } catch (error) {
+        lastError = error;
+
+        // // If it's not a nonce or gas price error, don't retry
+        // if (!error.message?.toLowerCase().includes('nonce') &&
+        //     !error.message?.toLowerCase().includes('replacement') &&
+        //     !error.message?.toLowerCase().includes('underpriced')) {
+        //   throw error;
+        // }
+
+        // On last attempt, throw the error
+        if (attempt === maxRetries) {
+          throw error;
+        }
+
+        // Wait before retrying - exponential backoff
+        await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
       }
-
-      const priceInWei = ethers.parseEther(mintPrice.toString());
-
-      const tx = await contract.mint(recipient, nftId, "", uri, priceInWei, {
-        value: priceInWei
-      });
-      const receipt = await tx.wait();
-
-      if (!receipt || receipt.status === 0) {
-        throw new CustomError("Transaction failed during execution", 500);
-      }
-
-      return receipt.hash;
-    } catch (error) {
-      if (error instanceof CustomError) {
-        throw error;
-      }
-      throw new CustomError(`Failed to mint IPFS NFT: ${error}`, 500);
     }
+    throw lastError;
   }
 
   async getInscriptionId(
