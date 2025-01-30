@@ -574,13 +574,12 @@ export const launchServices = {
           );
       } else if (Number(launch.poStartsAt) > currentUnixTimeStamp) {
         throw new CustomError("Launch hasn't started.", 400);
+      } else if (
+        launch.poEndsAt &&
+        Number(launch.poEndsAt) < currentUnixTimeStamp
+      ) {
+        throw new CustomError("Launch has ended.", 400);
       }
-      // else if (
-      //   launch.poEndsAt &&
-      //   Number(launch.poEndsAt) < currentUnixTimeStamp
-      // ) {
-      //   throw new CustomError("Launch has ended.", 400);
-      // }
 
       const userOnHoldItemCount =
         await launchItemRepository.getOnHoldCountByLaunchIdAndUserId(
