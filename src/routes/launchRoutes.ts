@@ -3,6 +3,7 @@ import { authenticateToken } from "../middlewares/authenticateToken";
 import { launchController } from "../controllers/launchController";
 import { authorize } from "../middlewares/authorize";
 import { parseFiles } from "../middlewares/fileParser";
+import { launchRatelimiter } from "../middlewares/rateLimiter";
 
 const launchRouter = Router();
 
@@ -45,8 +46,18 @@ launchRouter.post(
   parseFiles("files", false),
   launchController.createIpfsFileAndLaunchItemsInBatch
 );
-launchRouter.post("/:id/buy", authenticateToken, launchController.buy);
-launchRouter.post("/mint", authenticateToken, launchController.mint);
+launchRouter.post(
+  "/:id/buy",
+  authenticateToken,
+  launchRatelimiter,
+  launchController.buy
+);
+launchRouter.post(
+  "/mint",
+  authenticateToken,
+  launchRatelimiter,
+  launchController.mint
+);
 launchRouter.post(
   "/whitelist-addresses",
   authenticateToken,

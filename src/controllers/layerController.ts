@@ -14,15 +14,37 @@ export const layerController = {
     try {
       if (!id) throw new CustomError("Please provide a layer id.", 400);
 
+      const cachedLayer = await redis.get(`layer:${id}`);
+      if (cachedLayer) {
+        return res
+          .status(200)
+          .json({ success: true, data: JSON.parse(cachedLayer) });
+      }
+
       const layer = await layerServices.getById(id);
+      if (!layer) throw new CustomError("Layer not found", 404);
+
+      await redis.set(`layer:${id}`, JSON.stringify(layer), "EX", 300);
+
       return res.status(200).json({ success: true, data: layer });
     } catch (e) {
       next(e);
     }
   },
+
   getAll: async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const cachedLayers = await redis.get("layers");
+      if (cachedLayers) {
+        return res
+          .status(200)
+          .json({ success: true, data: JSON.parse(cachedLayers) });
+      }
+
       const layers = await layerServices.getAll();
+
+      await redis.set("layers", JSON.stringify(layers), "EX", 300);
+
       return res.status(200).json({ success: true, data: layers });
     } catch (e) {
       next(e);
@@ -46,7 +68,7 @@ export const layerController = {
     } catch (e) {
       next(e);
     }
-  },
+  }
   // getEstimatedFee: async (req: Request, res: Response, next: NextFunction) => {
   //   try {
   //     const { fileSizes, fileTypeSizes, feeRate } = req.body;

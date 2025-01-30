@@ -31,7 +31,7 @@ const app = express();
 
 app.get("/", (req: Request, res: Response) => {
   res.status(200).json({
-    message: `API ${version} - 👋🌎🌍`,
+    message: `API ${version} - 👋🌎🌍`
   });
 });
 
@@ -41,8 +41,8 @@ app.use(express.json({ limit: sizeLimitConstants.jsonSizeLimit }));
 app.use(
   express.urlencoded({
     limit: sizeLimitConstants.formDataSizeLimit,
-    extended: true,
-  }),
+    extended: true
+  })
 );
 // app.use(rateLimiter);
 
@@ -62,18 +62,18 @@ app.use(errorHandler);
 
 const consumer = new SQSConsumer(
   "eu-central-1",
-  `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`,
+  `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`
 );
-logger.info("Starting SQS consumer...");
-consumer.start(processMessage);
+// logger.info("Starting SQS consumer...");
+// consumer.start(processMessage);
 
 export const producer = new SQSProducer(
   "eu-central-1",
-  `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`,
+  `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`
 );
 
-const collectionOwnerCounterService = new CollectionOwnerCounterService();
-collectionOwnerCounterService.startScheduler().catch(logger.error);
+// const collectionOwnerCounterService = new CollectionOwnerCounterService();
+// collectionOwnerCounterService.startScheduler().catch(logger.error);
 
 app.listen(config.PORT, () => {
   logger.info(`Server has started on port ${config.PORT}`);
@@ -88,7 +88,7 @@ async function cleanup() {
     await db.destroy();
     await redis.disconnect();
     consumer.stop();
-    await collectionOwnerCounterService.stopHeartbeat();
+    // await collectionOwnerCounterService.stopHeartbeat();
 
     logger.info("Cleanup successful");
     process.exit(0);
