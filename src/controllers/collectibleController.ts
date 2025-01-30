@@ -41,7 +41,7 @@ export interface recursiveInscriptionParams {
 
 export const collectibleControllers = {
   getListableCollectibles: async (
-    req: Request<{ userId: string }, {}, {}, CollectibleQueryParams>,
+    req: Request,
     res: Response,
     next: NextFunction
   ) => {
@@ -53,7 +53,8 @@ export const collectibleControllers = {
         layerId,
         userLayerId,
         query
-      } = req.query;
+      } = req.query as unknown as CollectibleQueryParams;
+
       const collectionIds = req.query.collectionIds as string[];
       const { userId } = req.params;
       const limit = Math.min(

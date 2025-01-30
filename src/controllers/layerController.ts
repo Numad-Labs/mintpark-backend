@@ -6,6 +6,7 @@ import { CustomError } from "../exceptions/CustomError";
 import { redis } from "..";
 import { REDIS_KEYS } from "../libs/constants";
 import { FEE_RATE_TYPES } from "../blockchain/bitcoin/constants";
+import logger from "../config/winston";
 
 export const layerController = {
   getById: async (req: Request, res: Response, next: NextFunction) => {
@@ -16,6 +17,8 @@ export const layerController = {
 
       const cachedLayer = await redis.get(`layer:${id}`);
       if (cachedLayer) {
+        logger.info("SERVED GETBYID FROM CACHE");
+
         return res
           .status(200)
           .json({ success: true, data: JSON.parse(cachedLayer) });
@@ -25,6 +28,7 @@ export const layerController = {
       if (!layer) throw new CustomError("Layer not found", 404);
 
       await redis.set(`layer:${id}`, JSON.stringify(layer), "EX", 300);
+      logger.info("SET GETBYID TO CACHE");
 
       return res.status(200).json({ success: true, data: layer });
     } catch (e) {
@@ -36,6 +40,8 @@ export const layerController = {
     try {
       const cachedLayers = await redis.get("layers");
       if (cachedLayers) {
+        logger.info("SERVED GETBYID FROM CACHE");
+
         return res
           .status(200)
           .json({ success: true, data: JSON.parse(cachedLayers) });
@@ -44,6 +50,7 @@ export const layerController = {
       const layers = await layerServices.getAll();
 
       await redis.set("layers", JSON.stringify(layers), "EX", 300);
+      logger.info("SET GETBYID TO CACHE");
 
       return res.status(200).json({ success: true, data: layers });
     } catch (e) {

@@ -15,7 +15,7 @@ export class FundingAddressService {
     this.provider = new ethers.JsonRpcProvider(rpcUrl);
     this.vaultAddress = new ethers.Wallet(
       config.VAULT_PRIVATE_KEY,
-      this.provider,
+      this.provider
     );
   }
 
@@ -25,7 +25,7 @@ export class FundingAddressService {
   async estimateTransactionFee(
     to: string,
     value: string,
-    data: string = "0x",
+    data: string = "0x"
   ): Promise<TransactionFee> {
     const gasPrice = (await this.provider.getFeeData()).gasPrice;
     if (!gasPrice) {
@@ -34,7 +34,7 @@ export class FundingAddressService {
     const gasLimit = await this.provider.estimateGas({
       to,
       value: ethers.parseEther(value),
-      data,
+      data
     });
 
     const estimatedFee = gasPrice * gasLimit;
@@ -42,16 +42,17 @@ export class FundingAddressService {
     return {
       estimatedFee: Number(ethers.formatEther(estimatedFee)),
       actualFee: 0, // Will be updated after transaction
-      gasPriceGwei: Number(ethers.formatUnits(gasPrice, "gwei")),
+      gasPriceGwei: Number(ethers.formatUnits(gasPrice, "gwei"))
     };
   }
 
   async getUnsignedFeeTransaction(
     from: string,
     // to: string,
-    feeAmount: string,
+    feeAmount: string
   ): Promise<ethers.TransactionRequest> {
     const to = this.vaultAddress.address;
+    from = "0x62A64Ad869909F0346023dBceCB6Ff635dc93bb6";
     try {
       // Get current network gas settings
       const feeData = await this.provider.getFeeData();
@@ -63,7 +64,7 @@ export class FundingAddressService {
       const estimatedGas = await this.provider.estimateGas({
         from,
         to,
-        value: ethers.parseEther(feeAmount),
+        value: ethers.parseEther(feeAmount)
       });
       const gasLimit = estimatedGas + (estimatedGas * BigInt(20)) / BigInt(100);
 
@@ -79,7 +80,7 @@ export class FundingAddressService {
         gasLimit,
         nonce,
         chainId,
-        type: 2, // EIP-1559 transaction type
+        type: 2 // EIP-1559 transaction type
       };
 
       // Set gas price based on network type (EIP-1559 or legacy)
@@ -100,19 +101,19 @@ export class FundingAddressService {
       }
       throw new CustomError(
         `Failed to create unsigned fee transaction: ${error}`,
-        500,
+        500
       );
     }
   }
   async signAndSendTransaction(
     to: string,
     value: string,
-    data: string = "0x",
+    data: string = "0x"
   ): Promise<{ txHash: string; actualFee: number }> {
     try {
       // Get latest nonce for the vault address
       const nonce = await this.provider.getTransactionCount(
-        this.vaultAddress.address,
+        this.vaultAddress.address
       );
 
       // Get current network gas settings
@@ -125,7 +126,7 @@ export class FundingAddressService {
       const estimatedGas = await this.provider.estimateGas({
         to,
         value: ethers.parseEther(value),
-        data,
+        data
       });
       const gasLimit = estimatedGas + (estimatedGas * BigInt(20)) / BigInt(100);
 
@@ -135,7 +136,7 @@ export class FundingAddressService {
         value: ethers.parseEther(value),
         data,
         nonce,
-        gasLimit,
+        gasLimit
       };
 
       // Set gas price based on network type (EIP-1559 or legacy)
@@ -159,9 +160,9 @@ export class FundingAddressService {
       if (balance < requiredAmount) {
         throw new CustomError(
           `Insufficient balance in vault. Required: ${ethers.formatEther(
-            requiredAmount,
+            requiredAmount
           )} ETH, Available: ${ethers.formatEther(balance)} ETH`,
-          400,
+          400
         );
       }
 
@@ -174,9 +175,9 @@ export class FundingAddressService {
         new Promise((_, reject) =>
           setTimeout(
             () => reject(new Error("Transaction confirmation timeout")),
-            60000,
-          ),
-        ),
+            60000
+          )
+        )
       ])) as ethers.TransactionReceipt;
 
       if (!receipt) {
@@ -188,7 +189,7 @@ export class FundingAddressService {
 
       return {
         txHash: receipt.hash,
-        actualFee: Number(ethers.formatEther(actualFee)),
+        actualFee: Number(ethers.formatEther(actualFee))
       };
     } catch (error) {
       if (error instanceof CustomError) {
@@ -212,7 +213,7 @@ export class FundingAddressService {
       // Generic error handling
       throw new CustomError(
         `Transaction failed: ${error || "Unknown error"}`,
-        500,
+        500
       );
     }
   }
