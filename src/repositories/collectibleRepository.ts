@@ -163,7 +163,8 @@ export const collectibleRepository = {
             .orderBy(
               sql`COALESCE("CurrentList"."price", 0)`,
               params.orderDirection === "desc" ? "desc" : "asc"
-            );
+            )
+            .orderBy("Collectible.nftId asc");
           break;
 
         case "recent":
@@ -175,14 +176,17 @@ export const collectibleRepository = {
             .orderBy(
               sql`COALESCE("CurrentList"."listedAt", '1970-01-01')`, // Use Unix epoch as default
               params.orderDirection === "desc" ? "desc" : "asc"
-            );
+            )
+            .orderBy("Collectible.nftId asc");
           break;
 
         default:
-          query = query.orderBy(
-            "Collectible.createdAt",
-            params.orderDirection === "desc" ? "desc" : "asc"
-          );
+          query = query
+            .orderBy(
+              "Collectible.createdAt",
+              params.orderDirection === "desc" ? "desc" : "asc"
+            )
+            .orderBy("Collectible.nftId asc");
       }
 
       // Execute query and log results for debugging
@@ -317,7 +321,8 @@ export const collectibleRepository = {
           .orderBy(
             sql`COALESCE("CurrentList"."price", 0)`,
             params.orderDirection === "desc" ? "desc" : "asc"
-          );
+          )
+          .orderBy("Collectible.nftId asc");
         break;
 
       case "recent":
@@ -329,14 +334,17 @@ export const collectibleRepository = {
           .orderBy(
             sql`COALESCE("CurrentList"."listedAt", '1970-01-01')`, // Use Unix epoch as default
             params.orderDirection === "desc" ? "desc" : "asc"
-          );
+          )
+          .orderBy("Collectible.nftId asc");
         break;
 
       default:
-        query = query.orderBy(
-          "Collectible.createdAt",
-          params.orderDirection === "desc" ? "desc" : "asc"
-        );
+        query = query
+          .orderBy(
+            "Collectible.createdAt",
+            params.orderDirection === "desc" ? "desc" : "asc"
+          )
+          .orderBy("Collectible.nftId asc");
     }
 
     const collectibles = await query

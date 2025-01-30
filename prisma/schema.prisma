@@ -265,13 +265,14 @@ model LaunchItem {
 }
 
 model Purchase {
-  id           String     @id @default(dbgenerated("gen_random_uuid()"))
-  userId       String
-  user         User       @relation(fields: [userId], references: [id])
-  launchItemId String
-  launchItem   LaunchItem @relation(fields: [launchItemId], references: [id])
-  purchasedAt  DateTime   @default(now())
-  Order        Order[]
+  id               String     @id @default(dbgenerated("gen_random_uuid()"))
+  userId           String
+  user             User       @relation(fields: [userId], references: [id])
+  launchItemId     String
+  launchItem       LaunchItem @relation(fields: [launchItemId], references: [id])
+  purchasedAt      DateTime   @default(now())
+  purchasedAddress String?
+  Order            Order[]
 }
 
 model WlAddress {
@@ -279,6 +280,7 @@ model WlAddress {
   launchId String
   launch   Launch @relation(fields: [launchId], references: [id])
   address  String
+  createdAt DateTime @default(now())
 }
 
 model List {

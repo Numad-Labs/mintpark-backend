@@ -534,11 +534,12 @@ export const launchServices = {
         mintPrice = Number(launch.wlMintPrice);
 
         const wlUserPurchaseCount =
-          await purchaseRepository.getCountByUserIdLaunchIdAndUnixTimestamp(
+          await purchaseRepository.getCountByLaunchIdUnixTimestampAndUserIdOrAddress(
             trx,
             launch.id,
             user.id,
-            Number(launch.wlStartsAt)
+            Number(launch.wlStartsAt),
+            user.address
           );
 
         if (
@@ -555,11 +556,12 @@ export const launchServices = {
       ) {
         //PO ACTIVE
         const poUserPurchaseCount =
-          await purchaseRepository.getCountByUserIdLaunchIdAndUnixTimestamp(
+          await purchaseRepository.getCountByLaunchIdUnixTimestampAndUserIdOrAddress(
             trx,
             launch.id,
             user.id,
-            Number(launch.poStartsAt)
+            Number(launch.poStartsAt),
+            user.address
           );
 
         if (
@@ -799,11 +801,12 @@ export const launchServices = {
         mintPrice = Number(launch.wlMintPrice);
 
         const wlUserPurchaseCount =
-          await purchaseRepository.getCountByUserIdLaunchIdAndUnixTimestamp(
+          await purchaseRepository.getCountByLaunchIdUnixTimestampAndUserIdOrAddress(
             trx,
             launch.id,
             user.id,
-            Number(launch.wlStartsAt)
+            Number(launch.wlStartsAt),
+            user.address
           );
 
         if (
@@ -820,11 +823,12 @@ export const launchServices = {
       ) {
         //PO ACTIVE
         const poUserPurchaseCount =
-          await purchaseRepository.getCountByUserIdLaunchIdAndUnixTimestamp(
+          await purchaseRepository.getCountByLaunchIdUnixTimestampAndUserIdOrAddress(
             trx,
             launch.id,
             user.id,
-            Number(launch.poStartsAt)
+            Number(launch.poStartsAt),
+            user.address
           );
 
         if (
@@ -1066,7 +1070,8 @@ export const launchServices = {
 
       await purchaseRepository.create(trx, {
         userId: user.id,
-        launchItemId: soldLaunchItem.id
+        launchItemId: soldLaunchItem.id,
+        purchasedAddress: user.address
       });
 
       return { launchItem, parentCollectible };

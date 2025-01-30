@@ -63,11 +63,12 @@ export const purchaseRepository = {
 
     return purchases;
   },
-  getCountByUserIdLaunchIdAndUnixTimestamp: async (
+  getCountByLaunchIdUnixTimestampAndUserIdOrAddress: async (
     db: Kysely<DB> | Transaction<DB>,
     launchId: string,
     userId: string,
-    unixTimestamp: number
+    unixTimestamp: number,
+    address: string
   ) => {
     const result = await db
       .selectFrom("Purchase")
@@ -75,7 +76,12 @@ export const purchaseRepository = {
       .innerJoin("Launch", "LaunchItem.launchId", "Launch.id")
       .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
       .where("Launch.id", "=", launchId)
-      .where("Purchase.userId", "=", userId)
+      .where((eb) =>
+        eb.or([
+          eb("Purchase.userId", "=", userId),
+          eb("Purchase.purchasedAddress", "=", address)
+        ])
+      )
       .where(
         "Purchase.purchasedAt",
         ">=",

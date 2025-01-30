@@ -160,6 +160,7 @@ export type Purchase = {
   userId: string;
   launchItemId: string;
   purchasedAt: Generated<Timestamp>;
+  purchasedAddress: string | null;
 };
 export type TraitType = {
   id: Generated<string>;
