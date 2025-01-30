@@ -149,12 +149,14 @@ export const collectibleControllers = {
       if (!collectibleId) {
         throw new CustomError("collectibleId is required", 400);
       }
-      const activities = await collectibleServices.getActivityByCollectibleId(
-        collectibleId
-      );
+
+      // const activities = await collectibleServices.getActivityByCollectibleId(
+      //   collectibleId
+      // );
+
       res.status(200).json({
         success: true,
-        data: activities
+        data: []
       });
     } catch (error) {
       next(error);

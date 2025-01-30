@@ -4,6 +4,7 @@ import logger from "../config/winston";
 import { config } from "../config/config";
 import { encryptionHelper } from "./encryptionHelper";
 import { redis } from "..";
+import { AuthenticatedRequest } from "../../custom";
 
 interface RateLimiterOptions {
   keyPrefix: string;
@@ -15,7 +16,7 @@ export function createRateLimiter(options: RateLimiterOptions) {
   const { keyPrefix, limit, window } = options;
 
   return async function rateLimiter(
-    req: Request,
+    req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) {
@@ -24,12 +25,13 @@ export function createRateLimiter(options: RateLimiterOptions) {
     }
 
     try {
-      if (!req.ip && !req.socket.remoteAddress) {
-        logger.warn("Client ip not found.");
-      }
-      const ip: string = req.ip || req.socket.remoteAddress || "unknown";
+      if (!req.user?.id) logger.info("RATELIMITER CALLED WITH NO REQ.USER.ID");
+      // if (!req.ip && !req.socket.remoteAddress) {
+      //   logger.warn("Client ip not found.");
+      // }
+      // const ip: string = req.ip || req.socket.remoteAddress || "unknown";
 
-      const key = `${keyPrefix}:${ip}`;
+      const key = `${keyPrefix}:${req.user?.id}`;
       const now = Date.now();
       const windowStart = now - window * 1000;
 
@@ -52,7 +54,7 @@ export function createRateLimiter(options: RateLimiterOptions) {
               success: false,
               data: null,
               error:
-                "You have exceeded the request limit. Please try again in a few moment.",
+                "You have exceeded the request limit. Please try again in a few moment."
             });
           }
 
