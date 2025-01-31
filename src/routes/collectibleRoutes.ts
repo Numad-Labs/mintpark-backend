@@ -9,8 +9,8 @@ const collectibleRouter = Router();
 
 collectibleRouter.get(
   "/:userId/listable",
-  authenticateToken,
-  collectibleslimiter,
+  // authenticateToken,
+  // collectibleslimiter,
   collectibleControllers.getListableCollectibles
 );
 collectibleRouter.get(
