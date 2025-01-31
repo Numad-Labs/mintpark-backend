@@ -20,10 +20,11 @@ import { sizeLimitConstants } from "./libs/constants";
 import { db } from "./utils/db";
 import traitValueRouter from "./routes/traitValueRoutes";
 import { version } from "../package.json";
-import { SQSConsumer } from "./queue/sqsConsumer";
+// import { SQSConsumer } from "./queue/sqsConsumer";
 import { processMessage } from "./services/messageProcessingService";
-import { SQSProducer } from "./queue/sqsProducer";
+// import { SQSProducer } from "./queue/sqsProducer";
 import { CollectionOwnerCounterService } from "./cron";
+import { QueueProcessor } from "./queue/IPFS-mint-queue";
 
 export const redis = new Redis(config.REDIS_CONNECTION_STRING);
 
@@ -60,17 +61,23 @@ app.use("/api/v1/launchpad", launchRouter);
 app.use(notFound);
 app.use(errorHandler);
 
-const consumer = new SQSConsumer(
+export const queueProcessor = new QueueProcessor(
   "eu-central-1",
   `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`
 );
+queueProcessor.start();
+
+// const consumer = new SQSConsumer(
+//   "eu-central-1",
+//   `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`
+// );
 // logger.info("Starting SQS consumer...");
 // consumer.start(processMessage);
 
-export const producer = new SQSProducer(
-  "eu-central-1",
-  `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`
-);
+// export const producer = new SQSProducer(
+//   "eu-central-1",
+//   `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`
+// );
 
 // const collectionOwnerCounterService = new CollectionOwnerCounterService();
 // collectionOwnerCounterService.startScheduler().catch(logger.error);
@@ -87,7 +94,8 @@ async function cleanup() {
   try {
     await db.destroy();
     await redis.disconnect();
-    consumer.stop();
+    queueProcessor.stop();
+    // consumer.stop();
     // await collectionOwnerCounterService.stopHeartbeat();
 
     logger.info("Cleanup successful");

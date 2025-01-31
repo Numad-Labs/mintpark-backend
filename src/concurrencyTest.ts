@@ -157,7 +157,7 @@ class MintStressTest {
     );
 
     // Initialize NFT service before starting batch
-    await this.nftService.initialize();
+    // await this.nftService.initialize();
 
     for (let i = 0; i < batchSize; i += concurrentMints) {
       const currentBatch = TEST_NFT_IDS.slice(i, i + concurrentMints);
@@ -198,15 +198,17 @@ class MintStressTest {
 
   async monitorNetwork() {
     const initialBlock = await this.nftService.provider.getBlockNumber();
-    let lastNonce =
-      await this.nftService.provider.getTransactionCount(VAULT_ADDRESS);
+    let lastNonce = await this.nftService.provider.getTransactionCount(
+      VAULT_ADDRESS
+    );
     let monitorStartTime = Date.now();
 
     const monitor = setInterval(async () => {
       try {
         const currentBlock = await this.nftService.provider.getBlockNumber();
-        const currentNonce =
-          await this.nftService.provider.getTransactionCount(VAULT_ADDRESS);
+        const currentNonce = await this.nftService.provider.getTransactionCount(
+          VAULT_ADDRESS
+        );
         const feeData = await this.nftService.provider.getFeeData();
         const elapsedTime = Date.now() - monitorStartTime;
 
@@ -223,7 +225,11 @@ class MintStressTest {
             : null,
           successCount: this.mintingResults.success,
           failureCount: this.mintingResults.failed,
-          successRate: `${((this.mintingResults.success / (this.mintingResults.success + this.mintingResults.failed)) * 100).toFixed(2)}%`
+          successRate: `${(
+            (this.mintingResults.success /
+              (this.mintingResults.success + this.mintingResults.failed)) *
+            100
+          ).toFixed(2)}%`
         });
 
         lastNonce = currentNonce;
@@ -242,7 +248,11 @@ class MintStressTest {
     console.log(`Total Success: ${this.mintingResults.success}`);
     console.log(`Total Failed: ${this.mintingResults.failed}`);
     console.log(
-      `Success Rate: ${((this.mintingResults.success / (this.mintingResults.success + this.mintingResults.failed)) * 100).toFixed(2)}%`
+      `Success Rate: ${(
+        (this.mintingResults.success /
+          (this.mintingResults.success + this.mintingResults.failed)) *
+        100
+      ).toFixed(2)}%`
     );
 
     if (this.mintingResults.errors.length > 0) {
@@ -256,7 +266,10 @@ class MintStressTest {
 
       errorTypes.forEach((count, type) => {
         console.log(
-          `${type}: ${count} (${((count / this.mintingResults.errors.length) * 100).toFixed(2)}%)`
+          `${type}: ${count} (${(
+            (count / this.mintingResults.errors.length) *
+            100
+          ).toFixed(2)}%)`
         );
       });
 

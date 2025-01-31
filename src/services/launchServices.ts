@@ -40,11 +40,15 @@ import { inscribe } from "../blockchain/bitcoin/inscribe";
 import { sendRawTransaction } from "../blockchain/bitcoin/sendTransaction";
 import { hideSensitiveData } from "../libs/hideDataHelper";
 import { orderItemRepository } from "../repositories/orderItemRepository";
-import { producer } from "..";
+// import { producer, sqs } from "..";
 import { wlRepository } from "../repositories/wlRepository";
 import { FundingAddressService } from "../blockchain/evm/services/fundingAddress";
 import { ethers } from "ethers";
 import { DatabaseError } from "pg";
+import { SQSMessageBody } from "../queue/types";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { SQSClientFactory } from "../queue/sqsClient";
+import { config } from "../config/config";
 
 const launchPadService = new LaunchpadService(
   EVM_CONFIG.RPC_URL,
@@ -57,6 +61,7 @@ const confirmationService = new TransactionConfirmationService(
   EVM_CONFIG.RPC_URL!
 );
 const fundingService = new FundingAddressService(EVM_CONFIG.RPC_URL);
+const sqsClient = SQSClientFactory.getInstance("eu-central-1");
 
 export const launchServices = {
   create: async (
@@ -400,7 +405,6 @@ export const launchServices = {
     isLastBatch: boolean
   ) => {
     const collection = await collectionRepository.getById(db, collectionId);
-    console.log(collectionId);
     if (!collection) throw new CustomError("Invalid collectionId.", 400);
     if (collection.type !== "IPFS_CID" && collection.type !== "IPFS_FILE")
       throw new CustomError("Invalid collection type.", 400);
@@ -476,7 +480,18 @@ export const launchServices = {
     id: string,
     feeRate?: number
   ) => {
-    const user = await userRepository.getByUserLayerId(userLayerId);
+    // Initial validations and data fetching in parallel
+    const [user, launch, collection] = await Promise.all([
+      userRepository.getByUserLayerId(userLayerId),
+      launchRepository.getById(db, id),
+      launchRepository
+        .getById(db, id)
+        .then((l) =>
+          l ? collectionRepository.getById(db, l.collectionId) : null
+        )
+    ]);
+
+    // User validations
     if (!user) throw new CustomError("User not found.", 400);
     if (user.id !== userId)
       throw new CustomError(
@@ -486,19 +501,100 @@ export const launchServices = {
     if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
 
-    const launch = await launchRepository.getById(db, id);
+    // Launch and collection validations
     if (!launch) throw new CustomError("Launch not found.", 400);
     if (launch.status === "UNCONFIRMED")
       throw new CustomError("Unconfirmed launch.", 400);
-
-    const collection = await collectionRepository.getById(
-      db,
-      launch.collectionId
-    );
     if (!collection) throw new CustomError("Collection not found.", 400);
     if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
       throw new CustomError("You cannot buy the item of this collection.", 400);
 
+    //TODO: AIRDROP VALIDATION
+    const isInAirdrop = false;
+    if (isInAirdrop)
+      throw new CustomError(
+        "You are in airdrop list which will happen very soon.",
+        400
+      );
+
+    // External blockchain/fee calculations
+    let externalData = {};
+    const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
+    const mintPrice = await validatePhaseAndGetPrice(
+      launch,
+      user,
+      currentUnixTimeStamp
+    );
+
+    if (
+      collection.type === "INSCRIPTION" ||
+      collection.type === "RECURSIVE_INSCRIPTION"
+    ) {
+      externalData = await prepareInscriptionData(collection, feeRate);
+    } else if (
+      collection.type === "IPFS_CID" ||
+      collection.type === "IPFS_FILE"
+    ) {
+      externalData = await prepareIpfsData(collection, user.address, mintPrice);
+    } else {
+      throw new CustomError("Unsupported collection type.", 400);
+    }
+
+    // Validate purchase limits inside transaction
+    await validatePurchaseLimits(db, launch, user, currentUnixTimeStamp);
+
+    const shortHoldCount =
+      await launchItemRepository.getShortHoldCountByLaunchIdAndUserId(
+        db,
+        launch.id,
+        user.id
+      );
+
+    if (Number(shortHoldCount) >= 3) {
+      throw new CustomError(
+        "You have too many items in short-term reservation.",
+        400
+      );
+    }
+
+    const longHoldCount =
+      await launchItemRepository.getLongHoldCountByLaunchIdAndUserId(
+        db,
+        launch.id,
+        user.id
+      );
+    if (Number(longHoldCount) >= 1) {
+      throw new CustomError(
+        "You already have an item in the minting queue.",
+        400
+      );
+    }
+
+    const soldCount =
+      await launchItemRepository.getSoldAndReservedItemCountByLaunchId(
+        db,
+        launch.id
+      );
+    const SUPPLY = 5000; //ONLY FOR CITREA
+    const queueCount =
+      await launchItemRepository.getLongHeldItemCountByLaunchId(db, launch.id);
+    if (soldCount + queueCount >= SUPPLY)
+      throw new CustomError(
+        "All items are queued at the moment, please try again in a moment.",
+        400
+      );
+
+    // Get and set launch item on hold
+    const launchItem = await launchItemRepository.getRandomItemByLaunchId(
+      launch.id
+    );
+    const collectible = await collectibleRepository.getById(
+      db,
+      launchItem.collectibleId
+    );
+    if (!collectible) throw new CustomError("Collectible not found.", 400);
+
+    // Execute database operations in transaction
     const result = await db.transaction().execute(async (trx) => {
       try {
         await userRepository.acquireLockByUserLayerId(trx, userLayerId);
@@ -509,216 +605,31 @@ export const launchServices = {
             409
           );
         }
-
         throw error;
       }
 
-      const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
-      let mintPrice = launch.poMintPrice;
-      if (
-        launch.isWhitelisted &&
-        Number(launch.wlStartsAt) < currentUnixTimeStamp &&
-        Number(launch.wlEndsAt) > currentUnixTimeStamp
-      ) {
-        const wlAddress = await wlRepository.getByLaunchIdAndAddress(
-          trx,
-          launch.id,
-          user.address
-        );
-        if (!wlAddress)
-          throw new CustomError(
-            "You are not allowed to participate in this phase.",
-            400
-          );
-
-        mintPrice = Number(launch.wlMintPrice);
-
-        const wlUserPurchaseCount =
-          await purchaseRepository.getCountByLaunchIdUnixTimestampAndUserIdOrAddress(
-            trx,
-            launch.id,
-            user.id,
-            Number(launch.wlStartsAt),
-            user.address
-          );
-
-        if (
-          wlUserPurchaseCount &&
-          wlUserPurchaseCount >= Number(launch.wlMaxMintPerWallet)
-        )
-          throw new CustomError(
-            "Wallet limit has been reached for whitelist phase.",
-            400
-          );
-      } else if (
-        Number(launch.poStartsAt) < currentUnixTimeStamp &&
-        (!launch.poEndsAt || Number(launch.poEndsAt) > currentUnixTimeStamp)
-      ) {
-        //PO ACTIVE
-        const poUserPurchaseCount =
-          await purchaseRepository.getCountByLaunchIdUnixTimestampAndUserIdOrAddress(
-            trx,
-            launch.id,
-            user.id,
-            Number(launch.poStartsAt),
-            user.address
-          );
-
-        if (
-          poUserPurchaseCount &&
-          poUserPurchaseCount >= Number(launch.poMaxMintPerWallet)
-        )
-          throw new CustomError(
-            "Wallet limit has been reached for public offering phase.",
-            400
-          );
-      } else if (Number(launch.poStartsAt) > currentUnixTimeStamp) {
-        throw new CustomError("Launch hasn't started.", 400);
-      } else if (
-        launch.poEndsAt &&
-        Number(launch.poEndsAt) < currentUnixTimeStamp
-      ) {
-        throw new CustomError("Launch has ended.", 400);
-      }
-
-      const userOnHoldItemCount =
-        await launchItemRepository.getOnHoldCountByLaunchIdAndUserId(
-          trx,
-          launch.id,
-          user.id
-        );
-      if (Number(userOnHoldItemCount) >= 3)
-        throw new CustomError("You have too many items reserved.", 400);
-
-      const launchItem = await launchItemRepository.getRandomItemByLaunchId(
-        launch.id
-      );
-
-      const pickedLaunchItem = await launchItemRepository.setOnHoldById(
+      // Get and set launch item on hold
+      const pickedLaunchItem = await launchItemRepository.setShortHoldById(
         trx,
         launchItem.id,
         user.id
       );
-      const collectible = await collectibleRepository.getById(
-        trx,
-        launchItem.collectibleId
-      );
-      if (!collectible) throw new CustomError("Collectible not found.", 400);
 
-      let singleMintTxHex, order;
-      if (
-        collection.type === "INSCRIPTION" ||
-        collection.type === "RECURSIVE_INSCRIPTION"
-      ) {
-        if (!feeRate)
-          throw new CustomError(
-            "You must provide fee rate for this operation.",
-            400
-          );
+      // Create order based on collection type
+      const orderData = await createOrder(trx, {
+        collection,
+        user,
+        externalData,
+        launchItem,
+        mintPrice,
+        feeRate,
+        userLayerId
+      });
 
-        let networkFee: number = 546,
-          file;
-        if (collection.type === "RECURSIVE_INSCRIPTION") {
-          //TODO: Validate if all traits of the collection has already been minted or not
-          //networkFee = calculateRecursiveInscriptionGasFee(traitCount: number)
-        }
-
-        if (collection.type === "INSCRIPTION" && collectible.fileKey) {
-          file = await getObjectFromS3(collectible.fileKey);
-          networkFee =
-            getEstimatedFee(
-              [Number(file.contentType?.length)],
-              [Number(file.contentLength)],
-              0,
-              feeRate,
-              0
-            ).estimatedFee.totalAmount +
-            feeRate * (COMMIT_TX_SIZE + REVEAL_TX_SIZE);
-        }
-
-        const funder = await createFundingAddress("TESTNET");
-        const serviceFee = 0;
-        let totalAmount = networkFee * 1.5 + serviceFee;
-        order = await orderRepository.create(trx, {
-          userId: user.id,
-          collectionId: launch.collectionId,
-          feeRate,
-          orderType: "LAUNCH_BUY",
-          fundingAmount: totalAmount,
-          fundingAddress: funder.address,
-          privateKey: funder.privateKey,
-          userLayerId
-        });
-
-        order = hideSensitiveData(order, ["privateKey"]);
-      } else if (
-        collection.type === "IPFS_CID" ||
-        collection.type === "IPFS_FILE"
-      ) {
-        if (!collection.contractAddress)
-          throw new Error("Collection with no contract address not found.");
-        if (collection.type === "IPFS_CID" && !collectible.cid)
-          throw new CustomError("Collectible with no cid.", 400);
-
-        // if (!collectible.chainId)
-        //   throw new CustomError("Collectible with no chainId.", 400);
-        // const chainConfig = EVM_CONFIG.CHAINS[collectible.chainId];
-
-        // First estimate the gas fee for vault minting
-        const dummyUri = collectible.cid || "ipfs://dummy"; // Use existing CID if available
-        const gasFeeEstimate = await nftService.estimateMintGasFee(
-          collection.contractAddress,
-          user.address,
-          collectible.nftId,
-          dummyUri,
-          mintPrice
-        );
-
-        // Calculate total required amount (mint price + gas fee)
-        const mintPriceWei = ethers.parseEther(mintPrice.toString());
-        const totalRequired = mintPriceWei + gasFeeEstimate.estimatedGasCost;
-        const formattedTotal = ethers.formatEther(totalRequired);
-
-        if (collection.type === "IPFS_FILE" && !collectible.cid) {
-          if (!collectible.fileKey)
-            throw new CustomError("Collectible has no file key.", 400);
-
-          //fetch file from S3 & upload file to ipfs & update the collectible to set the cid
-          const cid = await nftService.uploadS3FileToIpfs(
-            collectible.fileKey,
-            collectible.name
-          );
-
-          await collectibleRepository.update(trx, collectible.id, { cid });
-        }
-
-        //DG TODO: generate txHex to transfer gasFee + serviceFee + mintFee... to vault
-        const unsignedTx = await fundingService.getUnsignedFeeTransaction(
-          user.address,
-          formattedTotal.toString()
-        );
-
-        if (!unsignedTx)
-          throw new CustomError("No unsigned transaction built", 400);
-        if (!unsignedTx.value)
-          throw new CustomError("Transaction value not found", 400);
-        //DG todo : private key save hiih eseh
-        order = await orderRepository.create(trx, {
-          userId: user.id,
-          collectionId: launch.collectionId,
-          feeRate,
-          orderType: "LAUNCH_BUY",
-          fundingAmount: parseInt(unsignedTx.value.toString()),
-          fundingAddress: unsignedTx.to?.toString(),
-          privateKey: "evm",
-          userLayerId
-        });
-        order = hideSensitiveData(order, ["privateKey"]);
-
-        singleMintTxHex = serializeBigInt(unsignedTx);
-      } else throw new CustomError("Unsupported collection type.", 400);
-
-      return { launchItem: launchItem, order, singleMintTxHex };
+      return {
+        launchItem,
+        ...orderData
+      };
     });
 
     return {
@@ -736,7 +647,29 @@ export const launchServices = {
       orderId?: string;
     }
   ) => {
-    const user = await userRepository.getByUserLayerId(userLayerId);
+    // Initial validations and data fetching in parallel
+    const [user, launchItem, launch, collection] = await Promise.all([
+      userRepository.getByUserLayerId(userLayerId),
+      launchItemRepository.getById(db, launchItemId),
+      launchItemRepository
+        .getById(db, launchItemId)
+        .then((item) =>
+          item ? launchRepository.getById(db, item.launchId) : null
+        ),
+      launchItemRepository
+        .getById(db, launchItemId)
+        .then((item) =>
+          item
+            ? launchRepository
+                .getById(db, item.launchId)
+                .then((l) =>
+                  l ? collectionRepository.getById(db, l.collectionId) : null
+                )
+            : null
+        )
+    ]);
+
+    // Basic validations
     if (!user) throw new CustomError("User not found.", 400);
     if (user.id !== userId)
       throw new CustomError(
@@ -745,341 +678,172 @@ export const launchServices = {
       );
     if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
+    if (!launchItem) throw new CustomError("Launch item not found.", 400);
+    if (!launch) throw new CustomError("Launch not found.", 400);
+    if (!collection) throw new CustomError("Collection not found.", 400);
+    if (collection.type === "SYNTHETIC" || collection.parentCollectionId)
+      throw new CustomError("You cannot buy the item of this collection.", 400);
+    if (launch.status === "UNCONFIRMED")
+      throw new CustomError("Unconfirmed launch.", 400);
 
-    const result = await db.transaction().execute(async (trx) => {
-      try {
-        await userRepository.acquireLockByUserLayerId(trx, userLayerId);
-      } catch (error) {
-        if (error instanceof DatabaseError && error.code === "55P03") {
-          throw new CustomError(
-            "Previous request is currently being processed. Please try again in a moment.",
-            409
-          );
-        }
+    // Get mint price and validate phase
+    const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
+    const mintPrice = await validatePhaseAndGetPrice(
+      launch,
+      user,
+      currentUnixTimeStamp
+    );
 
-        throw error;
-      }
-
-      const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
-        trx,
-        launchItemId
+    // Validate launch item status
+    const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
+      db,
+      launchItemId
+    );
+    if (isLaunchItemOnHold && isLaunchItemOnHold.onHoldBy !== user.id)
+      throw new CustomError(
+        "This launch item is currently reserved to another user.",
+        400
       );
-      if (isLaunchItemOnHold && isLaunchItemOnHold.onHoldBy !== user.id)
-        throw new CustomError(
-          "This launch item is currently reserved to another user.",
-          400
-        );
-      if (isLaunchItemOnHold && isLaunchItemOnHold.status === "SOLD")
-        throw new CustomError("Launch item has already been sold.", 400);
+    if (isLaunchItemOnHold && isLaunchItemOnHold.status === "SOLD")
+      throw new CustomError("Launch item has already been sold.", 400);
 
-      const launchItem = await launchItemRepository.getById(trx, launchItemId);
-      if (!launchItem) throw new CustomError("Launch item not found.", 400);
+    // Validate purchase limits inside transaction
+    await validatePurchaseLimits(db, launch, user, currentUnixTimeStamp);
 
-      const launch = await launchRepository.getById(trx, launchItem.launchId);
-      if (!launch) throw new CustomError("Launch not found.", 400);
-      if (launch.status === "UNCONFIRMED")
-        throw new CustomError("Unconfirmed launch.", 400);
-
-      const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
-      let mintPrice = launch.poMintPrice;
-      if (
-        launch.isWhitelisted &&
-        Number(launch.wlStartsAt) < currentUnixTimeStamp &&
-        Number(launch.wlEndsAt) > currentUnixTimeStamp
-      ) {
-        const wlAddress = await wlRepository.getByLaunchIdAndAddress(
-          trx,
-          launch.id,
-          user.address
-        );
-        if (!wlAddress)
-          throw new CustomError(
-            "You are not allowed to participate in this phase.",
-            400
-          );
-
-        mintPrice = Number(launch.wlMintPrice);
-
-        const wlUserPurchaseCount =
-          await purchaseRepository.getCountByLaunchIdUnixTimestampAndUserIdOrAddress(
-            trx,
-            launch.id,
-            user.id,
-            Number(launch.wlStartsAt),
-            user.address
-          );
-
-        if (
-          wlUserPurchaseCount &&
-          wlUserPurchaseCount >= Number(launch.wlMaxMintPerWallet)
-        )
-          throw new CustomError(
-            "Wallet limit has been reached for whitelist phase.",
-            400
-          );
-      } else if (
-        Number(launch.poStartsAt) < currentUnixTimeStamp &&
-        (!launch.poEndsAt || Number(launch.poEndsAt) > currentUnixTimeStamp)
-      ) {
-        //PO ACTIVE
-        const poUserPurchaseCount =
-          await purchaseRepository.getCountByLaunchIdUnixTimestampAndUserIdOrAddress(
-            trx,
-            launch.id,
-            user.id,
-            Number(launch.poStartsAt),
-            user.address
-          );
-
-        if (
-          poUserPurchaseCount &&
-          poUserPurchaseCount >= Number(launch.poMaxMintPerWallet)
-        )
-          throw new CustomError(
-            "Wallet limit has been reached for public offering phase.",
-            400
-          );
-      }
-
-      const collection = await collectionRepository.getById(
+    const longHoldCount =
+      await launchItemRepository.getLongHoldCountByLaunchIdAndUserId(
         db,
-        launch.collectionId
+        launch.id,
+        user.id
       );
-      if (!collection) throw new CustomError("Collection not found.", 400);
-      if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
-        throw new CustomError(
-          "You cannot buy the item of this collection.",
-          400
-        );
-
-      const parentCollectible = await collectibleRepository.getById(
-        trx,
-        launchItem.collectibleId
+    if (Number(longHoldCount) >= 1) {
+      throw new CustomError(
+        "You already have an item in the minting queue.",
+        400
       );
-      if (!parentCollectible)
-        throw new CustomError("Collectible not found.", 400);
-      if (!parentCollectible.fileKey)
-        throw new CustomError("Collectible file key not found.", 400);
+    }
 
-      // let mintPrice;
-      // if (launch.isWhitelisted) {
-      //   mintPrice = launch.wlMintPrice;
-      // } else {
-      //   mintPrice = launch.poMintPrice;
+    const SUPPLY = 5000;
+    const soldCount =
+      await launchItemRepository.getSoldAndReservedItemCountByLaunchId(
+        db,
+        launch.id
+      );
+    const queueCount =
+      await launchItemRepository.getLongHeldItemCountByLaunchId(db, launch.id);
+    if (soldCount + queueCount >= SUPPLY)
+      throw new CustomError(
+        "All items are queued at the moment, please try again in a moment.",
+        400
+      );
+
+    const collectible = await collectibleRepository.getById(
+      db,
+      launchItem.collectibleId
+    );
+    if (!collectible) throw new CustomError("Collectible not found.", 400);
+
+    // // Handle blockchain operations first
+    // let mintData;
+    // if (
+    //   collection.type === "INSCRIPTION" ||
+    //   collection.type === "RECURSIVE_INSCRIPTION"
+    // ) {
+    //   mintData = await handleInscriptionMint({
+    //     collection,
+    //     launchItem,
+    //     user,
+    //     mintPrice,
+    //     verification
+    //   });
+    // } else if (
+    //   collection.type === "IPFS_CID" ||
+    //   collection.type === "IPFS_FILE"
+    // ) {
+    //   mintData = await handleIpfsMint({
+    //     collection,
+    //     launchItem,
+    //     user,
+    //     mintPrice,
+    //     verification
+    //   });
+    // } else {
+    //   throw new CustomError("Unsupported collection type.", 400);
+    // }
+
+    // Execute database operations in transaction
+    const result = await db.transaction().execute(async (trx) => {
+      // try {
+      //   await userRepository.acquireLockByUserLayerId(trx, userLayerId);
+      // } catch (error) {
+      //   if (error instanceof DatabaseError && error.code === "55P03") {
+      //     throw new CustomError(
+      //       "Previous request is currently being processed. Please try again in a moment.",
+      //       409
+      //     );
+      //   }
+      //   throw error;
       // }
-      // if (!mintPrice)
-      //   throw new CustomError("Mint price not found try again", 400);
 
-      let nftIpfsUrl;
-
-      if (
-        collection.type === "INSCRIPTION" ||
-        collection.type === "RECURSIVE_INSCRIPTION"
-      ) {
-        if (!verification?.orderId)
-          throw new CustomError(
-            "You must provide orderId for this operation.",
-            400
-          );
-
-        const L2Collection =
-          await collectionRepository.getChildCollectionByParentCollectionId(
-            trx,
-            collection.id
-          );
-        if (
-          !L2Collection ||
-          !L2Collection.contractAddress ||
-          !L2Collection.creatorUserLayerId
-        )
-          throw new CustomError("Child collection not found.", 400);
-
-        if (collection.type === "RECURSIVE_INSCRIPTION") {
-          //TODO: Validate if all traits of the collection has already been minted or not
-        }
-
-        const order = await orderRepository.getById(trx, verification.orderId);
-        if (!order) throw new CustomError("Order not found.", 400);
-        if (!order.fundingAddress || !order.privateKey)
-          throw new CustomError(
-            "Order has invalid funding address and private key.",
-            400
-          );
-
-        // const balance = await getBalance(order.fundingAddress);
-        // if (balance < order.fundingAmount)
-        //   throw new CustomError("Fee has not been transferred yet.", 400);
-
-        if (!parentCollectible.fileKey)
-          throw new CustomError("Collectible with no file key.", 400);
-        const vault = await createFundingAddress("TESTNET");
-        const file = await getObjectFromS3(parentCollectible.fileKey);
-        const inscriptionData = {
-          address: vault.address,
-          opReturnValues: `data:${file.contentType};base64,${(
-            file.content as Buffer
-          ).toString("base64")}` as any
-        };
-        const { commitTxHex, revealTxHex } = await inscribe(
-          inscriptionData,
-          order.fundingAddress,
-          order.privateKey,
-          true,
-          order.feeRate
-        );
-        const commitTxResult = await sendRawTransaction(commitTxHex);
-        if (!commitTxResult)
-          throw new CustomError("Could not broadcast the commit tx.", 400);
-        const revealTxResult = await sendRawTransaction(revealTxHex);
-        if (!revealTxResult)
-          throw new CustomError("Could not broadcast the reveal tx.", 400);
-        const inscriptionId = revealTxResult + "i0";
-
-        let mintTxId = "";
-        try {
-          // Mint the NFT with the inscription ID
-          mintTxId = await nftService.mintWithInscriptionId(
-            L2Collection.contractAddress,
-            user.address,
-            inscriptionId,
-            parentCollectible.nftId,
-            Number(mintPrice)
-          );
-          // vault.address = fundingService.getVaultAddress();
-
-          if (!mintTxId) {
-            throw new CustomError(
-              "Failed to mint NFT with inscription ID",
-              400
-            );
-          }
-        } catch (error) {
-          logger.error("Error during NFT minting:", error);
-          throw new CustomError(`Failed to mint NFT: ${error}`, 400);
-        }
-
-        await orderRepository.update(trx, verification.orderId, {
-          orderStatus: "DONE"
-        });
-
-        await collectibleRepository.create(trx, {
-          name: parentCollectible.name,
-          collectionId: L2Collection.id,
-          uniqueIdx:
-            L2Collection.contractAddress + "i" + parentCollectible.nftId,
-          nftId: parentCollectible.nftId,
-          mintingTxId: mintTxId,
-          parentCollectibleId: parentCollectible.id,
-          fileKey: parentCollectible.fileKey,
-          status: "CONFIRMED",
-          highResolutionImageUrl: parentCollectible.highResolutionImageUrl
-        });
-
-        await collectibleRepository.update(trx, parentCollectible.id, {
-          lockingAddress: vault.address,
-          lockingPrivateKey: vault.privateKey,
-          mintingTxId: revealTxResult,
-          uniqueIdx: inscriptionId,
-          status: "CONFIRMED"
-        });
-
-        await collectionRepository.incrementCollectionSupplyById(
-          trx,
-          L2Collection.id
-        );
-
-        if (L2Collection.status === "UNCONFIRMED")
-          await collectionRepository.update(trx, L2Collection.id, {
-            status: "CONFIRMED"
-          });
-      } else if (
-        collection.type === "IPFS_CID" ||
-        collection.type === "IPFS_FILE"
-      ) {
-        if (!verification?.txid || !verification?.orderId)
-          throw new CustomError(
-            "You must provide mint txid and orderId for this operation.",
-            400
-          );
-        if (!collection.contractAddress)
-          throw new CustomError("Contract address must be provided", 400);
-
-        const transactionDetail =
-          await confirmationService.getTransactionDetails(verification.txid);
-
-        if (transactionDetail.status !== 1) {
-          throw new CustomError(
-            "Transaction not confirmed. Please try again.",
-            500
-          );
-        }
-
-        if (collection.type === "IPFS_FILE" && !parentCollectible.cid)
-          throw new CustomError("File has not been uploaded to the ipfs.", 400);
-
-        //DG TODO NEW: transaction detail deeres mintprice, vault address validate hiideg bh
-        if (!parentCollectible.fileKey)
-          throw new CustomError("File key must be provided", 400);
-
-        if (parentCollectible.cid) {
-          nftIpfsUrl = parentCollectible.cid;
-        } else {
-          nftIpfsUrl = await nftService.uploadS3FileToIpfs(
-            parentCollectible.fileKey,
-            parentCollectible.name || "Unnamed NFT"
-          );
-        }
-
-        await nftService.mintIpfsNFTUsingVault(
-          collection.contractAddress,
-          user.address,
-          parentCollectible.nftId,
-          //DG TODO: "uri ? eniig ashiglah zov eseh",
-          nftIpfsUrl,
-          Number(mintPrice)
-        );
-        await collectibleRepository.update(trx, parentCollectible.id, {
-          status: "CONFIRMED",
-          mintingTxId: verification.txid,
-          cid: nftIpfsUrl,
-          uniqueIdx: collection.contractAddress + "i" + parentCollectible.nftId
-        });
-
-        await orderRepository.update(trx, verification.orderId, {
-          orderStatus: "DONE"
-        });
-      } else throw new CustomError("Unsupported collection type.", 400);
-
-      await collectionRepository.incrementCollectionSupplyById(
-        trx,
-        collection.id
-      );
-
-      if (collection.status === "UNCONFIRMED")
-        await collectionRepository.update(trx, collection.id, {
-          status: "CONFIRMED"
-        });
-
-      const soldLaunchItem = await launchItemRepository.update(
+      // Convert from short to long hold
+      const longHeldItem = await launchItemRepository.setLongHoldById(
         trx,
         launchItem.id,
-        {
-          status: "SOLD"
-        }
+        user.id
       );
 
-      await purchaseRepository.create(trx, {
-        userId: user.id,
-        launchItemId: soldLaunchItem.id,
-        purchasedAddress: user.address
+      // // Update database records based on mint data
+      // await updateMintRecords(trx, {
+      //   collection,
+      //   launch,
+      //   user,
+      //   launchItem,
+      //   mintData,
+      //   verification
+      // });
+
+      const message: SQSMessageBody = {
+        messageId: `mint-${randomUUID()}`,
+        mintRequest: {
+          userId: user.id,
+          userLayerId,
+          launchItemId,
+          collectibleId: launchItem.collectibleId,
+          collectionId: collection.id,
+          collectionType: "IPFS_CID",
+          collectionAddress: collection.contractAddress ?? "",
+          recipientAddress: user.address,
+          nftId: collectible.nftId,
+          mintPrice: mintPrice.toString(),
+          orderId: verification?.orderId ?? "",
+          uri: collectible.cid ?? ""
+        },
+        attemptCount: 0
+      };
+      const command = new SendMessageCommand({
+        QueueUrl: `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`,
+        MessageBody: JSON.stringify(message)
       });
 
-      return { launchItem, parentCollectible };
+      try {
+        await sqsClient.send(command);
+
+        logger.info(
+          `queued launchItem ${launchItem.id} to SQS with id of ${message.messageId}`
+        );
+      } catch (error) {
+        throw new Error(`Failed to queue mint request: ${error}`);
+      }
+
+      return {
+        launchItem
+        // collectible: mintData.collectible
+      };
     });
 
     return {
-      launchItem: result.launchItem,
-      collectible: result.parentCollectible
+      launchItem: result.launchItem
+      // collectible: result.collectible
     };
   },
   createOrderForReservedLaunchItems: async (
@@ -1184,7 +948,7 @@ export const launchServices = {
       "SOLD"
     );
 
-    producer.sendMessage(orderId, 5);
+    // producer.sendMessage(orderId, 5);
     logger.info(`Enqueued ${orderId} to the SQS`);
 
     return launch;
@@ -1222,4 +986,403 @@ export const launchServices = {
 
     return wlAddress;
   }
+};
+
+// Helper functions
+const validatePhaseAndGetPrice = async (
+  launch: any,
+  user: any,
+  currentTime: number
+) => {
+  if (
+    launch.isWhitelisted &&
+    Number(launch.wlStartsAt) < currentTime &&
+    Number(launch.wlEndsAt) > currentTime
+  ) {
+    const wlAddress = await wlRepository.getByLaunchIdAndAddress(
+      db,
+      launch.id,
+      user.address
+    );
+    if (!wlAddress)
+      throw new CustomError(
+        "You are not allowed to participate in this phase.",
+        400
+      );
+    return Number(launch.wlMintPrice);
+  }
+
+  if (Number(launch.poStartsAt) > currentTime) {
+    throw new CustomError("Launch hasn't started.", 400);
+  }
+  if (launch.poEndsAt && Number(launch.poEndsAt) < currentTime) {
+    throw new CustomError("Launch has ended.", 400);
+  }
+
+  return Number(launch.poMintPrice);
+};
+
+const validatePurchaseLimits = async (
+  trx: any,
+  launch: any,
+  user: any,
+  currentTime: number
+) => {
+  if (
+    launch.isWhitelisted &&
+    Number(launch.wlStartsAt) < currentTime &&
+    Number(launch.wlEndsAt) > currentTime
+  ) {
+    const wlUserPurchaseCount =
+      await purchaseRepository.getCountByLaunchIdUnixTimestampAndUserIdOrAddress(
+        trx,
+        launch.id,
+        user.id,
+        Number(launch.wlStartsAt),
+        user.address
+      );
+
+    if (
+      wlUserPurchaseCount &&
+      wlUserPurchaseCount >= Number(launch.wlMaxMintPerWallet)
+    )
+      throw new CustomError(
+        "Wallet limit has been reached for whitelist phase.",
+        400
+      );
+  } else {
+    const poUserPurchaseCount =
+      await purchaseRepository.getCountByLaunchIdUnixTimestampAndUserIdOrAddress(
+        trx,
+        launch.id,
+        user.id,
+        Number(launch.poStartsAt),
+        user.address
+      );
+
+    if (
+      poUserPurchaseCount &&
+      poUserPurchaseCount >= Number(launch.poMaxMintPerWallet)
+    )
+      throw new CustomError(
+        "Wallet limit has been reached for public offering phase.",
+        400
+      );
+  }
+};
+
+const prepareInscriptionData = async (collection: any, feeRate?: number) => {
+  if (!feeRate)
+    throw new CustomError("You must provide fee rate for this operation.", 400);
+
+  let networkFee = 546;
+  const funder = await createFundingAddress("TESTNET");
+  const serviceFee = 0;
+  const totalAmount = networkFee * 1.5 + serviceFee;
+
+  return { funder, networkFee, totalAmount, feeRate };
+};
+
+const prepareIpfsData = async (
+  collection: any,
+  userAddress: string,
+  mintPrice: number
+) => {
+  if (!collection.contractAddress)
+    throw new CustomError(
+      "Collection with no contract address not found.",
+      400
+    );
+
+  const dummyUri = "ipfs://dummy";
+  const gasFeeEstimate = await nftService.estimateMintGasFee(
+    collection.contractAddress,
+    userAddress,
+    "0",
+    dummyUri,
+    mintPrice
+  );
+
+  const mintPriceWei = ethers.parseEther(mintPrice.toString());
+  const totalRequired = mintPriceWei + gasFeeEstimate.estimatedGasCost;
+  const formattedTotal = ethers.formatEther(totalRequired);
+
+  const unsignedTx = await fundingService.getUnsignedFeeTransaction(
+    userAddress,
+    formattedTotal.toString()
+  );
+
+  if (!unsignedTx || !unsignedTx.value)
+    throw new CustomError("Invalid unsigned transaction.", 400);
+
+  return { gasFeeEstimate, unsignedTx };
+};
+
+const createOrder = async (trx: any, params: any) => {
+  const { collection, user, externalData, mintPrice, feeRate, userLayerId } =
+    params;
+
+  if (
+    collection.type === "INSCRIPTION" ||
+    collection.type === "RECURSIVE_INSCRIPTION"
+  ) {
+    const order = await orderRepository.create(trx, {
+      userId: user.id,
+      collectionId: collection.id,
+      feeRate,
+      orderType: "LAUNCH_BUY",
+      fundingAmount: externalData.totalAmount,
+      fundingAddress: externalData.funder.address,
+      privateKey: externalData.funder.privateKey,
+      userLayerId
+    });
+
+    return {
+      order: hideSensitiveData(order, ["privateKey"]),
+      singleMintTxHex: null
+    };
+  } else {
+    const order = await orderRepository.create(trx, {
+      userId: user.id,
+      collectionId: collection.id,
+      feeRate,
+      orderType: "LAUNCH_BUY",
+      fundingAmount: parseInt(externalData.unsignedTx.value.toString()),
+      fundingAddress: externalData.unsignedTx.to?.toString(),
+      privateKey: "evm",
+      userLayerId
+    });
+
+    return {
+      order: hideSensitiveData(order, ["privateKey"]),
+      singleMintTxHex: serializeBigInt(externalData.unsignedTx)
+    };
+  }
+};
+
+const handleInscriptionMint = async (params: any) => {
+  const { collection, launchItem, user, mintPrice, verification } = params;
+  if (!verification?.orderId) {
+    throw new CustomError("You must provide orderId for this operation.", 400);
+  }
+
+  // Get L2 collection and order data
+  const [L2Collection, order] = await Promise.all([
+    collectionRepository.getChildCollectionByParentCollectionId(
+      db,
+      collection.id
+    ),
+    orderRepository.getById(db, verification.orderId)
+  ]);
+
+  if (!L2Collection?.contractAddress || !L2Collection?.creatorUserLayerId)
+    throw new CustomError("Child collection not found.", 400);
+  if (!order?.fundingAddress || !order?.privateKey)
+    throw new CustomError(
+      "Order has invalid funding address and private key.",
+      400
+    );
+
+  // Get collectible data
+  const collectible = await collectibleRepository.getById(
+    db,
+    launchItem.collectibleId
+  );
+  if (!collectible?.fileKey)
+    throw new CustomError("Collectible file key not found.", 400);
+
+  // Create inscription
+  const vault = await createFundingAddress("TESTNET");
+  const file = await getObjectFromS3(collectible.fileKey);
+
+  const inscriptionData = {
+    address: vault.address,
+    opReturnValues: `data:${file.contentType};base64,${(
+      file.content as Buffer
+    ).toString("base64")}` as any
+  };
+
+  // Execute blockchain operations
+  const { commitTxHex, revealTxHex } = await inscribe(
+    inscriptionData,
+    order.fundingAddress,
+    order.privateKey,
+    true,
+    order.feeRate
+  );
+
+  const commitTxResult = await sendRawTransaction(commitTxHex);
+  if (!commitTxResult)
+    throw new CustomError("Could not broadcast the commit tx.", 400);
+
+  const revealTxResult = await sendRawTransaction(revealTxHex);
+  if (!revealTxResult)
+    throw new CustomError("Could not broadcast the reveal tx.", 400);
+
+  const inscriptionId = revealTxResult + "i0";
+
+  // Mint NFT
+  const mintTxId = await nftService.mintWithInscriptionId(
+    L2Collection.contractAddress,
+    user.address,
+    inscriptionId,
+    collectible.nftId,
+    mintPrice
+  );
+
+  if (!mintTxId)
+    throw new CustomError("Failed to mint NFT with inscription ID", 400);
+
+  return {
+    collectible,
+    L2Collection,
+    vault,
+    mintTxId,
+    revealTxResult,
+    inscriptionId,
+    type: "INSCRIPTION"
+  };
+};
+
+const handleIpfsMint = async (params: any) => {
+  const { collection, launchItem, user, mintPrice, verification } = params;
+
+  if (!verification?.txid || !verification?.orderId)
+    throw new CustomError(
+      "You must provide mint txid and orderId for this operation.",
+      400
+    );
+  if (!collection.contractAddress)
+    throw new CustomError("Contract address must be provided", 400);
+
+  // Verify transaction
+  const transactionDetail = await confirmationService.getTransactionDetails(
+    verification.txid
+  );
+  if (transactionDetail.status !== 1)
+    throw new CustomError("Transaction not confirmed. Please try again.", 500);
+
+  // Get collectible data
+  const collectible = await collectibleRepository.getById(
+    db,
+    launchItem.collectibleId
+  );
+  if (!collectible?.fileKey)
+    throw new CustomError("File key must be provided", 400);
+
+  // Handle IPFS upload if needed
+  let nftIpfsUrl = collectible.cid;
+  if (!nftIpfsUrl) {
+    if (collection.type === "IPFS_FILE") {
+      nftIpfsUrl = await nftService.uploadS3FileToIpfs(
+        collectible.fileKey,
+        collectible.name || "Unnamed NFT"
+      );
+    } else {
+      throw new CustomError("File has not been uploaded to the ipfs.", 400);
+    }
+  }
+
+  // Mint NFT
+  await nftService.mintIpfsNFTUsingVault(
+    collection.contractAddress,
+    user.address,
+    collectible.nftId,
+    nftIpfsUrl,
+    mintPrice
+  );
+
+  return {
+    collectible,
+    nftIpfsUrl,
+    txid: verification.txid,
+    type: "IPFS"
+  };
+};
+
+export const updateMintRecords = async (trx: any, params: any) => {
+  const { collection, launch, user, launchItem, mintData, verification } =
+    params;
+
+  if (mintData.type === "INSCRIPTION") {
+    await updateInscriptionRecords(trx, mintData);
+  } else {
+    await updateIpfsRecords(trx, mintData);
+  }
+
+  // Common updates
+  await collectionRepository.incrementCollectionSupplyById(trx, collection.id);
+  if (collection.status === "UNCONFIRMED") {
+    await collectionRepository.update(trx, collection.id, {
+      status: "CONFIRMED"
+    });
+  }
+
+  // Update launch item and create purchase record
+  const soldLaunchItem = await launchItemRepository.update(trx, launchItem.id, {
+    status: "SOLD"
+  });
+
+  await purchaseRepository.create(trx, {
+    userId: user.id,
+    launchItemId: soldLaunchItem.id,
+    purchasedAddress: user.address
+  });
+
+  // Update order status
+  await orderRepository.update(trx, verification.orderId, {
+    orderStatus: "DONE"
+  });
+};
+
+const updateInscriptionRecords = async (trx: any, mintData: any) => {
+  const {
+    collectible,
+    L2Collection,
+    vault,
+    mintTxId,
+    revealTxResult,
+    inscriptionId
+  } = mintData;
+
+  await Promise.all([
+    collectibleRepository.create(trx, {
+      name: collectible.name,
+      collectionId: L2Collection.id,
+      uniqueIdx: L2Collection.contractAddress + "i" + collectible.nftId,
+      nftId: collectible.nftId,
+      mintingTxId: mintTxId,
+      parentCollectibleId: collectible.id,
+      fileKey: collectible.fileKey,
+      status: "CONFIRMED",
+      highResolutionImageUrl: collectible.highResolutionImageUrl
+    }),
+
+    collectibleRepository.update(trx, collectible.id, {
+      lockingAddress: vault.address,
+      lockingPrivateKey: vault.privateKey,
+      mintingTxId: revealTxResult,
+      uniqueIdx: inscriptionId,
+      status: "CONFIRMED"
+    }),
+
+    collectionRepository.incrementCollectionSupplyById(trx, L2Collection.id)
+  ]);
+
+  if (L2Collection.status === "UNCONFIRMED") {
+    await collectionRepository.update(trx, L2Collection.id, {
+      status: "CONFIRMED"
+    });
+  }
+};
+
+const updateIpfsRecords = async (trx: any, mintData: any) => {
+  const { collectible, nftIpfsUrl, txid, collection } = mintData;
+
+  await collectibleRepository.update(trx, collectible.id, {
+    status: "CONFIRMED",
+    mintingTxId: txid,
+    cid: nftIpfsUrl,
+    uniqueIdx: collection.contractAddress + "i" + collectible.nftId
+  });
 };

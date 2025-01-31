@@ -200,6 +200,7 @@ export type WlAddress = {
   id: Generated<string>;
   launchId: string;
   address: string;
+  createdAt: Generated<Timestamp>;
 };
 export type DB = {
   Collectible: Collectible;

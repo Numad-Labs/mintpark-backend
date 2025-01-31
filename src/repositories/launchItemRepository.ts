@@ -83,7 +83,7 @@ export const launchItemRepository = {
 
     return launchItem;
   },
-  setOnHoldById: async (
+  setShortHoldById: async (
     db: Kysely<DB> | Transaction<DB>,
     id: string,
     buyerId: string
@@ -110,6 +110,59 @@ export const launchItemRepository = {
 
     return launchItem;
   },
+
+  // Convert short hold to long hold (24 hours)
+  setLongHoldById: async (
+    db: Kysely<DB> | Transaction<DB>,
+    id: string,
+    buyerId: string
+  ) => {
+    const launchItem = await db
+      .updateTable("LaunchItem")
+      .set({
+        onHoldUntil: sql`NOW() + INTERVAL '24 hours'`
+      })
+      .returningAll()
+      .where("LaunchItem.id", "=", id)
+      .where("LaunchItem.status", "=", "ACTIVE")
+      .where("LaunchItem.onHoldBy", "=", buyerId)
+      // Only allow conversion from short hold to long hold
+      .where(sql`${sql.ref("onHoldUntil")} > NOW()`.$castTo<boolean>())
+      .where(
+        sql`${sql.ref(
+          "onHoldUntil"
+        )} <= NOW() + INTERVAL '2 minutes'`.$castTo<boolean>()
+      )
+      .executeTakeFirstOrThrow(
+        () =>
+          new Error(
+            "Could not set long-term hold. Item may no longer be available or not in short hold."
+          )
+      );
+
+    return launchItem;
+  },
+
+  getLongHeldItemCountByLaunchId: async (
+    db: Kysely<DB> | Transaction<DB>,
+    launchId: string
+  ) => {
+    const result = await db
+      .selectFrom("LaunchItem")
+      .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
+      .where("LaunchItem.launchId", "=", launchId)
+      .where("LaunchItem.status", "=", "ACTIVE")
+      .where((eb) =>
+        sql`${eb.ref(
+          "onHoldUntil"
+        )} > NOW() + INTERVAL '2 minutes'`.$castTo<boolean>()
+      )
+      .executeTakeFirst();
+
+    return result?.count || 0;
+  },
+
+  // Get item's current hold status
   getOnHoldById: async (db: Kysely<DB> | Transaction<DB>, id: string) => {
     const launchItem = await db
       .selectFrom("LaunchItem")
@@ -121,21 +174,67 @@ export const launchItemRepository = {
 
     return launchItem;
   },
-  getOnHoldCountByLaunchIdAndUserId: async (
+
+  // Count short holds (items held for less than 2 minutes)
+  getShortHoldCountByLaunchIdAndUserId: async (
     db: Kysely<DB> | Transaction<DB>,
     launchId: string,
     userId: string
   ) => {
     const result = await db
       .selectFrom("LaunchItem")
-      .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
+      .select((eb) => [
+        eb.fn.count("LaunchItem.id").$castTo<number>().as("count")
+      ])
       .where("LaunchItem.launchId", "=", launchId)
       .where("LaunchItem.status", "=", "ACTIVE")
       .where("LaunchItem.onHoldBy", "=", userId)
-      .where((eb) => sql`${eb.ref("onHoldUntil")} > NOW()`.$castTo<boolean>())
+      .where(sql`${sql.ref("onHoldUntil")} > NOW()`.$castTo<boolean>())
+      .where(
+        sql`${sql.ref(
+          "onHoldUntil"
+        )} <= NOW() + INTERVAL '2 minutes'`.$castTo<boolean>()
+      )
       .executeTakeFirst();
 
     return result?.count;
+  },
+
+  // Count long holds (items held for more than 2 minutes)
+  getLongHoldCountByLaunchIdAndUserId: async (
+    db: Kysely<DB> | Transaction<DB>,
+    launchId: string,
+    userId: string
+  ) => {
+    const result = await db
+      .selectFrom("LaunchItem")
+      .select((eb) => [
+        eb.fn.count("LaunchItem.id").$castTo<number>().as("count")
+      ])
+      .where("LaunchItem.launchId", "=", launchId)
+      .where("LaunchItem.status", "=", "ACTIVE")
+      .where("LaunchItem.onHoldBy", "=", userId)
+      .where(
+        sql`${sql.ref(
+          "onHoldUntil"
+        )} > NOW() + INTERVAL '2 minutes'`.$castTo<boolean>()
+      )
+      .executeTakeFirst();
+
+    return result?.count;
+  },
+  getSoldAndReservedItemCountByLaunchId: async (
+    db: Kysely<DB> | Transaction<DB>,
+    launchId: string
+  ) => {
+    const result = await db
+      .selectFrom("LaunchItem")
+      .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
+      .where("LaunchItem.launchId", "=", launchId)
+      .where("LaunchItem.status", "in", ["RESERVED", "SOLD"])
+      .executeTakeFirst();
+
+    return result?.count || 0;
   },
   bulkInsert: async (
     db: Kysely<DB> | Transaction<DB>,
@@ -177,5 +276,15 @@ export const launchItemRepository = {
       );
 
     return launchItem;
+  },
+  getActiveLaunchItemsWithCollectibleId: async (launchId: string) => {
+    const nftIds = await db
+      .selectFrom("LaunchItem")
+      .innerJoin("Collectible", "Collectible.id", "LaunchItem.collectibleId")
+      .select(["nftId"])
+      .where("LaunchItem.status", "=", "ACTIVE")
+      .execute();
+
+    return nftIds;
   }
 };

@@ -10,8 +10,8 @@ export class SQSClientFactory {
         region,
         credentials: {
           accessKeyId: config.AWS_SQS_ACCESS_KEY,
-          secretAccessKey: config.AWS_SQS_SECRET_KEY,
-        },
+          secretAccessKey: config.AWS_SQS_SECRET_KEY
+        }
       });
     }
     return this.instance;

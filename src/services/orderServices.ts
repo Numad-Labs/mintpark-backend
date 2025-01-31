@@ -27,7 +27,7 @@ import {
   COMMIT_TX_SIZE,
   REVEAL_TX_SIZE
 } from "../blockchain/bitcoin/constants";
-import { producer } from "..";
+// import { producer } from "..";
 import logger from "../config/winston";
 import LaunchpadService from "../blockchain/evm/services/launchpadService";
 // import LaunchpadService from "../../blockchain/evm/services/launchpadService";
@@ -453,7 +453,7 @@ export const orderServices = {
       await orderItemRepository.bulkInsert(orderItems);
     }
 
-    producer.sendMessage(order.id, 5);
+    // producer.sendMessage(order.id, 5);
     logger.info(`Enqueued ${order.id} to the SQS`);
     // if collection.type === 'RECURSIVE_INSCRIPTION', then invoke the trait minting first
 

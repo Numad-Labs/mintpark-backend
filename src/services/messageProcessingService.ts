@@ -7,7 +7,7 @@ import { orderItemRepository } from "../repositories/orderItemRepository";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { db } from "../utils/db";
 import { collectibleRepository } from "../repositories/collectibleRepository";
-import { producer } from "..";
+// import { producer } from "..";
 import { traitValueRepository } from "../repositories/traitValueRepository";
 import { createFundingAddress } from "../blockchain/bitcoin/createFundingAddress";
 import { inscribe } from "../blockchain/bitcoin/inscribe";
@@ -207,7 +207,7 @@ export async function processMessage(message: Message) {
 
     if (!hasRemainingOrderItem)
       await orderRepository.updateOrderStatus(order.id, "DONE");
-    else producer.sendMessage(order.id, 120);
+    // else producer.sendMessage(order.id, 120);
 
     logger.info(`Finished processing the order item: ${orderItem.id}`);
 
@@ -260,7 +260,7 @@ export async function processMessage(message: Message) {
         lockingPrivateKey: vault.privateKey
       });
 
-      producer.sendMessage(order.id, 120);
+      // producer.sendMessage(order.id, 120);
 
       return;
     } else {
@@ -326,7 +326,7 @@ export async function processMessage(message: Message) {
 
       if (!hasRemainingOrderItem)
         await orderRepository.updateOrderStatus(order.id, "DONE");
-      else producer.sendMessage(order.id, 120);
+      // else producer.sendMessage(order.id, 120);
 
       logger.info(`Finished processing the order item: ${orderItem.id}`);
 
@@ -376,7 +376,7 @@ export async function processMessage(message: Message) {
 
     if (!hasRemainingOrderItem)
       await orderRepository.updateOrderStatus(order.id, "DONE");
-    else producer.sendMessage(order.id, 120);
+    // else producer.sendMessage(order.id, 120);
 
     logger.info(`Finished processing the order item: ${orderItem.id}`);
   } else throw new CustomError("Invalid collection type.", 400);
