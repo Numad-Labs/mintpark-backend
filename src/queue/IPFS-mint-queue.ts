@@ -20,6 +20,7 @@ import {
   ReceiveMessageCommand,
   SQSClient
 } from "@aws-sdk/client-sqs";
+import { collectibleRepository } from "../repositories/collectibleRepository";
 
 const LOCK_SCRIPT = `
   local existing = redis.call('get', KEYS[1])
@@ -225,6 +226,13 @@ export class QueueProcessor {
         //     status: "CONFIRMED"
         //   });
         // }
+
+        await collectibleRepository.update(trx, body.collectibleId, {
+          status: "CONFIRMED",
+          mintingTxId: body.txid,
+          cid: body.uri,
+          uniqueIdx: body.uniqueIdx
+        });
 
         // Update launch item and create purchase record
         const soldLaunchItem = await launchItemRepository.update(

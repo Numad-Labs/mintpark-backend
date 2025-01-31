@@ -31,5 +31,7 @@ export interface MintRequest {
   nftId: string;
   mintPrice: string;
   orderId: string;
-  uri?: string; // for IPFS mints
+  uri: string; // for IPFS mints
+  txid?: string;
+  uniqueIdx: string;
 }

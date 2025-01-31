@@ -594,6 +594,19 @@ export const launchServices = {
     );
     if (!collectible) throw new CustomError("Collectible not found.", 400);
 
+    if (collection.type === "IPFS_FILE" && !collectible.cid) {
+      if (!collectible.fileKey)
+        throw new CustomError("Collectible has no file key.", 400);
+
+      //fetch file from S3 & upload file to ipfs & update the collectible to set the cid
+      const cid = await nftService.uploadS3FileToIpfs(
+        collectible.fileKey,
+        collectible.name
+      );
+
+      await collectibleRepository.update(db, collectible.id, { cid });
+    }
+
     // Execute database operations in transaction
     const result = await db.transaction().execute(async (trx) => {
       try {
@@ -816,7 +829,9 @@ export const launchServices = {
           nftId: collectible.nftId,
           mintPrice: mintPrice.toString(),
           orderId: verification?.orderId ?? "",
-          uri: collectible.cid ?? ""
+          uri: collectible.cid ?? "",
+          uniqueIdx: collection.contractAddress + "i" + collectible.nftId,
+          txid: verification?.txid
         },
         attemptCount: 0
       };
