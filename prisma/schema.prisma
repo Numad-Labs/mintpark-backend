@@ -313,6 +313,14 @@ model FailedMint {
   launchItem   LaunchItem @relation(fields: [launchItemId], references: [id])
 }
 
+model Airdrop {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  createdAt DateTime @default(now())
+  address   String
+
+  @@index([address])
+}
+
 enum ORDER_TYPE {
   MINT_COLLECTIBLE
   MINT_RECURSIVE_COLLECTIBLE

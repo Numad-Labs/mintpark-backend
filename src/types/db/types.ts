@@ -20,6 +20,11 @@ import type {
   ROLES
 } from "./enums";
 
+export type Airdrop = {
+  id: Generated<string>;
+  createdAt: Generated<Timestamp>;
+  address: string;
+};
 export type Collectible = {
   id: Generated<string>;
   name: string;
@@ -209,6 +214,7 @@ export type WlAddress = {
   createdAt: Generated<Timestamp>;
 };
 export type DB = {
+  Airdrop: Airdrop;
   Collectible: Collectible;
   CollectibleTrait: CollectibleTrait;
   Collection: Collection;

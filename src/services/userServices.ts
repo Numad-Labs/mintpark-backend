@@ -33,13 +33,12 @@ export const userServices = {
     const message = await generateMessage(address, nonce);
 
     if (layer.layer === "CITREA" && layer.network === "TESTNET") {
-      const isValid = true;
-      // const isValid = await citreaVerifySignedMessage(
-      //   message,
-      //   signedMessage,
-      //   address
-      // );
-      // if (!isValid) throw new CustomError("Invalid signature.", 400);
+      const isValid = await citreaVerifySignedMessage(
+        message,
+        signedMessage,
+        address
+      );
+      if (!isValid) throw new CustomError("Invalid signature.", 400);
     } else if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
       if (!isBitcoinTestnetAddress(address))
         throw new CustomError(

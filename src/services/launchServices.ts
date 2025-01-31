@@ -49,6 +49,7 @@ import { SQSMessageBody } from "../queue/types";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { SQSClientFactory } from "../queue/sqsClient";
 import { config } from "../config/config";
+import { airdropRepository } from "../repositories/airdropRepository";
 
 const launchPadService = new LaunchpadService(
   EVM_CONFIG.RPC_URL,
@@ -509,11 +510,12 @@ export const launchServices = {
     if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
       throw new CustomError("You cannot buy the item of this collection.", 400);
 
-    //TODO: AIRDROP VALIDATION
-    const isInAirdrop = false;
+    const isInAirdrop = await airdropRepository.getByAddress(
+      user.address.toLowerCase()
+    );
     if (isInAirdrop)
       throw new CustomError(
-        "You are in airdrop list which will happen very soon.",
+        "You are in airdrop list, it will happen very soon.",
         400
       );
 
