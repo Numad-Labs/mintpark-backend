@@ -4,6 +4,7 @@ import { config } from "../../../config/config";
 import { PinataSDK, PinResponse } from "pinata-web3";
 import { CustomError } from "../../../exceptions/CustomError";
 import { getObjectFromS3 } from "../../../utils/aws";
+import logger from "../../../config/winston";
 
 interface S3FileResponse {
   contentType?: string;
@@ -316,6 +317,7 @@ class NFTService {
     uri: string,
     mintPrice: number
   ) {
+    logger.info(recipientAddress);
     try {
       const minterWallet = new ethers.Wallet(
         config.VAULT_PRIVATE_KEY,
@@ -331,7 +333,6 @@ class NFTService {
       // Create an unsigned transaction to estimate gas
       const priceInWei = ethers.parseEther(mintPrice.toString());
       const unsignedTx = await contract.mint.populateTransaction(
-        // "0x52Dc762092a5d75EFF49933950a036A1b8465855",
         recipientAddress,
         nftId,
         "",

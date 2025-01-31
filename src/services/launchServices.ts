@@ -515,7 +515,7 @@ export const launchServices = {
     );
     if (isInAirdrop)
       throw new CustomError(
-        "You are in airdrop list, it will happen very soon.",
+        "You're on the airdrop list! You can't purchase this NFT, but don't worry—the airdrop will happen very soon!",
         400
       );
 
@@ -545,12 +545,19 @@ export const launchServices = {
     // Validate purchase limits inside transaction
     await validatePurchaseLimits(db, launch, user, currentUnixTimeStamp);
 
-    const shortHoldCount =
-      await launchItemRepository.getShortHoldCountByLaunchIdAndUserId(
+    const [shortHoldCount, longHoldCount, queueCount] = await Promise.all([
+      launchItemRepository.getShortHoldCountByLaunchIdAndUserId(
         db,
         launch.id,
         user.id
-      );
+      ),
+      launchItemRepository.getLongHoldCountByLaunchIdAndUserId(
+        db,
+        launch.id,
+        user.id
+      ),
+      launchItemRepository.getLongHeldItemCountByLaunchId(db, launch.id)
+    ]);
 
     if (Number(shortHoldCount) >= 3) {
       throw new CustomError(
@@ -559,12 +566,6 @@ export const launchServices = {
       );
     }
 
-    const longHoldCount =
-      await launchItemRepository.getLongHoldCountByLaunchIdAndUserId(
-        db,
-        launch.id,
-        user.id
-      );
     if (Number(longHoldCount) >= 1) {
       throw new CustomError(
         "You already have an item in the minting queue.",
@@ -578,14 +579,12 @@ export const launchServices = {
         launch.id
       );
     const SUPPLY = 5000; //ONLY FOR CITREA
-    const queueCount =
-      await launchItemRepository.getLongHeldItemCountByLaunchId(db, launch.id);
     logger.info(
       `Buy sold count and queue count: ${Number(soldCount) + Number(soldCount)}`
     );
-    if (Number(soldCount) + Number(soldCount) >= SUPPLY)
+    if (Number(soldCount) + Number(queueCount) >= SUPPLY)
       throw new CustomError(
-        "All items are queued at the moment, please try again in a moment.",
+        "All items are either sold or currently held in the queue. Please check back later.",
         400
       );
 
@@ -728,12 +727,16 @@ export const launchServices = {
     // Validate purchase limits inside transaction
     await validatePurchaseLimits(db, launch, user, currentUnixTimeStamp);
 
-    const longHoldCount =
-      await launchItemRepository.getLongHoldCountByLaunchIdAndUserId(
+    const [soldCount, longHoldCount, queueCount] = await Promise.all([
+      launchItemRepository.getSoldAndReservedItemCountByLaunchId(db, launch.id),
+      launchItemRepository.getLongHoldCountByLaunchIdAndUserId(
         db,
         launch.id,
         user.id
-      );
+      ),
+      launchItemRepository.getLongHeldItemCountByLaunchId(db, launch.id)
+    ]);
+
     if (Number(longHoldCount) >= 1) {
       throw new CustomError(
         "You already have an item in the minting queue.",
@@ -742,14 +745,7 @@ export const launchServices = {
     }
 
     const SUPPLY = 5000;
-    const soldCount =
-      await launchItemRepository.getSoldAndReservedItemCountByLaunchId(
-        db,
-        launch.id
-      );
-    const queueCount =
-      await launchItemRepository.getLongHeldItemCountByLaunchId(db, launch.id);
-    if (Number(soldCount) + Number(soldCount) >= SUPPLY)
+    if (Number(soldCount) + Number(queueCount) >= SUPPLY)
       throw new CustomError(
         "All items are queued at the moment, please try again in a moment.",
         400
