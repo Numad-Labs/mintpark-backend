@@ -578,8 +578,10 @@ export const launchServices = {
     const SUPPLY = 5000; //ONLY FOR CITREA
     const queueCount =
       await launchItemRepository.getLongHeldItemCountByLaunchId(db, launch.id);
-    logger.info(`Buy sold count and queue count: ${soldCount + queueCount}`);
-    if (soldCount + queueCount >= SUPPLY)
+    logger.info(
+      `Buy sold count and queue count: ${Number(soldCount) + Number(soldCount)}`
+    );
+    if (Number(soldCount) + Number(soldCount) >= SUPPLY)
       throw new CustomError(
         "All items are queued at the moment, please try again in a moment.",
         400
@@ -745,7 +747,7 @@ export const launchServices = {
       );
     const queueCount =
       await launchItemRepository.getLongHeldItemCountByLaunchId(db, launch.id);
-    if (soldCount + queueCount >= SUPPLY)
+    if (Number(soldCount) + Number(soldCount) >= SUPPLY)
       throw new CustomError(
         "All items are queued at the moment, please try again in a moment.",
         400
