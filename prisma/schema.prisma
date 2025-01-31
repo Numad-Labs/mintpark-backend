@@ -25,6 +25,7 @@ model User {
   Launch     Launch[]
   UserLayer  UserLayer[]
   Collection Collection[]
+  FailedMint FailedMint[]
 }
 
 model UserLayer {
@@ -260,8 +261,9 @@ model LaunchItem {
   onHoldBy      String?
   User          User?       @relation(fields: [onHoldBy], references: [id])
 
-  Order     Order[]
-  purchases Purchase[]
+  Order      Order[]
+  purchases  Purchase[]
+  FailedMint FailedMint[]
 }
 
 model Purchase {
@@ -276,10 +278,10 @@ model Purchase {
 }
 
 model WlAddress {
-  id       String @id @default(dbgenerated("gen_random_uuid()"))
-  launchId String
-  launch   Launch @relation(fields: [launchId], references: [id])
-  address  String
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  launchId  String
+  launch    Launch   @relation(fields: [launchId], references: [id])
+  address   String
   createdAt DateTime @default(now())
 }
 
@@ -299,6 +301,16 @@ model List {
   soldTxid        String?
   soldAt          DateTime?
   status          LIST_STATUS @default(PENDING)
+}
+
+model FailedMint {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  createdAt DateTime @default(now())
+
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  launchItemId String
+  launchItem   LaunchItem @relation(fields: [launchItemId], references: [id])
 }
 
 enum ORDER_TYPE {

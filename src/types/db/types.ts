@@ -77,6 +77,12 @@ export type Currency = {
   price: Generated<number>;
   updatedAt: Generated<Timestamp | null>;
 };
+export type FailedMint = {
+  id: Generated<string>;
+  createdAt: Generated<Timestamp>;
+  userId: string;
+  launchItemId: string;
+};
 export type Launch = {
   id: Generated<string>;
   collectionId: string;
@@ -207,6 +213,7 @@ export type DB = {
   CollectibleTrait: CollectibleTrait;
   Collection: Collection;
   Currency: Currency;
+  FailedMint: FailedMint;
   Launch: Launch;
   LaunchItem: LaunchItem;
   Layer: Layer;

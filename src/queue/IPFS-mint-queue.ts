@@ -291,18 +291,20 @@ export class QueueProcessor {
   private async moveToFailedMints(message: any) {
     await db.transaction().execute(async (trx) => {
       //INSERT INTO FAILED MINT TABLE
-      // await failedMintsRepository.create(trx, {
-      //     messageId: message.messageId,
-      //     mintRequest: message.mintRequest,
-      //     attemptCount: message.attemptCount,
-      //     lastError: message.lastError,
-      //     lastAttempt: message.lastAttempt,
-      //     status: "FAILED"
-      // });
+      await db
+        .insertInto("FailedMint")
+        .values({
+          userId: message.mintRequest.userId,
+          launchItemId: message.mintRequest.launchItemId
+        })
+        .returningAll()
+        .execute();
+
       //RELEASE LONG RESERVATION
-      //   await launchItemRepository.update(trx, message.mintRequest.launchItemId, {
-      //     status: "MINT_FAILED"
-      //   });
+      await launchItemRepository.update(trx, message.mintRequest.launchItemId, {
+        onHoldBy: null,
+        onHoldUntil: null
+      });
     });
   }
 
