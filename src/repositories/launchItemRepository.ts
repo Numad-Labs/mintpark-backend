@@ -231,7 +231,14 @@ export const launchItemRepository = {
       .selectFrom("LaunchItem")
       .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
       .where("LaunchItem.launchId", "=", launchId)
-      .where("LaunchItem.status", "in", ["RESERVED", "SOLD"])
+      .where((eb) =>
+        eb.or([
+          eb("LaunchItem.status", "in", ["RESERVED", "SOLD"]),
+          sql`${sql.ref(
+            "onHoldUntil"
+          )} > NOW() + INTERVAL '2 minutes'`.$castTo<boolean>()
+        ])
+      )
       .executeTakeFirst();
 
     return result?.count || 0;

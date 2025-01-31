@@ -175,6 +175,7 @@ export class QueueProcessor {
 
       await this.processSingleMessage(message, mintMessage);
     } catch (error) {
+      logger.info(`error cauhgt on processNextMessage: ${error}`);
       await this.handleProcessingError(message, mintMessage, error);
     }
   }
@@ -288,6 +289,12 @@ export class QueueProcessor {
       lastError: error.message,
       lastAttempt: new Date()
     };
+
+    logger.info(
+      `failed processing ${message}, ${mintMessage}, attemp: ${
+        attemptCount + 1
+      }`
+    );
 
     if (updatedMessage.attemptCount >= 3) {
       // Max 3 retries
