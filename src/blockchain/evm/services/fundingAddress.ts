@@ -52,7 +52,7 @@ export class FundingAddressService {
     feeAmount: string
   ): Promise<ethers.TransactionRequest> {
     const to = this.vaultAddress.address;
-    from = "0x62A64Ad869909F0346023dBceCB6Ff635dc93bb6";
+    from = "0x52Dc762092a5d75EFF49933950a036A1b8465855";
     try {
       // Get current network gas settings
       const feeData = await this.provider.getFeeData();

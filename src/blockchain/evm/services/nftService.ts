@@ -331,7 +331,7 @@ class NFTService {
       // Create an unsigned transaction to estimate gas
       const priceInWei = ethers.parseEther(mintPrice.toString());
       const unsignedTx = await contract.mint.populateTransaction(
-        "0x62A64Ad869909F0346023dBceCB6Ff635dc93bb6",
+        "0x52Dc762092a5d75EFF49933950a036A1b8465855",
         nftId,
         "",
         uri,
