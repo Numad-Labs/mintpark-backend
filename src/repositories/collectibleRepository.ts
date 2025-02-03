@@ -113,6 +113,7 @@ export const collectibleRepository = {
                 )
                 .select("price")
                 .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
+                .where("List.status", "=", "ACTIVE")
                 .orderBy("price", "asc")
                 .limit(1),
               sql<number>`0`
@@ -230,7 +231,7 @@ export const collectibleRepository = {
               .coalesce(sql<number>`MIN("List"."price")`, sql<number>`0`)
               .as("floor")
           ])
-          .where("List.price", ">", 0)
+          .where("List.status", "=", "ACTIVE")
           .groupBy("Collectible.collectionId")
       )
       .selectFrom("Collectible")
@@ -366,7 +367,7 @@ export const collectibleRepository = {
               .coalesce(sql<number>`MIN("List"."price")`, sql<number>`0`)
               .as("floor")
           ])
-          .where("List.price", ">", 0)
+          .where("List.status", "=", "ACTIVE")
           .groupBy("Collectible.collectionId")
       )
       .selectFrom("Collectible")
