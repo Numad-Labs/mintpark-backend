@@ -240,7 +240,7 @@ export const collectionRepository = {
               sql<number>`COALESCE(MIN("List"."price"), 0)`.as("floor")
             ])
             .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
-            .where("List.status", "in", ["ACTIVE", "SOLD"])
+            .where("List.status", "=", "ACTIVE")
             .where(
               getIntervalCondition(
                 params.interval,
@@ -351,7 +351,7 @@ export const collectionRepository = {
               sql<number>`COALESCE(MIN("List"."price"), 0)`.as("floor")
             ])
             .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
-            .where("List.status", "in", ["ACTIVE", "SOLD"])
+            .where("List.status", "=", "ACTIVE")
             .as("floor"),
           selectFrom("List")
             .rightJoin("Collectible", "Collectible.id", "List.collectibleId")
