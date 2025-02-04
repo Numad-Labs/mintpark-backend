@@ -3,7 +3,7 @@ import NFTService from "./blockchain/evm/services/nftService";
 
 // Configuration
 const RPC_URL = "https://rpc.testnet.citrea.xyz";
-const COLLECTION_ADDRESS = "0x3428387ADc8713C209f270Cd6565C6aEB1e0Eb41";
+const COLLECTION_ADDRESS = "0xC1DB29eD4CfC57F3915a6fF51545CC82FBeE5865";
 const MINT_PRICE = "0"; // ETH
 const VAULT_ADDRESS = "0x4a3A744DD6Bb638498daC3702F36ABE609676614";
 const VAULT_PRIVATE_KEY =
@@ -31,7 +31,7 @@ interface MintResult {
 }
 
 const TEST_NFT_IDS = Array.from({ length: 100 }, (_, i) =>
-  (i + 900).toString()
+  (i + 1000).toString()
 );
 const TEST_IPFS_URI = "ipfs://QmTest..."; // Test IPFS URI
 

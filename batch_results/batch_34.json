@@ -1,0 +1,43 @@
+{
+  "startBlock": 5775400,
+  "endBlock": 5776399,
+  "feePayers": [
+    "0x163282f109b86167a7017a9db2c995a9240dff38",
+    "0xe87e4f1516577359297ada62e8a33268b4220cad",
+    "0xac3e015877f661a9f75391b14e0107b5d995ee38",
+    "0x0cd7ea2f35a4af0987a2c124d1c632aa87718bee"
+  ],
+  "successfulMinters": [],
+  "transactions": [
+    {
+      "hash": "0xfb9d574c1bdd7ecca468d61904e4f64e74a94f67f68522f3f88af1a246f6715d",
+      "from": "0x163282F109b86167A7017A9DB2c995a9240Dff38",
+      "value": "0.000034014230922",
+      "blockNumber": 5775522
+    },
+    {
+      "hash": "0xc5fe4d35c6b1a0665042afdd09009d359adb47c42bdc7389ac4a524de930b507",
+      "from": "0xE87e4F1516577359297adA62e8A33268B4220CaD",
+      "value": "0.0000248819126199",
+      "blockNumber": 5775551
+    },
+    {
+      "hash": "0x2305847fca2be6e2dd7ebd7274ed1e0b0ce8a2c2935688081b4bbf6559f2070e",
+      "from": "0xaC3E015877f661a9f75391B14E0107B5D995EE38",
+      "value": "0.0000340155509232",
+      "blockNumber": 5776165
+    },
+    {
+      "hash": "0xb904deffcc4fe33f576c702350f9e0c7d355a0c624ed7ad4721f0f7f1632c0ce",
+      "from": "0x0cD7ea2F35A4Af0987a2c124d1c632AA87718bEe",
+      "value": "0.0000340155509232",
+      "blockNumber": 5776328
+    }
+  ],
+  "failedMinters": [
+    "0x163282f109b86167a7017a9db2c995a9240dff38",
+    "0xe87e4f1516577359297ada62e8a33268b4220cad",
+    "0xac3e015877f661a9f75391b14e0107b5d995ee38",
+    "0x0cd7ea2f35a4af0987a2c124d1c632aa87718bee"
+  ]
+}

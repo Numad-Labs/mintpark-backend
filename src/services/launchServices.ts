@@ -136,9 +136,8 @@ export const launchServices = {
       if (!layerType) throw new CustomError("Layer not found.", 400);
 
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
+      const transactionDetail =
+        await confirmationService.getTransactionDetails(txid);
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -187,9 +186,8 @@ export const launchServices = {
       }
 
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
+      const transactionDetail =
+        await confirmationService.getTransactionDetails(txid);
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",

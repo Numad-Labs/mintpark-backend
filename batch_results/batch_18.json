@@ -1,0 +1,27 @@
+{
+  "startBlock": 5759400,
+  "endBlock": 5760399,
+  "feePayers": [
+    "0x7e81462e3c1a43cd4bff20216ac5ebeb6913e534",
+    "0x2d334256bb88d2488bfb582ac757b109edbb66bc"
+  ],
+  "successfulMinters": [],
+  "transactions": [
+    {
+      "hash": "0x31579405db136a122049a8258ecaec8f315eda6b7f97520c93a217c8fbf1857a",
+      "from": "0x7e81462e3c1A43cd4BfF20216ac5EbeB6913e534",
+      "value": "0.0000248819126199",
+      "blockNumber": 5759795
+    },
+    {
+      "hash": "0x845441afa8286c6ffbc34535e997424f9fff39116945c783c75989424a4e8d8b",
+      "from": "0x2d334256BB88d2488BfB582AC757B109EDbb66BC",
+      "value": "0.0000248819126199",
+      "blockNumber": 5759815
+    }
+  ],
+  "failedMinters": [
+    "0x7e81462e3c1a43cd4bff20216ac5ebeb6913e534",
+    "0x2d334256bb88d2488bfb582ac757b109edbb66bc"
+  ]
+}

@@ -1,0 +1,156 @@
+{
+  "startBlock": 5780400,
+  "endBlock": 5781399,
+  "feePayers": [
+    "0xa1afc2100d345ad9b03911e9a79aff2ce36b1d94",
+    "0xfc466aa39b5afd9e65604d0d916b8e6b23c38b2c",
+    "0xdd7f6064ae68a323fa3aa4ec506700d0097ced2d",
+    "0x2e603149143338b5b4db33ca4f175ef7bc325048",
+    "0x0fedec78f117daa66a6b02bd04939ad333558e99",
+    "0x61f195709b1c1cd41525738d1872a68829ba6977",
+    "0x987ee18cb95ba2702349f792cc8f99ee1f52646c",
+    "0x41594e4fe555c8084a1117cde8dd4554ed4e2dbb",
+    "0x93a24d1be1a5f90502e50d04bf4c15c7b3081bef",
+    "0xb67ca19df4d2f7e31ebf4dc0ff66fce80280914c",
+    "0x76883d3bbb7d6bf07961bc885b976e1920dab9e8",
+    "0x6d2a98610fdf661647a972fcf938c08d01dfb372",
+    "0xf4aaa8c55d84f6e9599f2850d555e3187f74f2cf",
+    "0x148fa31b6e0a9432679d5d5d474377c307e6e263",
+    "0x2ed0f4e9769591d8eff038abd884187c8101c7f3",
+    "0xecaf0b47d33a02410e4d7dd060b50cc92cbd1c88",
+    "0xb15df29fef006aa4eccf63e8044736560367e2de",
+    "0x833d875e3e6f49ed789127be13b9609b711a0d49",
+    "0xc226e28929fd241915dd452a95feb68d7a0a2046",
+    "0x5f8e432e6aba2e01ba231da025bb0a3aa72110a6",
+    "0xac33df8eeb85c1d746490eee05c13d59a4bc3b1e"
+  ],
+  "successfulMinters": [],
+  "transactions": [
+    {
+      "hash": "0x0ecae60112640ff9b8d4593167f47fc320b640f9bb0730d838f8651885bfa3fb",
+      "from": "0xa1aFC2100d345AD9B03911e9a79AfF2CE36b1d94",
+      "value": "0.0000340155509232",
+      "blockNumber": 5780519
+    },
+    {
+      "hash": "0x0abb09cc2a02d62ade0ac115a849b9526d6b53af47588b4220b9ff06a302d2c8",
+      "from": "0xfc466aa39b5Afd9e65604d0d916B8e6b23C38b2c",
+      "value": "0.0000340155509232",
+      "blockNumber": 5780571
+    },
+    {
+      "hash": "0xfec7a6371edc173adb407fb4f9053611ccde3efd2387e113409370cb33e9dcd6",
+      "from": "0xdD7F6064ae68A323fa3aa4Ec506700D0097Ced2d",
+      "value": "0.0000248805926187",
+      "blockNumber": 5780677
+    },
+    {
+      "hash": "0x5dd10bd7ac0531abde72e00cbe1cd1cc7486e02d6e2fd7d47ee25ff6c3711004",
+      "from": "0x2e603149143338b5B4DB33ca4F175ef7BC325048",
+      "value": "0.0000248819126199",
+      "blockNumber": 5780770
+    },
+    {
+      "hash": "0x3003ec4349486961bf35cba4bff2dac79d30988a14af2af57ad83a45584851a4",
+      "from": "0x0FedEc78f117DaA66A6b02bd04939Ad333558E99",
+      "value": "0.0000340155509232",
+      "blockNumber": 5780834
+    },
+    {
+      "hash": "0x3f9d6af97f67ea6d19da1ba11608de03438298d80f0bd11aefb009172e9e9f82",
+      "from": "0x61F195709B1C1CD41525738d1872a68829ba6977",
+      "value": "0.0000340155509232",
+      "blockNumber": 5780883
+    },
+    {
+      "hash": "0xab90cd044cd7ead0b86f7eb83c7eb233d1818b90b5cce364be8d1646d4ffc9c8",
+      "from": "0x987EE18cB95ba2702349F792cc8F99Ee1F52646C",
+      "value": "0.0000248819126199",
+      "blockNumber": 5780939
+    },
+    {
+      "hash": "0x2c87b3da1df2f6c8c11716f40822e0afe56208083fe7591397cfe1d26d246311",
+      "from": "0x41594e4fe555c8084a1117CdE8dd4554ed4E2dBb",
+      "value": "0.0000340155509232",
+      "blockNumber": 5780982
+    },
+    {
+      "hash": "0xb9bdadf5883be213d6a12dae912e2ede47647ad31f9ca62887255ab865869fa5",
+      "from": "0x93A24d1bE1a5f90502e50D04bF4C15C7B3081Bef",
+      "value": "0.0000340155509232",
+      "blockNumber": 5781011
+    },
+    {
+      "hash": "0x582d4ba3bea481ce8cdb60411b9304626783e2a54720b1106447c225fc01a8b3",
+      "from": "0xb67ca19DF4d2f7E31Ebf4dc0Ff66Fce80280914c",
+      "value": "0.0000340155509232",
+      "blockNumber": 5781091
+    },
+    {
+      "hash": "0x908f62b8fd3067a5b5f1cd73ee76083dda904bcdfc558883180803998fad0ab0",
+      "from": "0x76883D3BBb7d6BF07961Bc885b976E1920daB9E8",
+      "value": "0.0000340155509232",
+      "blockNumber": 5781159
+    },
+    {
+      "hash": "0xa05f6ec68e230e009abd870892693cbaa3da7fa599470201c72889bc17fdd81d",
+      "from": "0x6d2a98610fdf661647a972fcf938c08D01dfB372",
+      "value": "0.0000340155509232",
+      "blockNumber": 5781169
+    },
+    {
+      "hash": "0x41a1003b5bc2146d34ec1a8929008433b4f8598f67bc9f6f0263c7534a2fae4f",
+      "from": "0xf4AAA8C55d84F6e9599f2850d555E3187f74F2Cf",
+      "value": "0.0000248819126199",
+      "blockNumber": 5781192
+    },
+    {
+      "hash": "0xf4c776958188813ed15a1f089347297d210e9196e3be9fa815894854e663e9bc",
+      "from": "0x148FA31B6e0a9432679D5D5d474377c307e6E263",
+      "value": "0.0000340155509232",
+      "blockNumber": 5781214
+    },
+    {
+      "hash": "0xd07492ed921cb2db1526357a0b16be2dafd23fd846a09096f717c7394cbd3d2b",
+      "from": "0x2ED0F4e9769591d8eff038ABD884187c8101C7f3",
+      "value": "0.000034014230922",
+      "blockNumber": 5781219
+    },
+    {
+      "hash": "0xc4f36a04076bf0c76871384ecd19e3f6458659377ed4b6ba9797c01b61460da4",
+      "from": "0xeCAf0b47d33a02410E4d7dd060b50cc92cbd1c88",
+      "value": "0.0000248819126199",
+      "blockNumber": 5781235
+    },
+    {
+      "hash": "0x6da95568445457fc3ebde167308acd170813aca88e8de361a4390873cc7c91d7",
+      "from": "0xB15Df29fef006aA4eCcF63e8044736560367E2De",
+      "value": "0.000034014230922",
+      "blockNumber": 5781239
+    },
+    {
+      "hash": "0x53e7f4594d87b460c399b19a2f2e26a10c2494b46cd5ced2002437e15e9852c2",
+      "from": "0x833D875E3E6F49ed789127Be13b9609B711a0d49",
+      "value": "0.0000340155509232",
+      "blockNumber": 5781256
+    },
+    {
+      "hash": "0xb59b93f14c780b1591e577a29bdfa0ce2d5891e1c05d9e41e5ddf1e5a7015b3e",
+      "from": "0xC226E28929Fd241915dd452a95feb68d7A0A2046",
+      "value": "0.0000248819126199",
+      "blockNumber": 5781277
+    },
+    {
+      "hash": "0x56c9ee35a4043c0ff03859691d92d41911b8d9eae85603d209cb64a8e79cba98",
+      "from": "0x5f8E432E6aba2e01ba231da025bb0A3AA72110A6",
+      "value": "0.0000340155509232",
+      "blockNumber": 5781306
+    },
+    {
+      "hash": "0xaf78284609d308b7dbb1db4602c2f85fbf837b406d04739c84ebc0c3b3577bd0",
+      "from": "0xAc33DF8eeB85c1d746490EEe05c13d59A4Bc3b1E",
+      "value": "0.0000340155509232",
+      "blockNumber": 5781387
+    }
+  ]
+}

@@ -1,0 +1,169 @@
+{
+  "startBlock": 5750400,
+  "endBlock": 5751399,
+  "feePayers": [
+    "0x8943b6c8c565a4a50cdf14fd1ba48d633acd1543",
+    "0x85f370b073a6eaa557406f2c5fd3f5130d060087",
+    "0x808705f41d0190a52e16f9a07ebc4e5e00314dcc",
+    "0x71ab49ba0daf4d5da7d1e6060696129b8f55af69",
+    "0x1bbd6e09f09e034ac076bf062c216832a37e4949",
+    "0xc7c9e4a668e8ebebbcba188ed2975871f57e6d26",
+    "0xb7b869f8859355a08ab07574468e54ddb6f01ec0",
+    "0x28f081ad56b220defc0d343be19486f488a5f836",
+    "0x8d44fc4be303f515e09777f5ab8d55006e0cf875",
+    "0xa1ff70564fd4a6c3f9c831dd017697307c5ffaf0",
+    "0x2efab41551a7f907f5647e55c81efe6dfbd2721f",
+    "0x67c29c576be57844bb8af1d2d69c32bdf016d36b",
+    "0x35cd01e0dacc4895a3ace555fb3704d8d053c50f",
+    "0xd67e58505e1188dbdd3276c72f6c0e6cb1d144c6",
+    "0xca1ddec9064f463d50df9fb3108912698589fc64",
+    "0x79f2823b2a0f10afeed98de2d72900570c3aaa30",
+    "0xe97638e4618ea4e243e542124ad4a4413fa86c78",
+    "0x19e7d55d72e7628954f120e7a95ed613f1dea28e",
+    "0x1f29fc3c934c5a494a6cf67cc297f7a9e3ba1975"
+  ],
+  "successfulMinters": [],
+  "transactions": [
+    {
+      "hash": "0x5afa768768383e41e06fe0a76e4a191989d9d070d5d506d649fdb759b787ea59",
+      "from": "0x8943b6c8c565a4a50cdF14Fd1BA48D633ACd1543",
+      "value": "0.000024668640886328",
+      "blockNumber": 5750412
+    },
+    {
+      "hash": "0x589547d1f2f5772490f920a84c5fa4b64bffe09797c5573a9e127d20bc3298d7",
+      "from": "0x85F370b073A6eaA557406F2c5fD3F5130D060087",
+      "value": "0.0000248805926187",
+      "blockNumber": 5750441
+    },
+    {
+      "hash": "0xc362627936fa0f9ca070c242a59d51c869404cf96409258a4cf9ede467a27259",
+      "from": "0x808705F41d0190A52e16F9a07EBc4e5e00314dCC",
+      "value": "0.0000248805926187",
+      "blockNumber": 5750450
+    },
+    {
+      "hash": "0xba2fb57f534685e346f18b2efa62e270663617847293dfdc02dc408baab70b8d",
+      "from": "0x71Ab49bA0DaF4D5dA7D1e6060696129b8f55AF69",
+      "value": "0.0000248819126199",
+      "blockNumber": 5750450
+    },
+    {
+      "hash": "0x4f1a99fd2c9aace395999da4cd45c51021121b70fabf5d8e3760bd0f80d5cdc0",
+      "from": "0x71Ab49bA0DaF4D5dA7D1e6060696129b8f55AF69",
+      "value": "0.0000248805926187",
+      "blockNumber": 5750465
+    },
+    {
+      "hash": "0x3df45af9b57978c7ca38fa20534d25da6c9d9dfae18e6c4f00fc756ecdded01b",
+      "from": "0x1bBD6e09f09E034aC076bf062C216832A37e4949",
+      "value": "0.0000248819126199",
+      "blockNumber": 5750476
+    },
+    {
+      "hash": "0x3ae32d5e89cd1e186200d481d562260f8a7d2e964458d28b4d9b96621ea6b3d4",
+      "from": "0xc7c9E4A668e8eBEBBCBA188ED2975871F57E6D26",
+      "value": "0.0000248819126199",
+      "blockNumber": 5750490
+    },
+    {
+      "hash": "0xcd6bfbb5698df05b38fc4cddc82dae8d3d37b25537d203948d49bec2f413a195",
+      "from": "0xB7B869F8859355A08Ab07574468E54DdB6F01eC0",
+      "value": "0.0000248819126199",
+      "blockNumber": 5750522
+    },
+    {
+      "hash": "0x0f782bacdc4faacc83401ce701ab327678a15e40b8b55d98c49d36dfa11e4289",
+      "from": "0x28f081Ad56b220DEfc0d343be19486F488A5f836",
+      "value": "0.0000248819126199",
+      "blockNumber": 5750551
+    },
+    {
+      "hash": "0x54826d636f28bf0819267efebd6d07104918d56388ec5e1a3ced2329e41b7690",
+      "from": "0x8D44fC4be303f515e09777f5ab8D55006E0cf875",
+      "value": "0.0000248805926187",
+      "blockNumber": 5750555
+    },
+    {
+      "hash": "0x7431d8e6abf1ef3629d26129243c9183a3656c453c9eb0c39fb20a7e9a3f9a0e",
+      "from": "0xa1FF70564fd4A6C3F9C831DD017697307c5FFAF0",
+      "value": "0.0000248819126199",
+      "blockNumber": 5750573
+    },
+    {
+      "hash": "0x9bccaae8330a730e216a0b5b42696d46086efe7a1d6f704017e423bb6408e6de",
+      "from": "0x2EfaB41551A7F907F5647e55C81EfE6DfBd2721f",
+      "value": "0.0000248819126199",
+      "blockNumber": 5750596
+    },
+    {
+      "hash": "0x0176d49353279d668108c32d636309f1ecf069faa8663e607b7c2ef3efdc22b3",
+      "from": "0x67c29c576Be57844bB8af1D2d69C32Bdf016D36b",
+      "value": "0.0000248819126199",
+      "blockNumber": 5750697
+    },
+    {
+      "hash": "0x05a9ca62a9012d400e5064b876bce53d965e4a01d7a58ee6b46d50a7eb35609a",
+      "from": "0x35cD01e0DaCc4895A3aCE555FB3704D8d053C50f",
+      "value": "0.0000248819126199",
+      "blockNumber": 5750765
+    },
+    {
+      "hash": "0xd856344553768e411ffc62ec7ef87163b96540c3a30d42cee659f966bfd4c7fc",
+      "from": "0xD67e58505E1188dBdD3276c72F6c0e6cb1D144C6",
+      "value": "0.0000248819126199",
+      "blockNumber": 5750800
+    },
+    {
+      "hash": "0x594db049e5d97fd4110fbc1b0c98c348d6c971ead53464e78b94e9f86f6b8f97",
+      "from": "0xCA1ddeC9064f463d50dF9fB3108912698589Fc64",
+      "value": "0.0000248819126199",
+      "blockNumber": 5750886
+    },
+    {
+      "hash": "0xd5ce3669b9863e343ac1c79a5b3e764127f9dcc9a79daa50448ab0847cf4403b",
+      "from": "0x79f2823B2A0F10AFeEd98de2d72900570C3AaA30",
+      "value": "0.0000248805926187",
+      "blockNumber": 5750948
+    },
+    {
+      "hash": "0x2d2d78b3f7151b0d5787fe59c72bf5d5490eec852e2b49d3514aa08c2d6418d7",
+      "from": "0xE97638E4618EA4E243E542124Ad4A4413Fa86C78",
+      "value": "0.0000248819126199",
+      "blockNumber": 5751048
+    },
+    {
+      "hash": "0x583744238ce7e01849500c434742bcd5f741a22a6d8ceb9b016a3eb9fe63f6c8",
+      "from": "0x19e7d55d72E7628954F120E7A95eD613F1DeA28E",
+      "value": "0.0000248819126199",
+      "blockNumber": 5751149
+    },
+    {
+      "hash": "0x11ecbc9f96654df0e4ca07a80a2a0b5d6c8351a9986ab490dfe7b58ea071275e",
+      "from": "0x1f29fc3c934C5a494a6cf67Cc297f7a9E3Ba1975",
+      "value": "0.0000248819126199",
+      "blockNumber": 5751285
+    }
+  ],
+  "failedMinters": [
+    "0x8943b6c8c565a4a50cdf14fd1ba48d633acd1543",
+    "0x85f370b073a6eaa557406f2c5fd3f5130d060087",
+    "0x808705f41d0190a52e16f9a07ebc4e5e00314dcc",
+    "0x71ab49ba0daf4d5da7d1e6060696129b8f55af69",
+    "0x1bbd6e09f09e034ac076bf062c216832a37e4949",
+    "0xc7c9e4a668e8ebebbcba188ed2975871f57e6d26",
+    "0xb7b869f8859355a08ab07574468e54ddb6f01ec0",
+    "0x28f081ad56b220defc0d343be19486f488a5f836",
+    "0x8d44fc4be303f515e09777f5ab8d55006e0cf875",
+    "0xa1ff70564fd4a6c3f9c831dd017697307c5ffaf0",
+    "0x2efab41551a7f907f5647e55c81efe6dfbd2721f",
+    "0x67c29c576be57844bb8af1d2d69c32bdf016d36b",
+    "0x35cd01e0dacc4895a3ace555fb3704d8d053c50f",
+    "0xd67e58505e1188dbdd3276c72f6c0e6cb1d144c6",
+    "0xca1ddec9064f463d50df9fb3108912698589fc64",
+    "0x79f2823b2a0f10afeed98de2d72900570c3aaa30",
+    "0xe97638e4618ea4e243e542124ad4a4413fa86c78",
+    "0x19e7d55d72e7628954f120e7a95ed613f1dea28e",
+    "0x1f29fc3c934c5a494a6cf67cc297f7a9e3ba1975"
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "startBlock": 5773400,
+  "endBlock": 5774399,
+  "feePayers": [
+    "0xe42d3365829e3202c1404bb48bcc25bcce9b5cf4",
+    "0xbcd3976c8ae2460acfa055e1451034895abcac61",
+    "0xbb87ee153e1c895eb09bb5933e6e85481fc858fa",
+    "0x621393bab6258a16b2a6e5ca621c52b9ac13955b",
+    "0xd44ed5c1ce6d85a80a812ff4091a40236244bf41"
+  ],
+  "successfulMinters": [],
+  "transactions": [
+    {
+      "hash": "0x00de808b2dc52c8bcbaa25037ebe55bc479bff5f62fe2386d622816075ea78f1",
+      "from": "0xe42d3365829E3202C1404BB48bCc25BCcE9B5Cf4",
+      "value": "0.0000340155509232",
+      "blockNumber": 5774060
+    },
+    {
+      "hash": "0xfef6911a29d986ae877f7d993c138139ebdf58699fd70181685ad504c52d6bad",
+      "from": "0xbCd3976c8Ae2460AcFa055e1451034895ABCac61",
+      "value": "0.0000340155509232",
+      "blockNumber": 5774145
+    },
+    {
+      "hash": "0xc13be4709a5ac6a11619eac3a7409cf87c0a46750d55bc1155e2f52307498366",
+      "from": "0xBb87ee153E1c895Eb09bB5933E6e85481FC858FA",
+      "value": "0.0000340155509232",
+      "blockNumber": 5774163
+    },
+    {
+      "hash": "0xa80fc2f2ff88a1cdcff48e11e8e9218ee720998a720815db21c586362210454e",
+      "from": "0x621393Bab6258a16B2a6e5Ca621c52b9Ac13955b",
+      "value": "0.0000340155509232",
+      "blockNumber": 5774212
+    },
+    {
+      "hash": "0x59aff718c7323570222785391e5c576d7868bef9ba627e346cf0e4aec61b67e3",
+      "from": "0x621393Bab6258a16B2a6e5Ca621c52b9Ac13955b",
+      "value": "0.0000340155509232",
+      "blockNumber": 5774215
+    },
+    {
+      "hash": "0x3490c53c36731003df9487f8f4ee362fbfc57d93fef6f774269e1a65b17f4102",
+      "from": "0xD44ED5C1Ce6d85a80a812Ff4091A40236244Bf41",
+      "value": "0.0000248819126199",
+      "blockNumber": 5774396
+    }
+  ],
+  "failedMinters": [
+    "0xe42d3365829e3202c1404bb48bcc25bcce9b5cf4",
+    "0xbcd3976c8ae2460acfa055e1451034895abcac61",
+    "0xbb87ee153e1c895eb09bb5933e6e85481fc858fa",
+    "0x621393bab6258a16b2a6e5ca621c52b9ac13955b",
+    "0xd44ed5c1ce6d85a80a812ff4091a40236244bf41"
+  ]
+}
