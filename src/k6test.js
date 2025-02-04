@@ -311,11 +311,14 @@ export default function () {
   // }
 
   const selectedLaunch = launches[0];
+  console.log("🚀 ~ selectedLaunch:", selectedLaunch);
 
   randomSleep(0.2, 0.5);
 
   // Buy launch item
+  console.log("🚀 ~ selectedLaunch.launchId:", selectedLaunch.launchId);
   const buyResult = buyLaunchItem(token, selectedLaunch.launchId, userLayerId);
+  console.log("🚀 ~ buyResult:", buyResult);
 
   // Simulate transaction signing
   const mockTxid = `0x0e5d301da74cee3efcc1fae182627e4c42615db95954417b05803957a9fe7f02`;

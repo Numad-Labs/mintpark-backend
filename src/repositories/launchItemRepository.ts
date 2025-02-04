@@ -250,6 +250,7 @@ export const launchItemRepository = {
       .innerJoin("Collectible", "Collectible.id", "LaunchItem.collectibleId")
       .select(["nftId"])
       .where("LaunchItem.status", "=", "ACTIVE")
+      .where("LaunchItem.launchId", "=", launchId)
       .execute();
 
     return nftIds;
