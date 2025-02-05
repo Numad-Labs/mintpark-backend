@@ -17,7 +17,6 @@ export class FundingAddressService {
     this.vaultAddress = new ethers.Wallet(
       config.VAULT_PRIVATE_KEY,
       this.provider
-      this.provider
     );
   }
 
@@ -27,7 +26,6 @@ export class FundingAddressService {
   async estimateTransactionFee(
     to: string,
     value: string,
-    data: string = "0x"
     data: string = "0x"
   ): Promise<TransactionFee> {
     const gasPrice = (await this.provider.getFeeData()).gasPrice;
@@ -45,7 +43,6 @@ export class FundingAddressService {
     return {
       estimatedFee: Number(ethers.formatEther(estimatedFee)),
       actualFee: 0, // Will be updated after transaction
-      gasPriceGwei: Number(ethers.formatUnits(gasPrice, "gwei"))
       gasPriceGwei: Number(ethers.formatUnits(gasPrice, "gwei"))
     };
   }

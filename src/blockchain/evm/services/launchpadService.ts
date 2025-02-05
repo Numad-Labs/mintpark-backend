@@ -20,7 +20,6 @@ class LaunchpadService {
     this.storage = new PinataSDK({
       pinataJwt: config.PINATA_JWT,
       pinataGateway: config.PINATA_GATEWAY_URL
-      pinataGateway: config.PINATA_GATEWAY_URL
     });
   }
   async getUnsignedLaunchMintTransaction(
@@ -28,12 +27,10 @@ class LaunchpadService {
     buyer: string,
     collectionAddress: string,
     mintPrice: number
-    mintPrice: number
   ) {
     if (!pickedCollectible.cid || !pickedCollectible.uniqueIdx) {
       throw new CustomError(
         "Collectible with invalid cid or unique index.",
-        400
         400
       );
     }
@@ -48,7 +45,6 @@ class LaunchpadService {
       tokenId,
       pickedCollectible.cid,
       mintPrice
-      mintPrice
     );
   }
 
@@ -56,7 +52,6 @@ class LaunchpadService {
     // Create metadata object
     const metadata = {
       name: name || "Unnamed NFT",
-      image: `ipfs://${cid}`
       image: `ipfs://${cid}`
     };
 
@@ -70,7 +65,6 @@ class LaunchpadService {
   async generateFeeTransferTransaction(
     issuerAddress: string,
     colllectionAddress: string,
-    fundingAddress: string
     fundingAddress: string
   ): Promise<ethers.TransactionRequest> {
     try {
@@ -98,7 +92,6 @@ class LaunchpadService {
         to: fundingAddress,
         value: ethers.parseEther(mintFee.toString()),
         from: issuerAddress
-        from: issuerAddress
       };
 
       // Get the provider's network info
@@ -118,7 +111,6 @@ class LaunchpadService {
         maxFeePerGas: feeData.maxFeePerGas,
         maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
         type: 2 // EIP-1559 transaction type
-        type: 2 // EIP-1559 transaction type
       };
 
       return unsignedTx;
@@ -128,7 +120,6 @@ class LaunchpadService {
       }
       throw new CustomError(
         `Failed to generate fee transfer transaction: ${error}`,
-        500
         500
       );
     }
