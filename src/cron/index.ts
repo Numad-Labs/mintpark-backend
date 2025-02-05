@@ -36,7 +36,6 @@ export class CollectionOwnerCounterService {
         `heartbeat:nft_counter:${this.instanceId}`,
         this.INSTANCE_HEARTBEAT_TTL,
         Date.now()
-        Date.now()
       );
     };
 

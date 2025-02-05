@@ -73,7 +73,8 @@ export const LAYER = {
   BITCOIN: "BITCOIN",
   FRACTAL: "FRACTAL",
   CITREA: "CITREA",
-  HEMI: "HEMI"
+  HEMI: "HEMI",
+  SEPOLIA: "SEPOLIA"
 } as const;
 export type LAYER = (typeof LAYER)[keyof typeof LAYER];
 export const NETWORK = {

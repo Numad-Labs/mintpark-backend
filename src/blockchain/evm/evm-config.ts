@@ -53,8 +53,8 @@ export const EVM_CONFIG: EVMConfig = {
       MAX_FEE,
       useLegacyGas: false
     },
-    SEPOLIA: {
-      RPC_URL: "https://rpc.sepolia.org",
+    "11155111": {
+      RPC_URL: "https://eth-sepolia.public.blastapi.io",
       CHAIN_ID: 11155111,
       MARKETPLACE_ADDRESS: "YOUR_SEPOLIA_MARKETPLACE_ADDRESS",
       DEFAULT_PUBLIC_MAX_MINT,

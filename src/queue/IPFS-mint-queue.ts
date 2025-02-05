@@ -324,7 +324,13 @@ export class QueueProcessor {
   }
 
   private async processCollectionMint(mintRequest: any) {
-    const nftService = new NFTService(EVM_CONFIG.RPC_URL);
+    const userLayer = await userRepository.getByUserLayerId(
+      mintRequest.userLayerId
+    );
+    if (!userLayer?.chainId)
+      throw new Error("Couldn't find user layer chainid");
+    const chainConfig = EVM_CONFIG.CHAINS[userLayer.chainId];
+    const nftService = new NFTService(chainConfig.RPC_URL);
 
     switch (mintRequest.collectionType) {
       case "IPFS_CID":
