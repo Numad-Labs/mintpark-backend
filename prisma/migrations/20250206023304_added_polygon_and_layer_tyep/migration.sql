@@ -1,0 +1,8 @@
+-- CreateEnum
+CREATE TYPE "LAYER_TYPE" AS ENUM ('EVM', 'UTXO');
+
+-- AlterEnum
+ALTER TYPE "LAYER" ADD VALUE 'POLYGON_ZK';
+
+-- AlterTable
+ALTER TABLE "Layer" ADD COLUMN     "layerType" "LAYER_TYPE";

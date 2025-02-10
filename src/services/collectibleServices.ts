@@ -71,7 +71,7 @@ export const collectibleServices = {
     const chainConfig = EVM_CONFIG.CHAINS[layerType.chainId];
 
     const uniqueIdxs: string[] = [];
-    if (layerType.layer === "CITREA" && layerType.network === "TESTNET") {
+    if (layerType.layerType == "EVM" && layerType.network === "TESTNET") {
       const collections = await collectionRepository.getCollectionsByLayer(
         user.layerId
       );

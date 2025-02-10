@@ -74,9 +74,15 @@ export const LAYER = {
   FRACTAL: "FRACTAL",
   CITREA: "CITREA",
   HEMI: "HEMI",
-  SEPOLIA: "SEPOLIA"
+  SEPOLIA: "SEPOLIA",
+  POLYGON_ZK: "POLYGON_ZK"
 } as const;
 export type LAYER = (typeof LAYER)[keyof typeof LAYER];
+export const LAYER_TYPE = {
+  EVM: "EVM",
+  UTXO: "UTXO"
+} as const;
+export type LAYER_TYPE = (typeof LAYER_TYPE)[keyof typeof LAYER_TYPE];
 export const NETWORK = {
   MAINNET: "MAINNET",
   TESTNET: "TESTNET"

@@ -65,6 +65,8 @@ model Layer {
   layer      LAYER        @default(CITREA)
   network    NETWORK      @default(TESTNET)
     chainId    String?
+
+  layerType LAYER_TYPE?
   currencyId String
   currency   Currency     @relation(fields: [currencyId], references: [id])
   Collection Collection[]
@@ -394,6 +396,12 @@ enum LAYER {
   CITREA
   HEMI
   SEPOLIA
+  POLYGON_ZK
+}
+
+enum LAYER_TYPE {
+  EVM
+  UTXO
 }
 
 enum NETWORK {
