@@ -63,6 +63,18 @@ export const EVM_CONFIG: EVMConfig = {
       MAX_FEE,
       useLegacyGas: false
     },
+
+    "2442": {
+      RPC_URL: "https://rpc.cardona.zkevm-rpc.com",
+      CHAIN_ID: 2442,
+      MARKETPLACE_ADDRESS: "0x98110Ad5C4428C473bBbD873536c43683F38F2E8",
+      DEFAULT_PUBLIC_MAX_MINT,
+      DEFAULT_ROYALTY_FEE,
+      DEFAULT_PLATFORM_FEE,
+      MAX_FEE,
+      useLegacyGas: true
+      // gasPriceMultiplier: 1.1
+    },
     "743111": {
       RPC_URL: "https://testnet.rpc.imeh.net/rpc",
       CHAIN_ID: 743111,

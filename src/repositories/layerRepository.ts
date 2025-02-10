@@ -43,7 +43,8 @@ export const layerRepository = {
         "Layer.network",
         "Layer.chainId",
         "Currency.ticker",
-        "Currency.price"
+        "Currency.price",
+        "Layer.layerType"
       ])
       .where("Layer.id", "=", id)
       .executeTakeFirst();

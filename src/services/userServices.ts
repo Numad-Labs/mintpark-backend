@@ -32,7 +32,7 @@ export const userServices = {
 
     const message = await generateMessage(address, nonce);
 
-    if (layer.layer === "CITREA" && layer.network === "TESTNET") {
+    if (layer.layerType === "EVM") {
       const isValid = await citreaVerifySignedMessage(
         message,
         signedMessage,

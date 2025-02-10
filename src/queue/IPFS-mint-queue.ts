@@ -216,17 +216,17 @@ export class QueueProcessor {
 
       //DB state update
       await db.transaction().execute(async (trx) => {
-        await collectionRepository.incrementCollectionSupplyById(
-          trx,
-          body.collectionId
-        );
+        const collection =
+          await collectionRepository.incrementCollectionSupplyById(
+            trx,
+            body.collectionId
+          );
 
-        //TODO: MIGHT ENABLE LATER
-        // if (collection.status === "UNCONFIRMED") {
-        //   await collectionRepository.update(trx, collection.id, {
-        //     status: "CONFIRMED"
-        //   });
-        // }
+        if (collection.status === "UNCONFIRMED") {
+          await collectionRepository.update(trx, collection.id, {
+            status: "CONFIRMED"
+          });
+        }
 
         await collectibleRepository.update(trx, body.collectibleId, {
           status: "CONFIRMED",

@@ -85,6 +85,9 @@ export const collectionServices = {
       deployContractTxHex = serializeBigInt(unsignedTx);
     }
 
+    if (layer.layerType == "EVM" && deployContractTxHex === null)
+      throw new CustomError("Couldn't create deploy contract hext", 400);
+
     if (file) {
       const key = randomUUID();
       await uploadToS3(key, file);

@@ -3,6 +3,7 @@ import { ethers } from "ethers";
 import { CustomError } from "../../../exceptions/CustomError";
 import { config } from "../../../config/config";
 import logger from "../../../config/winston";
+import { EVM_CONFIG } from "../evm-config";
 
 interface TransactionFee {
   estimatedFee: number;
@@ -56,6 +57,14 @@ export class FundingAddressService {
       const balance = await this.provider.getBalance(fromAddress);
       const valueInWei = ethers.parseEther(value);
 
+      // Get network info to determine transaction type
+      const network = await this.provider.getNetwork();
+      const chainConfig = EVM_CONFIG.CHAINS[network.chainId.toString()];
+
+      if (!chainConfig) {
+        throw new CustomError(`Unsupported chain ID: ${network.chainId}`, 400);
+      }
+
       // Create basic transaction
       const tx = {
         from: fromAddress,
@@ -64,44 +73,80 @@ export class FundingAddressService {
         data: "0x"
       };
 
-      // Get network conditions with reasonable defaults
-      const [gasLimit, feeData, nonce, network] = await Promise.all([
-        this.provider.estimateGas(tx).catch(() => ethers.getBigInt(21000)), // Default to 21000 if estimation fails
+      // Get network conditions
+      const [gasLimit, feeData, nonce] = await Promise.all([
+        this.provider.estimateGas(tx).catch(() => ethers.getBigInt(21000)),
         this.provider.getFeeData(),
-        this.provider.getTransactionCount(fromAddress),
-        this.provider.getNetwork()
+        this.provider.getTransactionCount(fromAddress)
       ]);
 
-      // Use conservative gas settings
-      const maxPriorityFeePerGas = ethers.parseUnits("0.1", "gwei");
-      const baseFee = feeData.gasPrice || ethers.parseUnits("5", "gwei");
-      const maxFeePerGas = baseFee + maxPriorityFeePerGas;
+      let preparedTx: ethers.TransactionRequest;
 
-      // Calculate total cost
-      const maxGasCost = gasLimit * maxFeePerGas;
-      const totalCost = valueInWei + maxGasCost;
+      if (chainConfig.useLegacyGas) {
+        // Legacy transaction (type 0)
+        const gasPrice = feeData.gasPrice || ethers.parseUnits("5", "gwei");
 
-      // Check if user has enough balance
-      if (totalCost > balance) {
-        throw new CustomError(
-          `Insufficient funds. Required: ${ethers.formatEther(totalCost)} ETH, ` +
-            `Available: ${ethers.formatEther(balance)} ETH`,
-          400
-        );
+        // Calculate adjusted gas price if multiplier exists
+        const adjustedGasPrice = chainConfig.gasPriceMultiplier
+          ? (gasPrice *
+              BigInt(Math.floor(chainConfig.gasPriceMultiplier * 100))) /
+            BigInt(100)
+          : gasPrice;
+
+        preparedTx = {
+          from: fromAddress,
+          to: config.VAULT_ADDRESS,
+          value: valueInWei,
+          gasLimit,
+          gasPrice: adjustedGasPrice,
+          nonce,
+          chainId: Number(network.chainId),
+          data: "0x",
+          type: 0 // Legacy transaction type
+        };
+
+        // Calculate max gas cost for legacy tx
+        const maxGasCost = gasLimit * adjustedGasPrice;
+        const totalCost = valueInWei + maxGasCost;
+
+        if (totalCost > balance) {
+          throw new CustomError(
+            `Insufficient funds. Required: ${ethers.formatEther(totalCost)} ETH, ` +
+              `Available: ${ethers.formatEther(balance)} ETH`,
+            400
+          );
+        }
+      } else {
+        // EIP-1559 transaction (type 2)
+        const maxPriorityFeePerGas = ethers.parseUnits("0.1", "gwei");
+        const baseFee = feeData.gasPrice || ethers.parseUnits("5", "gwei");
+        const maxFeePerGas = baseFee + maxPriorityFeePerGas;
+
+        preparedTx = {
+          from: fromAddress,
+          to: config.VAULT_ADDRESS,
+          value: valueInWei,
+          gasLimit,
+          maxFeePerGas,
+          maxPriorityFeePerGas,
+          nonce,
+          chainId: Number(network.chainId),
+          data: "0x",
+          type: 2 // EIP-1559 transaction type
+        };
+
+        // Calculate max gas cost for EIP-1559 tx
+        const maxGasCost = gasLimit * maxFeePerGas;
+        const totalCost = valueInWei + maxGasCost;
+
+        if (totalCost > balance) {
+          throw new CustomError(
+            `Insufficient funds. Required: ${ethers.formatEther(totalCost)} ETH, ` +
+              `Available: ${ethers.formatEther(balance)} ETH`,
+            400
+          );
+        }
       }
-
-      const preparedTx: ethers.TransactionRequest = {
-        from: fromAddress,
-        to: config.VAULT_ADDRESS,
-        value: valueInWei,
-        gasLimit,
-        maxFeePerGas,
-        maxPriorityFeePerGas,
-        nonce,
-        chainId: Number(network.chainId),
-        data: "0x",
-        type: 2
-      };
 
       return preparedTx;
     } catch (error) {

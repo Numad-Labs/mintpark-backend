@@ -16,6 +16,7 @@ import type {
   LAUNCH_ITEM_STATUS,
   LIST_STATUS,
   LAYER,
+  LAYER_TYPE,
   NETWORK,
   ROLES
 } from "./enums";
@@ -122,6 +123,7 @@ export type Layer = {
   layer: Generated<LAYER>;
   network: Generated<NETWORK>;
   chainId: string | null;
+  layerType: LAYER_TYPE | null;
   currencyId: string;
 };
 export type List = {
