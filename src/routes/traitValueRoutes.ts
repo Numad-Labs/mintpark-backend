@@ -11,5 +11,9 @@ traitValueRouter.post(
   parseFiles("files", false),
   traitValueController.create
 );
+traitValueRouter.get(
+  "/:traitTypeId/trait-type",
+  traitValueController.getTraitValuesByTraitTypeId
+);
 
 export = traitValueRouter;

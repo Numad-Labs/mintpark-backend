@@ -1,7 +1,8 @@
-import { NextFunction, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import { AuthenticatedRequest } from "../../custom";
 import { CustomError } from "../exceptions/CustomError";
 import { traitValueServices } from "../services/traitValueServices";
+import { traitValueRepository } from "../repositories/traitValueRepository";
 
 export interface traitValueParams {
   type: string;
@@ -56,4 +57,24 @@ export const traitValueController = {
       next(e);
     }
   },
+  getTraitValuesByTraitTypeId: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { traitTypeId } = req.params;
+
+      const result =
+        await traitValueRepository.getTraitValuesWithCountByTraitTypeId(
+          traitTypeId
+        );
+
+      return res
+        .status(200)
+        .json({ success: true, data: { traitTypes: result } });
+    } catch (e) {
+      next(e);
+    }
+  }
 };

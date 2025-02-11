@@ -70,8 +70,7 @@ export const collectibleRepository = {
   getListableCollectiblesByInscriptionIds: async (
     inscriptionIds: string[],
     params: CollectibleQueryParams,
-    userId: string,
-    collectionId?: string
+    userId: string
   ) => {
     const cleanInscriptionIds = Array.isArray(inscriptionIds)
       ? inscriptionIds.map((id) => id.toString())
@@ -121,16 +120,23 @@ export const collectibleRepository = {
             .as("floor")
         ]);
 
-      // Base condition - match inscription IDs for the specific collection
+      // Base condition - match inscription IDs and handle multiple collection IDs
       let baseCondition = (eb: any) => {
         let condition = eb("Collectible.uniqueIdx", "in", cleanInscriptionIds);
 
-        if (collectionId) {
-          condition = condition.and(
-            "Collectible.collectionId",
-            "=",
-            collectionId
+        // Handle multiple collection IDs with OR condition, ensuring proper type checking
+        if (
+          params.collectionIds &&
+          Array.isArray(params.collectionIds) &&
+          params.collectionIds.length > 0
+        ) {
+          // Create an array of conditions for each collection ID
+          const collectionConditions = params.collectionIds.map((id) =>
+            eb("Collectible.collectionId", "=", id)
           );
+
+          // Combine conditions with OR
+          condition = condition.and(eb.or(collectionConditions));
         }
 
         return condition;
@@ -217,8 +223,7 @@ export const collectibleRepository = {
   },
   getListableCollectiblesByCollectionId: async (
     collectionId: string,
-    params: CollectibleQueryParams,
-    traitsFilters: traitFilter[]
+    params: CollectibleQueryParams
   ) => {
     let query = db
       .with("FloorPrices", (db) =>
@@ -287,30 +292,33 @@ export const collectibleRepository = {
       );
     }
 
-    // if (traitsFilters.length > 0) {
-    //   query = query.where((eb) =>
-    //     eb.exists(
-    //       eb
-    //         .selectFrom("CollectibleTrait")
-    //         .innerJoin("Trait", "Trait.id", "CollectibleTrait.traitId")
-    //         .whereRef("CollectibleTrait.collectibleId", "=", "Collectible.id")
-    //         .where((eb) =>
-    //           eb.or(
-    //             traitsFilters.map((traitFilter) =>
-    //               eb.and([
-    //                 sql`lower(${eb.ref("Trait.name")}) = lower(${
-    //                   traitFilter.name
-    //                 })`.$castTo<boolean>(),
-    //                 sql`lower(${eb.ref("CollectibleTrait.value")}) = lower(${
-    //                   traitFilter.value
-    //                 })`.$castTo<boolean>(),
-    //               ])
-    //             )
-    //           )
-    //         )
-    //     )
-    //   );
-    // }
+    // Filter by trait values
+    if (params.traitValuesByType) {
+      for (const [typeId, valueIds] of Object.entries(
+        params.traitValuesByType
+      )) {
+        if (valueIds.length > 0) {
+          query = query.where((eb) =>
+            eb.exists(
+              eb
+                .selectFrom("CollectibleTrait")
+                .innerJoin(
+                  "TraitValue",
+                  "TraitValue.id",
+                  "CollectibleTrait.traitValueId"
+                )
+                .whereRef(
+                  "CollectibleTrait.collectibleId",
+                  "=",
+                  "Collectible.id"
+                )
+                .where("TraitValue.traitTypeId", "=", typeId)
+                .where("CollectibleTrait.traitValueId", "in", valueIds)
+            )
+          );
+        }
+      }
+    }
 
     switch (params.orderBy) {
       case "price":

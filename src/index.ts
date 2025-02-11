@@ -25,6 +25,7 @@ import { processMessage } from "./services/messageProcessingService";
 // import { SQSProducer } from "./queue/sqsProducer";
 import { CollectionOwnerCounterService } from "./cron";
 import { QueueProcessor } from "./queue/IPFS-mint-queue";
+import traitTypeRouter from "./routes/traitTypeRoutes";
 
 export const redis = new Redis(config.REDIS_CONNECTION_STRING);
 
@@ -52,6 +53,7 @@ app.use("/api/v1/layers", layerRouter);
 app.use("/api/v1/orders", orderRouter);
 app.use("/api/v1/collections", collectionRouter);
 app.use("/api/v1/trait-values", traitValueRouter);
+app.use("/api/v1/trait-types", traitTypeRouter);
 app.use("/api/v1/collectibles", collectibleRouter);
 app.use("/api/v1/collectible-traits", collectibleTraitRouter);
 app.use("/api/v1/lists", listRouter);
