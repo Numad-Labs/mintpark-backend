@@ -26,6 +26,7 @@ export interface CollectibleQueryParams {
   orderDirection?: OrderDirectionOption;
   isListed: boolean;
   collectionIds?: string[];
+  traitValuesByType?: Record<string, string[]>;
   traits?: string[];
   layerId: string;
   userLayerId?: string;
@@ -46,16 +47,13 @@ export const collectibleControllers = {
     next: NextFunction
   ) => {
     try {
-      const {
-        isListed = false,
-        orderBy,
-        orderDirection,
-        layerId,
-        userLayerId,
-        query
-      } = req.query as unknown as CollectibleQueryParams;
+      const { orderBy, orderDirection, layerId, userLayerId, query } =
+        req.query as unknown as CollectibleQueryParams;
 
-      const collectionIds = req.query.collectionIds as string[];
+      const isListed = req.query.isListed === "true";
+      const collectionIds: string[] = req.query.collectionIds
+        ? JSON.parse(req.query.collectionIds as string)
+        : [];
       const { userId } = req.params;
       const limit = Math.min(
         Number(req.query.limit) || DEFAULT_LIMIT,
@@ -83,25 +81,25 @@ export const collectibleControllers = {
     }
   },
   getListableCollectiblesByCollectionId: async (
-    req: Request<{ collectionId: string }, {}, {}, CollectibleQueryParams>,
+    req: Request,
     res: Response,
     next: NextFunction
   ) => {
     try {
       const { collectionId } = req.params;
-      const {
-        orderBy,
-        orderDirection,
-        isListed = false,
-        layerId,
-        query
-      } = req.query;
+      const { orderBy, orderDirection, layerId, query } =
+        req.query as unknown as CollectibleQueryParams;
+      const isListed = req.query.isListed === "true";
+      const traitValuesByType: Record<string, string[]> = req.query
+        .traitValuesByType
+        ? JSON.parse(req.query.traitValuesByType as string)
+        : undefined;
+
       const limit = Math.min(
         Number(req.query.limit) || DEFAULT_LIMIT,
         MAX_LIMIT
       );
       const offset = Number(req.query.offset) || 0;
-      const traits: string[] = req.query.traits as string[];
 
       const result =
         await collectibleServices.getListableCollectiblesByCollectionId(
@@ -110,7 +108,7 @@ export const collectibleControllers = {
             orderBy,
             orderDirection,
             isListed,
-            traits,
+            traitValuesByType,
             layerId,
             limit,
             offset,

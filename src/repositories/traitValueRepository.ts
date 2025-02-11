@@ -61,4 +61,30 @@ export const traitValueRepository = {
 
     return traitValue;
   },
+  getTraitValuesWithCountByTraitTypeId: async (traitTypeId: string) => {
+    const traitValues = await db
+      .selectFrom("TraitValue")
+      .innerJoin(
+        "CollectibleTrait",
+        "CollectibleTrait.traitValueId",
+        "TraitValue.id"
+      )
+      .select((eb) => [
+        "TraitValue.id",
+        "TraitValue.fileKey",
+        "TraitValue.value",
+        "TraitValue.createdAt",
+        eb.fn.count("CollectibleTrait.id").as("collectibleTraitCount")
+      ])
+      .where("TraitValue.traitTypeId", "=", traitTypeId)
+      .groupBy([
+        "TraitValue.id",
+        "TraitValue.fileKey",
+        "TraitValue.value",
+        "TraitValue.createdAt"
+      ])
+      .execute();
+
+    return traitValues;
+  }
 };

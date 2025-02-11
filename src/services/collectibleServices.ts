@@ -168,8 +168,7 @@ export const collectibleServices = {
       await Promise.all([
         collectibleRepository.getListableCollectiblesByCollectionId(
           collectionId,
-          params,
-          traitFilters
+          params
         ),
         listRepository.getActiveListCountByCollectionid(collectionId),
         collectibleRepository.getConfirmedCollectiblesCountByCollectionId(
