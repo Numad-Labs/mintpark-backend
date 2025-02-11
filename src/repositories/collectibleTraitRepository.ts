@@ -12,20 +12,16 @@ export const collectibleTraitRepository = {
 
     return collectibleTraits;
   },
-  // getByCollectibleId: async (collectibleId: string) => {
-  //   const traits = await db
-  //     .selectFrom("CollectibleTrait")
-  //     .innerJoin("Trait", "Trait.id", "CollectibleTrait.traitId")
-  //     .select([
-  //       "CollectibleTrait.id",
-  //       "Trait.name",
-  //       "CollectibleTrait.value",
-  //       "CollectibleTrait.rarity",
-  //       "CollectibleTrait.collectibleId",
-  //     ])
-  //     .execute();
-  //   return traits;
-  // },
+  getByCollectibleId: async (collectibleId: string) => {
+    const traits = await db
+      .selectFrom("CollectibleTrait")
+      .innerJoin("TraitValue", "TraitValue.id", "CollectibleTrait.traitValueId")
+      .innerJoin("TraitType", "TraitType.id", "TraitValue.traitTypeId")
+      .select(["CollectibleTrait.id", "TraitType.name", "TraitValue.value"])
+      .where("CollectibleTrait.collectibleId", "=", collectibleId)
+      .execute();
+    return traits;
+  }
   // getByCollectionId: async (collectionId: string) => {
   //   const traits = await db
   //     .selectFrom("CollectibleTrait")
