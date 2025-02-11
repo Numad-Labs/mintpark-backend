@@ -10,6 +10,7 @@ import { collectionRepository } from "../repositories/collectionRepository";
 import { db } from "../utils/db";
 import { Insertable } from "kysely";
 import { TraitType, TraitValue } from "../types/db/types";
+import { capitalizeWords } from "../libs/capitalizeWords";
 
 export const traitValueServices = {
   create: async (
@@ -68,8 +69,8 @@ export const traitValueServices = {
     const traitTypeData: Insertable<TraitType>[] = [];
     const traitValueData: Insertable<TraitValue>[] = [];
     for (let i = 0; i < data.length; i++) {
-      data[i].type = data[i].type.toLowerCase();
-      data[i].value = data[i].value.toLowerCase();
+      data[i].type = capitalizeWords(data[i].type).trim();
+      data[i].value = capitalizeWords(data[i].value).trim();
 
       const isExistingTraitType =
         await traitTypeRepository.getByNameAndCollectionId(
@@ -86,7 +87,7 @@ export const traitValueServices = {
           id: traitTypeId,
           name: data[i].type,
           collectionId: collectionId,
-          zIndex: data[i].zIndex,
+          zIndex: data[i].zIndex
         });
       else if (isExistingTraitType) {
         traitTypeId = isExistingTraitType.id;
@@ -115,7 +116,7 @@ export const traitValueServices = {
         traitValueData.push({
           traitTypeId,
           value: data[i].value,
-          fileKey: fileKeys[i].key,
+          fileKey: fileKeys[i].key
         });
     }
 
@@ -129,5 +130,5 @@ export const traitValueServices = {
     }
 
     return { traitTypes, traitValues };
-  },
+  }
 };
