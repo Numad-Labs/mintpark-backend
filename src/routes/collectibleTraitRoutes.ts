@@ -3,11 +3,11 @@ import { collectibleTraitController } from "../controllers/collectibleTraitContr
 
 const collectibleTraitRouter = Router();
 
-/* collectibleTraitRouter.get(
+collectibleTraitRouter.get(
   "/:collectibleId/collectible",
   collectibleTraitController.getByCollectibleId
 );
-collectibleTraitRouter.get(
+/* collectibleTraitRouter.get(
   "/:collectionId/collection",
   collectibleTraitController.getByCollectionId
 );
