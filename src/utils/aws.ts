@@ -1,11 +1,12 @@
 import {
   S3,
   GetObjectCommand,
-  GetObjectCommandOutput,
+  GetObjectCommandOutput
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { Readable } from "stream";
 import { config } from "../config/config";
+import { PinResponse } from "../types";
 
 const ACCESS_KEY = config.AWS_S3_ACCESS_KEY;
 const SECRET_KEY = config.AWS_S3_SECRET_KEY;
@@ -14,9 +15,9 @@ const BUCKET_NAME = config.AWS_S3_BUCKET_NAME;
 export const s3 = new S3({
   credentials: {
     accessKeyId: ACCESS_KEY,
-    secretAccessKey: SECRET_KEY,
+    secretAccessKey: SECRET_KEY
   },
-  region: "eu-central-1",
+  region: "eu-central-1"
 });
 
 export async function uploadToS3(key: string, file: Express.Multer.File) {
@@ -26,8 +27,8 @@ export async function uploadToS3(key: string, file: Express.Multer.File) {
       Bucket: BUCKET_NAME,
       Key: key,
       Body: file.buffer,
-      ContentType: file.mimetype,
-    },
+      ContentType: file.mimetype
+    }
   }).done();
 
   return s3Response;
@@ -58,7 +59,7 @@ export async function getObjectFromS3(key: string) {
     const response: GetObjectCommandOutput = await s3.send(
       new GetObjectCommand({
         Bucket: BUCKET_NAME,
-        Key: key,
+        Key: key
       })
     );
 
@@ -91,12 +92,8 @@ function streamToBase64(stream: Readable) {
 export async function deleteFromS3(key: string) {
   await s3.deleteObject({
     Bucket: BUCKET_NAME,
-    Key: key,
+    Key: key
   });
-}
-interface S3FileResponse {
-  contentType: string | undefined;
-  content: string;
 }
 
 export async function createMetadataFromS3File(
@@ -117,7 +114,7 @@ export async function createMetadataFromS3File(
 
     // Create a File object
     const fileObject = new File([blob], fileKey.split("/").pop() || "unnamed", {
-      type: file.contentType || "application/octet-stream",
+      type: file.contentType || "application/octet-stream"
     });
 
     // Upload to IPFS
@@ -126,7 +123,7 @@ export async function createMetadataFromS3File(
     // Create metadata object
     const metadata = {
       name: name || "Unnamed NFT",
-      image: `ipfs://${imageResponse.IpfsHash}`,
+      image: `ipfs://${imageResponse.IpfsHash}`
     };
 
     // Upload metadata to IPFS
@@ -141,8 +138,3 @@ export async function createMetadataFromS3File(
   }
 }
 // Example interface for PinResponse (adjust according to your actual types)
-interface PinResponse {
-  IpfsHash: string;
-  PinSize?: number;
-  Timestamp?: string;
-}

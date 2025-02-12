@@ -23,9 +23,10 @@ import {
 } from "../blockchain/bitcoin/constants";
 // import { producer } from "..";
 import logger from "../config/winston";
-import LaunchpadService from "../blockchain/evm/services/launchpadService";
-// import LaunchpadService from "../../blockchain/evm/services/launchpadService";
 import { config } from "../config/config";
+import { NFTActivityType } from "../blockchain/evm/evm-types";
+import NFTService from "../blockchain/evm/services/nftService";
+import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
 
 export interface nftMetaData {
   nftId: string | null;
@@ -337,12 +338,12 @@ export const orderServices = {
         throw new CustomError("Layer or chainid not found", 400);
 
       const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
-      const launchPadService = new LaunchpadService(chainConfig.RPC_URL);
-      txHex = launchPadService.generateFeeTransferTransaction(
-        user.address,
-        collection.contractAddress,
-        funder.address
-      );
+      const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
+      // txHex = nftService.generateFeeTransferTransaction(
+      //   user.address,
+      //   collection.contractAddress,
+      //   funder.address
+      // );
     }
     let totalAmount = networkFee * 1.5 + mintFee + serviceFee;
 

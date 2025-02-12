@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
-contract UnifiedNFT is
+contract LaunchNFT is
   ERC721,
   ERC721URIStorage,
   ERC2981,
@@ -41,12 +41,10 @@ contract UnifiedNFT is
 
   bytes32 private constant MINT_TYPEHASH =
     keccak256(
-      "MintRequest(address minter,uint256 tokenId,string inscriptionId,string uri,uint256 price,uint256 nonce,uint256 deadline)"
+      "MintRequest(address minter,uint256 tokenId,string,string uri,uint256 price,uint256 nonce,uint256 deadline)"
     );
 
   mapping(address => uint256) public nonces;
-
-  mapping(uint256 => string) private _inscriptionIds;
 
   // Phase configuration
   Phase public currentPhase;
@@ -57,11 +55,7 @@ contract UnifiedNFT is
   uint96 public platformFeePercentage;
   address public platformFeeRecipient;
 
-  event TokenMinted(
-    uint256 indexed tokenId,
-    address indexed recipient,
-    string inscriptionId
-  );
+  event TokenMinted(uint256 indexed tokenId, address indexed recipient);
   event BackendSignerUpdated(address newSigner);
   event RoyaltyInfoUpdated(uint96 newPercentage);
   event PlatformFeeUpdated(uint96 newPercentage, address newRecipient);
@@ -118,7 +112,6 @@ contract UnifiedNFT is
 
   function mint(
     uint256 tokenId,
-    string calldata inscriptionId,
     string memory uri,
     uint256 deadline,
     bytes calldata signature
@@ -132,7 +125,6 @@ contract UnifiedNFT is
         MINT_TYPEHASH,
         msg.sender,
         tokenId,
-        keccak256(bytes(inscriptionId)),
         keccak256(bytes(uri)),
         msg.value,
         nonces[msg.sender]++,
@@ -186,17 +178,12 @@ contract UnifiedNFT is
 
     mintedPerWallet[msg.sender]++;
 
-    // Store inscription ID if provided
-    if (bytes(inscriptionId).length > 0) {
-      _inscriptionIds[tokenId] = inscriptionId;
-    }
-
     // Set URI if provided
     if (bytes(uri).length > 0) {
       _setTokenURI(tokenId, uri);
     }
 
-    emit TokenMinted(tokenId, msg.sender, inscriptionId);
+    emit TokenMinted(tokenId, msg.sender);
   }
 
   function setPhase(
@@ -268,12 +255,6 @@ contract UnifiedNFT is
     uint256 tokenId
   ) public view override(ERC721, ERC721URIStorage) returns (string memory) {
     return super.tokenURI(tokenId);
-  }
-
-  function getInscriptionId(
-    uint256 tokenId
-  ) public view returns (string memory) {
-    return _inscriptionIds[tokenId];
   }
 
   function _update(

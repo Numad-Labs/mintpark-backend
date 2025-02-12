@@ -74,44 +74,6 @@ export class EVMCollectibleService {
     }
   }
 
-  async processCollections(collections: string[], ownerAddress: string) {
-    const results: Record<string, string[]> = {};
-    const CONCURRENT_COLLECTIONS = 5; // Process 5 collections at a time
-
-    // Process collections in groups
-    for (let i = 0; i < collections.length; i += CONCURRENT_COLLECTIONS) {
-      const batch = collections.slice(i, i + CONCURRENT_COLLECTIONS);
-      const batchPromises = batch.map(async (contractAddress) => {
-        try {
-          const tokens = await this.getOwnedTokens(
-            contractAddress,
-            ownerAddress
-          );
-          return { contractAddress, tokens };
-        } catch (error) {
-          console.error(
-            `Error processing collection ${contractAddress}:`,
-            error
-          );
-          return { contractAddress, tokens: [] };
-        }
-      });
-
-      // Wait for the current batch to complete
-      const batchResults = await Promise.all(batchPromises);
-      batchResults.forEach(({ contractAddress, tokens }) => {
-        results[contractAddress] = tokens;
-      });
-
-      // Add delay between collection batches
-      if (i + CONCURRENT_COLLECTIONS < collections.length) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-    }
-
-    return results;
-  }
-
   async getCollectionOwnersCount(contractAddress: string): Promise<number> {
     if (!ethers.isAddress(contractAddress)) {
       throw new CustomError(
@@ -179,7 +141,6 @@ export class EVMCollectibleService {
     }
   }
 
-  //saved to use. Can be used on get collection owner's cound in batch. But didn't tested
   async getAllCollectionsOwnersCount(
     contractAddresses: string[]
   ): Promise<Record<string, number>> {
@@ -213,40 +174,6 @@ export class EVMCollectibleService {
     }
 
     return results;
-  }
-
-  private async getPaginatedLogs(
-    filter: any,
-    fromBlock: number,
-    toBlock: number
-  ): Promise<Log[]> {
-    const logs: Log[] = [];
-    let currentFromBlock = fromBlock;
-
-    while (currentFromBlock <= toBlock) {
-      const currentToBlock = Math.min(
-        currentFromBlock + this.BLOCK_RANGE - 1,
-        toBlock
-      );
-
-      try {
-        const blockLogs = await this.provider.getLogs({
-          ...filter,
-          fromBlock: currentFromBlock,
-          toBlock: currentToBlock
-        });
-        logs.push(...blockLogs);
-      } catch (error) {
-        console.error(
-          `Error fetching logs for blocks ${currentFromBlock}-${currentToBlock}:`,
-          error
-        );
-      }
-
-      currentFromBlock = currentToBlock + 1;
-    }
-
-    return logs;
   }
 
   async getActivityByTokenId(
@@ -452,6 +379,78 @@ export class EVMCollectibleService {
       console.error("Error fetching NFT activities:", error);
       throw error;
     }
+  }
+
+  async processCollections(collections: string[], ownerAddress: string) {
+    const results: Record<string, string[]> = {};
+    const CONCURRENT_COLLECTIONS = 5; // Process 5 collections at a time
+
+    // Process collections in groups
+    for (let i = 0; i < collections.length; i += CONCURRENT_COLLECTIONS) {
+      const batch = collections.slice(i, i + CONCURRENT_COLLECTIONS);
+      const batchPromises = batch.map(async (contractAddress) => {
+        try {
+          const tokens = await this.getOwnedTokens(
+            contractAddress,
+            ownerAddress
+          );
+          return { contractAddress, tokens };
+        } catch (error) {
+          console.error(
+            `Error processing collection ${contractAddress}:`,
+            error
+          );
+          return { contractAddress, tokens: [] };
+        }
+      });
+
+      // Wait for the current batch to complete
+      const batchResults = await Promise.all(batchPromises);
+      batchResults.forEach(({ contractAddress, tokens }) => {
+        results[contractAddress] = tokens;
+      });
+
+      // Add delay between collection batches
+      if (i + CONCURRENT_COLLECTIONS < collections.length) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+
+    return results;
+  }
+
+  private async getPaginatedLogs(
+    filter: any,
+    fromBlock: number,
+    toBlock: number
+  ): Promise<Log[]> {
+    const logs: Log[] = [];
+    let currentFromBlock = fromBlock;
+
+    while (currentFromBlock <= toBlock) {
+      const currentToBlock = Math.min(
+        currentFromBlock + this.BLOCK_RANGE - 1,
+        toBlock
+      );
+
+      try {
+        const blockLogs = await this.provider.getLogs({
+          ...filter,
+          fromBlock: currentFromBlock,
+          toBlock: currentToBlock
+        });
+        logs.push(...blockLogs);
+      } catch (error) {
+        console.error(
+          `Error fetching logs for blocks ${currentFromBlock}-${currentToBlock}:`,
+          error
+        );
+      }
+
+      currentFromBlock = currentToBlock + 1;
+    }
+
+    return logs;
   }
 
   private async processEventLog(

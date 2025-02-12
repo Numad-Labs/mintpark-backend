@@ -459,6 +459,7 @@ export const collectibleRepository = {
         "Collectible.fileKey",
         "Collectible.highResolutionImageUrl",
         "Collectible.collectionId",
+        "Collectible.cid",
         "Layer.layer",
         "Layer.network"
       ])
