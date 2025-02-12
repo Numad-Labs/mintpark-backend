@@ -5,12 +5,7 @@ import { PinataSDK, PinResponse } from "pinata-web3";
 import { CustomError } from "../../../exceptions/CustomError";
 import { getObjectFromS3 } from "../../../utils/aws";
 import logger from "../../../config/winston";
-
-interface S3FileResponse {
-  contentType?: string;
-  content: string; // base64 string
-  contentLength?: number;
-}
+import { S3FileResponse } from "../../../types";
 
 class NFTService {
   provider: ethers.JsonRpcProvider;
@@ -51,24 +46,6 @@ class NFTService {
       platformFeeRecipient
     );
     return this.prepareUnsignedTransaction(unsignedTx, initialOwner);
-  }
-
-  async checkMarketplaceApproval(
-    contractAddress: string,
-    userAddress: string,
-    chainId: string
-  ): Promise<boolean> {
-    const chainConfig = EVM_CONFIG.CHAINS[chainId];
-    const nftContract = new ethers.Contract(
-      contractAddress,
-      EVM_CONFIG.NFT_CONTRACT_ABI,
-      this.provider
-    );
-
-    return nftContract.isApprovedForAll(
-      userAddress,
-      chainConfig.MARKETPLACE_ADDRESS
-    );
   }
 
   async uploadNFTMetadata(
@@ -280,45 +257,6 @@ class NFTService {
     }
   }
 
-  async isApprovedForMarketplace(
-    collectionAddress: string,
-    ownerAddress: string,
-    chainId: string
-  ): Promise<boolean> {
-    const contract = new ethers.Contract(
-      collectionAddress,
-      EVM_CONFIG.NFT_CONTRACT_ABI,
-      this.provider
-    );
-    const chainConfig = EVM_CONFIG.CHAINS[chainId];
-
-    return await contract.isApprovedForAll(
-      ownerAddress,
-      chainConfig.MARKETPLACE_ADDRESS
-    );
-  }
-  async getMarketplaceApprovalTransaction(
-    collectionAddress: string,
-    ownerAddress: string,
-    chainId: string
-  ): Promise<ethers.TransactionRequest> {
-    const contract = new ethers.Contract(
-      collectionAddress,
-      EVM_CONFIG.NFT_CONTRACT_ABI,
-      this.provider
-    );
-    const chainConfig = EVM_CONFIG.CHAINS[chainId];
-
-    const approvalTx = await contract.setApprovalForAll.populateTransaction(
-      chainConfig.MARKETPLACE_ADDRESS,
-      true
-    );
-
-    // approvalTx.da
-
-    return this.prepareUnsignedTransaction(approvalTx, ownerAddress);
-  }
-
   async estimateMintGasFee(
     collectionAddress: string,
     recipientAddress: string,
@@ -378,49 +316,64 @@ class NFTService {
     }
   }
 
-  async getUnsignedFeeTransaction(
-    fromAddress: string,
-    collectionAddress: string,
-    nftId: string,
-    mintPrice: number
-  ) {
+  async generateFeeTransferTransaction(
+    issuerAddress: string,
+    colllectionAddress: string,
+    fundingAddress: string
+  ): Promise<ethers.TransactionRequest> {
     try {
-      // First estimate gas fees for the future mint
-      const dummyUri = "ipfs://dummy"; // Temporary URI for estimation
-      const gasFeeEstimate = await this.estimateMintGasFee(
-        collectionAddress,
-        fromAddress,
-        nftId,
-        dummyUri,
-        mintPrice
+      // const signer = await this.provider.getSigner();
+
+      const nftContract = new ethers.Contract(
+        colllectionAddress,
+        EVM_CONFIG.NFT_CONTRACT_ABI,
+        this.provider
       );
+      // Calculate the required fees
+      const mintFee = await nftContract.mintFee();
 
-      // Calculate total amount needed (mint price + gas fee)
-      const mintPriceWei = ethers.parseEther(mintPrice.toString());
-      const totalRequired = mintPriceWei + gasFeeEstimate.estimatedGasCost;
+      if (mintFee <= 0) {
+        throw new CustomError("Total fee amount must be greater than 0", 400);
+      }
 
-      // Get network details
-      const [nonce, network] = await Promise.all([
-        this.provider.getTransactionCount(fromAddress),
-        this.provider.getNetwork()
-      ]);
+      // Verify funding address
+      if (!ethers.isAddress(fundingAddress)) {
+        throw new CustomError("Invalid funding address", 400);
+      }
 
-      // Create transaction to transfer total amount to vault
-      const unsignedTx: ethers.ContractTransaction = {
-        to: config.VAULT_ADDRESS,
-        value: totalRequired,
-        from: fromAddress,
-        nonce: nonce,
+      // Create the basic transaction object
+      const transactionRequest: ethers.TransactionRequest = {
+        to: fundingAddress,
+        value: ethers.parseEther(mintFee.toString()),
+        from: issuerAddress
+      };
+
+      // Get the provider's network info
+      const network = await this.provider.getNetwork();
+      const feeData = await this.provider.getFeeData();
+      const nonce = await this.provider.getTransactionCount(issuerAddress);
+
+      // Estimate gas for the transfer
+      const gasLimit = await this.provider.estimateGas(transactionRequest);
+
+      // Prepare the complete unsigned transaction
+      const unsignedTx: ethers.TransactionRequest = {
+        ...transactionRequest,
         chainId: network.chainId,
-        data: "0x", // Add empty data field for basic ETH transfer
+        nonce: nonce,
+        gasLimit: gasLimit,
+        maxFeePerGas: feeData.maxFeePerGas,
+        maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
         type: 2 // EIP-1559 transaction type
       };
 
-      // Prepare the transaction with appropriate gas settings
-      return this.prepareUnsignedTransaction(unsignedTx, fromAddress);
+      return unsignedTx;
     } catch (error) {
+      if (error instanceof CustomError) {
+        throw error;
+      }
       throw new CustomError(
-        `Failed to create unsigned fee transaction: ${error}`,
+        `Failed to generate fee transfer transaction: ${error}`,
         500
       );
     }

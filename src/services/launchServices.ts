@@ -34,7 +34,6 @@ import {
   REVEAL_TX_SIZE
 } from "../blockchain/bitcoin/constants";
 import NFTService from "../blockchain/evm/services/nftService";
-import { inscribe } from "../blockchain/bitcoin/inscribe";
 import { sendRawTransaction } from "../blockchain/bitcoin/sendTransaction";
 import { hideSensitiveData } from "../libs/hideDataHelper";
 import { orderItemRepository } from "../repositories/orderItemRepository";
@@ -48,11 +47,8 @@ import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { SQSClientFactory } from "../queue/sqsClient";
 import { config } from "../config/config";
 import { airdropRepository } from "../repositories/airdropRepository";
-
-// const launchPadService = new LaunchpadService(
-//   EVM_CONFIG.RPC_URL,
-//   new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
-// );
+import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
+import { VaultMintNFTService } from "../blockchain/evm/services/nftService/vaultNFTService";
 
 // // const nftService = new NFTService(EVM_CONFIG.RPC_URL);
 
@@ -183,7 +179,7 @@ export const launchServices = {
         // ;
 
         const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
-        const nftService = new NFTService(chainConfig.RPC_URL);
+        const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
 
         const ipfsUri = await nftService.uploadNFTMetadata(
           badge,
@@ -546,7 +542,7 @@ export const launchServices = {
 
     if (!user.chainId) throw new CustomError("User chain id not found.", 400);
     const chainConfig = EVM_CONFIG.CHAINS[user.chainId];
-    const nftService = new NFTService(chainConfig.RPC_URL);
+    const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
     const fundingService = new FundingAddressService(chainConfig.RPC_URL);
 
     if (
@@ -561,9 +557,10 @@ export const launchServices = {
       externalData = await prepareIpfsData(
         collection,
         user.address,
+        user.chainId,
         mintPrice,
-        nftService,
-        fundingService
+        nftService
+        // fundingService
       );
     } else {
       throw new CustomError("Unsupported collection type.", 400);
@@ -843,40 +840,40 @@ export const launchServices = {
       //   verification
       // });
 
-      const message: SQSMessageBody = {
-        messageId: `mint-${randomUUID()}`,
-        mintRequest: {
-          userId: user.id,
-          userLayerId,
-          launchItemId,
-          collectibleId: launchItem.collectibleId,
-          collectionId: collection.id,
-          collectionType: "IPFS_CID",
-          collectionAddress: collection.contractAddress ?? "",
-          recipientAddress: user.address,
-          nftId: collectible.nftId,
-          mintPrice: mintPrice.toString(),
-          orderId: verification?.orderId ?? "",
-          uri: collectible.cid ?? "",
-          uniqueIdx: collection.contractAddress + "i" + collectible.nftId,
-          txid: verification?.txid
-        },
-        attemptCount: 0
-      };
-      const command = new SendMessageCommand({
-        QueueUrl: `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`,
-        MessageBody: JSON.stringify(message)
-      });
+      // const message: SQSMessageBody = {
+      //   messageId: `mint-${randomUUID()}`,
+      //   mintRequest: {
+      //     userId: user.id,
+      //     userLayerId,
+      //     launchItemId,
+      //     collectibleId: launchItem.collectibleId,
+      //     collectionId: collection.id,
+      //     collectionType: "IPFS_CID",
+      //     collectionAddress: collection.contractAddress ?? "",
+      //     recipientAddress: user.address,
+      //     nftId: collectible.nftId,
+      //     mintPrice: mintPrice.toString(),
+      //     orderId: verification?.orderId ?? "",
+      //     uri: collectible.cid ?? "",
+      //     uniqueIdx: collection.contractAddress + "i" + collectible.nftId,
+      //     txid: verification?.txid
+      //   },
+      //   attemptCount: 0
+      // };
+      // const command = new SendMessageCommand({
+      //   QueueUrl: `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`,
+      //   MessageBody: JSON.stringify(message)
+      // });
 
-      try {
-        await sqsClient.send(command);
+      // try {
+      //   await sqsClient.send(command);
 
-        logger.info(
-          `queued launchItem ${launchItem.id} to SQS with id of ${message.messageId}`
-        );
-      } catch (error) {
-        throw new Error(`Failed to queue mint request: ${error}`);
-      }
+      //   logger.info(
+      //     `queued launchItem ${launchItem.id} to SQS with id of ${message.messageId}`
+      //   );
+      // } catch (error) {
+      //   throw new Error(`Failed to queue mint request: ${error}`);
+      // }
 
       return {
         launchItem
@@ -1129,9 +1126,10 @@ const prepareInscriptionData = async (collection: any, feeRate?: number) => {
 const prepareIpfsData = async (
   collection: any,
   userAddress: string,
+  chainId: string,
   mintPrice: number,
-  nftService: NFTService,
-  fundingService: FundingAddressService
+  directMintService: DirectMintNFTService
+  // fundingService: FundingAddressService
 ) => {
   if (!collection.contractAddress)
     throw new CustomError(
@@ -1139,28 +1137,34 @@ const prepareIpfsData = async (
       400
     );
 
-  const dummyUri = "ipfs://dummy";
-  const gasFeeEstimate = await nftService.estimateMintGasFee(
+  const tokenId = collection.nextTokenId || 0; // Get next token ID
+  const uri = collection.isBadge ? collection.badgeCid : ""; // Use badge CID if badge collection
+
+  const deadline = EVM_CONFIG.DEFAULT_SIGN_DEADLINE;
+  // Generate signature for direct minting
+  const signature = await directMintService.generateMintSignature(
     collection.contractAddress,
-    userAddress,
-    "0",
-    dummyUri,
-    mintPrice
+    config.VAULT_ADDRESS,
+    tokenId,
+    uri,
+    mintPrice.toString(),
+    deadline,
+    chainId,
+    config.VAULT_PRIVATE_KEY
   );
 
-  const mintPriceWei = ethers.parseEther(mintPrice.toString());
-  const totalRequired = mintPriceWei + gasFeeEstimate.estimatedGasCost;
-  const formattedTotal = ethers.formatEther(totalRequired);
-
-  const unsignedTx = await fundingService.getUnsignedFeeTransaction(
-    userAddress,
-    formattedTotal.toString()
+  // Get unsigned mint transaction
+  const unsignedTx = await directMintService.getUnsignedMintTransaction(
+    collection.contractAddress,
+    tokenId,
+    uri,
+    mintPrice.toString(),
+    deadline,
+    signature,
+    userAddress
   );
 
-  if (!unsignedTx || !unsignedTx.value)
-    throw new CustomError("Invalid unsigned transaction.", 400);
-
-  return { gasFeeEstimate, unsignedTx };
+  return { unsignedTx };
 };
 
 const createOrder = async (trx: any, params: any) => {

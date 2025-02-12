@@ -12,13 +12,14 @@ import {
 import { layerRepository } from "../repositories/layerRepository";
 import { CustomError } from "../exceptions/CustomError";
 import { EVM_CONFIG } from "../blockchain/evm/evm-config";
-import NFTService from "../blockchain/evm/services/nftService";
 import { db } from "../utils/db";
 import { Insertable, Updateable } from "kysely";
 import { Collection } from "../types/db/types";
 import { layerServices } from "./layerServices";
-import { serializeBigInt } from "../blockchain/evm/utils";
+import { generateSymbol, serializeBigInt } from "../blockchain/evm/utils";
 import { config } from "../config/config";
+import { VaultMintNFTService } from "../blockchain/evm/services/nftService/vaultNFTService";
+import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
 
 export const collectionServices = {
   create: async (
@@ -70,21 +71,40 @@ export const collectionServices = {
     // Check if this is an EVM chain
     if (layer.chainId && EVM_CONFIG.CHAINS[layer.chainId]) {
       const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
-      console.log("🚀 ~ chainConfig:", chainConfig);
-      const nftService = new NFTService(chainConfig.RPC_URL);
+      const symbol = generateSymbol(name);
 
-      const unsignedTx = await nftService.getUnsignedDeploymentTransaction(
-        user.address,
-        config.VAULT_ADDRESS,
-        name,
-        "MPMNFT",
-        chainConfig.DEFAULT_ROYALTY_FEE,
-        chainConfig.DEFAULT_PLATFORM_FEE,
-        config.VAULT_ADDRESS
-      );
-      deployContractTxHex = serializeBigInt(unsignedTx);
+      // Use appropriate NFT service based on collection type
+      if (
+        data.type === "INSCRIPTION" ||
+        data.type === "RECURSIVE_INSCRIPTION"
+      ) {
+        // For inscriptions, use VaultMintNFTService since minting will be controlled by vault
+        const vaultMintService = new VaultMintNFTService(chainConfig.RPC_URL);
+        const unsignedTx =
+          await vaultMintService.getUnsignedDeploymentTransaction(
+            user.address,
+            config.VAULT_ADDRESS,
+            name,
+            symbol,
+            chainConfig.DEFAULT_ROYALTY_FEE,
+            chainConfig.DEFAULT_PLATFORM_FEE,
+            config.VAULT_ADDRESS
+          );
+        deployContractTxHex = serializeBigInt(unsignedTx);
+      } else if (data.type === "IPFS_CID" || data.type === "IPFS_FILE") {
+        // For IPFS collections, use DirectMintNFTService since users will mint directly
+        const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
+        const unsignedTx =
+          await directMintService.getUnsignedDeploymentTransaction(
+            user.address, // contract owner
+            name,
+            symbol,
+            chainConfig.DEFAULT_ROYALTY_FEE,
+            chainConfig.DEFAULT_PLATFORM_FEE
+          );
+        deployContractTxHex = serializeBigInt(unsignedTx);
+      }
     }
-
     if (layer.layerType == "EVM" && deployContractTxHex === null)
       throw new CustomError("Couldn't create deploy contract hext", 400);
 

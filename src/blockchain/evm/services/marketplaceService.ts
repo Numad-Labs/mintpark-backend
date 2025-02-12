@@ -127,6 +127,23 @@ class MarketplaceService {
     };
   }
 
+  async checkMarketplaceApproval(
+    contractAddress: string,
+    userAddress: string,
+    chainId: string
+  ): Promise<boolean> {
+    const chainConfig = EVM_CONFIG.CHAINS[chainId];
+    const nftContract = new ethers.Contract(
+      contractAddress,
+      EVM_CONFIG.NFT_CONTRACT_ABI,
+      this.provider
+    );
+
+    return nftContract.isApprovedForAll(
+      userAddress,
+      chainConfig.MARKETPLACE_ADDRESS
+    );
+  }
   async buyListingTransaction(
     nftContract: string,
     tokenId: string,

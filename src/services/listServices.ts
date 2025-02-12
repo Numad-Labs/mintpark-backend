@@ -7,7 +7,6 @@ import { listRepository } from "../repositories/listRepository";
 import { userRepository } from "../repositories/userRepository";
 import MarketplaceService from "../blockchain/evm/services/marketplaceService";
 import { ethers } from "ethers";
-import NFTService from "../blockchain/evm/services/nftService";
 import { serializeBigInt } from "../blockchain/evm/utils";
 import { collectionRepository } from "../repositories/collectionRepository";
 
@@ -24,7 +23,6 @@ import { layerRepository } from "../repositories/layerRepository";
 // const confirmationService = new TransactionConfirmationService(
 //   EVM_CONFIG.RPC_URL
 // );
-// const nftService = new NFTService(EVM_CONFIG.RPC_URL);
 
 export const listServices = {
   checkAndPrepareRegistration: async (
@@ -117,7 +115,6 @@ export const listServices = {
       chainConfig.MARKETPLACE_ADDRESS,
       chainConfig.RPC_URL
     );
-    const nftService = new NFTService(chainConfig.RPC_URL);
     const confirmationService = new TransactionConfirmationService(
       chainConfig.RPC_URL
     );
@@ -148,7 +145,7 @@ export const listServices = {
           throw new CustomError("Layer chainid not found", 400);
 
         // Check marketplace approval using NFT service
-        const isApproved = await nftService.checkMarketplaceApproval(
+        const isApproved = await marketplaceService.checkMarketplaceApproval(
           collection.contractAddress,
           issuer.address,
           layer.chainId
