@@ -139,8 +139,9 @@ export const launchServices = {
       const confirmationService = new TransactionConfirmationService(
         chainConfig.RPC_URL
       );
-      const transactionDetail =
-        await confirmationService.getTransactionDetails(txid);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -201,8 +202,9 @@ export const launchServices = {
         chainConfig.RPC_URL
       );
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail =
-        await confirmationService.getTransactionDetails(txid);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -521,18 +523,18 @@ export const launchServices = {
     if (!collection) throw new CustomError("Collection not found.", 400);
     if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
       throw new CustomError("You cannot buy the item of this collection.", 400);
-
-    const isInAirdrop = await airdropRepository.getByAddress(
-      user.address.toLowerCase()
-    );
-    if (isInAirdrop)
+    if (
+      collection.type === "INSCRIPTION" ||
+      collection.type === "RECURSIVE_INSCRIPTION"
+    )
       throw new CustomError(
-        "You're on the airdrop list! You can't purchase this NFT, but don't worry—the airdrop will happen very soon!",
+        "Wrapped NFTs are not supported at the moment.",
         400
       );
+    if (collection.isBadge && !collection.badgeCid)
+      throw new CustomError("No badge cid.", 400);
 
-    // External blockchain/fee calculations
-    let externalData = {};
+    // Validate phase
     const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
     const mintPrice = await validatePhaseAndGetPrice(
       launch,
@@ -545,43 +547,15 @@ export const launchServices = {
     const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
     const fundingService = new FundingAddressService(chainConfig.RPC_URL);
 
-    if (
-      collection.type === "INSCRIPTION" ||
-      collection.type === "RECURSIVE_INSCRIPTION"
-    ) {
-      externalData = await prepareInscriptionData(collection, feeRate);
-    } else if (
-      collection.type === "IPFS_CID" ||
-      collection.type === "IPFS_FILE"
-    ) {
-      externalData = await prepareIpfsData(
-        collection,
-        user.address,
-        user.chainId,
-        mintPrice,
-        nftService
-        // fundingService
-      );
-    } else {
-      throw new CustomError("Unsupported collection type.", 400);
-    }
-
     // Validate purchase limits inside transaction
     await validatePurchaseLimits(db, launch, user, currentUnixTimeStamp);
 
-    const [shortHoldCount, longHoldCount, queueCount] = await Promise.all([
-      launchItemRepository.getShortHoldCountByLaunchIdAndUserId(
+    const shortHoldCount =
+      await launchItemRepository.getShortHoldCountByLaunchIdAndUserId(
         db,
         launch.id,
         user.id
-      ),
-      launchItemRepository.getLongHoldCountByLaunchIdAndUserId(
-        db,
-        launch.id,
-        user.id
-      ),
-      launchItemRepository.getLongHeldItemCountByLaunchId(db, launch.id)
-    ]);
+      );
 
     if (Number(shortHoldCount) >= 3) {
       throw new CustomError(
@@ -590,36 +564,109 @@ export const launchServices = {
       );
     }
 
-    if (Number(longHoldCount) >= 1) {
-      throw new CustomError(
-        "You already have an item in the minting queue.",
-        400
-      );
-    }
-
-    const soldCount =
-      await launchItemRepository.getSoldAndReservedItemCountByLaunchId(
-        db,
-        launch.id
-      );
-    const SUPPLY = 5000; //ONLY FOR CITREA
-    logger.info(
-      `Buy sold count and queue count: ${Number(soldCount) + Number(soldCount)}`
-    );
-    if (Number(soldCount) + Number(queueCount) >= SUPPLY)
-      throw new CustomError(
-        "All items are either sold or currently held in the queue. Please check back later.",
-        400
-      );
-
-    // Get and set launch item on hold
-    const launchItem = await launchItemRepository.getRandomItemByLaunchId(
+    let launchItem = await launchItemRepository.getRandomItemByLaunchId(
       launch.id
     );
-    const collectible = await collectibleRepository.getById(
-      db,
-      launchItem.collectibleId
-    );
+    let collectible;
+
+    //INFINITE SUPPLY BADGE
+    if (collection.isBadge && !collection.badgeSupply) {
+      if (launchItem) {
+        //DG TODO
+        const isMinted = false;
+
+        if (isMinted) {
+          //SYNCING MINTED COLLECTIBLE & LAUNCHITEM'S STATUS
+          const mintedCollectible = await collectibleRepository.getById(
+            db,
+            launchItem.collectibleId
+          );
+          if (!mintedCollectible)
+            throw new CustomError("Minted collectible not found.", 400);
+
+          await collectibleRepository.update(db, mintedCollectible.id, {
+            status: "CONFIRMED",
+            uniqueIdx:
+              collection.contractAddress + "i" + mintedCollectible.nftId
+          });
+          await collectionRepository.incrementCollectionSupplyById(
+            db,
+            collection.id
+          );
+          await launchItemRepository.update(db, launchItem.id, {
+            status: "SOLD"
+          });
+
+          //CREATE NEW COLLECTIBLE & LAUNCHITEM(PUT ON HOLD)
+          const { badgeCurrentNftId } =
+            await collectionRepository.incrementBadgeCurrentNftIdById(
+              collection.id
+            );
+          if (!badgeCurrentNftId)
+            throw new CustomError("Badge current nft id not found.", 400);
+          const nftId = badgeCurrentNftId?.toString();
+
+          collectible = await collectibleRepository.create(db, {
+            name: `${collection.name} #${nftId}`,
+            collectionId: collection.id,
+            nftId,
+            cid: collection.badgeCid,
+            fileKey: collection.logoKey
+          });
+          launchItem = await launchItemRepository.createOnHoldLaunchItem(
+            {
+              launchId: launch.id,
+              collectibleId: collectible.id
+            },
+            user.id
+          );
+        } else {
+          //PUT LAUNCHITEM ON HOLD
+          await launchItemRepository.setShortHoldById(
+            db,
+            launchItem.id,
+            user.id
+          );
+        }
+      } else {
+        //CREATE NEW COLLECTIBLE & LAUNCHITEM(PUT ON HOLD)
+        const { badgeCurrentNftId } =
+          await collectionRepository.incrementBadgeCurrentNftIdById(
+            collection.id
+          );
+        if (!badgeCurrentNftId)
+          throw new CustomError("Badge current nft id not found.", 400);
+        const nftId = badgeCurrentNftId?.toString();
+
+        collectible = await collectibleRepository.create(db, {
+          name: `${collection.name} #${nftId}`,
+          collectionId: collection.id,
+          nftId,
+          cid: collection.badgeCid,
+          fileKey: collection.logoKey
+        });
+        launchItem = await launchItemRepository.createOnHoldLaunchItem(
+          {
+            launchId: launch.id,
+            collectibleId: collectible.id
+          },
+          user.id
+        );
+      }
+    } else {
+      if (!launchItem)
+        throw new CustomError(
+          "Please try again. No available launch item was found.",
+          400
+        );
+
+      await launchItemRepository.setShortHoldById(db, launchItem.id, user.id);
+    }
+
+    if (collectible) {
+      collectible = await collectibleRepository.getById(db, launchItem.id);
+      if (!collectible) throw new CustomError("Collectible not found.", 400);
+    }
     if (!collectible) throw new CustomError("Collectible not found.", 400);
 
     if (collection.type === "IPFS_FILE" && !collectible.cid) {
@@ -635,6 +682,9 @@ export const launchServices = {
       await collectibleRepository.update(db, collectible.id, { cid });
     }
 
+    //DG TODO: GENERATE TX HEX FROM COLLECTIBLE'S NFTID & CID, maybe mint price???
+    const unsignedTx = { value: 1, to: "" };
+
     // Execute database operations in transaction
     const result = await db.transaction().execute(async (trx) => {
       try {
@@ -649,27 +699,21 @@ export const launchServices = {
         throw error;
       }
 
-      // Get and set launch item on hold
-      const pickedLaunchItem = await launchItemRepository.setShortHoldById(
-        trx,
-        launchItem.id,
-        user.id
-      );
-
-      // Create order based on collection type
-      const orderData = await createOrder(trx, {
-        collection,
-        user,
-        externalData,
-        launchItem,
-        mintPrice,
+      const order = await orderRepository.create(trx, {
+        userId: user.id,
+        collectionId: collection.id,
         feeRate,
+        orderType: "LAUNCH_BUY",
+        fundingAmount: parseInt(unsignedTx.value.toString()),
+        fundingAddress: unsignedTx.to?.toString(),
+        privateKey: "evm",
         userLayerId
       });
 
       return {
         launchItem,
-        ...orderData
+        order: hideSensitiveData(order, ["privateKey"]),
+        singleMintTxHex: serializeBigInt(unsignedTx)
       };
     });
 
@@ -719,13 +763,27 @@ export const launchServices = {
       );
     if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
-    if (!launchItem) throw new CustomError("Launch item not found.", 400);
-    if (!launch) throw new CustomError("Launch not found.", 400);
+
+    // Launch and collection validations
     if (!collection) throw new CustomError("Collection not found.", 400);
-    if (collection.type === "SYNTHETIC" || collection.parentCollectionId)
+    if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
       throw new CustomError("You cannot buy the item of this collection.", 400);
+    if (
+      collection.type === "INSCRIPTION" ||
+      collection.type === "RECURSIVE_INSCRIPTION"
+    )
+      throw new CustomError(
+        "Wrapped NFTs are not supported at the moment.",
+        400
+      );
+    if (collection.isBadge && !collection.badgeCid)
+      throw new CustomError("No badge cid.", 400);
+
+    if (!launch) throw new CustomError("Launch not found.", 400);
     if (launch.status === "UNCONFIRMED")
       throw new CustomError("Unconfirmed launch.", 400);
+
+    if (!launchItem) throw new CustomError("Launch item not found.", 400);
 
     // Get mint price and validate phase
     const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
@@ -751,139 +809,84 @@ export const launchServices = {
     // Validate purchase limits inside transaction
     await validatePurchaseLimits(db, launch, user, currentUnixTimeStamp);
 
-    const [soldCount, longHoldCount, queueCount] = await Promise.all([
-      launchItemRepository.getSoldAndReservedItemCountByLaunchId(db, launch.id),
-      launchItemRepository.getLongHoldCountByLaunchIdAndUserId(
-        db,
-        launch.id,
-        user.id
-      ),
-      launchItemRepository.getLongHeldItemCountByLaunchId(db, launch.id)
-    ]);
-
-    if (Number(longHoldCount) >= 1) {
-      throw new CustomError(
-        "You already have an item in the minting queue.",
-        400
-      );
-    }
-
-    const SUPPLY = 5000;
-    if (Number(soldCount) + Number(queueCount) >= SUPPLY)
-      throw new CustomError(
-        "All items are queued at the moment, please try again in a moment.",
-        400
-      );
-
     const collectible = await collectibleRepository.getById(
       db,
       launchItem.collectibleId
     );
     if (!collectible) throw new CustomError("Collectible not found.", 400);
 
-    // // Handle blockchain operations first
-    // let mintData;
-    // if (
-    //   collection.type === "INSCRIPTION" ||
-    //   collection.type === "RECURSIVE_INSCRIPTION"
-    // ) {
-    //   mintData = await handleInscriptionMint({
-    //     collection,
-    //     launchItem,
-    //     user,
-    //     mintPrice,
-    //     verification
-    //   });
-    // } else if (
-    //   collection.type === "IPFS_CID" ||
-    //   collection.type === "IPFS_FILE"
-    // ) {
-    //   mintData = await handleIpfsMint({
-    //     collection,
-    //     launchItem,
-    //     user,
-    //     mintPrice,
-    //     verification
-    //   });
-    // } else {
-    //   throw new CustomError("Unsupported collection type.", 400);
-    // }
+    if (!verification)
+      throw new CustomError("You must provide verification.", 400);
+    const { txid, orderId } = verification;
+    if (!txid || !orderId)
+      throw new CustomError(
+        "You must provide mint txid and orderId for this operation.",
+        400
+      );
+    if (!collection.contractAddress)
+      throw new CustomError("Contract address must be provided", 400);
+
+    // DG TODO: VALIDATE TXID
+    const transactionDetail = await confirmationService.getTransactionDetails(
+      txid
+    );
+    if (transactionDetail.status !== 1)
+      throw new CustomError(
+        "Transaction not confirmed. Please try again.",
+        500
+      );
 
     // Execute database operations in transaction
     const result = await db.transaction().execute(async (trx) => {
-      // try {
-      //   await userRepository.acquireLockByUserLayerId(trx, userLayerId);
-      // } catch (error) {
-      //   if (error instanceof DatabaseError && error.code === "55P03") {
-      //     throw new CustomError(
-      //       "Previous request is currently being processed. Please try again in a moment.",
-      //       409
-      //     );
-      //   }
-      //   throw error;
-      // }
+      try {
+        await userRepository.acquireLockByUserLayerId(trx, userLayerId);
+      } catch (error) {
+        if (error instanceof DatabaseError && error.code === "55P03") {
+          throw new CustomError(
+            "Previous request is currently being processed. Please try again in a moment.",
+            409
+          );
+        }
+        throw error;
+      }
 
-      // Convert from short to long hold
-      const longHeldItem = await launchItemRepository.setLongHoldById(
+      await collectibleRepository.update(trx, collectible.id, {
+        status: "CONFIRMED",
+        mintingTxId: txid,
+        uniqueIdx: collection.contractAddress + "i" + collectible.nftId
+      });
+      await collectionRepository.incrementCollectionSupplyById(
+        trx,
+        collection.id
+      );
+      const soldLaunchItem = await launchItemRepository.update(
         trx,
         launchItem.id,
-        user.id
+        {
+          status: "SOLD"
+        }
       );
-
-      // // Update database records based on mint data
-      // await updateMintRecords(trx, {
-      //   collection,
-      //   launch,
-      //   user,
-      //   launchItem,
-      //   mintData,
-      //   verification
-      // });
-
-      // const message: SQSMessageBody = {
-      //   messageId: `mint-${randomUUID()}`,
-      //   mintRequest: {
-      //     userId: user.id,
-      //     userLayerId,
-      //     launchItemId,
-      //     collectibleId: launchItem.collectibleId,
-      //     collectionId: collection.id,
-      //     collectionType: "IPFS_CID",
-      //     collectionAddress: collection.contractAddress ?? "",
-      //     recipientAddress: user.address,
-      //     nftId: collectible.nftId,
-      //     mintPrice: mintPrice.toString(),
-      //     orderId: verification?.orderId ?? "",
-      //     uri: collectible.cid ?? "",
-      //     uniqueIdx: collection.contractAddress + "i" + collectible.nftId,
-      //     txid: verification?.txid
-      //   },
-      //   attemptCount: 0
-      // };
-      // const command = new SendMessageCommand({
-      //   QueueUrl: `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`,
-      //   MessageBody: JSON.stringify(message)
-      // });
-
-      // try {
-      //   await sqsClient.send(command);
-
-      //   logger.info(
-      //     `queued launchItem ${launchItem.id} to SQS with id of ${message.messageId}`
-      //   );
-      // } catch (error) {
-      //   throw new Error(`Failed to queue mint request: ${error}`);
-      // }
+      await purchaseRepository.create(trx, {
+        userId: user.id,
+        launchItemId: soldLaunchItem.id,
+        purchasedAddress: user.address
+      });
+      await orderRepository.update(trx, orderId, {
+        orderStatus: "DONE"
+      });
+      if (collection.status === "UNCONFIRMED") {
+        await collectionRepository.update(trx, collection.id, {
+          status: "CONFIRMED"
+        });
+      }
 
       return {
-        launchItem
-        // collectible: mintData.collectible
+        launchItem: soldLaunchItem
       };
     });
 
     return {
       launchItem: result.launchItem
-      // collectible: result.collectible
     };
   },
   createOrderForReservedLaunchItems: async (
@@ -1111,7 +1114,7 @@ const validatePurchaseLimits = async (
   }
 };
 
-const prepareInscriptionData = async (collection: any, feeRate?: number) => {
+/* const prepareInscriptionData = async (collection: any, feeRate?: number) => {
   if (!feeRate)
     throw new CustomError("You must provide fee rate for this operation.", 400);
 
@@ -1165,9 +1168,9 @@ const prepareIpfsData = async (
   );
 
   return { unsignedTx };
-};
+}; */
 
-const createOrder = async (trx: any, params: any) => {
+/* const createOrder = async (trx: any, params: any) => {
   const { collection, user, externalData, mintPrice, feeRate, userLayerId } =
     params;
 
@@ -1207,7 +1210,7 @@ const createOrder = async (trx: any, params: any) => {
       singleMintTxHex: serializeBigInt(externalData.unsignedTx)
     };
   }
-};
+}; */
 
 // const handleInscriptionMint = async (params: any) => {
 //   const { collection, launchItem, user, mintPrice, verification } = params;
@@ -1349,7 +1352,7 @@ const createOrder = async (trx: any, params: any) => {
 //   };
 // };
 
-export const updateMintRecords = async (trx: any, params: any) => {
+/* export const updateMintRecords = async (trx: any, params: any) => {
   const { collection, launch, user, launchItem, mintData, verification } =
     params;
 
@@ -1434,4 +1437,4 @@ const updateIpfsRecords = async (trx: any, mintData: any) => {
     cid: nftIpfsUrl,
     uniqueIdx: collection.contractAddress + "i" + collectible.nftId
   });
-};
+}; */

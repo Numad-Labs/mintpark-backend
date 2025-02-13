@@ -514,5 +514,19 @@ export const collectionRepository = {
       .execute();
 
     return result;
+  },
+  incrementBadgeCurrentNftIdById: async (id: string) => {
+    const collection = await db
+      .updateTable("Collection")
+      .set((eb) => ({
+        badgeCurrentNftId: eb("Collection.badgeCurrentNftId", "+", 1)
+      }))
+      .returning(["Collection.badgeCurrentNftId"])
+      .where("Collection.id", "=", id)
+      .executeTakeFirstOrThrow(
+        () => new Error("Could not increment badge current nft id.")
+      );
+
+    return collection;
   }
 };
