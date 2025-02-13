@@ -72,6 +72,7 @@ export type Collection = {
   isBadge: Generated<boolean>;
   badgeCid: string | null;
   badgeSupply: number | null;
+  badgeCurrentNftId: number | null;
   layerId: string;
   creatorId: string | null;
   creatorUserLayerId: string | null;
