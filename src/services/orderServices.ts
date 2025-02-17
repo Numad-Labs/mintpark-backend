@@ -1,5 +1,4 @@
 import { orderRepository } from "../repositories/orderRepostory";
-import { ORDER_TYPE } from "../types/db/enums";
 import { userRepository } from "../repositories/userRepository";
 import { layerRepository } from "../repositories/layerRepository";
 import { uploadToS3 } from "../utils/aws";
@@ -10,15 +9,10 @@ import { CustomError } from "../exceptions/CustomError";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { Insertable } from "kysely";
 import { Collectible, OrderItem } from "../types/db/types";
-import { collectibleRepository } from "../repositories/collectibleRepository";
 
 import { EVM_CONFIG } from "../blockchain/evm/evm-config";
-import MarketplaceService from "../blockchain/evm/services/marketplaceService";
 import { TransactionConfirmationService } from "../blockchain/evm/services/transactionConfirmationService";
-import { FILE_COUNT_LIMIT } from "../libs/constants";
-import { serializeBigInt } from "../blockchain/evm/utils";
 import { db } from "../utils/db";
-import { userLayerRepository } from "../repositories/userLayerRepository";
 import { layerServices } from "./layerServices";
 import { traitValueRepository } from "../repositories/traitValueRepository";
 import { getBalance, getEstimatedFee } from "../blockchain/bitcoin/libs";
@@ -29,18 +23,10 @@ import {
 } from "../blockchain/bitcoin/constants";
 // import { producer } from "..";
 import logger from "../config/winston";
-import LaunchpadService from "../blockchain/evm/services/launchpadService";
-// import LaunchpadService from "../../blockchain/evm/services/launchpadService";
 import { config } from "../config/config";
-
-const confirmationService = new TransactionConfirmationService(
-  EVM_CONFIG.RPC_URL!
-);
-
-const launchPadService = new LaunchpadService(
-  EVM_CONFIG.RPC_URL,
-  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
-);
+import { NFTActivityType } from "../blockchain/evm/evm-types";
+import NFTService from "../blockchain/evm/services/nftService";
+import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
 
 export interface nftMetaData {
   nftId: string | null;
@@ -241,9 +227,16 @@ export const orderServices = {
 
     if (user.layer === "CITREA" && user.network === "TESTNET") {
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
+      const layer = await layerRepository.getById(collection.layerId);
+      if (!layer || !layer.chainId)
+        throw new CustomError("Layer or chainid not found", 400);
+
+      const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+      const confirmationService = new TransactionConfirmationService(
+        chainConfig.RPC_URL
       );
+      const transactionDetail =
+        await confirmationService.getTransactionDetails(txid);
 
       if (transactionDetail.status !== 1) {
         throw new CustomError(
@@ -340,11 +333,17 @@ export const orderServices = {
       if (!collection.contractAddress) {
         throw new CustomError("Collection contractAddress not found.", 400);
       }
-      txHex = launchPadService.generateFeeTransferTransaction(
-        user.address,
-        collection.contractAddress,
-        funder.address
-      );
+      const layer = await layerRepository.getById(collection.layerId);
+      if (!layer || !layer.chainId)
+        throw new CustomError("Layer or chainid not found", 400);
+
+      const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+      const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
+      // txHex = nftService.generateFeeTransferTransaction(
+      //   user.address,
+      //   collection.contractAddress,
+      //   funder.address
+      // );
     }
     let totalAmount = networkFee * 1.5 + mintFee + serviceFee;
 

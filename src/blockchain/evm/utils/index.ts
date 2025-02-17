@@ -61,6 +61,30 @@ export function convertMulterToFileObject(
         multerFile.buffer.byteOffset,
         multerFile.buffer.byteOffset + multerFile.buffer.byteLength
       );
-    },
+    }
   };
+}
+
+export function generateSymbol(name: string): string {
+  // Remove special chars, keep alphanumeric
+  const cleanName = name.replace(/[^a-zA-Z0-9\s]/g, "");
+
+  // Try different approaches in order:
+  // 1. Initials if multiple words
+  const words = cleanName.split(/\s+/);
+  if (words.length > 1) {
+    const initials = words
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase();
+    if (initials.length >= 3) return initials;
+  }
+
+  // 2. First word if long enough
+  if (words[0].length >= 3) {
+    return words[0].slice(0, 6).toUpperCase();
+  }
+
+  // 3. Fallback with name + NFT
+  return `${words[0].toUpperCase()}NFT`;
 }

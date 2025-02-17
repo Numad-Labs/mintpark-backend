@@ -16,13 +16,13 @@ import { getObjectFromS3 } from "../utils/aws";
 import { sendRawTransaction } from "../blockchain/bitcoin/sendTransaction";
 import NFTService from "../blockchain/evm/services/nftService";
 import { EVM_CONFIG } from "../blockchain/evm/evm-config";
-import MarketplaceService from "../blockchain/evm/services/marketplaceService";
 import { getBalance } from "../blockchain/bitcoin/libs";
 import { bigint } from "hardhat/internal/core/params/argumentTypes";
+import { layerRepository } from "../repositories/layerRepository";
 
 export const orderIdSchema = z.string().uuid();
 
-const nftService = new NFTService(EVM_CONFIG.RPC_URL);
+// const nftService = new NFTService(EVM_CONFIG.RPC_URL);
 
 export async function processMessage(message: Message) {
   // console.log("message", message, new Date());
@@ -142,6 +142,11 @@ export async function processMessage(message: Message) {
     const inscriptionId = revealTxResult + "i0";
     let mintTxId;
     // l2Collectible.
+    const layer = await layerRepository.getById(collection.layerId);
+    if (!layer || !layer.chainId)
+      throw new CustomError("Layer or chainid not found", 400);
+    const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+    const nftService = new NFTService(chainConfig.RPC_URL);
     try {
       // Mint the NFT with the inscription ID
       mintTxId = await nftService.mintWithInscriptionId(

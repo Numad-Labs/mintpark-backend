@@ -16,6 +16,7 @@ import type {
   LAUNCH_ITEM_STATUS,
   LIST_STATUS,
   LAYER,
+  LAYER_TYPE,
   NETWORK,
   ROLES
 } from "./enums";
@@ -71,6 +72,7 @@ export type Collection = {
   isBadge: Generated<boolean>;
   badgeCid: string | null;
   badgeSupply: number | null;
+  badgeCurrentNftId: number | null;
   layerId: string;
   creatorId: string | null;
   creatorUserLayerId: string | null;
@@ -121,6 +123,8 @@ export type Layer = {
   name: string;
   layer: Generated<LAYER>;
   network: Generated<NETWORK>;
+  chainId: string | null;
+  layerType: LAYER_TYPE | null;
   currencyId: string;
 };
 export type List = {

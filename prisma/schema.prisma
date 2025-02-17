@@ -29,10 +29,11 @@ model User {
 }
 
 model UserLayer {
-  id            String    @id @default(dbgenerated("gen_random_uuid()"))
-  address       String
-  pubkey        String?
-  xpub          String?
+  id      String  @id @default(dbgenerated("gen_random_uuid()"))
+  address String
+  pubkey  String?
+  xpub    String?
+
   createdAt     DateTime  @default(now())
   isActive      Boolean   @default(true)
   deactivatedAt DateTime?
@@ -59,10 +60,13 @@ model Currency {
 }
 
 model Layer {
-  id         String       @id @default(dbgenerated("gen_random_uuid()"))
-  name       String
-  layer      LAYER        @default(CITREA)
-  network    NETWORK      @default(TESTNET)
+  id      String  @id @default(dbgenerated("gen_random_uuid()"))
+  name    String
+  layer   LAYER   @default(CITREA)
+  network NETWORK @default(TESTNET)
+  chainId String?
+
+  layerType  LAYER_TYPE?
   currencyId String
   currency   Currency     @relation(fields: [currencyId], references: [id])
   Collection Collection[]
@@ -133,9 +137,10 @@ model Collection {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime?
 
-  isBadge     Boolean @default(false)
-  badgeCid    String?
-  badgeSupply Int?
+  isBadge           Boolean @default(false)
+  badgeCid          String?
+  badgeSupply       Int?
+  badgeCurrentNftId Int?
 
   layerId            String
   layer              Layer       @relation(fields: [layerId], references: [id])
@@ -390,6 +395,14 @@ enum LAYER {
   BITCOIN
   FRACTAL
   CITREA
+  HEMI
+  SEPOLIA
+  POLYGON_ZK
+}
+
+enum LAYER_TYPE {
+  EVM
+  UTXO
 }
 
 enum NETWORK {

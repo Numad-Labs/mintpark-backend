@@ -8,7 +8,6 @@ import NFTService from "../blockchain/evm/services/nftService";
 import { EVM_CONFIG } from "../blockchain/evm/evm-config";
 import { SQSMessageBody } from "./types";
 import { CustomError } from "../exceptions/CustomError";
-import { updateMintRecords } from "../services/launchServices";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { purchaseRepository } from "../repositories/purchaseRepository";
 import { userRepository } from "../repositories/userRepository";
@@ -216,17 +215,17 @@ export class QueueProcessor {
 
       //DB state update
       await db.transaction().execute(async (trx) => {
-        await collectionRepository.incrementCollectionSupplyById(
-          trx,
-          body.collectionId
-        );
+        const collection =
+          await collectionRepository.incrementCollectionSupplyById(
+            trx,
+            body.collectionId
+          );
 
-        //TODO: MIGHT ENABLE LATER
-        // if (collection.status === "UNCONFIRMED") {
-        //   await collectionRepository.update(trx, collection.id, {
-        //     status: "CONFIRMED"
-        //   });
-        // }
+        if (collection.status === "UNCONFIRMED") {
+          await collectionRepository.update(trx, collection.id, {
+            status: "CONFIRMED"
+          });
+        }
 
         await collectibleRepository.update(trx, body.collectibleId, {
           status: "CONFIRMED",
@@ -324,7 +323,13 @@ export class QueueProcessor {
   }
 
   private async processCollectionMint(mintRequest: any) {
-    const nftService = new NFTService(EVM_CONFIG.RPC_URL);
+    const userLayer = await userRepository.getByUserLayerId(
+      mintRequest.userLayerId
+    );
+    if (!userLayer?.chainId)
+      throw new Error("Couldn't find user layer chainid");
+    const chainConfig = EVM_CONFIG.CHAINS[userLayer.chainId];
+    const nftService = new NFTService(chainConfig.RPC_URL);
 
     switch (mintRequest.collectionType) {
       case "IPFS_CID":

@@ -503,14 +503,30 @@ export const collectionRepository = {
   ) => {
     const result = await db
       .selectFrom("Collection")
+      .innerJoin("Layer", "Layer.id", "Collection.layerId")
       .selectAll()
       .where("Collection.type", "in", ["IPFS_CID", "IPFS_FILE", "SYNTHETIC"])
       .where("Collection.status", "=", "CONFIRMED")
+
       .offset(offset)
       .limit(pagination)
       .orderBy("createdAt asc")
       .execute();
 
     return result;
+  },
+  incrementBadgeCurrentNftIdById: async (id: string) => {
+    const collection = await db
+      .updateTable("Collection")
+      .set((eb) => ({
+        badgeCurrentNftId: eb("Collection.badgeCurrentNftId", "+", 1)
+      }))
+      .returning(["Collection.badgeCurrentNftId"])
+      .where("Collection.id", "=", id)
+      .executeTakeFirstOrThrow(
+        () => new Error("Could not increment badge current nft id.")
+      );
+
+    return collection;
   }
 };

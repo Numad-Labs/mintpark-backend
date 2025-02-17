@@ -2,7 +2,6 @@ import { NextFunction, Request, Response } from "express";
 import { AuthenticatedRequest } from "../../custom";
 import { CustomError } from "../exceptions/CustomError";
 import { listServices } from "../services/listServices";
-import TradingService from "../blockchain/evm/services/tradingService";
 import { EVM_CONFIG } from "../blockchain/evm/evm-config";
 import MarketplaceService from "../blockchain/evm/services/marketplaceService";
 import { userRepository } from "../repositories/userRepository";
@@ -10,37 +9,18 @@ import { serializeBigInt } from "../blockchain/evm/utils";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { db } from "../utils/db";
 import { MAX_SATOSHI_AMOUNT } from "../blockchain/bitcoin/constants";
-const tradingService = new TradingService(
-  EVM_CONFIG.RPC_URL,
-  EVM_CONFIG.MARKETPLACE_ADDRESS,
-  new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
-);
+import { layerRepository } from "../repositories/layerRepository";
+// const tradingService = new TradingService(
+//   EVM_CONFIG.RPC_URL,
+//   EVM_CONFIG.MARKETPLACE_ADDRESS,
+//   new MarketplaceService(EVM_CONFIG.MARKETPLACE_ADDRESS)
+// );
 
-const marketplaceService = new MarketplaceService(
-  EVM_CONFIG.MARKETPLACE_ADDRESS
-);
+// const marketplaceService = new MarketplaceService(
+//   EVM_CONFIG.MARKETPLACE_ADDRESS
+// );
 
 export const listController = {
-  createMarketplaceContractDeployment: async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      const { initialOwner, marketplaceFee } = req.body;
-      const unsignedTx =
-        await marketplaceService.getUnsignedDeploymentTransaction(
-          initialOwner,
-          marketplaceFee
-        );
-
-      // Serialize BigInt values before sending the response
-      const serializedTx = serializeBigInt(unsignedTx);
-      res.json({ success: true, unsignedTransaction: serializedTx });
-    } catch (e) {
-      next(e);
-    }
-  },
   generateApprovelTransactionOfTrading: async (
     req: AuthenticatedRequest,
     res: Response,
@@ -66,8 +46,16 @@ export const listController = {
       if (!collection || !collection.contractAddress)
         throw new CustomError("Please provide a valid collection.", 400);
 
+      if (!user.chainId)
+        throw new CustomError("User's chainId not found.", 400);
+
+      const chainConfig = EVM_CONFIG.CHAINS[user.chainId];
+      const tradingService = new MarketplaceService(
+        chainConfig.MARKETPLACE_ADDRESS,
+        chainConfig.RPC_URL
+      );
+
       const unsignedTx = await tradingService.getUnsignedApprovalTransaction(
-        collection.contractAddress,
         user?.address
       );
       const serializedTx = serializeBigInt(unsignedTx);

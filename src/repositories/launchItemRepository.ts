@@ -16,6 +16,24 @@ export const launchItemRepository = {
 
     return launchItem;
   },
+  createOnHoldLaunchItem: async (
+    data: Insertable<LaunchItem>,
+    userId: string
+  ) => {
+    const launchItem = await db
+      .insertInto("LaunchItem")
+      .values({
+        ...data,
+        onHoldUntil: sql`NOW() + INTERVAL '1 minute'`,
+        onHoldBy: userId
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow(
+        () => new Error("Couldnt create the launch item.")
+      );
+
+    return launchItem;
+  },
   update: async (
     db: Kysely<DB> | Transaction<DB>,
     id: string,
@@ -77,9 +95,7 @@ export const launchItemRepository = {
       )
       .orderBy(sql`RANDOM()`)
       .limit(1)
-      .executeTakeFirstOrThrow(
-        () => new Error("Please try again. No available launch item was found.")
-      );
+      .executeTakeFirst();
 
     return launchItem;
   },
@@ -110,58 +126,6 @@ export const launchItemRepository = {
 
     return launchItem;
   },
-
-  // Convert short hold to long hold (24 hours)
-  setLongHoldById: async (
-    db: Kysely<DB> | Transaction<DB>,
-    id: string,
-    buyerId: string
-  ) => {
-    const launchItem = await db
-      .updateTable("LaunchItem")
-      .set({
-        onHoldUntil: sql`NOW() + INTERVAL '24 hours'`
-      })
-      .returningAll()
-      .where("LaunchItem.id", "=", id)
-      .where("LaunchItem.status", "=", "ACTIVE")
-      .where("LaunchItem.onHoldBy", "=", buyerId)
-      // Only allow conversion from short hold to long hold
-      .where(sql`${sql.ref("onHoldUntil")} > NOW()`.$castTo<boolean>())
-      .where(
-        sql`${sql.ref(
-          "onHoldUntil"
-        )} <= NOW() + INTERVAL '2 minutes'`.$castTo<boolean>()
-      )
-      .executeTakeFirstOrThrow(
-        () =>
-          new Error(
-            "Could not set long-term hold. Item may no longer be available or not in short hold."
-          )
-      );
-
-    return launchItem;
-  },
-
-  getLongHeldItemCountByLaunchId: async (
-    db: Kysely<DB> | Transaction<DB>,
-    launchId: string
-  ) => {
-    const result = await db
-      .selectFrom("LaunchItem")
-      .select((eb) => [eb.fn.countAll().$castTo<number>().as("count")])
-      .where("LaunchItem.launchId", "=", launchId)
-      .where("LaunchItem.status", "=", "ACTIVE")
-      .where((eb) =>
-        sql`${eb.ref(
-          "onHoldUntil"
-        )} > NOW() + INTERVAL '2 minutes'`.$castTo<boolean>()
-      )
-      .executeTakeFirst();
-
-    return result?.count || 0;
-  },
-
   // Get item's current hold status
   getOnHoldById: async (db: Kysely<DB> | Transaction<DB>, id: string) => {
     const launchItem = await db

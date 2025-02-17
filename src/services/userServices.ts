@@ -32,7 +32,7 @@ export const userServices = {
 
     const message = await generateMessage(address, nonce);
 
-    if (layer.layer === "CITREA" && layer.network === "TESTNET") {
+    if (layer.layerType === "EVM") {
       const isValid = await citreaVerifySignedMessage(
         message,
         signedMessage,
@@ -56,6 +56,13 @@ export const userServices = {
         pubkey,
         message,
         signedMessage
+      );
+      if (!isValid) throw new CustomError("Invalid signature.", 400);
+    } else if (layer.layer === "HEMI" && layer.network === "TESTNET") {
+      const isValid = await citreaVerifySignedMessage(
+        message,
+        signedMessage,
+        address
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     } else throw new CustomError("Unsupported layer.", 400);
