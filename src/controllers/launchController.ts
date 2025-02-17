@@ -21,7 +21,6 @@ export const launchController = {
       if (!req.user?.id)
         throw new CustomError("Cannot parse user from token", 401);
 
-      console.log("🚀 ~ req.body.data:", req.body.data);
       const parsedData = JSON.parse(req.body.data);
       const data: Insertable<Launch> = { ...parsedData };
       const { txid, totalFileSize, totalTraitCount, feeRate } = req.body;
@@ -117,8 +116,8 @@ export const launchController = {
       const data: recursiveInscriptionParams[] = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data
-        ? [req.body.data]
-        : [];
+          ? [req.body.data]
+          : [];
       if (data.length === 0)
         throw new CustomError("Please provide the data.", 400);
       if (data.length > 10)
@@ -182,8 +181,8 @@ export const launchController = {
       const data: ipfsData = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data
-        ? [req.body.data]
-        : [];
+          ? [req.body.data]
+          : [];
       // if (data.length === 0)
       //   throw new CustomError("Please provide the data.", 400);
       // if (data.length > 10)
@@ -265,9 +264,8 @@ export const launchController = {
         interval: interval as "all" | "live" | "past"
       };
 
-      const launches = await launchRepository.getConfirmedLaunchesByLayerId(
-        query
-      );
+      const launches =
+        await launchRepository.getConfirmedLaunchesByLayerId(query);
 
       return res.status(200).json({ success: true, data: launches });
     } catch (e) {
@@ -283,9 +281,8 @@ export const launchController = {
       const { collectionId } = req.params;
 
       try {
-        const launch = await launchRepository.getConfirmedLaunchById(
-          collectionId
-        );
+        const launch =
+          await launchRepository.getConfirmedLaunchById(collectionId);
         if (!launch) throw new CustomError("Collection not found", 404);
 
         return res.status(200).json({ success: true, data: launch });

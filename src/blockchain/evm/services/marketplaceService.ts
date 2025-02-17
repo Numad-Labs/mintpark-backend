@@ -80,7 +80,6 @@ class MarketplaceService {
         approvalTx,
         from
       );
-
       return {
         isApproved: false,
         transaction: preparedApprovalTx

@@ -8,8 +8,6 @@ import { BaseNFTService } from "./baseNFTService";
 export class DirectMintNFTService extends BaseNFTService {
   private readonly DOMAIN_NAME = "UnifiedNFT";
   private readonly DOMAIN_VERSION = "1";
-  private readonly MINT_TYPEHASH =
-    "MintRequest(address minter,uint256 tokenId,string uri,uint256 price,uint256 nonce,uint256 deadline)";
   async getUnsignedDeploymentTransaction(
     initialOwner: string,
     contractName: string,
@@ -21,6 +19,14 @@ export class DirectMintNFTService extends BaseNFTService {
       EVM_CONFIG.DIRECT_MINT_NFT_ABI,
       EVM_CONFIG.DIRECT_MINT_NFT_BYTECODE,
       this.provider
+    );
+    console.log(
+      initialOwner,
+      contractName,
+      symbol,
+      royaltyFee,
+      platformFee,
+      "params"
     );
 
     const unsignedTx = await factory.getDeployTransaction(
@@ -38,7 +44,7 @@ export class DirectMintNFTService extends BaseNFTService {
   async generateMintSignature(
     collectionAddress: string,
     minter: string,
-    tokenId: number,
+    tokenId: string,
     uri: string,
     price: string,
     deadline: number,
@@ -71,6 +77,14 @@ export class DirectMintNFTService extends BaseNFTService {
           { name: "deadline", type: "uint256" }
         ]
       };
+      console.log("Signature Generation Parameters:", {
+        minter,
+        tokenId,
+        uri,
+        price: ethers.parseEther(price).toString(),
+        nonce,
+        deadline
+      });
 
       const value = {
         minter: minter,
@@ -83,6 +97,7 @@ export class DirectMintNFTService extends BaseNFTService {
 
       const backendWallet = new ethers.Wallet(backendPrivateKey, this.provider);
       const signature = await backendWallet.signTypedData(domain, types, value);
+      console.log("Generated Signature:", signature);
 
       return signature;
     } catch (error) {
@@ -92,7 +107,7 @@ export class DirectMintNFTService extends BaseNFTService {
 
   async getUnsignedMintTransaction(
     collectionAddress: string,
-    tokenId: number,
+    tokenId: string,
     uri: string,
     price: string,
     deadline: number,
@@ -100,6 +115,29 @@ export class DirectMintNFTService extends BaseNFTService {
     from: string
   ): Promise<ethers.TransactionRequest> {
     try {
+      console.log("Mint Request Parameters:");
+      console.log("Minter:", from);
+      console.log("TokenId:", tokenId);
+      console.log("Price:", price);
+      console.log("Deadline:", deadline);
+      console.log("collectionAddress", collectionAddress);
+
+      const { chainId } = await this.provider.getNetwork();
+
+      await this.verifySignature(
+        collectionAddress,
+        signature,
+        BigInt(chainId),
+        {
+          minter: from,
+          tokenId,
+          uri,
+          price: price.toString(),
+          deadline
+        }
+      );
+      // console.log("Nonce:", nonces[msg.sender]);
+
       const contract = new ethers.Contract(
         collectionAddress,
         EVM_CONFIG.DIRECT_MINT_NFT_ABI,
@@ -118,6 +156,71 @@ export class DirectMintNFTService extends BaseNFTService {
     } catch (error) {
       throw new CustomError(`Failed to create mint transaction: ${error}`, 500);
     }
+  }
+
+  async verifySignature(
+    collectionAddress: string,
+    signature: string,
+    chainId: bigint,
+    params: {
+      minter: string;
+      tokenId: string;
+      uri: string;
+      price: string;
+      deadline: number;
+    }
+  ) {
+    const contract = new ethers.Contract(
+      collectionAddress,
+      EVM_CONFIG.DIRECT_MINT_NFT_ABI,
+      this.provider
+    );
+
+    // Get domain separator from contract
+    const domainSeparator = await contract.getDomainSeparator();
+    console.log("Contract Domain Separator:", domainSeparator);
+
+    // Get nonce from contract
+    const nonce = await contract.getNonce(params.minter);
+    console.log("Contract Nonce:", nonce);
+
+    // Reconstruct message
+    const reconstructedMessage = {
+      minter: params.minter,
+      tokenId: params.tokenId,
+      uri: params.uri,
+      price: ethers.parseEther(params.price),
+      nonce,
+      deadline: params.deadline
+    };
+    console.log("Reconstructed Message:", reconstructedMessage);
+    const types = {
+      MintRequest: [
+        { name: "minter", type: "address" },
+        { name: "tokenId", type: "uint256" },
+        { name: "uri", type: "string" },
+        { name: "price", type: "uint256" },
+        { name: "nonce", type: "uint256" },
+        { name: "deadline", type: "uint256" }
+      ]
+    };
+
+    const domain = {
+      name: this.DOMAIN_NAME,
+      version: this.DOMAIN_VERSION,
+      chainId: Number(chainId),
+      verifyingContract: collectionAddress
+    };
+
+    // Verify locally
+    const recoveredAddress = ethers.verifyTypedData(
+      domain,
+      types,
+      reconstructedMessage,
+      signature
+    );
+    console.log("Locally Recovered Address:", recoveredAddress);
+    console.log("Expected Signer:", config.VAULT_ADDRESS);
   }
 
   // Phase Management Methods
@@ -146,15 +249,14 @@ export class DirectMintNFTService extends BaseNFTService {
 
   async getUnsignedSetPhaseTransaction(
     collectionAddress: string,
-    phaseType: number,
+    phaseType: bigint,
     price: string,
     startTime: number,
     endTime: number,
     maxSupply: number,
     maxPerWallet: number,
     merkleRoot: string,
-    from: string,
-    chainId: string
+    from: string
   ): Promise<ethers.TransactionRequest> {
     try {
       const contract = new ethers.Contract(

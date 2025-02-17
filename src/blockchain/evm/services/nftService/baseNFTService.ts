@@ -20,61 +20,120 @@ export class BaseNFTService {
   }
 
   // Common methods like IPFS uploads, transaction preparation etc
-  async prepareUnsignedTransaction(
+  protected async prepareUnsignedTransaction(
     unsignedTx: ethers.ContractTransaction | ethers.ContractDeployTransaction,
     from: string
   ) {
     const { chainId } = await this.provider.getNetwork();
     const chainConfig = EVM_CONFIG.CHAINS[chainId.toString()];
 
+    if (!chainConfig) {
+      throw new Error(`Chain configuration not found for chainId: ${chainId}`);
+    }
+
     const estimatedGas = await this.provider.estimateGas({
       ...unsignedTx,
       from: from
     });
 
-    // Base transaction fields
+    // Add 20% buffer to estimated gas
+    const gasLimit = (estimatedGas * BigInt(120)) / BigInt(100);
+
     const baseTx: Partial<ethers.TransactionRequest> = {
       from: from,
       data: unsignedTx.data,
       value: unsignedTx.value || "0x0",
-      gasLimit: estimatedGas,
+
+      gasLimit: gasLimit,
       nonce: await this.provider.getTransactionCount(from),
       chainId: chainId
     };
 
-    // Get fee data for both legacy and EIP-1559 transactions
-    const feeData = await this.provider.getFeeData();
-    const multiplier = chainConfig?.gasPriceMultiplier || 1;
+    // Add 'to' address only if it's a ContractTransaction
+    if ("to" in unsignedTx && unsignedTx.to) {
+      baseTx.to = unsignedTx.to;
+    }
 
-    // Handle chain-specific gas pricing
-    if (chainConfig?.useLegacyGas) {
-      // Legacy transaction (e.g., for some L2s)
-      // Use gasPrice from feeData for legacy transactions
+    const feeData = await this.provider.getFeeData();
+    const multiplier = chainConfig.gasPriceMultiplier || 1;
+
+    if (chainConfig.useLegacyGas) {
+      // Legacy transaction (type 0)
       if (!feeData.gasPrice) {
         throw new Error("Unable to get gas price for legacy transaction");
       }
 
-      return {
-        ...baseTx,
-        gasPrice:
-          (feeData.gasPrice * BigInt(Math.floor(multiplier * 100))) /
-          BigInt(100),
-        type: 0
-      };
-    } else {
-      // EIP-1559 transaction
-      if (!feeData.maxFeePerGas || !feeData.maxPriorityFeePerGas) {
-        throw new Error("Unable to get EIP-1559 fee data");
+      // For Hemi chain, adjust gas price with multiplier
+      let adjustedGasPrice = feeData.gasPrice;
+      if (multiplier !== 1) {
+        adjustedGasPrice =
+          (adjustedGasPrice * BigInt(Math.floor(multiplier * 100))) /
+          BigInt(100);
       }
 
       return {
         ...baseTx,
-        maxFeePerGas:
-          (feeData.maxFeePerGas * BigInt(Math.floor(multiplier * 100))) /
-          BigInt(100),
+        gasPrice: adjustedGasPrice,
+        type: 0
+      };
+    } else {
+      // EIP-1559 transaction (type 2)
+      if (!feeData.maxFeePerGas || !feeData.maxPriorityFeePerGas) {
+        // Fallback to legacy gas price if EIP-1559 fees are not available
+        if (feeData.gasPrice) {
+          return {
+            ...baseTx,
+            gasPrice: feeData.gasPrice,
+            type: 0
+          };
+        }
+        throw new Error("Unable to get fee data");
+      }
+
+      let adjustedMaxFeePerGas = feeData.maxFeePerGas;
+      if (multiplier !== 1) {
+        adjustedMaxFeePerGas =
+          (adjustedMaxFeePerGas * BigInt(Math.floor(multiplier * 100))) /
+          BigInt(100);
+      }
+
+      return {
+        ...baseTx,
+        maxFeePerGas: adjustedMaxFeePerGas,
         maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
         type: 2
       };
+    }
+  }
+
+  async isNFTMinted(
+    collectionAddress: string,
+    tokenId: string
+  ): Promise<boolean> {
+    try {
+      const contract = new ethers.Contract(
+        collectionAddress,
+        EVM_CONFIG.NFT_CONTRACT_ABI,
+        this.provider
+      );
+
+      // Try to get the owner of the token
+      // If the token doesn't exist (not minted), this will throw an error
+      const owner = await contract.ownerOf(tokenId);
+      console.log("🚀 ~ BaseNFTService ~ owner:", owner);
+
+      // If we get here, the token exists and is minted
+      return true;
+    } catch (error) {
+      // If the error is because the token doesn't exist, return false
+      // Otherwise, propagate the error
+      if (
+        error instanceof Error &&
+        error.message.includes("owner query for nonexistent token")
+      ) {
+        return false;
+      }
+      throw new CustomError(`Failed to check NFT minted status: ${error}`, 500);
     }
   }
 

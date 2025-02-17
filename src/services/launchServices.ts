@@ -49,6 +49,7 @@ import { config } from "../config/config";
 import { airdropRepository } from "../repositories/airdropRepository";
 import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
 import { VaultMintNFTService } from "../blockchain/evm/services/nftService/vaultNFTService";
+import { BaseNFTService } from "../blockchain/evm/services/nftService/baseNFTService";
 
 // // const nftService = new NFTService(EVM_CONFIG.RPC_URL);
 
@@ -139,9 +140,8 @@ export const launchServices = {
       const confirmationService = new TransactionConfirmationService(
         chainConfig.RPC_URL
       );
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
+      const transactionDetail =
+        await confirmationService.getTransactionDetails(txid);
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -175,10 +175,6 @@ export const launchServices = {
         const key = randomUUID();
         await uploadToS3(key, badge);
 
-        //DG TODO done: upload the file to IPFS & parse the CID
-        // const badgeCid = await nftService.uploadImage(badge)
-        // ;
-
         const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
         const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
 
@@ -202,9 +198,8 @@ export const launchServices = {
         chainConfig.RPC_URL
       );
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
+      const transactionDetail =
+        await confirmationService.getTransactionDetails(txid);
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -545,7 +540,6 @@ export const launchServices = {
     if (!user.chainId) throw new CustomError("User chain id not found.", 400);
     const chainConfig = EVM_CONFIG.CHAINS[user.chainId];
     const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
-    const fundingService = new FundingAddressService(chainConfig.RPC_URL);
 
     // Validate purchase limits inside transaction
     await validatePurchaseLimits(db, launch, user, currentUnixTimeStamp);
@@ -572,8 +566,21 @@ export const launchServices = {
     //INFINITE SUPPLY BADGE
     if (collection.isBadge && !collection.badgeSupply) {
       if (launchItem) {
-        //DG TODO
-        const isMinted = false;
+        collectible = await collectibleRepository.getById(
+          db,
+          launchItem.collectibleId
+        );
+        if (!collection.contractAddress)
+          throw new CustomError("Collection contract address not found.", 400);
+        if (!collectible) throw new CustomError("Collectible not found.", 400);
+
+        let isMinted = false;
+
+        const baseNFTService = new BaseNFTService(chainConfig.RPC_URL);
+        isMinted = await baseNFTService.isNFTMinted(
+          collection.contractAddress,
+          collectible.nftId
+        );
 
         if (isMinted) {
           //SYNCING MINTED COLLECTIBLE & LAUNCHITEM'S STATUS
@@ -663,11 +670,14 @@ export const launchServices = {
       await launchItemRepository.setShortHoldById(db, launchItem.id, user.id);
     }
 
-    if (collectible) {
-      collectible = await collectibleRepository.getById(db, launchItem.id);
+    if (!collectible) {
+      collectible = await collectibleRepository.getById(
+        db,
+        launchItem.collectibleId
+      );
       if (!collectible) throw new CustomError("Collectible not found.", 400);
     }
-    if (!collectible) throw new CustomError("Collectible not found.", 400);
+    // if (!collectible) throw new CustomError("Collectible not found.", 400);
 
     if (collection.type === "IPFS_FILE" && !collectible.cid) {
       if (!collectible.fileKey)
@@ -683,7 +693,53 @@ export const launchServices = {
     }
 
     //DG TODO: GENERATE TX HEX FROM COLLECTIBLE'S NFTID & CID, maybe mint price???
-    const unsignedTx = { value: 1, to: "" };
+    // const unsignedTx = { value: 1, to: "" };
+
+    if (!collectible?.fileKey)
+      throw new CustomError("File key must be provided", 400);
+
+    const tokenId = collectible.nftId;
+    let nftIpfsUrl = collection.isBadge ? collection.badgeCid : collectible.cid; // Use badge CID if badge collection
+
+    if (!nftIpfsUrl) {
+      if (collection.type === "IPFS_FILE") {
+        nftIpfsUrl = await nftService.uploadS3FileToIpfs(
+          collectible.fileKey,
+          collectible.name || "Unnamed NFT"
+        );
+      } else {
+        throw new CustomError("File has not been uploaded to the ipfs.", 400);
+      }
+    }
+
+    if (!collection.contractAddress)
+      throw new CustomError("Collection contract address not found.", 400);
+    const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
+
+    const deadline = EVM_CONFIG.DEFAULT_SIGN_DEADLINE;
+    const chainId = chainConfig.CHAIN_ID.toString();
+    // Generate signature for direct minting
+    const signature = await directMintService.generateMintSignature(
+      collection.contractAddress,
+      user.address,
+      tokenId,
+      nftIpfsUrl,
+      mintPrice.toString(),
+      deadline,
+      chainId,
+      config.VAULT_PRIVATE_KEY
+    );
+
+    // Get unsigned mint transaction
+    const unsignedTx = await directMintService.getUnsignedMintTransaction(
+      collection.contractAddress,
+      tokenId,
+      nftIpfsUrl,
+      mintPrice.toString(),
+      deadline,
+      signature,
+      user.address
+    );
 
     // Execute database operations in transaction
     const result = await db.transaction().execute(async (trx) => {
@@ -704,7 +760,9 @@ export const launchServices = {
         collectionId: collection.id,
         feeRate,
         orderType: "LAUNCH_BUY",
-        fundingAmount: parseInt(unsignedTx.value.toString()),
+        fundingAmount: unsignedTx.value
+          ? parseInt(unsignedTx.value.toString())
+          : 0,
         fundingAddress: unsignedTx.to?.toString(),
         privateKey: "evm",
         userLayerId
@@ -826,10 +884,16 @@ export const launchServices = {
     if (!collection.contractAddress)
       throw new CustomError("Contract address must be provided", 400);
 
-    // DG TODO: VALIDATE TXID
-    const transactionDetail = await confirmationService.getTransactionDetails(
-      txid
+    const layer = await layerRepository.getById(collection.layerId);
+    if (!layer || !layer.chainId) throw new CustomError("Layer not found", 400);
+
+    const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+    const confirmationService = new TransactionConfirmationService(
+      chainConfig.RPC_URL
     );
+
+    const transactionDetail =
+      await confirmationService.getTransactionDetails(txid);
     if (transactionDetail.status !== 1)
       throw new CustomError(
         "Transaction not confirmed. Please try again.",

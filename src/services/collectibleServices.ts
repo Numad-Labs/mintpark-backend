@@ -42,11 +42,6 @@ const validateCid = (cid: string): boolean => {
   return cidv0Regex.test(cid) || cidv1Regex.test(cid);
 };
 
-// const evmCollectibleService = new EVMCollectibleService(EVM_CONFIG.RPC_URL!);
-// const confirmationService = new TransactionConfirmationService(
-//   EVM_CONFIG.RPC_URL!
-// );
-
 export const collectibleServices = {
   getListableCollectibles: async (
     userId: string,

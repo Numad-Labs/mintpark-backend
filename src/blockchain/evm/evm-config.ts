@@ -13,7 +13,7 @@ const DEFAULT_PUBLIC_MAX_MINT = 255;
 const DEFAULT_ROYALTY_FEE = 250; // 2.5%
 const DEFAULT_PLATFORM_FEE = 300; // 3%
 const MAX_FEE = 1000; // 10%
-const DEFAULT_SIGN_DEADLINE = 180;
+const DEFAULT_SIGN_DEADLINE = Math.floor(Date.now() / 1000) + 3600;
 
 export interface EVMChainConfig {
   RPC_URL: string;
@@ -49,7 +49,7 @@ export const EVM_CONFIG: EVMConfig = {
   DIRECT_MINT_NFT_BYTECODE,
   DEFAULT_SIGN_DEADLINE,
   CHAINS: {
-    CITREA_TESTNET: {
+    "5115": {
       RPC_URL: "https://rpc.testnet.citrea.xyz",
       CHAIN_ID: 5115,
       MARKETPLACE_ADDRESS: "0x3415be106ea2680deDD2A6F1BB6B93d1111F44dC",
@@ -82,7 +82,7 @@ export const EVM_CONFIG: EVMConfig = {
       // gasPriceMultiplier: 1.1
     },
     "743111": {
-      RPC_URL: "https://testnet.rpc.imeh.net/rpc",
+      RPC_URL: "https://testnet.rpc.hemi.network/rpc",
       CHAIN_ID: 743111,
       MARKETPLACE_ADDRESS: "0x07057191b12Ea36DF999512a409783a106DB1b7a",
       DEFAULT_PUBLIC_MAX_MINT,

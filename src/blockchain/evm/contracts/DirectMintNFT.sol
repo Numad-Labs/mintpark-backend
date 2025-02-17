@@ -41,7 +41,7 @@ contract LaunchNFT is
 
   bytes32 private constant MINT_TYPEHASH =
     keccak256(
-      "MintRequest(address minter,uint256 tokenId,string,string uri,uint256 price,uint256 nonce,uint256 deadline)"
+      "MintRequest(address minter,uint256 tokenId,string uri,uint256 price,uint256 nonce,uint256 deadline)"
     );
 
   mapping(address => uint256) public nonces;

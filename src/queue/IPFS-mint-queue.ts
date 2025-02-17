@@ -8,7 +8,6 @@ import NFTService from "../blockchain/evm/services/nftService";
 import { EVM_CONFIG } from "../blockchain/evm/evm-config";
 import { SQSMessageBody } from "./types";
 import { CustomError } from "../exceptions/CustomError";
-import { updateMintRecords } from "../services/launchServices";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { purchaseRepository } from "../repositories/purchaseRepository";
 import { userRepository } from "../repositories/userRepository";
