@@ -23,11 +23,11 @@ import { version } from "../package.json";
 // import { SQSConsumer } from "./queue/sqsConsumer";
 import { processMessage } from "./services/messageProcessingService";
 // import { SQSProducer } from "./queue/sqsProducer";
-import { CollectionOwnerCounterService } from "./cron";
-import { QueueProcessor } from "./queue/IPFS-mint-queue";
+// import { CollectionOwnerCounterService } from "./cron";
+// import { QueueProcessor } from "./queue/IPFS-mint-queue";
 import traitTypeRouter from "./routes/traitTypeRoutes";
 
-export const redis = new Redis(config.REDIS_CONNECTION_STRING);
+// export const redis = new Redis(config.REDIS_CONNECTION_STRING);
 
 const app = express();
 
@@ -95,7 +95,7 @@ async function cleanup() {
   logger.info("Received shutdown signal, cleaning up...");
   try {
     await db.destroy();
-    await redis.disconnect();
+    // await redis.disconnect();
     // queueProcessor.stop();
     // consumer.stop();
     // await collectionOwnerCounterService.stopHeartbeat();

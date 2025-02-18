@@ -3,7 +3,7 @@ import { collectibleControllers } from "../controllers/collectibleController";
 import { authenticateToken } from "../middlewares/authenticateToken";
 import { parseFiles } from "../middlewares/fileParser";
 import { authorize } from "../middlewares/authorize";
-import { collectibleslimiter } from "../middlewares/rateLimiter";
+// import { collectibleslimiter } from "../middlewares/rateLimiter";
 
 const collectibleRouter = Router();
 

@@ -3,7 +3,7 @@ import { authenticateToken } from "../middlewares/authenticateToken";
 import { launchController } from "../controllers/launchController";
 import { authorize } from "../middlewares/authorize";
 import { parseFiles } from "../middlewares/fileParser";
-import { launchRatelimiter } from "../middlewares/rateLimiter";
+// import { launchRatelimiter } from "../middlewares/rateLimiter";
 
 const launchRouter = Router();
 
@@ -49,13 +49,13 @@ launchRouter.post(
 launchRouter.post(
   "/:id/buy",
   authenticateToken,
-  launchRatelimiter,
+  // launchRatelimiter,
   launchController.buy
 );
 launchRouter.post(
   "/mint",
   authenticateToken,
-  launchRatelimiter,
+  // launchRatelimiter,
   launchController.mint
 );
 launchRouter.post(
