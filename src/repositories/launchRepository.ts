@@ -119,7 +119,9 @@ export const launchRepository = {
               SELECT COUNT(*)::integer
               FROM "LaunchItem"
               WHERE "LaunchItem"."launchId" = "Launch"."id"
-            ), 0)`.as("supply")
+            ), 0)`.as("supply"),
+        "parentCollection.badgeSupply",
+        "parentCollection.isBadge"
       ])
       .where((eb) =>
         eb.or([
@@ -230,7 +232,9 @@ export const launchRepository = {
         SELECT COUNT(*)::integer
         FROM "LaunchItem"
         WHERE "LaunchItem"."launchId" = "Launch"."id"
-      ), 0)`.as("supply")
+      ), 0)`.as("supply"),
+        "parentCollection.badgeSupply",
+        "parentCollection.isBadge"
       ])
       .where("parentCollection.id", "=", collectionId)
       .where("Launch.status", "=", "CONFIRMED")

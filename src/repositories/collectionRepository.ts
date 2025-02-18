@@ -320,7 +320,9 @@ export const collectionRepository = {
         "Collection.websiteUrl",
         "Collection.iconUrl",
         "Collection.inscriptionIcon",
-        "Collection.slug"
+        "Collection.slug",
+        "Collection.isBadge",
+        "Collection.badgeSupply"
       ])
       .where("Collection.layerId", "=", params.layerId)
       .where("Collection.status", "=", "CONFIRMED");
@@ -405,7 +407,9 @@ export const collectionRepository = {
         "Collection.websiteUrl",
         "Collection.iconUrl",
         "Collection.inscriptionIcon",
-        "Collection.slug"
+        "Collection.slug",
+        "Collection.isBadge",
+        "Collection.badgeSupply"
       ])
       .where("Collection.status", "=", "CONFIRMED")
       .where("Collection.id", "=", id)
