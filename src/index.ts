@@ -63,11 +63,11 @@ app.use("/api/v1/launchpad", launchRouter);
 app.use(notFound);
 app.use(errorHandler);
 
-export const queueProcessor = new QueueProcessor(
-  "eu-central-1",
-  `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`
-);
-queueProcessor.start();
+// export const queueProcessor = new QueueProcessor(
+//   "eu-central-1",
+//   `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`
+// );
+// queueProcessor.start();
 
 // const consumer = new SQSConsumer(
 //   "eu-central-1",
@@ -96,7 +96,7 @@ async function cleanup() {
   try {
     await db.destroy();
     await redis.disconnect();
-    queueProcessor.stop();
+    // queueProcessor.stop();
     // consumer.stop();
     // await collectionOwnerCounterService.stopHeartbeat();
 

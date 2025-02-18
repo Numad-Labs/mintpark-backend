@@ -5,3 +5,4 @@ node_modules
 dist/*
 .env.staging
 .env.production
+test_concurrency.sh

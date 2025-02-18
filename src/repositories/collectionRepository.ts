@@ -515,7 +515,10 @@ export const collectionRepository = {
 
     return result;
   },
-  incrementBadgeCurrentNftIdById: async (id: string) => {
+  incrementBadgeCurrentNftIdById: async (
+    db: Kysely<DB> | Transaction<DB>,
+    id: string
+  ) => {
     const collection = await db
       .updateTable("Collection")
       .set((eb) => ({

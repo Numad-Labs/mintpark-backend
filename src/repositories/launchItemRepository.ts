@@ -17,6 +17,7 @@ export const launchItemRepository = {
     return launchItem;
   },
   createOnHoldLaunchItem: async (
+    db: Kysely<DB> | Transaction<DB>,
     data: Insertable<LaunchItem>,
     userId: string
   ) => {
@@ -88,13 +89,11 @@ export const launchItemRepository = {
       .where((eb) =>
         eb.or([
           eb("LaunchItem.onHoldUntil", "is", null),
-          sql`${eb.ref(
-            "onHoldUntil"
-          )} < NOW() - INTERVAL '1 minute'`.$castTo<boolean>()
+          sql`${eb.ref("onHoldUntil")} < NOW()`.$castTo<boolean>()
         ])
       )
-      .orderBy(sql`RANDOM()`)
-      .limit(1)
+      // .orderBy(sql`RANDOM()`)
+      // .limit(1)
       .executeTakeFirst();
 
     return launchItem;
@@ -119,10 +118,10 @@ export const launchItemRepository = {
           sql`${eb.ref("onHoldUntil")} < NOW()`.$castTo<boolean>()
         ])
       )
-      .executeTakeFirstOrThrow(
-        () =>
-          new Error("Please try again. Could not set the launch item on hold.")
-      );
+      .executeTakeFirst
+      // () =>
+      //   new Error("Please try again. Could not set the launch item on hold.")
+      ();
 
     return launchItem;
   },

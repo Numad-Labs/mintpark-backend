@@ -129,7 +129,7 @@ export class BaseNFTService {
       // Otherwise, propagate the error
       if (
         error instanceof Error &&
-        error.message.includes("owner query for nonexistent token")
+        error.message.includes("ERC721NonexistentToken(uint256)")
       ) {
         return false;
       }
