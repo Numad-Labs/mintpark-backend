@@ -81,7 +81,7 @@ export const collectibleControllers = {
     }
   },
   getListableCollectiblesByCollectionId: async (
-    req: Request,
+    req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {
@@ -113,7 +113,8 @@ export const collectibleControllers = {
             limit,
             offset,
             query
-          }
+          },
+          req.user?.id
         );
 
       return res.status(200).json({

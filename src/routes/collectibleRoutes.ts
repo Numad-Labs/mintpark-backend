@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { collectibleControllers } from "../controllers/collectibleController";
-import { authenticateToken } from "../middlewares/authenticateToken";
+import {
+  authenticateToken,
+  optionalAuth
+} from "../middlewares/authenticateToken";
 import { parseFiles } from "../middlewares/fileParser";
 import { authorize } from "../middlewares/authorize";
 // import { collectibleslimiter } from "../middlewares/rateLimiter";
@@ -15,6 +18,7 @@ collectibleRouter.get(
 );
 collectibleRouter.get(
   "/:collectionId/collection/listable",
+  optionalAuth(),
   collectibleControllers.getListableCollectiblesByCollectionId
 );
 collectibleRouter.get("/:id", collectibleControllers.getCollectibleById);

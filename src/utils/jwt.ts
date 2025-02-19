@@ -3,7 +3,7 @@ import {
   verify,
   Secret,
   JsonWebTokenError,
-  TokenExpiredError,
+  TokenExpiredError
 } from "jsonwebtoken";
 import { config } from "../config/config";
 import jwt from "jsonwebtoken";
@@ -23,7 +23,7 @@ type JwtPayload = {
 
 export function generateAccessToken(payload: JwtPayload) {
   return sign({ id: payload.id, role: payload.role }, jwtAccessSecret, {
-    expiresIn: ACCESS_TOKEN_EXPIRATION_TIME,
+    expiresIn: ACCESS_TOKEN_EXPIRATION_TIME
   });
 }
 
@@ -55,12 +55,12 @@ export function verifyAccessToken(
       const payload = jwt.verify(token, jwtAccessSecret);
       resolve(payload as AuthenticatedUser);
     } catch (error) {
-      if (
-        error instanceof JsonWebTokenError ||
-        error instanceof TokenExpiredError
-      ) {
-        throw error;
-      }
+      // if (
+      //   error instanceof JsonWebTokenError ||
+      //   error instanceof TokenExpiredError
+      // ) {
+      //   throw error;
+      // }
       resolve(false);
     }
   });
@@ -68,7 +68,7 @@ export function verifyAccessToken(
 
 export function generateRefreshToken(payload: JwtPayload) {
   return sign({ id: payload.id, role: payload.role }, jwtRefreshSecret, {
-    expiresIn: REFRESH_TOKEN_EXPIRATION_TIME,
+    expiresIn: REFRESH_TOKEN_EXPIRATION_TIME
   });
 }
 
@@ -78,6 +78,6 @@ export function generateTokens(payload: JwtPayload) {
 
   return {
     accessToken,
-    refreshToken,
+    refreshToken
   };
 }

@@ -2,7 +2,7 @@ import { userRepository } from "../repositories/userRepository";
 import { CustomError } from "../exceptions/CustomError";
 import { generateMessage } from "../libs/generateMessage";
 import { generateNonce } from "../libs/generateNonce";
-// import { redis } from "..";
+import { redis } from "..";
 import { generateTokens } from "../utils/jwt";
 import { layerRepository } from "../repositories/layerRepository";
 import { verifySignedMessage as citreaVerifySignedMessage } from "../blockchain/evm/utils";
@@ -10,15 +10,12 @@ import { userLayerRepository } from "../repositories/userLayerRepository";
 import { verifyMessage as bitcoinVerifySignedMessage } from "@unisat/wallet-utils";
 import { isBitcoinTestnetAddress } from "../blockchain/bitcoin/libs";
 
-const nonceStore = new Map<string, { nonce: string; expiresAt: number }>();
-
 export const userServices = {
   generateMessageToSign: async (address: string) => {
     const nonce = generateNonce();
     const message = generateMessage(address, nonce);
 
-    // await redis.set(`nonce:${address}`, nonce, "EX", 30000);
-    nonceStore.set(address, { nonce, expiresAt: Date.now() + 30000 });
+    await redis.set(`nonce:${address}`, nonce, "EX", 30000);
 
     return message;
   },
@@ -28,16 +25,8 @@ export const userServices = {
     layerId: string,
     pubkey?: string
   ) => {
-    // const nonce = await redis.get(`nonce:${address}`);
-    // if (!nonce) throw new CustomError("No recorded nonce found.", 400);
-
-    const nonceEntry = nonceStore.get(address);
-    if (!nonceEntry || nonceEntry.expiresAt < Date.now()) {
-      nonceStore.delete(address);
-      throw new CustomError("No recorded nonce found.", 400);
-    }
-
-    const nonce = nonceEntry.nonce;
+    const nonce = await redis.get(`nonce:${address}`);
+    if (!nonce) throw new CustomError("No recorded nonce found.", 400);
 
     const layer = await layerRepository.getById(layerId);
     if (!layer) throw new CustomError("Layer not found.", 400);
@@ -98,7 +87,7 @@ export const userServices = {
     const user = await userRepository.getById(isExistingUserLayer.userId);
     if (!user) throw new CustomError("User not found.", 400);
 
-    nonceStore.delete(address);
+    await redis.del(`nonce:${address}`);
 
     const tokens = generateTokens(user);
     return { user, userLayer: isExistingUserLayer, tokens };
@@ -113,16 +102,8 @@ export const userServices = {
     const user = await userRepository.getById(userId);
     if (!user) throw new CustomError("User not found.", 400);
 
-    // const nonce = await redis.get(`nonce:${address}`);
-    // if (!nonce) throw new CustomError("No recorded nonce found.", 400);
-
-    const nonceEntry = nonceStore.get(address);
-    if (!nonceEntry || nonceEntry.expiresAt < Date.now()) {
-      nonceStore.delete(address);
-      throw new CustomError("No recorded nonce found.", 400);
-    }
-
-    const nonce = nonceEntry.nonce;
+    const nonce = await redis.get(`nonce:${address}`);
+    if (!nonce) throw new CustomError("No recorded nonce found.", 400);
 
     const layer = await layerRepository.getById(layerId);
     console.log("🚀 ~ layer:", layer);
@@ -180,7 +161,7 @@ export const userServices = {
       pubkey
     });
 
-    nonceStore.delete(address);
+    await redis.del(`nonce:${address}`);
 
     return { user, userLayer, hasAlreadyBeenLinkedToAnotherUser: false };
   },
@@ -194,15 +175,8 @@ export const userServices = {
     const user = await userRepository.getById(userId);
     if (!user) throw new CustomError("User not found.", 400);
 
-    // const nonce = await redis.get(`nonce:${address}`);
-    // if (!nonce) throw new CustomError("No recorded nonce found.", 400);
-    const nonceEntry = nonceStore.get(address);
-    if (!nonceEntry || nonceEntry.expiresAt < Date.now()) {
-      nonceStore.delete(address);
-      throw new CustomError("No recorded nonce found.", 400);
-    }
-
-    const nonce = nonceEntry.nonce;
+    const nonce = await redis.get(`nonce:${address}`);
+    if (!nonce) throw new CustomError("No recorded nonce found.", 400);
 
     const layer = await layerRepository.getById(layerId);
     if (!layer) throw new CustomError("Layer not found.", 400);
@@ -257,7 +231,7 @@ export const userServices = {
       pubkey
     });
 
-    nonceStore.delete(address);
+    await redis.del(`nonce:${address}`);
 
     return { user, userLayer };
   }

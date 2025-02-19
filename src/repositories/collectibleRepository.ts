@@ -224,7 +224,8 @@ export const collectibleRepository = {
   },
   getListableCollectiblesByCollectionId: async (
     collectionId: string,
-    params: CollectibleQueryParams
+    params: CollectibleQueryParams,
+    userId?: string
   ) => {
     let query = db
       .with("FloorPrices", (db) =>
@@ -275,7 +276,13 @@ export const collectibleRepository = {
           .as("floorDifference"),
         "CurrentList.address as ownedBy",
         "CurrentList.listedAt",
-        "CurrentList.id as listId"
+        "CurrentList.id as listId",
+        // Add isOwnListing boolean
+        userId
+          ? sql`(CASE WHEN "CurrentList"."sellerId" = ${userId} THEN true ELSE false END)::boolean`.as(
+              "isOwnListing"
+            )
+          : sql`false`.as("isOwnListing")
       ])
       .where("Collectible.status", "=", "CONFIRMED")
       .where("Collectible.collectionId", "=", collectionId);

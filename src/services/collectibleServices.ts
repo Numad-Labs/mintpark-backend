@@ -151,7 +151,8 @@ export const collectibleServices = {
   },
   getListableCollectiblesByCollectionId: async (
     collectionId: string,
-    params: CollectibleQueryParams
+    params: CollectibleQueryParams,
+    userId?: string
   ) => {
     let traitFilters: traitFilter[] = [];
     if (params.traits)
@@ -163,7 +164,8 @@ export const collectibleServices = {
       await Promise.all([
         collectibleRepository.getListableCollectiblesByCollectionId(
           collectionId,
-          params
+          params,
+          userId
         ),
         listRepository.getActiveListCountByCollectionid(collectionId),
         collectibleRepository.getConfirmedCollectiblesCountByCollectionId(
@@ -249,8 +251,9 @@ export const collectibleServices = {
         nftId: (startIndex + i).toString(),
         fileName: fileKeys[i].fileName
       });
-    const collectibles =
-      await collectibleRepository.bulkInsert(collectiblesData);
+    const collectibles = await collectibleRepository.bulkInsert(
+      collectiblesData
+    );
 
     return collectibles;
   },
@@ -332,10 +335,12 @@ export const collectibleServices = {
       }
     }
 
-    const collectibles =
-      await collectibleRepository.bulkInsert(collectiblesData);
-    const collectibleTraits =
-      await collectibleTraitRepository.bulkInsert(collectibleTraitData);
+    const collectibles = await collectibleRepository.bulkInsert(
+      collectiblesData
+    );
+    const collectibleTraits = await collectibleTraitRepository.bulkInsert(
+      collectibleTraitData
+    );
 
     return { collectibles, collectibleTraits };
   },
@@ -414,8 +419,9 @@ export const collectibleServices = {
         nftId: (startIndex + i).toString()
       });
     }
-    const collectibles =
-      await collectibleRepository.bulkInsert(collectiblesData);
+    const collectibles = await collectibleRepository.bulkInsert(
+      collectiblesData
+    );
 
     return collectibles;
   },
@@ -511,8 +517,9 @@ export const collectibleServices = {
         cid,
         fileKey
       });
-    const collectibles =
-      await collectibleRepository.bulkInsert(collectiblesData);
+    const collectibles = await collectibleRepository.bulkInsert(
+      collectiblesData
+    );
 
     return collectibles;
   }

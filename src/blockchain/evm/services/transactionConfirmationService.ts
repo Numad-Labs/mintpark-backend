@@ -1,6 +1,6 @@
 // transactionConfirmationService.ts
 import { ethers } from "ethers";
-// import { redis } from "../../..";
+import { redis } from "../../..";
 // import { redis } from "../../../src";
 interface TransactionStatus {
   status: "pending" | "confirmed" | "failed";
@@ -22,10 +22,10 @@ export class TransactionConfirmationService {
   async confirmTransaction(txHash: string): Promise<TransactionStatus> {
     try {
       // Check if we've already processed this transaction
-      // const cachedStatus = await redis.get(`tx:${txHash}`);
-      // if (cachedStatus) {
-      //   return JSON.parse(cachedStatus);
-      // }
+      const cachedStatus = await redis.get(`tx:${txHash}`);
+      if (cachedStatus) {
+        return JSON.parse(cachedStatus);
+      }
 
       // Get transaction receipt
       const receipt = await this.provider.getTransactionReceipt(txHash);
@@ -36,7 +36,7 @@ export class TransactionConfirmationService {
 
       if (!receipt) {
         const status: TransactionStatus = { status: "pending" };
-        // await redis.setex(`tx:${txHash}`, 3600, JSON.stringify(status)); // Cache for 1 hour
+        await redis.setex(`tx:${txHash}`, 3600, JSON.stringify(status)); // Cache for 1 hour
         return status;
       }
 
@@ -68,7 +68,7 @@ export class TransactionConfirmationService {
 
       // Cache the result
       const cacheTime = status.status === "confirmed" ? 86400 : 3600; // 24 hours for confirmed, 1 hour for others
-      // await redis.setex(`tx:${txHash}`, cacheTime, JSON.stringify(status));
+      await redis.setex(`tx:${txHash}`, cacheTime, JSON.stringify(status));
 
       return status;
     } catch (error) {
