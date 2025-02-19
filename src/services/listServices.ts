@@ -120,7 +120,7 @@ export const listServices = {
     );
 
     return await db.transaction().execute(async (trx) => {
-      if (collectible.layer === "CITREA") {
+      if (collectible.layerType === "EVM") {
         if (!collection || !collection.contractAddress)
           throw new CustomError("Contract address not found.", 400);
 
@@ -237,7 +237,7 @@ export const listServices = {
     );
 
     return await db.transaction().execute(async (trx) => {
-      if (list.layer === "CITREA") {
+      if (list.layerType === "EVM") {
         if (!txid) throw new CustomError("txid is missing", 400);
         const transactionDetail =
           await confirmationService.getTransactionDetails(txid);
@@ -323,7 +323,7 @@ export const listServices = {
     // if (buyer.address === seller.address)
     //   throw new CustomError("You cannot buy your own listing.", 400);
 
-    if (list.layer === "CITREA") {
+    if (list.layerType === "EVM") {
       const collectible = await collectibleRepository.getById(
         db,
         list.collectibleId
@@ -476,7 +476,7 @@ export const listServices = {
     );
 
     return await db.transaction().execute(async (trx) => {
-      if (list.layer === "CITREA") {
+      if (list.layerType === "EVM") {
         if (!txid) throw new CustomError("txid is missing", 400);
         const transactionDetail =
           await confirmationService.getTransactionDetails(txid);

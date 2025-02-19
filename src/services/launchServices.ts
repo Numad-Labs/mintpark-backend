@@ -40,7 +40,7 @@ import { orderItemRepository } from "../repositories/orderItemRepository";
 // import { producer, sqs } from "..";
 import { wlRepository } from "../repositories/wlRepository";
 import { FundingAddressService } from "../blockchain/evm/services/fundingAddress";
-import { ethers } from "ethers";
+import { ethers, toBeHex } from "ethers";
 import { DatabaseError } from "pg";
 import { SQSMessageBody } from "../queue/types";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
@@ -50,6 +50,7 @@ import { airdropRepository } from "../repositories/airdropRepository";
 import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
 import { VaultMintNFTService } from "../blockchain/evm/services/nftService/vaultNFTService";
 import { BaseNFTService } from "../blockchain/evm/services/nftService/baseNFTService";
+import { bigint } from "hardhat/internal/core/params/argumentTypes";
 
 // // const nftService = new NFTService(EVM_CONFIG.RPC_URL);
 
@@ -140,9 +141,8 @@ export const launchServices = {
       const confirmationService = new TransactionConfirmationService(
         chainConfig.RPC_URL
       );
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
+      const transactionDetail =
+        await confirmationService.getTransactionDetails(txid);
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -199,9 +199,8 @@ export const launchServices = {
         chainConfig.RPC_URL
       );
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
+      const transactionDetail =
+        await confirmationService.getTransactionDetails(txid);
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -660,24 +659,45 @@ export const launchServices = {
     if (!collection.contractAddress)
       throw new CustomError("Collection contract address not found.", 400);
     const deadline = EVM_CONFIG.DEFAULT_SIGN_DEADLINE;
-    const chainId = chainConfig.CHAIN_ID.toString();
-    const signature = await directMintService.generateMintSignature(
-      collection.contractAddress,
-      user.address,
-      tokenId,
-      nftIpfsUrl,
-      mintPrice.toString(),
-      deadline,
-      chainId,
-      config.VAULT_PRIVATE_KEY
+
+    const phaseInfo = await directMintService.getActivePhase(
+      collection.contractAddress
     );
+    console.log("🚀 ~ phaseInfo:", phaseInfo);
+    console.log("date", new Date(parseInt(phaseInfo.endTime)));
+    if (phaseInfo.phaseType == BigInt(0))
+      throw new CustomError("Phase not active", 400);
+    // Generate signature for direct minting
+    // const signature = await directMintService.generateMintSignature(
+    //   collection.contractAddress,
+    //   user.address,
+    //   tokenId,
+    //   nftIpfsUrl,
+    //   mintPrice.toString(),
+    //   deadline,
+    //   config.VAULT_PRIVATE_KEY
+    // );
+
+    //DG TODO: endees ali phase gdgiig medeh
+    const { signature, uniqueId, timestamp } =
+      await directMintService.generateMintSignature(
+        collection.contractAddress,
+        user.address,
+        tokenId,
+        nftIpfsUrl,
+        mintPrice.toString(),
+        1 // insert current phase
+      );
+
     const unsignedTx = await directMintService.getUnsignedMintTransaction(
       collection.contractAddress,
       tokenId,
       nftIpfsUrl,
       mintPrice.toString(),
-      deadline,
+      uniqueId,
+      timestamp,
       signature,
+      [ethers.ZeroAddress], // zov uyd ni whitelist proof ogoh
       user.address
     );
 
@@ -853,9 +873,8 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
 
-    const transactionDetail = await confirmationService.getTransactionDetails(
-      txid
-    );
+    const transactionDetail =
+      await confirmationService.getTransactionDetails(txid);
     if (transactionDetail.status !== 1)
       throw new CustomError(
         "Transaction not confirmed. Please try again.",

@@ -61,7 +61,8 @@ export const collectibleRepository = {
         "Collectible.highResolutionImageUrl",
         "Layer.layer",
         "Layer.network",
-        "Layer.chainId"
+        "Layer.chainId",
+        "Layer.layerType"
       ])
       .where("Collectible.id", "=", id)
       .executeTakeFirst();
