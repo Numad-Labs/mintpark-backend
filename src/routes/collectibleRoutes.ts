@@ -21,7 +21,11 @@ collectibleRouter.get(
   optionalAuth(),
   collectibleControllers.getListableCollectiblesByCollectionId
 );
-collectibleRouter.get("/:id", collectibleControllers.getCollectibleById);
+collectibleRouter.get(
+  "/:id",
+  optionalAuth(),
+  collectibleControllers.getCollectibleById
+);
 collectibleRouter.get(
   "/:collectibleId/activity",
   collectibleControllers.getTokenActivity

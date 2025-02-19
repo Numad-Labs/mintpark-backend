@@ -581,61 +581,53 @@ export const launchServices = {
 
     let collectible: any;
     let isMinted = false;
-    if (isInfiniteBadge) {
-      if (launchItem) {
-        collectible = await collectibleRepository.getById(
-          db,
-          launchItem.collectibleId
-        );
-        if (!collectible) throw new CustomError("Collectible not found.", 400);
-        const baseNFTService = new BaseNFTService(chainConfig.RPC_URL);
-        isMinted = await baseNFTService.isNFTMinted(
-          collection.contractAddress,
-          collectible.nftId
-        );
-      } else {
-        // No launch item acquired: create new collectible & launch item.
-        const creationResult = await db.transaction().execute(async (trx) => {
-          const { badgeCurrentNftId } =
-            await collectionRepository.incrementBadgeCurrentNftIdById(
-              trx,
-              collection.id
-            );
-          if (!badgeCurrentNftId)
-            throw new CustomError("Badge current nft id not found.", 400);
-          const nftId = badgeCurrentNftId.toString();
-          const newCollectible = await collectibleRepository.create(trx, {
-            name: `${collection.name} #${nftId}`,
-            collectionId: collection.id,
-            nftId,
-            cid: collection.badgeCid,
-            fileKey: collection.logoKey
-          });
-          const newLaunchItem =
-            await launchItemRepository.createOnHoldLaunchItem(
-              trx,
-              { launchId: launch.id, collectibleId: newCollectible.id },
-              user.id
-            );
-          return { launchItem: newLaunchItem, collectible: newCollectible };
-        });
-        launchItem = creationResult.launchItem;
-        collectible = creationResult.collectible;
-        isMinted = false;
-      }
-    } else {
-      if (!launchItem)
-        throw new CustomError(
-          `Launch item not found for "non-infinite badge" collections.`,
-          400
-        );
 
-      // For non-infinite badge collections, fetch the collectible from the acquired item.
+    if (launchItem) {
       collectible = await collectibleRepository.getById(
         db,
         launchItem.collectibleId
       );
       if (!collectible) throw new CustomError("Collectible not found.", 400);
+      const baseNFTService = new BaseNFTService(chainConfig.RPC_URL);
+      isMinted = await baseNFTService.isNFTMinted(
+        collection.contractAddress,
+        collectible.nftId
+      );
+    }
+
+    if (isInfiniteBadge && !launchItem) {
+      // No launch item acquired: create new collectible & launch item.
+      const creationResult = await db.transaction().execute(async (trx) => {
+        const { badgeCurrentNftId } =
+          await collectionRepository.incrementBadgeCurrentNftIdById(
+            trx,
+            collection.id
+          );
+        if (!badgeCurrentNftId)
+          throw new CustomError("Badge current nft id not found.", 400);
+        const nftId = badgeCurrentNftId.toString();
+        const newCollectible = await collectibleRepository.create(trx, {
+          name: `${collection.name} #${nftId}`,
+          collectionId: collection.id,
+          nftId,
+          cid: collection.badgeCid,
+          fileKey: collection.logoKey
+        });
+        const newLaunchItem = await launchItemRepository.createOnHoldLaunchItem(
+          trx,
+          { launchId: launch.id, collectibleId: newCollectible.id },
+          user.id
+        );
+        return { launchItem: newLaunchItem, collectible: newCollectible };
+      });
+      launchItem = creationResult.launchItem;
+      collectible = creationResult.collectible;
+      isMinted = false;
+    } else if (!launchItem) {
+      throw new CustomError(
+        `Launch item not found for "non-infinite badge" collections.`,
+        400
+      );
     }
 
     // --- IPFS Upload & Mint Transaction Preparation ---

@@ -130,13 +130,16 @@ export const collectibleControllers = {
     }
   },
   getCollectibleById: async (
-    req: Request,
+    req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {
     try {
       const { id } = req.params;
-      const collectible = await collectibleRepository.getByIdWithDetails(id);
+      const collectible = await collectibleRepository.getByIdWithDetails(
+        id,
+        req.user?.id
+      );
       return res.status(200).json({ success: true, data: collectible });
     } catch (e) {
       next(e);

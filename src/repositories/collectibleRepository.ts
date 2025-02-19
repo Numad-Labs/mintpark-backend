@@ -371,7 +371,7 @@ export const collectibleRepository = {
 
     return collectibles;
   },
-  getByIdWithDetails: async (id: string) => {
+  getByIdWithDetails: async (id: string, userId?: string) => {
     const collectibles = await db
       .with("FloorPrices", (db) =>
         db
@@ -426,7 +426,13 @@ export const collectibleRepository = {
         "parentCollectible.uniqueIdx as inscriptionId",
         "CurrentList.address as ownedBy",
         "CurrentList.listedAt",
-        "CurrentList.id as listId"
+        "CurrentList.id as listId",
+        // Add isOwnListing boolean
+        userId
+          ? sql`(CASE WHEN "CurrentList"."sellerId" = ${userId} THEN true ELSE false END)::boolean`.as(
+              "isOwnListing"
+            )
+          : sql`false`.as("isOwnListing")
       ])
       .where("Collectible.id", "=", id)
       .execute();
