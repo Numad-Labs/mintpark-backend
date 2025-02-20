@@ -141,9 +141,8 @@ export const launchServices = {
       const confirmationService = new TransactionConfirmationService(
         chainConfig.RPC_URL
       );
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
+      const transactionDetail =
+        await confirmationService.getTransactionDetails(txid);
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -200,9 +199,8 @@ export const launchServices = {
         chainConfig.RPC_URL
       );
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
+      const transactionDetail =
+        await confirmationService.getTransactionDetails(txid);
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -737,6 +735,7 @@ export const launchServices = {
         1 // insert current phase
       );
 
+    const merkleProof = phaseInfo.phaseType === BigInt(2) ? [] : [];
     const unsignedTx = await directMintService.getUnsignedMintTransaction(
       collection.contractAddress,
       tokenId,
@@ -745,7 +744,7 @@ export const launchServices = {
       uniqueId,
       timestamp,
       signature,
-      [ethers.ZeroAddress], // no whitelist proof provided
+      merkleProof,
       user.address
     );
 
@@ -875,9 +874,8 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
 
-    const transactionDetail = await confirmationService.getTransactionDetails(
-      txid
-    );
+    const transactionDetail =
+      await confirmationService.getTransactionDetails(txid);
     if (transactionDetail.status !== 1)
       throw new CustomError(
         "Transaction not confirmed. Please try again.",
