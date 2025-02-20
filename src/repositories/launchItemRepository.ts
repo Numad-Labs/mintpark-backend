@@ -118,10 +118,7 @@ export const launchItemRepository = {
           sql`${eb.ref("onHoldUntil")} < NOW()`.$castTo<boolean>()
         ])
       )
-      .executeTakeFirst
-      // () =>
-      //   new Error("Please try again. Could not set the launch item on hold.")
-      ();
+      .executeTakeFirst();
 
     return launchItem;
   },

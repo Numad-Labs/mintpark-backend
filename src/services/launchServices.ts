@@ -141,8 +141,9 @@ export const launchServices = {
       const confirmationService = new TransactionConfirmationService(
         chainConfig.RPC_URL
       );
-      const transactionDetail =
-        await confirmationService.getTransactionDetails(txid);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -199,8 +200,9 @@ export const launchServices = {
         chainConfig.RPC_URL
       );
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail =
-        await confirmationService.getTransactionDetails(txid);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -538,10 +540,6 @@ export const launchServices = {
       user,
       currentUnixTimeStamp
     );
-    if (!user.chainId) throw new CustomError("User chain id not found.", 400);
-    const chainConfig = EVM_CONFIG.CHAINS[user.chainId];
-    const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
-    const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
 
     await validatePurchaseLimits(db, launch, user, currentUnixTimeStamp);
     const shortHoldCount =
@@ -555,6 +553,11 @@ export const launchServices = {
         "You have too many items in short-term reservation.",
         400
       );
+
+    if (!user.chainId) throw new CustomError("User chain id not found.", 400);
+    const chainConfig = EVM_CONFIG.CHAINS[user.chainId];
+    const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
+    const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
 
     // --- Acquire a Launch Item Atomically ---
     const isInfiniteBadge = collection.isBadge && !collection.badgeSupply;
@@ -570,13 +573,16 @@ export const launchServices = {
         );
     } else {
       // For other collections, require an available launch item.
+      if (!launchItem)
+        throw new CustomError("No available launch item was found.", 400);
       launchItem = await launchItemRepository.setShortHoldById(
         db,
-        launch.id,
+        launchItem.id,
         user.id
       );
-      if (!launchItem) throw new CustomError("Please try again.", 400);
     }
+    if (!isInfiniteBadge && !launchItem)
+      throw new CustomError("Please try again.", 400);
 
     let collectible: any;
     let isMinted = false;
@@ -873,8 +879,9 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
 
-    const transactionDetail =
-      await confirmationService.getTransactionDetails(txid);
+    const transactionDetail = await confirmationService.getTransactionDetails(
+      txid
+    );
     if (transactionDetail.status !== 1)
       throw new CustomError(
         "Transaction not confirmed. Please try again.",
