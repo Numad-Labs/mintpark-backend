@@ -20,6 +20,7 @@ import { generateSymbol, serializeBigInt } from "../blockchain/evm/utils";
 import { config } from "../config/config";
 import { VaultMintNFTService } from "../blockchain/evm/services/nftService/vaultNFTService";
 import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
+import { ethers } from "ethers";
 
 export const collectionServices = {
   create: async (
@@ -147,6 +148,105 @@ export const collectionServices = {
     }
 
     return { ordinalCollection, l2Collection, deployContractTxHex };
+  },
+  addPhase: async ({
+    collectionId,
+    phaseType,
+    price,
+    startTime,
+    endTime,
+    maxSupply,
+    maxPerWallet,
+    maxMintPerPhase,
+    merkleRoot,
+    layerId,
+    userId,
+    userLayerId
+  }: {
+    collectionId: string;
+    phaseType: number;
+    price: string;
+    startTime: number;
+    endTime: number;
+    maxSupply: number;
+    maxPerWallet: number;
+    maxMintPerPhase: number;
+    merkleRoot: string;
+    layerId: string;
+    userId: string;
+    userLayerId: string;
+  }) => {
+    // Get collection and verify ownership
+    const collection = await collectionRepository.getById(db, collectionId);
+    if (!collection) {
+      throw new CustomError("Collection not found", 404);
+    }
+
+    if (collection.creatorId !== userId) {
+      throw new CustomError(
+        "You are not authorized to modify this collection",
+        403
+      );
+    }
+
+    // Verify collection status
+    if (collection.status !== "UNCONFIRMED") {
+      throw new CustomError(
+        "Collection must be in UNCONFIRMED status to add phases",
+        400
+      );
+    }
+
+    // Get layer and validate
+    const layer = await layerServices.checkIfSupportedLayerOrThrow(layerId);
+    if (!layer.chainId) {
+      throw new CustomError("Invalid layer for phase setup", 400);
+    }
+
+    // Get user and validate
+    const user = await userRepository.getByUserLayerId(userLayerId);
+    if (!user) {
+      throw new CustomError("User not found", 404);
+    }
+    if (!user.isActive) {
+      throw new CustomError("This account is deactivated", 400);
+    }
+    if (user.layer !== layer.layer || user.network !== layer.network) {
+      throw new CustomError(
+        "You cannot modify collection for this layerId with the current active account",
+        400
+      );
+    }
+
+    if (!collection.contractAddress) {
+      throw new CustomError("Collection contract address not found", 400);
+    }
+
+    // Initialize NFT service
+    const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+    const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
+
+    // For whitelist phase, validate merkle root
+    if (phaseType === 1 && !merkleRoot) {
+      // 1 is whitelist phase
+      throw new CustomError("Merkle root is required for whitelist phase", 400);
+    }
+
+    // Get unsigned transaction
+    const unsignedTx = await directMintService.getUnsignedAddPhaseTransaction(
+      collection.contractAddress,
+      phaseType,
+      price,
+      startTime,
+      endTime,
+      maxSupply,
+      maxPerWallet,
+      maxMintPerPhase,
+      merkleRoot || ethers.ZeroHash, // Use zero hash for public phase
+      user.address
+    );
+
+    return serializeBigInt(unsignedTx);
   },
   delete: async (id: string) => {
     const collection = await collectionRepository.delete(id);

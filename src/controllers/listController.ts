@@ -56,7 +56,8 @@ export const listController = {
       );
 
       const unsignedTx = await tradingService.getUnsignedApprovalTransaction(
-        user?.address
+        user?.address,
+        collection.contractAddress
       );
       const serializedTx = serializeBigInt(unsignedTx);
       return res

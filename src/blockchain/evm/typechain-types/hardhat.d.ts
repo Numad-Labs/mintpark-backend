@@ -82,6 +82,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.EIP712__factory>;
     getContractFactory(
+      name: "MerkleProof",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.MerkleProof__factory>;
+    getContractFactory(
       name: "ERC165",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.ERC165__factory>;
@@ -109,6 +113,10 @@ declare module "hardhat/types/runtime" {
       name: "LaunchNFT",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.LaunchNFT__factory>;
+    getContractFactory(
+      name: "LaunchNFTV2",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.LaunchNFTV2__factory>;
     getContractFactory(
       name: "Marketplace",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -204,6 +212,11 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.EIP712>;
     getContractAt(
+      name: "MerkleProof",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.MerkleProof>;
+    getContractAt(
       name: "ERC165",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
@@ -238,6 +251,11 @@ declare module "hardhat/types/runtime" {
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.LaunchNFT>;
+    getContractAt(
+      name: "LaunchNFTV2",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.LaunchNFTV2>;
     getContractAt(
       name: "Marketplace",
       address: string | ethers.Addressable,
@@ -318,6 +336,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.EIP712>;
     deployContract(
+      name: "MerkleProof",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MerkleProof>;
+    deployContract(
       name: "ERC165",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.ERC165>;
@@ -345,6 +367,10 @@ declare module "hardhat/types/runtime" {
       name: "LaunchNFT",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.LaunchNFT>;
+    deployContract(
+      name: "LaunchNFTV2",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.LaunchNFTV2>;
     deployContract(
       name: "Marketplace",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -440,6 +466,11 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.EIP712>;
     deployContract(
+      name: "MerkleProof",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MerkleProof>;
+    deployContract(
       name: "ERC165",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -474,6 +505,11 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.LaunchNFT>;
+    deployContract(
+      name: "LaunchNFTV2",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.LaunchNFTV2>;
     deployContract(
       name: "Marketplace",
       args: any[],

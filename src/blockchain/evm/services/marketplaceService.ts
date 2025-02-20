@@ -60,8 +60,15 @@ class MarketplaceService {
     const contract = await this.getEthersMarketplaceContract();
     return contract.getListing(nftContract, tokenId);
   }
-  async getUnsignedApprovalTransaction(from: string) {
-    const nftContract = await this.getEthersMarketplaceContract();
+  async getUnsignedApprovalTransaction(from: string, contractAddress: string) {
+    // const { chainId } = await this.provider.getNetwork();
+    // const nftContract = await this.getEthersMarketplaceContract();
+    // const chainConfig = EVM_CONFIG.CHAINS[chainId.toString()];
+    const nftContract = new ethers.Contract(
+      contractAddress,
+      EVM_CONFIG.NFT_CONTRACT_ABI,
+      this.provider
+    );
 
     // Check if the marketplace is already approved
     const isApproved = await nftContract.isApprovedForAll(

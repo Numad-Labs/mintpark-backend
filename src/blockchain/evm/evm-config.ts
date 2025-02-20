@@ -1,12 +1,12 @@
 import { abi as NFT_CONTRACT_ABI } from "../evm/artifacts/src/blockchain/evm/contracts/MPMNFT.sol/UnifiedNFT.json";
 import { bytecode as NFT_CONTRACT_BYTECODE } from "../evm/artifacts/src/blockchain/evm/contracts/MPMNFT.sol/UnifiedNFT.json";
 
-// import { abi as MARKETPLACE_ABI } from "../evm/artifacts/blockchain/evm/contracts/MarketplaceContract.sol/MarketplaceContract.json";
-// import { bytecode as MARKETPLACE_CONTRACT_BYTECODE } from "../evm/artifacts/blockchain/evm/contracts/MarketplaceContract.sol/MarketplaceContract.json";
 import { abi as MARKETPLACE_ABI } from "../evm/artifacts/src/blockchain/evm/contracts/MarketplaceWithPhase.sol/Marketplace.json";
 import { bytecode as MARKETPLACE_CONTRACT_BYTECODE } from "../evm/artifacts/src/blockchain/evm/contracts/MarketplaceWithPhase.sol/Marketplace.json";
-import { abi as DIRECT_MINT_NFT_ABI } from "../evm/artifacts/src/blockchain/evm/contracts/DirectMintNFT.sol/LaunchNFT.json";
-import { bytecode as DIRECT_MINT_NFT_BYTECODE } from "../evm/artifacts/src/blockchain/evm/contracts/DirectMintNFT.sol/LaunchNFT.json";
+// import { abi as DIRECT_MINT_NFT_ABI } from "../evm/artifacts/src/blockchain/evm/contracts/DirectMintNFT.sol/LaunchNFT.json";
+// import { bytecode as DIRECT_MINT_NFT_BYTECODE } from "../evm/artifacts/src/blockchain/evm/contracts/DirectMintNFT.sol/LaunchNFT.json";
+import { abi as DIRECT_MINT_NFT_ABI } from "../evm/artifacts/src/blockchain/evm/contracts/DirectMintNFTV2.sol/LaunchNFTV2.json";
+import { bytecode as DIRECT_MINT_NFT_BYTECODE } from "../evm/artifacts/src/blockchain/evm/contracts/DirectMintNFTV2.sol/LaunchNFTV2.json";
 
 const DEFAULT_PUBLIC_MAX_MINT = 255;
 
@@ -14,6 +14,12 @@ const DEFAULT_ROYALTY_FEE = 250; // 2.5%
 const DEFAULT_PLATFORM_FEE = 300; // 3%
 const MAX_FEE = 1000; // 10%
 const DEFAULT_SIGN_DEADLINE = Math.floor(Date.now() / 1000) + 3600;
+
+export const PHASE_TYPE_MAP = {
+  NOT_STARTED: 0,
+  WHITELIST: 1,
+  PUBLIC: 2
+};
 
 export interface EVMChainConfig {
   RPC_URL: string;
@@ -48,6 +54,7 @@ export const EVM_CONFIG: EVMConfig = {
   DIRECT_MINT_NFT_ABI,
   DIRECT_MINT_NFT_BYTECODE,
   DEFAULT_SIGN_DEADLINE,
+  // PHASE_TYPE_MAP,
   CHAINS: {
     "5115": {
       RPC_URL: "https://rpc.testnet.citrea.xyz",

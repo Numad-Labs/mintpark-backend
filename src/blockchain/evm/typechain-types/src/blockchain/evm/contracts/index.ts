@@ -3,6 +3,8 @@
 /* eslint-disable */
 import type * as directMintNftSol from "./DirectMintNFT.sol";
 export type { directMintNftSol };
+import type * as directMintNftv2Sol from "./DirectMintNFTV2.sol";
+export type { directMintNftv2Sol };
 import type * as mpmnftSol from "./MPMNFT.sol";
 export type { mpmnftSol };
 import type * as marketplaceWithPhaseSol from "./MarketplaceWithPhase.sol";

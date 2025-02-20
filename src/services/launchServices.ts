@@ -40,7 +40,7 @@ import { orderItemRepository } from "../repositories/orderItemRepository";
 // import { producer, sqs } from "..";
 import { wlRepository } from "../repositories/wlRepository";
 import { FundingAddressService } from "../blockchain/evm/services/fundingAddress";
-import { ethers } from "ethers";
+import { ethers, toBeHex } from "ethers";
 import { DatabaseError } from "pg";
 import { SQSMessageBody } from "../queue/types";
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
@@ -50,6 +50,7 @@ import { airdropRepository } from "../repositories/airdropRepository";
 import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
 import { VaultMintNFTService } from "../blockchain/evm/services/nftService/vaultNFTService";
 import { BaseNFTService } from "../blockchain/evm/services/nftService/baseNFTService";
+import { bigint } from "hardhat/internal/core/params/argumentTypes";
 
 // // const nftService = new NFTService(EVM_CONFIG.RPC_URL);
 
@@ -506,6 +507,7 @@ export const launchServices = {
           l ? collectionRepository.getById(db, l.collectionId) : null
         )
     ]);
+
     if (!user) throw new CustomError("User not found.", 400);
     if (user.id !== userId)
       throw new CustomError(
@@ -539,12 +541,8 @@ export const launchServices = {
       user,
       currentUnixTimeStamp
     );
-    if (!user.chainId) throw new CustomError("User chain id not found.", 400);
-    const chainConfig = EVM_CONFIG.CHAINS[user.chainId];
-    const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
-    const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
-
     await validatePurchaseLimits(db, launch, user, currentUnixTimeStamp);
+
     const shortHoldCount =
       await launchItemRepository.getShortHoldCountByLaunchIdAndUserId(
         db,
@@ -557,77 +555,135 @@ export const launchServices = {
         400
       );
 
+    if (!user.chainId) throw new CustomError("User chain id not found.", 400);
+    const chainConfig = EVM_CONFIG.CHAINS[user.chainId];
+    const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
+    const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
+
     // --- Acquire a Launch Item Atomically ---
     const isInfiniteBadge = collection.isBadge && !collection.badgeSupply;
     let launchItem = await launchItemRepository.getRandomItemByLaunchId(
       launch.id
     );
+    let collectible: any;
+
     if (isInfiniteBadge) {
-      if (launchItem)
+      // Attempt to set the available item on hold if found.
+      if (launchItem) {
         launchItem = await launchItemRepository.setShortHoldById(
           db,
           launchItem.id,
           user.id
         );
+      }
+      // If no launch item exists OR setting the hold fails, create a new one.
+      if (!launchItem) {
+        const creationResult = await db.transaction().execute(async (trx) => {
+          const { badgeCurrentNftId } =
+            await collectionRepository.incrementBadgeCurrentNftIdById(
+              trx,
+              collection.id
+            );
+          if (!badgeCurrentNftId)
+            throw new CustomError("Badge current nft id not found.", 400);
+          const nftId = badgeCurrentNftId.toString();
+          const newCollectible = await collectibleRepository.create(trx, {
+            name: `${collection.name} #${nftId}`,
+            collectionId: collection.id,
+            nftId,
+            cid: collection.badgeCid,
+            fileKey: collection.logoKey
+          });
+          const newLaunchItem =
+            await launchItemRepository.createOnHoldLaunchItem(
+              trx,
+              { launchId: launch.id, collectibleId: newCollectible.id },
+              user.id
+            );
+          return { launchItem: newLaunchItem, collectible: newCollectible };
+        });
+        launchItem = creationResult.launchItem;
+        collectible = creationResult.collectible;
+      }
     } else {
-      // For other collections, require an available launch item.
+      // Finite supply collection
+      if (!launchItem)
+        throw new CustomError("No available launch item was found.", 400);
       launchItem = await launchItemRepository.setShortHoldById(
         db,
-        launch.id,
+        launchItem.id,
         user.id
       );
-      if (!launchItem) throw new CustomError("Please try again.", 400);
     }
+    if (!launchItem) throw new CustomError("Please try again.", 400);
 
-    let collectible: any;
-    let isMinted = false;
+    collectible = await collectibleRepository.getById(
+      db,
+      launchItem.collectibleId
+    );
+    if (!collectible)
+      throw new CustomError("Please try again, no collectible found.", 400);
 
-    if (launchItem) {
-      collectible = await collectibleRepository.getById(
-        db,
-        launchItem.collectibleId
-      );
-      if (!collectible) throw new CustomError("Collectible not found.", 400);
-      const baseNFTService = new BaseNFTService(chainConfig.RPC_URL);
-      isMinted = await baseNFTService.isNFTMinted(
-        collection.contractAddress,
-        collectible.nftId
-      );
-    }
-
-    if (isInfiniteBadge && !launchItem) {
-      // No launch item acquired: create new collectible & launch item.
-      const creationResult = await db.transaction().execute(async (trx) => {
-        const { badgeCurrentNftId } =
-          await collectionRepository.incrementBadgeCurrentNftIdById(
-            trx,
-            collection.id
-          );
-        if (!badgeCurrentNftId)
-          throw new CustomError("Badge current nft id not found.", 400);
-        const nftId = badgeCurrentNftId.toString();
-        const newCollectible = await collectibleRepository.create(trx, {
-          name: `${collection.name} #${nftId}`,
-          collectionId: collection.id,
-          nftId,
-          cid: collection.badgeCid,
-          fileKey: collection.logoKey
-        });
-        const newLaunchItem = await launchItemRepository.createOnHoldLaunchItem(
+    // --- Check if the collectible is already minted ---
+    const baseNFTService = new BaseNFTService(chainConfig.RPC_URL);
+    const isMinted = await baseNFTService.isNFTMinted(
+      collection.contractAddress,
+      collectible.nftId
+    );
+    if (isMinted) {
+      // Sync DB state in a transaction.
+      await db.transaction().execute(async (trx) => {
+        const mintedCollectible = await collectibleRepository.getById(
           trx,
-          { launchId: launch.id, collectibleId: newCollectible.id },
-          user.id
+          launchItem!.collectibleId
         );
-        return { launchItem: newLaunchItem, collectible: newCollectible };
+        if (!mintedCollectible)
+          throw new CustomError("Minted collectible not found.", 400);
+        await collectibleRepository.update(trx, mintedCollectible.id, {
+          status: "CONFIRMED",
+          uniqueIdx: collection.contractAddress + "i" + mintedCollectible.nftId
+        });
+        await collectionRepository.incrementCollectionSupplyById(
+          trx,
+          collection.id
+        );
+        await launchItemRepository.update(trx, launchItem!.id, {
+          status: "SOLD"
+        });
       });
-      launchItem = creationResult.launchItem;
-      collectible = creationResult.collectible;
-      isMinted = false;
-    } else if (!launchItem) {
-      throw new CustomError(
-        `Launch item not found for "non-infinite badge" collections.`,
-        400
-      );
+
+      if (isInfiniteBadge) {
+        // For infinite supply badges, after syncing, create a new launch item.
+        const creationResult = await db.transaction().execute(async (trx) => {
+          const { badgeCurrentNftId } =
+            await collectionRepository.incrementBadgeCurrentNftIdById(
+              trx,
+              collection.id
+            );
+          if (!badgeCurrentNftId)
+            throw new CustomError("Badge current nft id not found.", 400);
+          const nftId = badgeCurrentNftId.toString();
+          const newCollectible = await collectibleRepository.create(trx, {
+            name: `${collection.name} #${nftId}`,
+            collectionId: collection.id,
+            nftId,
+            cid: collection.badgeCid,
+            fileKey: collection.logoKey
+          });
+          const newLaunchItem =
+            await launchItemRepository.createOnHoldLaunchItem(
+              trx,
+              { launchId: launch.id, collectibleId: newCollectible.id },
+              user.id
+            );
+          return { launchItem: newLaunchItem, collectible: newCollectible };
+        });
+        launchItem = creationResult.launchItem;
+        collectible = creationResult.collectible;
+      } else {
+        // For finite supply collections, synchronize then throw an error.
+        throw new CustomError("The launch item has already been minted.", 400);
+      }
     }
 
     // --- IPFS Upload & Mint Transaction Preparation ---
@@ -649,6 +705,7 @@ export const launchServices = {
       : ipfsCid || collectible.cid;
     if (!nftIpfsUrl)
       throw new CustomError("File has not been uploaded to the ipfs.", 400);
+
     const tokenId = collectible.nftId;
     if (!isInfiniteBadge && collection.type === "IPFS_FILE" && ipfsCid) {
       await collectibleRepository.update(db, collectible.id, {
@@ -660,72 +717,37 @@ export const launchServices = {
     if (!collection.contractAddress)
       throw new CustomError("Collection contract address not found.", 400);
     const deadline = EVM_CONFIG.DEFAULT_SIGN_DEADLINE;
-    const chainId = chainConfig.CHAIN_ID.toString();
-    const signature = await directMintService.generateMintSignature(
-      collection.contractAddress,
-      user.address,
-      tokenId,
-      nftIpfsUrl,
-      mintPrice.toString(),
-      deadline,
-      chainId,
-      config.VAULT_PRIVATE_KEY
+
+    const phaseInfo = await directMintService.getActivePhase(
+      collection.contractAddress
     );
+    console.log("🚀 ~ phaseInfo:", phaseInfo);
+    console.log("date", new Date(parseInt(phaseInfo.endTime)));
+    if (phaseInfo.phaseType == BigInt(0))
+      throw new CustomError("Phase not active", 400);
+
+    // Generate signature for direct minting
+    const { signature, uniqueId, timestamp } =
+      await directMintService.generateMintSignature(
+        collection.contractAddress,
+        user.address,
+        tokenId,
+        nftIpfsUrl,
+        mintPrice.toString(),
+        1 // insert current phase
+      );
+
     const unsignedTx = await directMintService.getUnsignedMintTransaction(
       collection.contractAddress,
       tokenId,
       nftIpfsUrl,
       mintPrice.toString(),
-      deadline,
+      uniqueId,
+      timestamp,
       signature,
+      [ethers.ZeroAddress], // no whitelist proof provided
       user.address
     );
-
-    // --- Sync Minted Collectible for Infinite Badge, if Needed ---
-    if (isInfiniteBadge && launchItem && isMinted) {
-      const syncResult = await db.transaction().execute(async (trx) => {
-        const mintedCollectible = await collectibleRepository.getById(
-          trx,
-          launchItem!.collectibleId
-        );
-        if (!mintedCollectible)
-          throw new CustomError("Minted collectible not found.", 400);
-        await collectibleRepository.update(trx, mintedCollectible.id, {
-          status: "CONFIRMED",
-          uniqueIdx: collection.contractAddress + "i" + mintedCollectible.nftId
-        });
-        await collectionRepository.incrementCollectionSupplyById(
-          trx,
-          collection.id
-        );
-        await launchItemRepository.update(trx, launchItem!.id, {
-          status: "SOLD"
-        });
-        const { badgeCurrentNftId } =
-          await collectionRepository.incrementBadgeCurrentNftIdById(
-            trx,
-            collection.id
-          );
-        if (!badgeCurrentNftId)
-          throw new CustomError("Badge current nft id not found.", 400);
-        const newNftId = badgeCurrentNftId.toString();
-        const newCollectible = await collectibleRepository.create(trx, {
-          name: `${collection.name} #${newNftId}`,
-          collectionId: collection.id,
-          nftId: newNftId,
-          cid: collection.badgeCid,
-          fileKey: collection.logoKey
-        });
-        const newLaunchItem = await launchItemRepository.createOnHoldLaunchItem(
-          trx,
-          { launchId: launch.id, collectibleId: newCollectible.id },
-          user.id
-        );
-        return { launchItem: newLaunchItem, collectible: newCollectible };
-      });
-      launchItem = syncResult.launchItem;
-      collectible = syncResult.collectible;
-    }
 
     const order = await orderRepository.create(db, {
       userId: user.id,
@@ -808,9 +830,9 @@ export const launchServices = {
 
     if (!launchItem) throw new CustomError("Launch item not found.", 400);
 
-    // Get mint price and validate phase
-    const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
-    await validatePhaseAndGetPrice(launch, user, currentUnixTimeStamp);
+    // // Get mint price and validate phase
+    // const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
+    // await validatePhaseAndGetPrice(launch, user, currentUnixTimeStamp);
 
     // Validate launch item status
     const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
@@ -825,8 +847,8 @@ export const launchServices = {
     if (isLaunchItemOnHold && isLaunchItemOnHold.status === "SOLD")
       throw new CustomError("Launch item has already been sold.", 400);
 
-    // Validate purchase limits inside transaction
-    await validatePurchaseLimits(db, launch, user, currentUnixTimeStamp);
+    // // Validate purchase limits inside transaction
+    // await validatePurchaseLimits(db, launch, user, currentUnixTimeStamp);
 
     const collectible = await collectibleRepository.getById(
       db,

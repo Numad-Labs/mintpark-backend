@@ -2,5 +2,6 @@
 /* tslint:disable */
 /* eslint-disable */
 export * as directMintNftSol from "./DirectMintNFT.sol";
+export * as directMintNftv2Sol from "./DirectMintNFTV2.sol";
 export * as mpmnftSol from "./MPMNFT.sol";
 export * as marketplaceWithPhaseSol from "./MarketplaceWithPhase.sol";
