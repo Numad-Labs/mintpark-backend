@@ -439,4 +439,282 @@ describe("LaunchNFTV2 Contract", () => {
       expect(finalOwnerBalance - initialOwnerBalance).to.equal(ownerAmount);
     });
   });
+
+  describe("Public Phase Minting", () => {
+    beforeEach(async () => {
+      // Add public phase with typical configuration
+      await contract.connect(owner).addPhase(
+        2, // PUBLIC
+        ethers.parseEther("0.5"), // 0.5 ETH price
+        BigInt(globalTimestamp),
+        BigInt(globalTimestamp + 86400), // 24 hours duration
+        1000, // maxSupply
+        5, // maxPerWallet
+        500, // maxMintPerPhase
+        ethers.ZeroHash // No merkle root needed for public
+      );
+      await mineBlock();
+    });
+
+    it("should mint successfully in public phase", async () => {
+      const tokenId = "1";
+      const uri = "ipfs://test";
+      const { signature, uniqueId, timestamp } = await generateSignature(
+        minter.address,
+        tokenId,
+        uri,
+        "0.5",
+        1
+      );
+
+      // Mine block with current timestamp to ensure signature is valid
+      await ethers.provider.send("evm_setNextBlockTimestamp", [timestamp]);
+      await mineBlock();
+
+      await contract.connect(minter).mint(
+        tokenId,
+        uri,
+        uniqueId,
+        timestamp,
+        signature,
+        [], // Empty proof for public phase
+        { value: ethers.parseEther("0.5") }
+      );
+
+      expect(await contract.ownerOf(tokenId)).to.equal(minter.address);
+      expect(await contract.tokenURI(tokenId)).to.equal(uri);
+      expect(await contract.getMintedInPhase(minter.address, 2)).to.equal(1); // PhaseType.PUBLIC = 2
+    });
+
+    it("should mint multiple tokens up to maxPerWallet", async () => {
+      // Mint 5 tokens (maxPerWallet)
+      for (let i = 1; i <= 5; i++) {
+        const tokenId = i.toString();
+        const uri = `ipfs://test${i}`;
+        const { signature, uniqueId, timestamp } = await generateSignature(
+          minter.address,
+          tokenId,
+          uri,
+          "0.5",
+          1
+        );
+
+        // Set block timestamp for each mint
+        await ethers.provider.send("evm_setNextBlockTimestamp", [timestamp]);
+        await mineBlock();
+
+        await contract
+          .connect(minter)
+          .mint(tokenId, uri, uniqueId, timestamp, signature, [], {
+            value: ethers.parseEther("0.5")
+          });
+      }
+
+      expect(await contract.getMintedInPhase(minter.address, 2)).to.equal(5);
+
+      // Attempt to mint one more should fail
+      const tokenId = "6";
+      const uri = "ipfs://test6";
+      const { signature, uniqueId, timestamp } = await generateSignature(
+        minter.address,
+        tokenId,
+        uri,
+        "0.5",
+        1
+      );
+
+      await ethers.provider.send("evm_setNextBlockTimestamp", [timestamp]);
+      await mineBlock();
+
+      await expect(
+        contract
+          .connect(minter)
+          .mint(tokenId, uri, uniqueId, timestamp, signature, [], {
+            value: ethers.parseEther("0.5")
+          })
+      ).to.be.revertedWithCustomError(contract, "ExceedsWalletLimit");
+    });
+
+    it("should allow unlimited mints when maxPerWallet is 0", async () => {
+      // Add new public phase with unlimited mints per wallet
+      const newPhaseStartTime = globalTimestamp + 100000;
+      await contract.connect(owner).addPhase(
+        2, // PUBLIC
+        ethers.parseEther("0.1"),
+        BigInt(newPhaseStartTime),
+        BigInt(newPhaseStartTime + 86400),
+        0, // No max supply
+        0, // No wallet limit
+        0, // No phase limit
+        ethers.ZeroHash
+      );
+
+      // Fast forward to new phase
+      await ethers.provider.send("evm_setNextBlockTimestamp", [
+        newPhaseStartTime
+      ]);
+      await mineBlock();
+
+      // Mint 10 tokens (arbitrary number > default max)
+      for (let i = 1; i <= 10; i++) {
+        const tokenId = i.toString();
+        const uri = `ipfs://unlimited${i}`;
+        const { signature, uniqueId, timestamp } = await generateSignature(
+          minter.address,
+          tokenId,
+          uri,
+          "0.1",
+          2 // Phase index is 2 since we added a new phase
+        );
+
+        await ethers.provider.send("evm_setNextBlockTimestamp", [timestamp]);
+        await mineBlock();
+
+        await contract
+          .connect(minter)
+          .mint(tokenId, uri, uniqueId, timestamp, signature, [], {
+            value: ethers.parseEther("0.1")
+          });
+      }
+
+      expect(await contract.getMintedInPhase(minter.address, 2)).to.equal(10);
+    });
+
+    it("should respect maxSupply limit", async () => {
+      // Add phase with very low max supply
+      const newPhaseStartTime = globalTimestamp + 100000;
+      await contract.connect(owner).addPhase(
+        2, // PUBLIC
+        ethers.parseEther("0.1"),
+        BigInt(newPhaseStartTime),
+        BigInt(newPhaseStartTime + 86400),
+        2, // Max supply of 2
+        5, // Max per wallet higher than max supply
+        2, // Max mint per phase
+        ethers.ZeroHash
+      );
+
+      // Fast forward to new phase
+      await ethers.provider.send("evm_setNextBlockTimestamp", [
+        newPhaseStartTime
+      ]);
+      await mineBlock();
+
+      // Mint up to max supply
+      for (let i = 1; i <= 2; i++) {
+        const tokenId = i.toString();
+        const uri = `ipfs://maxsupply${i}`;
+        const { signature, uniqueId, timestamp } = await generateSignature(
+          minter.address,
+          tokenId,
+          uri,
+          "0.1",
+          2
+        );
+
+        await ethers.provider.send("evm_setNextBlockTimestamp", [timestamp]);
+        await mineBlock();
+
+        await contract
+          .connect(minter)
+          .mint(tokenId, uri, uniqueId, timestamp, signature, [], {
+            value: ethers.parseEther("0.1")
+          });
+      }
+
+      // Attempt to mint beyond max supply should fail
+      const tokenId = "3";
+      const uri = "ipfs://maxsupply3";
+      const { signature, uniqueId, timestamp } = await generateSignature(
+        minter.address,
+        tokenId,
+        uri,
+        "0.1",
+        2
+      );
+
+      await ethers.provider.send("evm_setNextBlockTimestamp", [timestamp]);
+      await mineBlock();
+
+      await expect(
+        contract
+          .connect(minter)
+          .mint(tokenId, uri, uniqueId, timestamp, signature, [], {
+            value: ethers.parseEther("0.1")
+          })
+      ).to.be.revertedWithCustomError(contract, "ExceedsPhaseSupply");
+    });
+
+    it("should fail mint with mismatched phase index in signature", async () => {
+      const tokenId = "1";
+      const uri = "ipfs://test";
+      const { signature, uniqueId, timestamp } = await generateSignature(
+        minter.address,
+        tokenId,
+        uri,
+        "0.5",
+        99 // Deliberately wrong phase index
+      );
+
+      await ethers.provider.send("evm_setNextBlockTimestamp", [timestamp]);
+      await mineBlock();
+
+      await expect(
+        contract
+          .connect(minter)
+          .mint(tokenId, uri, uniqueId, timestamp, signature, [], {
+            value: ethers.parseEther("0.5")
+          })
+      ).to.be.revertedWithCustomError(contract, "InvalidSignature");
+    });
+
+    it("should allow different users to mint up to their individual wallet limits", async () => {
+      // First user mints 3 tokens
+      for (let i = 1; i <= 3; i++) {
+        const tokenId = i.toString();
+        const uri = `ipfs://user1_${i}`;
+        const { signature, uniqueId, timestamp } = await generateSignature(
+          minter.address,
+          tokenId,
+          uri,
+          "0.5",
+          1
+        );
+
+        await ethers.provider.send("evm_setNextBlockTimestamp", [timestamp]);
+        await mineBlock();
+
+        await contract
+          .connect(minter)
+          .mint(tokenId, uri, uniqueId, timestamp, signature, [], {
+            value: ethers.parseEther("0.5")
+          });
+      }
+
+      // Second user mints 2 tokens
+      for (let i = 4; i <= 5; i++) {
+        const tokenId = i.toString();
+        const uri = `ipfs://user2_${i}`;
+        const { signature, uniqueId, timestamp } = await generateSignature(
+          otherUser.address,
+          tokenId,
+          uri,
+          "0.5",
+          1
+        );
+
+        await ethers.provider.send("evm_setNextBlockTimestamp", [timestamp]);
+        await mineBlock();
+
+        await contract
+          .connect(otherUser)
+          .mint(tokenId, uri, uniqueId, timestamp, signature, [], {
+            value: ethers.parseEther("0.5")
+          });
+      }
+
+      expect(await contract.getMintedInPhase(minter.address, 2)).to.equal(3);
+      expect(await contract.getMintedInPhase(otherUser.address, 2)).to.equal(2);
+    });
+  });
 });
