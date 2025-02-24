@@ -484,7 +484,7 @@ export class DirectMintNFTService extends BaseNFTService {
       )
     );
 
-    const timestamp = Math.floor(Date.now() / 1000);
+    const timestamp = Math.floor(Date.now() / 1000) - 30;
 
     const types = {
       MintRequest: [
@@ -547,6 +547,8 @@ export class DirectMintNFTService extends BaseNFTService {
       from
     );
 
+    const phaseInfo = await this.getActivePhase(collectionAddress);
+
     try {
       const contract = new ethers.Contract(
         collectionAddress,
@@ -566,7 +568,7 @@ export class DirectMintNFTService extends BaseNFTService {
           tokenId,
           uri,
           price,
-          phaseIndex: 1, // Get actual phase index from contract
+          phaseIndex: phaseInfo.phaseIndex, // Get actual phase index from contract
           uniqueId,
           timestamp
         });
@@ -654,8 +656,20 @@ export class DirectMintNFTService extends BaseNFTService {
         this.provider
       );
 
+      // First check if any phase is active
+      const isActive = await contract.isActivePhasePresent();
+
+      if (!isActive) {
+        // Handle case where no phase is active
+        return {
+          isActive: false,
+          message: "No active phase at the current time"
+        };
+      }
+
       const [phaseIndex, phase] = await contract.getActivePhase();
       return {
+        isActive: true,
         phaseIndex,
         phaseType: phase.phaseType,
         price: phase.price,
@@ -663,7 +677,6 @@ export class DirectMintNFTService extends BaseNFTService {
         endTime: phase.endTime,
         maxSupply: phase.maxSupply,
         maxPerWallet: phase.maxPerWallet,
-        maxMintPerPhase: phase.maxMintPerPhase,
         mintedInPhase: phase.mintedInPhase,
         merkleRoot: phase.merkleRoot
       };
@@ -681,7 +694,6 @@ export class DirectMintNFTService extends BaseNFTService {
     endTime: number,
     maxSupply: number,
     maxPerWallet: number,
-    maxMintPerPhase: number,
     merkleRoot: string,
     from: string
   ): Promise<ethers.TransactionRequest> {
@@ -699,7 +711,6 @@ export class DirectMintNFTService extends BaseNFTService {
         endTime,
         maxSupply,
         maxPerWallet,
-        maxMintPerPhase,
         merkleRoot
       );
 

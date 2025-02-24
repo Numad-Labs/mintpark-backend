@@ -33,7 +33,6 @@ contract LaunchNFTV2 is
     uint256 endTime;
     uint256 maxSupply;
     uint256 maxPerWallet;
-    uint256 maxMintPerPhase;
     uint256 mintedInPhase;
     bytes32 merkleRoot;
   }
@@ -83,20 +82,6 @@ contract LaunchNFTV2 is
   event PlatformFeeUpdated(uint96 newPercentage, address newRecipient);
   event WithdrawCompleted(address indexed recipient, uint256 amount);
 
-  error PhaseNotActive();
-  error InvalidSignature();
-  error SignatureExpired();
-  error InvalidMerkleProof();
-  error ExceedsPhaseSupply();
-  error ExceedsWalletLimit();
-  error InsufficientPayment();
-  error PriceMismatch();
-  error TransferFailed();
-  error InvalidPhaseIndex();
-  error InvalidPhaseConfiguration();
-  error OverlappingPhases();
-  error NoActivePhase();
-
   constructor(
     address initialOwner,
     string memory name,
@@ -128,7 +113,6 @@ contract LaunchNFTV2 is
         endTime: 0,
         maxSupply: 0,
         maxPerWallet: 0,
-        maxMintPerPhase: 0,
         mintedInPhase: 0,
         merkleRoot: bytes32(0)
       })
@@ -146,26 +130,23 @@ contract LaunchNFTV2 is
     (uint256 phaseIndex, Phase storage currentPhase) = _getActivePhase();
 
     if (currentPhase.phaseType == PhaseType.WHITELIST) {
-      if (
-        !MerkleProof.verify(
+      require(
+        MerkleProof.verify(
           merkleProof,
           currentPhase.merkleRoot,
           keccak256(abi.encodePacked(msg.sender))
-        )
-      ) {
-        revert InvalidMerkleProof();
-      }
+        ),
+        "Not whitelisted for this phase"
+      );
     }
 
     // Verify timestamp is recent (e.g., within last hour)
-    if (timestamp + 1 hours < block.timestamp || timestamp > block.timestamp) {
-      revert SignatureExpired();
-    }
+    require(
+      timestamp + 1 hours >= block.timestamp && timestamp <= block.timestamp,
+      "Signature expired"
+    );
 
-    // Prevent replay attacks
-    if (usedUniqueIds[uniqueId]) {
-      revert InvalidSignature();
-    }
+    require(!usedUniqueIds[uniqueId], "Signature already used");
 
     // Verify signature
     bytes32 structHash = keccak256(
@@ -181,26 +162,26 @@ contract LaunchNFTV2 is
       )
     );
 
-    if (_hashTypedDataV4(structHash).recover(signature) != backendSigner)
-      revert InvalidSignature();
-    if (msg.value != currentPhase.price) revert PriceMismatch();
+    require(
+      _hashTypedDataV4(structHash).recover(signature) == backendSigner,
+      "Invalid signature"
+    );
 
-    if (
-      currentPhase.maxSupply != 0 &&
-      currentPhase.mintedInPhase >= currentPhase.maxSupply
-    ) {
-      revert ExceedsPhaseSupply();
-    }
+    require(msg.value == currentPhase.price, "Incorrect payment amount");
 
-    if (
-      !(currentPhase.phaseType == PhaseType.PUBLIC &&
-        currentPhase.maxPerWallet == 0) &&
-      mintedPerWalletInPhase[msg.sender][currentPhase.phaseType] >=
-      currentPhase.maxPerWallet
-    ) {
-      revert ExceedsWalletLimit();
-    }
+    require(
+      currentPhase.maxSupply == 0 ||
+        currentPhase.mintedInPhase < currentPhase.maxSupply,
+      "Phase supply limit reached"
+    );
 
+    require(
+      (currentPhase.phaseType == PhaseType.PUBLIC &&
+        currentPhase.maxPerWallet == 0) ||
+        mintedPerWalletInPhase[msg.sender][currentPhase.phaseType] <
+        currentPhase.maxPerWallet,
+      "Wallet limit reached for this phase"
+    );
     usedUniqueIds[uniqueId] = true;
 
     _processFees(msg.value);
@@ -211,19 +192,20 @@ contract LaunchNFTV2 is
   }
 
   // Internal helper functions to break up the mint function
+
   function _processFees(uint256 amount) internal {
     uint256 platformFeeAmount = (amount * platformFeePercentage) / 10000;
     if (platformFeeAmount > 0) {
       (bool success, ) = platformFeeRecipient.call{value: platformFeeAmount}(
         ""
       );
-      if (!success) revert TransferFailed();
+      require(success, "Platform fee transfer failed");
     }
 
     uint256 remainingAmount = amount - platformFeeAmount;
     if (remainingAmount > 0) {
       (bool success, ) = owner().call{value: remainingAmount}("");
-      if (!success) revert TransferFailed();
+      require(success, "Owner fee transfer failed");
     }
   }
 
@@ -250,38 +232,28 @@ contract LaunchNFTV2 is
     uint256 _endTime,
     uint256 _maxSupply,
     uint256 _maxPerWallet,
-    uint256 _maxMintPerPhase,
     bytes32 _merkleRoot
   ) external onlyOwner {
     require(_startTime < _endTime, "Invalid time range");
 
-    // FIXED: Allow maxPerWallet = 0 for PUBLIC phase to enable unlimited mints
-    if (_phaseType == PhaseType.PUBLIC) {
-      // For public phases, allow unlimited per wallet and unlimited supply
-    } else {
+    if (_phaseType != PhaseType.PUBLIC) {
       require(_maxPerWallet > 0, "Invalid max per wallet for non-public phase");
-      require(
-        _maxMintPerPhase > 0,
-        "Invalid max mint per phase for non-public phase"
-      );
       require(
         _merkleRoot != bytes32(0),
         "Merkle root required for whitelist phase"
       );
     }
 
-    // Ensure no overlapping phases
+    // Check for overlapping phases
     for (uint256 i = 0; i < phases.length; i++) {
       Phase memory existingPhase = phases[i];
       if (existingPhase.phaseType == PhaseType.NOT_STARTED) continue;
 
-      // Check for time overlap
-      if (
-        (_startTime <= existingPhase.endTime &&
-          _endTime >= existingPhase.startTime)
-      ) {
-        revert OverlappingPhases();
-      }
+      require(
+        !(_startTime <= existingPhase.endTime &&
+          _endTime >= existingPhase.startTime),
+        "Phase time overlaps with existing phase"
+      );
     }
 
     Phase memory newPhase = Phase({
@@ -291,7 +263,6 @@ contract LaunchNFTV2 is
       endTime: _endTime,
       maxSupply: _maxSupply,
       maxPerWallet: _maxPerWallet,
-      maxMintPerPhase: _maxMintPerPhase,
       mintedInPhase: 0,
       merkleRoot: _merkleRoot
     });
@@ -361,7 +332,7 @@ contract LaunchNFTV2 is
       }
     }
 
-    revert NoActivePhase();
+    revert("No active phase");
   }
 
   function getActivePhase()

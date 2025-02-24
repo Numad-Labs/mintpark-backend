@@ -714,15 +714,36 @@ export const launchServices = {
 
     if (!collection.contractAddress)
       throw new CustomError("Collection contract address not found.", 400);
-    const deadline = EVM_CONFIG.DEFAULT_SIGN_DEADLINE;
 
     const phaseInfo = await directMintService.getActivePhase(
       collection.contractAddress
     );
+    if (!phaseInfo.isActive) throw new CustomError("Phase not found", 400);
     console.log("🚀 ~ phaseInfo:", phaseInfo);
+
     console.log("date", new Date(parseInt(phaseInfo.endTime)));
     if (phaseInfo.phaseType == BigInt(0))
       throw new CustomError("Phase not active", 400);
+
+    const mintedInPhase = await directMintService.getMintedInPhase(
+      collection.contractAddress,
+      user.address,
+      Number(phaseInfo.phaseType)
+    );
+
+    if (
+      phaseInfo.maxPerWallet !== BigInt(0) &&
+      mintedInPhase >= phaseInfo.maxPerWallet
+    ) {
+      throw new CustomError("Wallet limit reached for this phase", 400);
+    }
+
+    if (
+      phaseInfo.maxSupply !== BigInt(0) &&
+      phaseInfo.mintedInPhase >= phaseInfo.maxSupply
+    ) {
+      throw new CustomError("Phase supply limit reached", 400);
+    }
 
     // Generate signature for direct minting
     const { signature, uniqueId, timestamp } =
@@ -732,10 +753,14 @@ export const launchServices = {
         tokenId,
         nftIpfsUrl,
         mintPrice.toString(),
-        1 // insert current phase
+        Number(phaseInfo.phaseIndex)
       );
 
+    console.log("Signature generated", signature, uniqueId, timestamp);
+
     const merkleProof = phaseInfo.phaseType === BigInt(2) ? [] : [];
+    console.log("Signature used", Math.floor(Date.now() / 1000));
+
     const unsignedTx = await directMintService.getUnsignedMintTransaction(
       collection.contractAddress,
       tokenId,

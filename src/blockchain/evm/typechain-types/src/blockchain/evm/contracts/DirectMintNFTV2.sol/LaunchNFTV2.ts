@@ -31,7 +31,6 @@ export declare namespace LaunchNFTV2 {
     endTime: BigNumberish;
     maxSupply: BigNumberish;
     maxPerWallet: BigNumberish;
-    maxMintPerPhase: BigNumberish;
     mintedInPhase: BigNumberish;
     merkleRoot: BytesLike;
   };
@@ -43,7 +42,6 @@ export declare namespace LaunchNFTV2 {
     endTime: bigint,
     maxSupply: bigint,
     maxPerWallet: bigint,
-    maxMintPerPhase: bigint,
     mintedInPhase: bigint,
     merkleRoot: string
   ] & {
@@ -53,7 +51,6 @@ export declare namespace LaunchNFTV2 {
     endTime: bigint;
     maxSupply: bigint;
     maxPerWallet: bigint;
-    maxMintPerPhase: bigint;
     mintedInPhase: bigint;
     merkleRoot: string;
   };
@@ -116,7 +113,6 @@ export interface LaunchNFTV2Interface extends Interface {
   encodeFunctionData(
     functionFragment: "addPhase",
     values: [
-      BigNumberish,
       BigNumberish,
       BigNumberish,
       BigNumberish,
@@ -612,7 +608,6 @@ export interface LaunchNFTV2 extends BaseContract {
       _endTime: BigNumberish,
       _maxSupply: BigNumberish,
       _maxPerWallet: BigNumberish,
-      _maxMintPerPhase: BigNumberish,
       _merkleRoot: BytesLike
     ],
     [void],
@@ -698,24 +693,13 @@ export interface LaunchNFTV2 extends BaseContract {
   phases: TypedContractMethod<
     [arg0: BigNumberish],
     [
-      [
-        bigint,
-        bigint,
-        bigint,
-        bigint,
-        bigint,
-        bigint,
-        bigint,
-        bigint,
-        string
-      ] & {
+      [bigint, bigint, bigint, bigint, bigint, bigint, bigint, string] & {
         phaseType: bigint;
         price: bigint;
         startTime: bigint;
         endTime: bigint;
         maxSupply: bigint;
         maxPerWallet: bigint;
-        maxMintPerPhase: bigint;
         mintedInPhase: bigint;
         merkleRoot: string;
       }
@@ -806,7 +790,6 @@ export interface LaunchNFTV2 extends BaseContract {
       _endTime: BigNumberish,
       _maxSupply: BigNumberish,
       _maxPerWallet: BigNumberish,
-      _maxMintPerPhase: BigNumberish,
       _merkleRoot: BytesLike
     ],
     [void],
@@ -908,24 +891,13 @@ export interface LaunchNFTV2 extends BaseContract {
   ): TypedContractMethod<
     [arg0: BigNumberish],
     [
-      [
-        bigint,
-        bigint,
-        bigint,
-        bigint,
-        bigint,
-        bigint,
-        bigint,
-        bigint,
-        string
-      ] & {
+      [bigint, bigint, bigint, bigint, bigint, bigint, bigint, string] & {
         phaseType: bigint;
         price: bigint;
         startTime: bigint;
         endTime: bigint;
         maxSupply: bigint;
         maxPerWallet: bigint;
-        maxMintPerPhase: bigint;
         mintedInPhase: bigint;
         merkleRoot: string;
       }
