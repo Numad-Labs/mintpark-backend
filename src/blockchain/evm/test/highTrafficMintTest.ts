@@ -101,7 +101,6 @@ describe("High Traffic Scenarios", () => {
       BigInt(globalTimestamp + 86400),
       PHASE_MAX_SUPPLY,
       0,
-      PHASE_MAX_SUPPLY,
       ethers.ZeroHash
     );
 
@@ -174,7 +173,6 @@ describe("High Traffic Scenarios", () => {
       BigInt(globalTimestamp + 86400),
       PHASE_MAX_SUPPLY,
       0,
-      PHASE_MAX_SUPPLY,
       ethers.ZeroHash
     );
 

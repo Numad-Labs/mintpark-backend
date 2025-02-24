@@ -163,7 +163,6 @@ describe("LaunchNFTV2 Contract", () => {
         BigInt(globalTimestamp + 86400),
         100, // maxSupply
         2, // maxPerWallet
-        50, // maxMintPerPhase
         whitelistRoot
       );
 
@@ -191,7 +190,6 @@ describe("LaunchNFTV2 Contract", () => {
           BigInt(globalTimestamp + 86400),
           100,
           2,
-          50,
           ethers.ZeroHash // Invalid - empty merkle root
         )
       ).to.be.revertedWith("Merkle root required for whitelist phase");
@@ -208,7 +206,6 @@ describe("LaunchNFTV2 Contract", () => {
           BigInt(globalTimestamp + 86400),
           100,
           2,
-          50,
           whitelistRoot
         );
 
@@ -219,7 +216,6 @@ describe("LaunchNFTV2 Contract", () => {
           ethers.parseEther("0.2"),
           BigInt(globalTimestamp + 86000), // Overlaps with first phase
           BigInt(globalTimestamp + 172800),
-          0,
           0,
           0,
           ethers.ZeroHash
@@ -245,7 +241,6 @@ describe("LaunchNFTV2 Contract", () => {
         BigInt(globalTimestamp + 86400),
         100,
         2,
-        50,
         whitelistRoot
       );
       await mineBlock();
@@ -388,7 +383,6 @@ describe("LaunchNFTV2 Contract", () => {
         BigInt(globalTimestamp + 86400),
         0,
         0,
-        0,
         ethers.ZeroHash
       );
       await mineBlock();
@@ -450,7 +444,6 @@ describe("LaunchNFTV2 Contract", () => {
         BigInt(globalTimestamp + 86400), // 24 hours duration
         1000, // maxSupply
         5, // maxPerWallet
-        500, // maxMintPerPhase
         ethers.ZeroHash // No merkle root needed for public
       );
       await mineBlock();
@@ -545,7 +538,6 @@ describe("LaunchNFTV2 Contract", () => {
         BigInt(newPhaseStartTime + 86400),
         0, // No max supply
         0, // No wallet limit
-        0, // No phase limit
         ethers.ZeroHash
       );
 
@@ -590,7 +582,6 @@ describe("LaunchNFTV2 Contract", () => {
         BigInt(newPhaseStartTime + 86400),
         2, // Max supply of 2
         5, // Max per wallet higher than max supply
-        2, // Max mint per phase
         ethers.ZeroHash
       );
 

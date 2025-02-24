@@ -241,7 +241,6 @@ export const collectionServices = {
       endTime,
       maxSupply,
       maxPerWallet,
-      maxMintPerPhase,
       merkleRoot || ethers.ZeroHash, // Use zero hash for public phase
       user.address
     );
