@@ -69,6 +69,11 @@ export const traitValueRepository = {
         "CollectibleTrait.traitValueId",
         "TraitValue.id"
       )
+      .innerJoin(
+        "Collectible",
+        "Collectible.id",
+        "CollectibleTrait.collectibleId"
+      )
       .select((eb) => [
         "TraitValue.id",
         "TraitValue.fileKey",
@@ -77,6 +82,7 @@ export const traitValueRepository = {
         eb.fn.count("CollectibleTrait.id").as("collectibleTraitCount")
       ])
       .where("TraitValue.traitTypeId", "=", traitTypeId)
+      .where("Collectible.status", "=", "CONFIRMED")
       .groupBy([
         "TraitValue.id",
         "TraitValue.fileKey",
