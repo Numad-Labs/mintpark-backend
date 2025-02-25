@@ -484,7 +484,7 @@ export class DirectMintNFTService extends BaseNFTService {
       )
     );
 
-    const timestamp = Math.floor(Date.now() / 1000) + 60;
+    const timestamp = Math.floor(Date.now() / 1000) - 60;
 
     const types = {
       MintRequest: [
