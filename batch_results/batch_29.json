@@ -1,0 +1,19 @@
+{
+  "startBlock": 5770400,
+  "endBlock": 5771399,
+  "feePayers": [
+    "0x5abcc84f4a8f4949ab01138415c9432df8abb595"
+  ],
+  "successfulMinters": [],
+  "transactions": [
+    {
+      "hash": "0xde05c7f52450eb9e6d703fd5b7f3e30aef098c1588a1f3e16a174ba11135a480",
+      "from": "0x5ABcC84F4A8F4949aB01138415c9432Df8aBb595",
+      "value": "0.0000340155509232",
+      "blockNumber": 5771202
+    }
+  ],
+  "failedMinters": [
+    "0x5abcc84f4a8f4949ab01138415c9432df8abb595"
+  ]
+}

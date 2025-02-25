@@ -57,7 +57,7 @@ export const EVM_CONFIG: EVMConfig = {
   // PHASE_TYPE_MAP,
   CHAINS: {
     "5115": {
-      RPC_URL: "https://rpc.testnet.citrea.xyz",
+      RPC_URL: "https://rpc.testnt.citrea.xyz",
       CHAIN_ID: 5115,
       MARKETPLACE_ADDRESS: "0x3415be106ea2680deDD2A6F1BB6B93d1111F44dC",
       DEFAULT_PUBLIC_MAX_MINT,
@@ -98,6 +98,17 @@ export const EVM_CONFIG: EVMConfig = {
       MAX_FEE,
       useLegacyGas: true,
       gasPriceMultiplier: 1.1
+    },
+    "31337": {
+      RPC_URL: "http://127.0.0.1:8545",
+      CHAIN_ID: 31337,
+      MARKETPLACE_ADDRESS: "0x07057191b12Ea36DF999512a409783a106DB1b7a",
+      DEFAULT_PUBLIC_MAX_MINT,
+      DEFAULT_ROYALTY_FEE,
+      DEFAULT_PLATFORM_FEE,
+      MAX_FEE,
+      useLegacyGas: false
+      // gasPriceMultiplier: 1.1
     }
   }
 };

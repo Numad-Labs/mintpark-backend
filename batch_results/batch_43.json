@@ -1,0 +1,58 @@
+{
+  "startBlock": 5784400,
+  "endBlock": 5785399,
+  "feePayers": [
+    "0x741a5d6438c38594792e0487c54fd44d054ed6c9",
+    "0x32eafb5f1578af7eff2cd22bdc0d73ae5d368954",
+    "0xfb49cb80bd0f9f1579486ed4dc3dd3723325e61c",
+    "0xd7fb131de2f8920ea38ec28e92d4e43da5eec094",
+    "0x81f61bac5da8b0e445b3ed7164ac89bb72b9d7f8",
+    "0xade56781abd91c6311308dea44b12cb0ad39958a",
+    "0xd31259aa9bf55cce72d5c0d32bdfd09ae00a3f28"
+  ],
+  "successfulMinters": [],
+  "transactions": [
+    {
+      "hash": "0x77454a57a3ea261e1d267f55153547d7096bc4b67950c702b512af775e3e3a4d",
+      "from": "0x741A5d6438c38594792E0487C54fd44D054ED6C9",
+      "value": "0.0000340155509232",
+      "blockNumber": 5784412
+    },
+    {
+      "hash": "0x793d5c043c0ac74c1206262565f8d8d06c601946b14b95954fb50ccae2e50e35",
+      "from": "0x32eaFB5F1578af7eff2cd22bDC0d73aE5d368954",
+      "value": "0.0000340155509232",
+      "blockNumber": 5784688
+    },
+    {
+      "hash": "0x8a34be976176245d660e8ff873e8b52da5dcf778d186ffff9d49a1f7e0572373",
+      "from": "0xfb49CB80bD0F9f1579486Ed4DC3Dd3723325E61C",
+      "value": "0.0000340155509232",
+      "blockNumber": 5784729
+    },
+    {
+      "hash": "0x9f272fe535d43f6cf38f29a5af820b6372995edf908b2c81b0d9b2707d0b3b96",
+      "from": "0xD7fB131De2F8920eA38EC28e92d4E43dA5eEC094",
+      "value": "0.0000340155509232",
+      "blockNumber": 5784923
+    },
+    {
+      "hash": "0xb6d81512958b6d742c2e5b6c986ea7798120fe978b1db270801ea4480d9d9133",
+      "from": "0x81F61Bac5da8B0e445b3ed7164ac89BB72b9d7F8",
+      "value": "0.0000248819126199",
+      "blockNumber": 5785052
+    },
+    {
+      "hash": "0x976f547ae1e0d90e8f8fd2a14e5a79137a2b102e1ad3005a2a690b0bca02ed6b",
+      "from": "0xADE56781abd91C6311308dEA44B12cb0aD39958a",
+      "value": "0.0000248819126199",
+      "blockNumber": 5785135
+    },
+    {
+      "hash": "0xcf315800054d9cffa8ba4a38c50bd78388ad3b7501452771e5d274a85724f757",
+      "from": "0xd31259Aa9bf55cCE72D5C0D32BdfD09aE00a3f28",
+      "value": "0.0000340155509232",
+      "blockNumber": 5785275
+    }
+  ]
+}

@@ -231,6 +231,9 @@ function buyLaunchItem(token, launchId, userLayerId) {
   });
 
   console.log(`buyres ${response.status}`);
+  if (response.status >= 400) {
+    console.log(JSON.parse(response.body));
+  }
 
   check(response, {
     "buy launch item status is 200": (r) => r.status === 200,
@@ -282,11 +285,6 @@ export default function () {
   let layers;
   // Generate message and login
   layers = getLayers();
-  const { message, signedMessage } = generateMessageToSign(wallet);
-
-  const selectedLayer = {
-    id: "cea5008e-986c-43aa-ad60-488219fb1aca"
-  };
 
   // Generate message and login again (to ensure fresh token)
   const { message: loginMessage, signedMessage: loginSignedMessage } =
@@ -294,23 +292,26 @@ export default function () {
   const { token, userLayerId } = loginUser(
     wallet,
     loginSignedMessage,
-    "04b493ef-8242-4736-9de1-852d21a4dc28"
+    "32e0739b-99c5-4af0-9849-696904b47105"
   );
 
   randomSleep(0.2, 0.5);
 
-  // Get active launches
-  const launches = getActiveLaunches(
-    token,
-    "04b493ef-8242-4736-9de1-852d21a4dc28"
-  );
+  // // Get active launches
+  // const launches = getActiveLaunches(
+  //   token,
+  //   "5f310d70-e254-4456-9345-fa9d9a9a3787"
+  // );
 
   // If no launches, exit this group
   // if (!launches || launches.length === 0) {
   //   return;
   // }
 
-  const selectedLaunch = launches[0];
+  // const selectedLaunch = launches[0];
+  // console.log("🚀 ~ selectedLaunch:", selectedLaunch);
+
+  const selectedLaunch = { launchId: "5f310d70-e254-4456-9345-fa9d9a9a3787" };
 
   randomSleep(0.2, 0.5);
 
@@ -318,7 +319,7 @@ export default function () {
   const buyResult = buyLaunchItem(token, selectedLaunch.launchId, userLayerId);
 
   // Simulate transaction signing
-  const mockTxid = `0x0e5d301da74cee3efcc1fae182627e4c42615db95954417b05803957a9fe7f02`;
+  const mockTxid = `0xa438165cf6aacb94ff29ee6aeb1a91fa12368db1124daadbe556cdc8e27c98b5`;
 
   randomSleep(1, 3);
   // Mint launch item
