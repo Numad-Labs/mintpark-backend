@@ -17,7 +17,7 @@ describe("High Traffic Scenarios", () => {
   const CONTRACT_SYMBOL = "TNFT";
   const MINT_PRICE = "0.1";
   const PHASE_MAX_SUPPLY = 1000;
-  const CONCURRENT_MINTS = 50;
+  const CONCURRENT_MINTS = 200;
 
   async function deployContract() {
     const Factory = await ethers.getContractFactory("LaunchNFTV2", owner);
@@ -90,7 +90,7 @@ describe("High Traffic Scenarios", () => {
       await ethers.getSigners();
   });
 
-  it("should handle 50 truly concurrent mints", async () => {
+  it("should handle 200 truly concurrent mints", async () => {
     await deployContract();
 
     // Add public phase
