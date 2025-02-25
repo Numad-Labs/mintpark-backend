@@ -114,7 +114,6 @@ export const collectionController = {
         endTime,
         maxSupply,
         maxPerWallet,
-        maxMintPerPhase,
         merkleRoot,
         layerId,
         userLayerId
@@ -141,7 +140,7 @@ export const collectionController = {
       }
 
       // Validate numbers
-      if (maxPerWallet < 0 || maxSupply < 0 || maxMintPerPhase < 0) {
+      if (maxPerWallet < 0 || maxSupply < 0) {
         throw new CustomError("Invalid supply or wallet limit values", 400);
       }
 
@@ -153,7 +152,6 @@ export const collectionController = {
         endTime,
         maxSupply,
         maxPerWallet,
-        maxMintPerPhase,
         merkleRoot,
         layerId,
         userId,
@@ -183,6 +181,7 @@ export const collectionController = {
 
       const {
         collectionId,
+        launchId,
         phaseIndex,
         phaseType,
         price,
@@ -190,7 +189,6 @@ export const collectionController = {
         endTime,
         maxSupply,
         maxPerWallet,
-        maxMintPerPhase,
         merkleRoot,
         layerId,
         userLayerId
@@ -199,6 +197,7 @@ export const collectionController = {
       // Validate required fields
       if (!collectionId)
         throw new CustomError("Collection ID is required", 400);
+      if (!launchId) throw new CustomError("Launch ID is required", 400);
       if (phaseIndex === undefined)
         throw new CustomError("Phase index is required", 400);
       if (phaseType === undefined)
@@ -219,17 +218,13 @@ export const collectionController = {
       }
 
       // Validate numbers
-      if (
-        maxPerWallet < 0 ||
-        maxSupply < 0 ||
-        maxMintPerPhase < 0 ||
-        phaseIndex < 0
-      ) {
+      if (maxPerWallet < 0 || maxSupply < 0 || phaseIndex < 0) {
         throw new CustomError("Invalid numeric values", 400);
       }
 
       const unsignedTx = await collectionServices.updatePhase({
         collectionId,
+        launchId,
         phaseIndex,
         phaseType,
         price,
@@ -237,7 +232,6 @@ export const collectionController = {
         endTime,
         maxSupply,
         maxPerWallet,
-        maxMintPerPhase,
         merkleRoot,
         layerId,
         userId,

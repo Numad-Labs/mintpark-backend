@@ -158,7 +158,6 @@ export const collectionServices = {
     endTime,
     maxSupply,
     maxPerWallet,
-    maxMintPerPhase,
     merkleRoot,
     layerId,
     userId,
@@ -171,7 +170,6 @@ export const collectionServices = {
     endTime: number;
     maxSupply: number;
     maxPerWallet: number;
-    maxMintPerPhase: number;
     merkleRoot: string;
     layerId: string;
     userId: string;
