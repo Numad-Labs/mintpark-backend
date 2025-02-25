@@ -171,6 +171,90 @@ export const collectionController = {
     }
   },
 
+  updatePhase: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const userId = req.user?.id;
+
+      if (!userId) throw new CustomError("Cannot parse user from token", 401);
+
+      const {
+        collectionId,
+        phaseIndex,
+        phaseType,
+        price,
+        startTime,
+        endTime,
+        maxSupply,
+        maxPerWallet,
+        maxMintPerPhase,
+        merkleRoot,
+        layerId,
+        userLayerId
+      } = req.body;
+
+      // Validate required fields
+      if (!collectionId)
+        throw new CustomError("Collection ID is required", 400);
+      if (phaseIndex === undefined)
+        throw new CustomError("Phase index is required", 400);
+      if (phaseType === undefined)
+        throw new CustomError("Phase type is required", 400);
+      if (!startTime || !endTime)
+        throw new CustomError("Start and end times are required", 400);
+      if (!layerId) throw new CustomError("Layer ID is required", 400);
+
+      // Validate time range
+      if (startTime >= endTime) {
+        throw new CustomError("End time must be after start time", 400);
+      }
+
+      // Validate phase type
+      if (![1, 2].includes(phaseType)) {
+        // 1: Whitelist, 2: Public
+        throw new CustomError("Invalid phase type", 400);
+      }
+
+      // Validate numbers
+      if (
+        maxPerWallet < 0 ||
+        maxSupply < 0 ||
+        maxMintPerPhase < 0 ||
+        phaseIndex < 0
+      ) {
+        throw new CustomError("Invalid numeric values", 400);
+      }
+
+      const unsignedTx = await collectionServices.updatePhase({
+        collectionId,
+        phaseIndex,
+        phaseType,
+        price,
+        startTime,
+        endTime,
+        maxSupply,
+        maxPerWallet,
+        maxMintPerPhase,
+        merkleRoot,
+        layerId,
+        userId,
+        userLayerId
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          unsignedTx
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
   getById: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;

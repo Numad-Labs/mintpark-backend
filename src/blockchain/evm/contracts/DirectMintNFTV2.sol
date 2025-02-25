@@ -273,6 +273,53 @@ contract LaunchNFTV2 is
     emit PhaseAdded(phaseIndex, _phaseType, _price);
   }
 
+  function updatePhase(
+    uint256 phaseIndex,
+    PhaseType _phaseType,
+    uint256 _price,
+    uint256 _startTime,
+    uint256 _endTime,
+    uint256 _maxSupply,
+    uint256 _maxPerWallet,
+    bytes32 _merkleRoot
+  ) external onlyOwner {
+    require(phaseIndex < phases.length, "Invalid phase index");
+    require(_startTime < _endTime, "Invalid time range");
+
+    if (_phaseType != PhaseType.PUBLIC) {
+      require(_maxPerWallet > 0, "Invalid max per wallet for non-public phase");
+      require(
+        _merkleRoot != bytes32(0),
+        "Merkle root required for whitelist phase"
+      );
+    }
+
+    // Check for overlapping phases with other phases (excluding the one being updated)
+    for (uint256 i = 0; i < phases.length; i++) {
+      if (i == phaseIndex) continue; // Skip the phase being updated
+
+      Phase memory existingPhase = phases[i];
+      if (existingPhase.phaseType == PhaseType.NOT_STARTED) continue;
+
+      require(
+        !(_startTime <= existingPhase.endTime &&
+          _endTime >= existingPhase.startTime),
+        "Phase time overlaps with existing phase"
+      );
+    }
+
+    // Update the phase
+    phases[phaseIndex].phaseType = _phaseType;
+    phases[phaseIndex].price = _price;
+    phases[phaseIndex].startTime = _startTime;
+    phases[phaseIndex].endTime = _endTime;
+    phases[phaseIndex].maxSupply = _maxSupply;
+    phases[phaseIndex].maxPerWallet = _maxPerWallet;
+    phases[phaseIndex].merkleRoot = _merkleRoot;
+
+    emit PhaseUpdated(phaseIndex, _phaseType, _price);
+  }
+
   // Required overrides
   function supportsInterface(
     bytes4 interfaceId

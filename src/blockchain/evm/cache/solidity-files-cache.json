@@ -1264,8 +1264,8 @@
       ]
     },
     "/Users/apple/projects/mintpark-backend/src/blockchain/evm/contracts/DirectMintNFTV2.sol": {
-      "lastModificationDate": 1740457486066,
-      "contentHash": "50c92ecceea16cf060a495edff2dce10",
+      "lastModificationDate": 1740466113612,
+      "contentHash": "a03504b8291f11c5286fd5f529894963",
       "sourceName": "src/blockchain/evm/contracts/DirectMintNFTV2.sol",
       "solcConfig": {
         "version": "0.8.27",

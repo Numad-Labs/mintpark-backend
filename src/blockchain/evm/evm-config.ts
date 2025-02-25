@@ -13,7 +13,7 @@ const DEFAULT_PUBLIC_MAX_MINT = 255;
 const DEFAULT_ROYALTY_FEE = 250; // 2.5%
 const DEFAULT_PLATFORM_FEE = 300; // 3%
 const MAX_FEE = 1000; // 10%
-const DEFAULT_SIGN_DEADLINE = Math.floor(Date.now() / 1000) + 3600;
+const DEFAULT_SIGN_DEADLINE = Math.floor(Date.now() / 1000) - 120;
 
 export const PHASE_TYPE_MAP = {
   NOT_STARTED: 0,

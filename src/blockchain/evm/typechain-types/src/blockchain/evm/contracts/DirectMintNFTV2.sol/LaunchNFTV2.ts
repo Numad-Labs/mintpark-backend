@@ -92,6 +92,7 @@ export interface LaunchNFTV2Interface extends Interface {
       | "totalSupply"
       | "transferFrom"
       | "transferOwnership"
+      | "updatePhase"
   ): FunctionFragment;
 
   getEvent(
@@ -248,6 +249,19 @@ export interface LaunchNFTV2Interface extends Interface {
     functionFragment: "transferOwnership",
     values: [AddressLike]
   ): string;
+  encodeFunctionData(
+    functionFragment: "updatePhase",
+    values: [
+      BigNumberish,
+      BigNumberish,
+      BigNumberish,
+      BigNumberish,
+      BigNumberish,
+      BigNumberish,
+      BigNumberish,
+      BytesLike
+    ]
+  ): string;
 
   decodeFunctionResult(functionFragment: "addPhase", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "approve", data: BytesLike): Result;
@@ -349,6 +363,10 @@ export interface LaunchNFTV2Interface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "transferOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "updatePhase",
     data: BytesLike
   ): Result;
 }
@@ -776,6 +794,21 @@ export interface LaunchNFTV2 extends BaseContract {
     "nonpayable"
   >;
 
+  updatePhase: TypedContractMethod<
+    [
+      phaseIndex: BigNumberish,
+      _phaseType: BigNumberish,
+      _price: BigNumberish,
+      _startTime: BigNumberish,
+      _endTime: BigNumberish,
+      _maxSupply: BigNumberish,
+      _maxPerWallet: BigNumberish,
+      _merkleRoot: BytesLike
+    ],
+    [void],
+    "nonpayable"
+  >;
+
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
@@ -981,6 +1014,22 @@ export interface LaunchNFTV2 extends BaseContract {
   getFunction(
     nameOrSignature: "transferOwnership"
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "updatePhase"
+  ): TypedContractMethod<
+    [
+      phaseIndex: BigNumberish,
+      _phaseType: BigNumberish,
+      _price: BigNumberish,
+      _startTime: BigNumberish,
+      _endTime: BigNumberish,
+      _maxSupply: BigNumberish,
+      _maxPerWallet: BigNumberish,
+      _merkleRoot: BytesLike
+    ],
+    [void],
+    "nonpayable"
+  >;
 
   getEvent(
     key: "Approval"

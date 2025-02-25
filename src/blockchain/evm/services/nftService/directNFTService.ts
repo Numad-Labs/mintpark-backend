@@ -16,35 +16,89 @@ export class DirectMintNFTService extends BaseNFTService {
   private readonly MAX_SYMBOL_LENGTH = 10;
   private readonly SIGNATURE_EXPIRY = 3600; // 1 hour in seconds
 
-  // async validatePhaseSupply(contract: ethers.Contract, phase: any) {
-  //   // Get current phase stats
-  //   const [phaseIndex, currentPhase] = await contract.getActivePhase();
+  async validateUpdatePhaseParams(
+    collectionAddress: string,
+    phaseIndex: number,
+    phaseType: number,
+    price: string,
+    startTime: number,
+    endTime: number,
+    maxSupply: number,
+    maxPerWallet: number,
+    merkleRoot: string,
+    from: string
+  ) {
+    // Validate collection address
+    if (!ethers.isAddress(collectionAddress)) {
+      throw new CustomError("Invalid collection address", 400);
+    }
 
-  //   // Check if maxSupply is set (not zero) and if we've reached it
-  //   if (currentPhase.maxSupply !== BigInt(0)) {
-  //     const mintedInPhase = currentPhase.mintedInPhase;
-  //     const maxSupply = currentPhase.maxSupply;
+    // Validate from address
+    if (!ethers.isAddress(from)) {
+      throw new CustomError("Invalid from address", 400);
+    }
 
-  //     console.log("Phase Supply Check:", {
-  //       mintedInPhase: mintedInPhase.toString(),
-  //       maxSupply: maxSupply.toString(),
-  //       remaining: (maxSupply - mintedInPhase).toString()
-  //     });
+    if (from === ethers.ZeroAddress) {
+      throw new CustomError("From address cannot be zero address", 400);
+    }
 
-  //     if (mintedInPhase >= maxSupply) {
-  //       throw new Error("Phase supply limit reached");
-  //     }
-  //   }
+    // Validate phase index
+    if (phaseIndex < 0) {
+      throw new CustomError("Phase index cannot be negative", 400);
+    }
 
-  //   return {
-  //     phaseIndex,
-  //     currentPhase,
-  //     remainingSupply:
-  //       currentPhase.maxSupply !== BigInt(0)
-  //         ? currentPhase.maxSupply - currentPhase.mintedInPhase
-  //         : "unlimited"
-  //   };
-  // }
+    // Check if the phase exists
+    const contract = new ethers.Contract(
+      collectionAddress,
+      EVM_CONFIG.DIRECT_MINT_NFT_ABI,
+      this.provider
+    );
+
+    const phaseCount = await contract.getPhaseCount();
+    if (BigInt(phaseIndex) >= phaseCount) {
+      throw new CustomError("Invalid phase index", 400);
+    }
+
+    // Validate phase type
+    if (phaseType < 0 || phaseType > 2) {
+      // NOT_STARTED=0, WHITELIST=1, PUBLIC=2
+      throw new CustomError("Invalid phase type", 400);
+    }
+
+    // Validate time range
+    if (startTime >= endTime) {
+      throw new CustomError("Start time must be before end time", 400);
+    }
+
+    // Validate price
+    try {
+      const priceInEther = ethers.parseEther(price);
+      if (priceInEther < BigInt(0)) {
+        throw new CustomError("Price cannot be negative", 400);
+      }
+    } catch {
+      throw new CustomError("Invalid price format", 400);
+    }
+
+    // Validate max per wallet for non-public phases
+    if (phaseType !== 2 && maxPerWallet <= 0) {
+      // 2 = PUBLIC
+      throw new CustomError(
+        "Max per wallet must be positive for non-public phases",
+        400
+      );
+    }
+
+    // Validate merkle root for whitelist phase
+    if (
+      phaseType === 1 &&
+      (!merkleRoot ||
+        merkleRoot ===
+          "0x0000000000000000000000000000000000000000000000000000000000000000")
+    ) {
+      throw new CustomError("Merkle root required for whitelist phase", 400);
+    }
+  }
 
   // async verifyPhaseSupply(collectionAddress: string): Promise<void> {
   //   const contract = new ethers.Contract(
@@ -484,7 +538,7 @@ export class DirectMintNFTService extends BaseNFTService {
       )
     );
 
-    const timestamp = Math.floor(Date.now() / 1000) - 60;
+    const timestamp = EVM_CONFIG.DEFAULT_SIGN_DEADLINE;
 
     const types = {
       MintRequest: [
@@ -718,6 +772,62 @@ export class DirectMintNFTService extends BaseNFTService {
     } catch (error) {
       throw new CustomError(
         `Failed to create add phase transaction: ${error}`,
+        500
+      );
+    }
+  }
+
+  async getUnsignedUpdatePhaseTransaction(
+    collectionAddress: string,
+    phaseIndex: number,
+    phaseType: number,
+    price: string,
+    startTime: number,
+    endTime: number,
+    maxSupply: number,
+    maxPerWallet: number,
+    merkleRoot: string,
+    from: string
+  ): Promise<ethers.TransactionRequest> {
+    try {
+      // Validate parameters
+      await this.validateUpdatePhaseParams(
+        collectionAddress,
+        phaseIndex,
+        phaseType,
+        price,
+        startTime,
+        endTime,
+        maxSupply,
+        maxPerWallet,
+        merkleRoot,
+        from
+      );
+
+      const contract = new ethers.Contract(
+        collectionAddress,
+        EVM_CONFIG.DIRECT_MINT_NFT_ABI,
+        this.provider
+      );
+
+      const unsignedTx = await contract.updatePhase.populateTransaction(
+        phaseIndex,
+        phaseType,
+        ethers.parseEther(price),
+        startTime,
+        endTime,
+        maxSupply,
+        maxPerWallet,
+        merkleRoot
+      );
+
+      return this.prepareUnsignedTransaction(unsignedTx, from);
+    } catch (error) {
+      if (error instanceof CustomError) {
+        throw error;
+      }
+      throw new CustomError(
+        `Failed to create update phase transaction: ${error}`,
         500
       );
     }

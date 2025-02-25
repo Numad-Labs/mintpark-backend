@@ -21,6 +21,7 @@ import { config } from "../config/config";
 import { VaultMintNFTService } from "../blockchain/evm/services/nftService/vaultNFTService";
 import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
 import { ethers } from "ethers";
+import { launchRepository } from "../repositories/launchRepository";
 
 export const collectionServices = {
   create: async (
@@ -245,6 +246,142 @@ export const collectionServices = {
       user.address
     );
 
+    return serializeBigInt(unsignedTx);
+  },
+  updatePhase: async ({
+    collectionId,
+    launchId,
+    phaseIndex,
+    phaseType,
+    price,
+    startTime,
+    endTime,
+    maxSupply,
+    maxPerWallet,
+    merkleRoot,
+    layerId,
+    userId,
+    userLayerId
+  }: {
+    collectionId: string;
+    launchId: string;
+    phaseIndex: number;
+    phaseType: number;
+    price: string;
+    startTime: number;
+    endTime: number;
+    maxSupply: number;
+    maxPerWallet: number;
+    merkleRoot: string;
+    layerId: string;
+    userId: string;
+    userLayerId: string;
+  }) => {
+    // Get collection and verify ownership
+    const collection = await collectionRepository.getById(db, collectionId);
+    if (!collection) {
+      throw new CustomError("Collection not found", 404);
+    }
+
+    if (collection.creatorId !== userId) {
+      throw new CustomError(
+        "You are not authorized to modify this collection",
+        403
+      );
+    }
+
+    // Verify collection status
+    if (collection.status !== "UNCONFIRMED") {
+      throw new CustomError(
+        "Collection must be in UNCONFIRMED status to update phases",
+        400
+      );
+    }
+
+    // Get layer and validate
+    const layer = await layerServices.checkIfSupportedLayerOrThrow(layerId);
+    if (!layer.chainId) {
+      throw new CustomError("Invalid layer for phase setup", 400);
+    }
+
+    // Get user and validate
+    const user = await userRepository.getByUserLayerId(userLayerId);
+    if (!user) {
+      throw new CustomError("User not found", 404);
+    }
+    if (!user.isActive) {
+      throw new CustomError("This account is deactivated", 400);
+    }
+    if (user.layer !== layer.layer || user.network !== layer.network) {
+      throw new CustomError(
+        "You cannot modify collection for this layerId with the current active account",
+        400
+      );
+    }
+
+    if (!collection.contractAddress) {
+      throw new CustomError("Collection contract address not found", 400);
+    }
+
+    // Initialize NFT service
+    const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+    const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
+
+    // For whitelist phase, validate merkle root
+    if (phaseType === 1 && !merkleRoot) {
+      // 1 is whitelist phase
+      throw new CustomError("Merkle root is required for whitelist phase", 400);
+    }
+
+    // Validate phase index
+    const phaseCount = await directMintService.getPhaseCount(
+      collection.contractAddress
+    );
+    if (phaseIndex < 0 || phaseIndex >= Number(phaseCount)) {
+      throw new CustomError(
+        `Invalid phase index. Must be between 0 and ${Number(phaseCount) - 1}`,
+        400
+      );
+    }
+
+    // Get unsigned transaction
+    const unsignedTx =
+      await directMintService.getUnsignedUpdatePhaseTransaction(
+        collection.contractAddress,
+        phaseIndex,
+        phaseType,
+        price,
+        startTime,
+        endTime,
+        maxSupply,
+        maxPerWallet,
+        merkleRoot || ethers.ZeroHash, // Use zero hash for public phase
+        user.address
+      );
+
+    await collectionRepository.update(db, collectionId, {
+      updatedAt: new Date()
+    });
+
+    if (phaseType == 1) {
+      await launchRepository.update(launchId, {
+        wlEndsAt: endTime.toString(),
+        wlStartsAt: startTime.toString(),
+        wlMintPrice: parseInt(price),
+        wlMaxMintPerWallet: maxPerWallet,
+        updatedAt: new Date()
+      });
+    } else if (phaseType == 2) {
+      await launchRepository.update(launchId, {
+        poEndsAt: endTime.toString(),
+        poStartsAt: startTime.toString(),
+        poMintPrice: parseInt(price),
+        poMaxMintPerWallet: maxPerWallet,
+        updatedAt: new Date()
+      });
+    } else {
+      throw new CustomError("Invalid phase type", 400);
+    }
     return serializeBigInt(unsignedTx);
   },
   delete: async (id: string) => {

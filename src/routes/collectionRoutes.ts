@@ -21,6 +21,13 @@ collectionRouter.post(
   collectionController.addPhase
 );
 
+collectionRouter.put(
+  "/phase",
+  authenticateToken,
+  authorize("SUPER_ADMIN"),
+  collectionController.updatePhase
+);
+
 // collectionRouter.post(
 //   "/list-evm",
 //   authenticateToken,
