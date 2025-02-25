@@ -141,8 +141,9 @@ export const launchServices = {
       const confirmationService = new TransactionConfirmationService(
         chainConfig.RPC_URL
       );
-      const transactionDetail =
-        await confirmationService.getTransactionDetails(txid);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -199,8 +200,9 @@ export const launchServices = {
         chainConfig.RPC_URL
       );
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail =
-        await confirmationService.getTransactionDetails(txid);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -514,6 +516,11 @@ export const launchServices = {
       );
     if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
+    if (user.layerId !== collection?.layerId)
+      throw new CustomError(
+        "Please connect to the appropriate L2 for this launch.",
+        400
+      );
     if (!launch) throw new CustomError("Launch not found.", 400);
     if (launch.status === "UNCONFIRMED")
       throw new CustomError("Unconfirmed launch.", 400);
@@ -557,6 +564,36 @@ export const launchServices = {
     const chainConfig = EVM_CONFIG.CHAINS[user.chainId];
     const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
     const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
+
+    const phaseInfo = await directMintService.getActivePhase(
+      collection.contractAddress
+    );
+    if (!phaseInfo.isActive) throw new CustomError("Phase not found", 400);
+    console.log("🚀 ~ phaseInfo:", phaseInfo);
+
+    console.log("date", new Date(parseInt(phaseInfo.endTime)));
+    if (phaseInfo.phaseType == BigInt(0))
+      throw new CustomError("Phase not active", 400);
+
+    const mintedInPhase = await directMintService.getMintedInPhase(
+      collection.contractAddress,
+      user.address,
+      Number(phaseInfo.phaseType)
+    );
+
+    if (
+      phaseInfo.maxPerWallet !== BigInt(0) &&
+      mintedInPhase >= phaseInfo.maxPerWallet
+    ) {
+      throw new CustomError("Wallet limit reached for this phase", 400);
+    }
+
+    if (
+      phaseInfo.maxSupply !== BigInt(0) &&
+      phaseInfo.mintedInPhase >= phaseInfo.maxSupply
+    ) {
+      throw new CustomError("Phase supply limit reached", 400);
+    }
 
     // --- Acquire a Launch Item Atomically ---
     const isInfiniteBadge = collection.isBadge && !collection.badgeSupply;
@@ -715,36 +752,6 @@ export const launchServices = {
     if (!collection.contractAddress)
       throw new CustomError("Collection contract address not found.", 400);
 
-    const phaseInfo = await directMintService.getActivePhase(
-      collection.contractAddress
-    );
-    if (!phaseInfo.isActive) throw new CustomError("Phase not found", 400);
-    console.log("🚀 ~ phaseInfo:", phaseInfo);
-
-    console.log("date", new Date(parseInt(phaseInfo.endTime)));
-    if (phaseInfo.phaseType == BigInt(0))
-      throw new CustomError("Phase not active", 400);
-
-    const mintedInPhase = await directMintService.getMintedInPhase(
-      collection.contractAddress,
-      user.address,
-      Number(phaseInfo.phaseType)
-    );
-
-    if (
-      phaseInfo.maxPerWallet !== BigInt(0) &&
-      mintedInPhase >= phaseInfo.maxPerWallet
-    ) {
-      throw new CustomError("Wallet limit reached for this phase", 400);
-    }
-
-    if (
-      phaseInfo.maxSupply !== BigInt(0) &&
-      phaseInfo.mintedInPhase >= phaseInfo.maxSupply
-    ) {
-      throw new CustomError("Phase supply limit reached", 400);
-    }
-
     // Generate signature for direct minting
     const { signature, uniqueId, timestamp } =
       await directMintService.generateMintSignature(
@@ -899,8 +906,9 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
 
-    const transactionDetail =
-      await confirmationService.getTransactionDetails(txid);
+    const transactionDetail = await confirmationService.getTransactionDetails(
+      txid
+    );
     if (transactionDetail.status !== 1)
       throw new CustomError(
         "Transaction not confirmed. Please try again.",
@@ -1126,12 +1134,12 @@ const validatePhaseAndGetPrice = async (
     return Number(launch.wlMintPrice);
   }
 
-  if (Number(launch.poStartsAt) > currentTime) {
-    throw new CustomError("Launch hasn't started.", 400);
-  }
-  if (launch.poEndsAt && Number(launch.poEndsAt) < currentTime) {
-    throw new CustomError("Launch has ended.", 400);
-  }
+  // if (Number(launch.poStartsAt) > currentTime) {
+  //   throw new CustomError("Launch hasn't started.", 400);
+  // }
+  // if (launch.poEndsAt && Number(launch.poEndsAt) < currentTime) {
+  //   throw new CustomError("Launch has ended.", 400);
+  // }
 
   return Number(launch.poMintPrice);
 };
