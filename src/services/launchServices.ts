@@ -565,35 +565,35 @@ export const launchServices = {
     const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
     const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
 
-    // const phaseInfo = await directMintService.getActivePhase(
-    //   collection.contractAddress
-    // );
-    // if (!phaseInfo.isActive) throw new CustomError("Phase not found", 400);
-    // console.log("🚀 ~ phaseInfo:", phaseInfo);
+    const phaseInfo = await directMintService.getActivePhase(
+      collection.contractAddress
+    );
+    if (!phaseInfo.isActive) throw new CustomError("Phase not found", 400);
+    console.log("🚀 ~ phaseInfo:", phaseInfo);
 
-    // console.log("date", new Date(parseInt(phaseInfo.endTime)));
-    // if (phaseInfo.phaseType == BigInt(0))
-    //   throw new CustomError("Phase not active", 400);
+    console.log("date", new Date(parseInt(phaseInfo.endTime)));
+    if (phaseInfo.phaseType == BigInt(0))
+      throw new CustomError("Phase not active", 400);
 
-    // const mintedInPhase = await directMintService.getMintedInPhase(
-    //   collection.contractAddress,
-    //   user.address,
-    //   Number(phaseInfo.phaseType)
-    // );
+    const mintedInPhase = await directMintService.getMintedInPhase(
+      collection.contractAddress,
+      user.address,
+      Number(phaseInfo.phaseType)
+    );
 
-    // if (
-    //   phaseInfo.maxPerWallet !== BigInt(0) &&
-    //   mintedInPhase >= phaseInfo.maxPerWallet
-    // ) {
-    //   throw new CustomError("Wallet limit reached for this phase", 400);
-    // }
+    if (
+      phaseInfo.maxPerWallet !== BigInt(0) &&
+      mintedInPhase >= phaseInfo.maxPerWallet
+    ) {
+      throw new CustomError("Wallet limit reached for this phase", 400);
+    }
 
-    // if (
-    //   phaseInfo.maxSupply !== BigInt(0) &&
-    //   phaseInfo.mintedInPhase >= phaseInfo.maxSupply
-    // ) {
-    //   throw new CustomError("Phase supply limit reached", 400);
-    // }
+    if (
+      phaseInfo.maxSupply !== BigInt(0) &&
+      phaseInfo.mintedInPhase >= phaseInfo.maxSupply
+    ) {
+      throw new CustomError("Phase supply limit reached", 400);
+    }
 
     // --- Acquire a Launch Item Atomically ---
     const isInfiniteBadge = collection.isBadge && !collection.badgeSupply;
@@ -660,12 +660,12 @@ export const launchServices = {
       throw new CustomError("Please try again, no collectible found.", 400);
 
     // --- Check if the collectible is already minted ---
-    // const baseNFTService = new BaseNFTService(chainConfig.RPC_URL);
-    // const isMinted = await baseNFTService.isNFTMinted(
-    //   collection.contractAddress,
-    //   collectible.nftId
-    // );
-    const isMinted = false;
+    const baseNFTService = new BaseNFTService(chainConfig.RPC_URL);
+    const isMinted = await baseNFTService.isNFTMinted(
+      collection.contractAddress,
+      collectible.nftId
+    );
+
     if (isMinted) {
       // Sync DB state in a transaction.
       await db.transaction().execute(async (trx) => {
@@ -753,55 +753,53 @@ export const launchServices = {
     if (!collection.contractAddress)
       throw new CustomError("Collection contract address not found.", 400);
 
-    // // Generate signature for direct minting
-    // const { signature, uniqueId, timestamp } =
-    //   await directMintService.generateMintSignature(
-    //     collection.contractAddress,
-    //     user.address,
-    //     tokenId,
-    //     nftIpfsUrl,
-    //     mintPrice.toString(),
-    //     // Number(phaseInfo.phaseIndex)
-    //     0
-    //   );
+    // Generate signature for direct minting
+    const { signature, uniqueId, timestamp } =
+      await directMintService.generateMintSignature(
+        collection.contractAddress,
+        user.address,
+        tokenId,
+        nftIpfsUrl,
+        mintPrice.toString(),
+        // Number(phaseInfo.phaseIndex)
+        0
+      );
 
-    // console.log("Signature generated", signature, uniqueId, timestamp);
+    console.log("Signature generated", signature, uniqueId, timestamp);
 
-    // // const merkleProof = phaseInfo.phaseType === BigInt(2) ? [] : [];
-    // const merkleProof: any[] = [];
-    // console.log("Signature used", Math.floor(Date.now() / 1000));
+    // const merkleProof = phaseInfo.phaseType === BigInt(2) ? [] : [];
+    const merkleProof: any[] = [];
+    console.log("Signature used", Math.floor(Date.now() / 1000));
 
-    // const unsignedTx = await directMintService.getUnsignedMintTransaction(
-    //   collection.contractAddress,
-    //   tokenId,
-    //   nftIpfsUrl,
-    //   mintPrice.toString(),
-    //   uniqueId,
-    //   timestamp,
-    //   signature,
-    //   merkleProof,
-    //   user.address
-    // );
+    const unsignedTx = await directMintService.getUnsignedMintTransaction(
+      collection.contractAddress,
+      tokenId,
+      nftIpfsUrl,
+      mintPrice.toString(),
+      uniqueId,
+      timestamp,
+      signature,
+      merkleProof,
+      user.address
+    );
 
     const order = await orderRepository.create(db, {
       userId: user.id,
       collectionId: collection.id,
       feeRate,
       orderType: "LAUNCH_BUY",
-      // fundingAmount: unsignedTx.value
-      //   ? parseInt(unsignedTx.value.toString())
-      //   : 0,
-      // fundingAddress: unsignedTx.to?.toString(),
-      fundingAmount: 0,
-      fundingAddress: "",
+      fundingAmount: unsignedTx.value
+        ? parseInt(unsignedTx.value.toString())
+        : 0,
+      fundingAddress: unsignedTx.to?.toString(),
       privateKey: "evm",
       userLayerId
     });
 
     return {
       launchItem: hideSensitiveData(launchItem, ["collectibleId"]),
-      order: hideSensitiveData(order, ["privateKey"])
-      // singleMintTxHex: serializeBigInt(unsignedTx)
+      order: hideSensitiveData(order, ["privateKey"]),
+      singleMintTxHex: serializeBigInt(unsignedTx)
     };
   },
   confirmMint: async (
@@ -866,9 +864,9 @@ export const launchServices = {
 
     if (!launchItem) throw new CustomError("Launch item not found.", 400);
 
-    // // Get mint price and validate phase
-    // const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
-    // await validatePhaseAndGetPrice(launch, user, currentUnixTimeStamp);
+    // Get mint price and validate phase
+    const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
+    await validatePhaseAndGetPrice(launch, user, currentUnixTimeStamp);
 
     // Validate launch item status
     const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
@@ -883,8 +881,8 @@ export const launchServices = {
     if (isLaunchItemOnHold && isLaunchItemOnHold.status === "SOLD")
       throw new CustomError("Launch item has already been sold.", 400);
 
-    // // Validate purchase limits inside transaction
-    // await validatePurchaseLimits(db, launch, user, currentUnixTimeStamp);
+    // Validate purchase limits inside transaction
+    await validatePurchaseLimits(db, launch, user, currentUnixTimeStamp);
 
     const collectible = await collectibleRepository.getById(
       db,
@@ -906,69 +904,68 @@ export const launchServices = {
     const layer = await layerRepository.getById(collection.layerId);
     if (!layer || !layer.chainId) throw new CustomError("Layer not found", 400);
 
-    // const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
-    // const confirmationService = new TransactionConfirmationService(
-    //   chainConfig.RPC_URL
-    // );
+    const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+    const confirmationService = new TransactionConfirmationService(
+      chainConfig.RPC_URL
+    );
 
-    // const transactionDetail = await confirmationService.getTransactionDetails(
-    //   txid
-    // );
-    // if (transactionDetail.status !== 1)
-    //   throw new CustomError(
-    //     "Transaction not confirmed. Please try again.",
-    //     500
-    //   );
+    const transactionDetail = await confirmationService.getTransactionDetails(
+      txid
+    );
+    if (transactionDetail.status !== 1)
+      throw new CustomError(
+        "Transaction not confirmed. Please try again.",
+        500
+      );
 
-    const result = { launchItem: null };
-    // // Execute database operations in transaction
-    // const result = await db.transaction().execute(async (trx) => {
-    //   // try {
-    //   //   await userRepository.acquireLockByUserLayerId(trx, userLayerId);
-    //   // } catch (error) {
-    //   //   if (error instanceof DatabaseError && error.code === "55P03") {
-    //   //     throw new CustomError(
-    //   //       "Previous request is currently being processed. Please try again in a moment.",
-    //   //       409
-    //   //     );
-    //   //   }
-    //   //   throw error;
-    //   // }
+    // Execute database operations in transaction
+    const result = await db.transaction().execute(async (trx) => {
+      // try {
+      //   await userRepository.acquireLockByUserLayerId(trx, userLayerId);
+      // } catch (error) {
+      //   if (error instanceof DatabaseError && error.code === "55P03") {
+      //     throw new CustomError(
+      //       "Previous request is currently being processed. Please try again in a moment.",
+      //       409
+      //     );
+      //   }
+      //   throw error;
+      // }
 
-    //   await collectibleRepository.update(trx, collectible.id, {
-    //     status: "CONFIRMED",
-    //     mintingTxId: txid,
-    //     uniqueIdx: collection.contractAddress + "i" + collectible.nftId
-    //   });
-    //   await collectionRepository.incrementCollectionSupplyById(
-    //     trx,
-    //     collection.id
-    //   );
-    //   const soldLaunchItem = await launchItemRepository.update(
-    //     trx,
-    //     launchItem.id,
-    //     {
-    //       status: "SOLD"
-    //     }
-    //   );
-    //   await purchaseRepository.create(trx, {
-    //     userId: user.id,
-    //     launchItemId: soldLaunchItem.id,
-    //     purchasedAddress: user.address
-    //   });
-    //   await orderRepository.update(trx, orderId, {
-    //     orderStatus: "DONE"
-    //   });
-    //   if (collection.status === "UNCONFIRMED") {
-    //     await collectionRepository.update(trx, collection.id, {
-    //       status: "CONFIRMED"
-    //     });
-    //   }
+      await collectibleRepository.update(trx, collectible.id, {
+        status: "CONFIRMED",
+        mintingTxId: txid,
+        uniqueIdx: collection.contractAddress + "i" + collectible.nftId
+      });
+      await collectionRepository.incrementCollectionSupplyById(
+        trx,
+        collection.id
+      );
+      const soldLaunchItem = await launchItemRepository.update(
+        trx,
+        launchItem.id,
+        {
+          status: "SOLD"
+        }
+      );
+      await purchaseRepository.create(trx, {
+        userId: user.id,
+        launchItemId: soldLaunchItem.id,
+        purchasedAddress: user.address
+      });
+      await orderRepository.update(trx, orderId, {
+        orderStatus: "DONE"
+      });
+      if (collection.status === "UNCONFIRMED") {
+        await collectionRepository.update(trx, collection.id, {
+          status: "CONFIRMED"
+        });
+      }
 
-    //   return {
-    //     launchItem: soldLaunchItem
-    //   };
-    // });
+      return {
+        launchItem: soldLaunchItem
+      };
+    });
 
     return {
       launchItem: result.launchItem
@@ -1140,12 +1137,12 @@ const validatePhaseAndGetPrice = async (
     return Number(launch.wlMintPrice);
   }
 
-  // if (Number(launch.poStartsAt) > currentTime) {
-  //   throw new CustomError("Launch hasn't started.", 400);
-  // }
-  // if (launch.poEndsAt && Number(launch.poEndsAt) < currentTime) {
-  //   throw new CustomError("Launch has ended.", 400);
-  // }
+  if (Number(launch.poStartsAt) > currentTime) {
+    throw new CustomError("Launch hasn't started.", 400);
+  }
+  if (launch.poEndsAt && Number(launch.poEndsAt) < currentTime) {
+    throw new CustomError("Launch has ended.", 400);
+  }
 
   return Number(launch.poMintPrice);
 };
