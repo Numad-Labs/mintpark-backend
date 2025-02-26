@@ -3,10 +3,11 @@ import { CustomError } from "../exceptions/CustomError";
 import { LaunchQueryParams } from "../repositories/collectionRepository";
 import { AuthenticatedRequest } from "../../custom";
 import { launchServices } from "../services/launchServices";
-import { Insertable, Updateable } from "kysely";
+import { Insertable, sql, Updateable } from "kysely";
 import { Launch } from "../types/db/types";
 import { launchRepository } from "../repositories/launchRepository";
 import { ipfsData, recursiveInscriptionParams } from "./collectibleController";
+import { db } from "../utils/db";
 export interface LaunchOfferType {
   offerType: "public" | "whitelist";
 }
@@ -116,8 +117,8 @@ export const launchController = {
       const data: recursiveInscriptionParams[] = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data
-          ? [req.body.data]
-          : [];
+        ? [req.body.data]
+        : [];
       if (data.length === 0)
         throw new CustomError("Please provide the data.", 400);
       if (data.length > 10)
@@ -181,8 +182,8 @@ export const launchController = {
       const data: ipfsData = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data
-          ? [req.body.data]
-          : [];
+        ? [req.body.data]
+        : [];
       // if (data.length === 0)
       //   throw new CustomError("Please provide the data.", 400);
       // if (data.length > 10)
@@ -264,8 +265,9 @@ export const launchController = {
         interval: interval as "all" | "live" | "past"
       };
 
-      const launches =
-        await launchRepository.getConfirmedLaunchesByLayerId(query);
+      const launches = await launchRepository.getConfirmedLaunchesByLayerId(
+        query
+      );
 
       return res.status(200).json({ success: true, data: launches });
     } catch (e) {
@@ -281,8 +283,9 @@ export const launchController = {
       const { collectionId } = req.params;
 
       try {
-        const launch =
-          await launchRepository.getConfirmedLaunchById(collectionId);
+        const launch = await launchRepository.getConfirmedLaunchById(
+          collectionId
+        );
         if (!launch) throw new CustomError("Collection not found", 404);
 
         return res.status(200).json({ success: true, data: launch });
@@ -361,4 +364,65 @@ export const launchController = {
       next(e);
     }
   }
+  // stateFunctionTest: async (
+  //   req: Request,
+  //   res: Response,
+  //   next: NextFunction
+  // ) => {
+  //   const launchState = determineLaunchState(req.body);
+
+  //   res.json(launchState);
+  // }
 };
+
+// enum LAUNCH_STATE {
+//   INDEFINITE = "INDEFINITE",
+//   ENDED = "ENDED",
+//   LIVE = "LIVE",
+//   UPCOMING = "UPCOMING",
+//   UNKNOWN = "UNKNOWN"
+// }
+
+// function determineLaunchState({
+//   isWhitelisted,
+//   wlStartsAt,
+//   wlEndsAt,
+//   poStartsAt,
+//   poEndsAt,
+//   mintedAmount,
+//   supply,
+//   isBadge,
+//   badgeSupply
+// }: {
+//   isWhitelisted: boolean;
+//   wlStartsAt: string | null;
+//   wlEndsAt: string | null;
+//   poStartsAt: string;
+//   poEndsAt: string | null;
+//   mintedAmount: number;
+//   supply: number;
+//   isBadge: boolean;
+//   badgeSupply: number | null;
+// }): LAUNCH_STATE {
+//   if (isWhitelisted && (!wlStartsAt || !wlEndsAt)) return LAUNCH_STATE.UNKNOWN;
+
+//   const now = Math.floor(Date.now() / 1000);
+//   const isInfiniteSupplyBadge = isBadge && badgeSupply === null;
+//   const isSoldOut = !isInfiniteSupplyBadge && mintedAmount >= supply;
+
+//   const whitelistUpcoming = isWhitelisted && now < Number(wlStartsAt);
+//   const publicUpcoming = !whitelistUpcoming && now < Number(poStartsAt);
+//   if (whitelistUpcoming || publicUpcoming) return LAUNCH_STATE.UPCOMING;
+
+//   if (poEndsAt === null && !isSoldOut && now >= Number(poStartsAt))
+//     return LAUNCH_STATE.INDEFINITE;
+
+//   const isWhiteListActive =
+//     isWhitelisted && now >= Number(wlStartsAt) && now < Number(wlEndsAt);
+//   const isPublicOfferingActive =
+//     now >= Number(poStartsAt) && poEndsAt !== null && now <= Number(poEndsAt);
+//   if ((isWhiteListActive || isPublicOfferingActive) && !isSoldOut)
+//     return LAUNCH_STATE.LIVE;
+
+//   return LAUNCH_STATE.ENDED;
+// }

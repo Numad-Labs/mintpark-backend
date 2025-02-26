@@ -141,15 +141,17 @@ export const listRepository = {
 
     return result;
   },
-  getActiveListCountByUserId: async (userId: string) => {
+  getActiveListCountByAddress: async (address: string) => {
     const result = await db
       .selectFrom("List")
+      .innerJoin("User as Seller", "Seller.id", "List.sellerId")
+      .innerJoin("UserLayer", "UserLayer.userId", "Seller.id")
       .select((eb) => [
         eb.fn
           .coalesce(eb.fn.count("List.id").$castTo<number>(), sql<number>`0`)
           .as("activeListCount")
       ])
-      .where("List.sellerId", "=", userId)
+      .where("UserLayer.address", "=", address)
       .where("List.status", "=", "ACTIVE")
       .executeTakeFirst();
 

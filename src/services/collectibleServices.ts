@@ -132,7 +132,7 @@ export const collectibleServices = {
       collectibleRepository.getListableCollectiblesCountByInscriptionIds(
         uniqueIdxs
       ),
-      listRepository.getActiveListCountByUserId(userId),
+      listRepository.getActiveListCountByAddress(user.address),
       collectionRepository.getListedCollectionsWithCollectibleCountByInscriptionIds(
         uniqueIdxs
       )
