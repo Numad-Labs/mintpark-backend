@@ -49,4 +49,18 @@ export const userLayerRepository = {
 
     return userLayer;
   },
+  getActiveAddressesByUserIdAndLayerId: async (
+    userId: string,
+    layerId: string
+  ) => {
+    const userLayer = await db
+      .selectFrom("UserLayer")
+      .select(["address"])
+      .where("UserLayer.isActive", "=", true)
+      .where("UserLayer.userId", "=", userId)
+      .where("UserLayer.layerId", "=", layerId)
+      .execute();
+
+    return userLayer;
+  }
 };
