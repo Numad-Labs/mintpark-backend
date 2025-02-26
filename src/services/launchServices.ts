@@ -753,53 +753,55 @@ export const launchServices = {
     if (!collection.contractAddress)
       throw new CustomError("Collection contract address not found.", 400);
 
-    // Generate signature for direct minting
-    const { signature, uniqueId, timestamp } =
-      await directMintService.generateMintSignature(
-        collection.contractAddress,
-        user.address,
-        tokenId,
-        nftIpfsUrl,
-        mintPrice.toString(),
-        // Number(phaseInfo.phaseIndex)
-        0
-      );
+    // // Generate signature for direct minting
+    // const { signature, uniqueId, timestamp } =
+    //   await directMintService.generateMintSignature(
+    //     collection.contractAddress,
+    //     user.address,
+    //     tokenId,
+    //     nftIpfsUrl,
+    //     mintPrice.toString(),
+    //     // Number(phaseInfo.phaseIndex)
+    //     0
+    //   );
 
-    console.log("Signature generated", signature, uniqueId, timestamp);
+    // console.log("Signature generated", signature, uniqueId, timestamp);
 
-    // const merkleProof = phaseInfo.phaseType === BigInt(2) ? [] : [];
-    const merkleProof: any[] = [];
-    console.log("Signature used", Math.floor(Date.now() / 1000));
+    // // const merkleProof = phaseInfo.phaseType === BigInt(2) ? [] : [];
+    // const merkleProof: any[] = [];
+    // console.log("Signature used", Math.floor(Date.now() / 1000));
 
-    const unsignedTx = await directMintService.getUnsignedMintTransaction(
-      collection.contractAddress,
-      tokenId,
-      nftIpfsUrl,
-      mintPrice.toString(),
-      uniqueId,
-      timestamp,
-      signature,
-      merkleProof,
-      user.address
-    );
+    // const unsignedTx = await directMintService.getUnsignedMintTransaction(
+    //   collection.contractAddress,
+    //   tokenId,
+    //   nftIpfsUrl,
+    //   mintPrice.toString(),
+    //   uniqueId,
+    //   timestamp,
+    //   signature,
+    //   merkleProof,
+    //   user.address
+    // );
 
     const order = await orderRepository.create(db, {
       userId: user.id,
       collectionId: collection.id,
       feeRate,
       orderType: "LAUNCH_BUY",
-      fundingAmount: unsignedTx.value
-        ? parseInt(unsignedTx.value.toString())
-        : 0,
-      fundingAddress: unsignedTx.to?.toString(),
+      // fundingAmount: unsignedTx.value
+      //   ? parseInt(unsignedTx.value.toString())
+      //   : 0,
+      // fundingAddress: unsignedTx.to?.toString(),
+      fundingAmount: 0,
+      fundingAddress: "",
       privateKey: "evm",
       userLayerId
     });
 
     return {
       launchItem: hideSensitiveData(launchItem, ["collectibleId"]),
-      order: hideSensitiveData(order, ["privateKey"]),
-      singleMintTxHex: serializeBigInt(unsignedTx)
+      order: hideSensitiveData(order, ["privateKey"])
+      // singleMintTxHex: serializeBigInt(unsignedTx)
     };
   },
   confirmMint: async (
@@ -904,19 +906,19 @@ export const launchServices = {
     const layer = await layerRepository.getById(collection.layerId);
     if (!layer || !layer.chainId) throw new CustomError("Layer not found", 400);
 
-    const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
-    const confirmationService = new TransactionConfirmationService(
-      chainConfig.RPC_URL
-    );
+    // const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+    // const confirmationService = new TransactionConfirmationService(
+    //   chainConfig.RPC_URL
+    // );
 
-    const transactionDetail = await confirmationService.getTransactionDetails(
-      txid
-    );
-    if (transactionDetail.status !== 1)
-      throw new CustomError(
-        "Transaction not confirmed. Please try again.",
-        500
-      );
+    // const transactionDetail = await confirmationService.getTransactionDetails(
+    //   txid
+    // );
+    // if (transactionDetail.status !== 1)
+    //   throw new CustomError(
+    //     "Transaction not confirmed. Please try again.",
+    //     500
+    //   );
 
     // Execute database operations in transaction
     const result = await db.transaction().execute(async (trx) => {
