@@ -8,6 +8,8 @@ import { launchRatelimiter } from "../middlewares/rateLimiter";
 
 const launchRouter = Router();
 
+// launchRouter.get("/state-function-test", launchController.stateFunctionTest);
+
 launchRouter.get("/", launchController.getAllLaunchesByLayerId);
 launchRouter.get(
   "/collections/:collectionId",

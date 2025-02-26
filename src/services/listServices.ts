@@ -13,6 +13,7 @@ import { collectionRepository } from "../repositories/collectionRepository";
 import { db } from "../utils/db";
 import { launchRepository } from "../repositories/launchRepository";
 import { layerRepository } from "../repositories/layerRepository";
+import { userLayerRepository } from "../repositories/userLayerRepository";
 // import { merkleService } from "../blockchain/evm/services/merkleTreeService";
 
 // import MarketplaceService from "./marketplaceService";
@@ -521,10 +522,23 @@ export const listServices = {
     );
     if (!collectible) throw new CustomError("Collectible not found.", 400);
 
-    if (list.sellerId !== issuerId)
-      throw new CustomError("You are not allowed to cancel this listing.", 400);
+    const seller = await userRepository.getByIdAndLayerId(
+      list.sellerId,
+      collectible.layerId
+    );
+    if (!seller) throw new CustomError("Seller not found.", 400);
 
-    //DG TODO: GENERATE CANCEL LISTING TX
+    const issuerAddresses =
+      await userLayerRepository.getActiveAddressesByUserIdAndLayerId(
+        issuerId,
+        collectible.layerId
+      );
+    if (!issuerAddresses.some((addrObj) => addrObj.address === seller.address))
+      if (list.sellerId !== issuerId)
+        throw new CustomError(
+          "You are not allowed to cancel this listing.",
+          400
+        );
 
     if (!collectible.uniqueIdx) throw new CustomError("NFT ID is missing", 400);
 
@@ -549,9 +563,29 @@ export const listServices = {
   confirmListingCancel: async (issuerId: string, id: string) => {
     const list = await listRepository.getById(id);
     if (!list) throw new CustomError("List not found.", 400);
+    const collectible = await collectibleRepository.getById(
+      db,
+      list.collectibleId
+    );
+    if (!collectible) throw new CustomError("Collectible not found.", 400);
 
-    if (list.sellerId !== issuerId)
-      throw new CustomError("You are not allowed to cancel this listing.", 400);
+    const seller = await userRepository.getByIdAndLayerId(
+      list.sellerId,
+      collectible.layerId
+    );
+    if (!seller) throw new CustomError("Seller not found.", 400);
+
+    const issuerAddresses =
+      await userLayerRepository.getActiveAddressesByUserIdAndLayerId(
+        issuerId,
+        collectible.layerId
+      );
+    if (!issuerAddresses.some((addrObj) => addrObj.address === seller.address))
+      if (list.sellerId !== issuerId)
+        throw new CustomError(
+          "You are not allowed to cancel this listing.",
+          400
+        );
 
     const canceledListing = await listRepository.cancelListingsById(db, id);
 

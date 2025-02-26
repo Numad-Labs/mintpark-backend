@@ -1,8 +1,7 @@
-node_modules
 # Keep environment variables out of version control
+node_modules
 .env
+.env.*
 .DS_STORE
-dist/*
-.env.staging
-.env.production
+dist
 test_concurrency.sh
