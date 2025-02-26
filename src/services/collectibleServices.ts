@@ -139,7 +139,10 @@ export const collectibleServices = {
     ]);
     const listedCount = Number(listedCountResult?.activeListCount ?? 0);
     const totalCount = Number(totalCountResult?.count ?? 0);
-    const hasMore = params.offset + params.limit < totalCount;
+    const hasMore =
+      listableCollectibles.length < params.limit
+        ? false
+        : params.offset + params.limit < totalCount;
 
     return {
       collectibles: listableCollectibles,
@@ -174,7 +177,12 @@ export const collectibleServices = {
       ]);
 
     const totalCount = Number(totalCountResult?.collectibleCount ?? 0);
-    const hasMore = params.offset + params.limit < totalCount;
+    const hasMore =
+      listableCollectibles.length < params.limit
+        ? false
+        : params.offset + params.limit < totalCount;
+
+    console.log(listableCollectibles.length, params.limit);
 
     return {
       listableCollectibles,
