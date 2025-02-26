@@ -198,22 +198,6 @@ function getLayers() {
   return JSON.parse(response.body).data;
 }
 
-// Get active launches
-function getActiveLaunches(token, layerId) {
-  const params = authenticateUser(token);
-  const response = http.get(
-    `${BASE_URL}/launchpad?layerId=${layerId}&interval=live`,
-    params
-  );
-
-  check(response, {
-    "launches status is 200": (r) => r.status === 200,
-    "launches returned data": (r) => JSON.parse(r.body).data.length > 0
-  });
-
-  return JSON.parse(response.body).data;
-}
-
 // Buy launch item
 function buyLaunchItem(token, launchId, userLayerId) {
   const params = authenticateUser(token);
@@ -298,7 +282,7 @@ export default function () {
   randomSleep(0.2, 0.5);
 
   // // Get active launches
-  // const launches = getActiveLaunches(
+  // const launches = getActiveLaunches(g
   //   token,
   //   "5f310d70-e254-4456-9345-fa9d9a9a3787"
   // );
@@ -311,7 +295,7 @@ export default function () {
   // const selectedLaunch = launches[0];
   // console.log("🚀 ~ selectedLaunch:", selectedLaunch);
 
-  const selectedLaunch = { launchId: "5f310d70-e254-4456-9345-fa9d9a9a3787" };
+  const selectedLaunch = { launchId: "863e1ab3-06ac-4307-8c7f-99d1db39be5d" };
 
   randomSleep(0.2, 0.5);
 
