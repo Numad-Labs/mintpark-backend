@@ -920,54 +920,55 @@ export const launchServices = {
     //     500
     //   );
 
-    // Execute database operations in transaction
-    const result = await db.transaction().execute(async (trx) => {
-      // try {
-      //   await userRepository.acquireLockByUserLayerId(trx, userLayerId);
-      // } catch (error) {
-      //   if (error instanceof DatabaseError && error.code === "55P03") {
-      //     throw new CustomError(
-      //       "Previous request is currently being processed. Please try again in a moment.",
-      //       409
-      //     );
-      //   }
-      //   throw error;
-      // }
+    const result = { launchItem: null };
+    // // Execute database operations in transaction
+    // const result = await db.transaction().execute(async (trx) => {
+    //   // try {
+    //   //   await userRepository.acquireLockByUserLayerId(trx, userLayerId);
+    //   // } catch (error) {
+    //   //   if (error instanceof DatabaseError && error.code === "55P03") {
+    //   //     throw new CustomError(
+    //   //       "Previous request is currently being processed. Please try again in a moment.",
+    //   //       409
+    //   //     );
+    //   //   }
+    //   //   throw error;
+    //   // }
 
-      await collectibleRepository.update(trx, collectible.id, {
-        status: "CONFIRMED",
-        mintingTxId: txid,
-        uniqueIdx: collection.contractAddress + "i" + collectible.nftId
-      });
-      await collectionRepository.incrementCollectionSupplyById(
-        trx,
-        collection.id
-      );
-      const soldLaunchItem = await launchItemRepository.update(
-        trx,
-        launchItem.id,
-        {
-          status: "SOLD"
-        }
-      );
-      await purchaseRepository.create(trx, {
-        userId: user.id,
-        launchItemId: soldLaunchItem.id,
-        purchasedAddress: user.address
-      });
-      await orderRepository.update(trx, orderId, {
-        orderStatus: "DONE"
-      });
-      if (collection.status === "UNCONFIRMED") {
-        await collectionRepository.update(trx, collection.id, {
-          status: "CONFIRMED"
-        });
-      }
+    //   await collectibleRepository.update(trx, collectible.id, {
+    //     status: "CONFIRMED",
+    //     mintingTxId: txid,
+    //     uniqueIdx: collection.contractAddress + "i" + collectible.nftId
+    //   });
+    //   await collectionRepository.incrementCollectionSupplyById(
+    //     trx,
+    //     collection.id
+    //   );
+    //   const soldLaunchItem = await launchItemRepository.update(
+    //     trx,
+    //     launchItem.id,
+    //     {
+    //       status: "SOLD"
+    //     }
+    //   );
+    //   await purchaseRepository.create(trx, {
+    //     userId: user.id,
+    //     launchItemId: soldLaunchItem.id,
+    //     purchasedAddress: user.address
+    //   });
+    //   await orderRepository.update(trx, orderId, {
+    //     orderStatus: "DONE"
+    //   });
+    //   if (collection.status === "UNCONFIRMED") {
+    //     await collectionRepository.update(trx, collection.id, {
+    //       status: "CONFIRMED"
+    //     });
+    //   }
 
-      return {
-        launchItem: soldLaunchItem
-      };
-    });
+    //   return {
+    //     launchItem: soldLaunchItem
+    //   };
+    // });
 
     return {
       launchItem: result.launchItem
