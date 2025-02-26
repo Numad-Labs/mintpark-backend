@@ -533,7 +533,7 @@ export const listServices = {
         issuerId,
         collectible.layerId
       );
-    if (!issuerAddresses.includes({ address: seller.address }))
+    if (!issuerAddresses.some((addrObj) => addrObj.address === seller.address))
       if (list.sellerId !== issuerId)
         throw new CustomError(
           "You are not allowed to cancel this listing.",
@@ -580,7 +580,7 @@ export const listServices = {
         issuerId,
         collectible.layerId
       );
-    if (!issuerAddresses.includes({ address: seller.address }))
+    if (!issuerAddresses.some((addrObj) => addrObj.address === seller.address))
       if (list.sellerId !== issuerId)
         throw new CustomError(
           "You are not allowed to cancel this listing.",
