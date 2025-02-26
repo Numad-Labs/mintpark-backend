@@ -141,8 +141,9 @@ export const launchServices = {
       const confirmationService = new TransactionConfirmationService(
         chainConfig.RPC_URL
       );
-      const transactionDetail =
-        await confirmationService.getTransactionDetails(txid);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -199,8 +200,9 @@ export const launchServices = {
         chainConfig.RPC_URL
       );
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail =
-        await confirmationService.getTransactionDetails(txid);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -563,35 +565,35 @@ export const launchServices = {
     const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
     const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
 
-    const phaseInfo = await directMintService.getActivePhase(
-      collection.contractAddress
-    );
-    if (!phaseInfo.isActive) throw new CustomError("Phase not found", 400);
-    console.log("🚀 ~ phaseInfo:", phaseInfo);
+    // const phaseInfo = await directMintService.getActivePhase(
+    //   collection.contractAddress
+    // );
+    // if (!phaseInfo.isActive) throw new CustomError("Phase not found", 400);
+    // console.log("🚀 ~ phaseInfo:", phaseInfo);
 
-    console.log("date", new Date(parseInt(phaseInfo.endTime)));
-    if (phaseInfo.phaseType == BigInt(0))
-      throw new CustomError("Phase not active", 400);
+    // console.log("date", new Date(parseInt(phaseInfo.endTime)));
+    // if (phaseInfo.phaseType == BigInt(0))
+    //   throw new CustomError("Phase not active", 400);
 
-    const mintedInPhase = await directMintService.getMintedInPhase(
-      collection.contractAddress,
-      user.address,
-      Number(phaseInfo.phaseType)
-    );
+    // const mintedInPhase = await directMintService.getMintedInPhase(
+    //   collection.contractAddress,
+    //   user.address,
+    //   Number(phaseInfo.phaseType)
+    // );
 
-    if (
-      phaseInfo.maxPerWallet !== BigInt(0) &&
-      mintedInPhase >= phaseInfo.maxPerWallet
-    ) {
-      throw new CustomError("Wallet limit reached for this phase", 400);
-    }
+    // if (
+    //   phaseInfo.maxPerWallet !== BigInt(0) &&
+    //   mintedInPhase >= phaseInfo.maxPerWallet
+    // ) {
+    //   throw new CustomError("Wallet limit reached for this phase", 400);
+    // }
 
-    if (
-      phaseInfo.maxSupply !== BigInt(0) &&
-      phaseInfo.mintedInPhase >= phaseInfo.maxSupply
-    ) {
-      throw new CustomError("Phase supply limit reached", 400);
-    }
+    // if (
+    //   phaseInfo.maxSupply !== BigInt(0) &&
+    //   phaseInfo.mintedInPhase >= phaseInfo.maxSupply
+    // ) {
+    //   throw new CustomError("Phase supply limit reached", 400);
+    // }
 
     // --- Acquire a Launch Item Atomically ---
     const isInfiniteBadge = collection.isBadge && !collection.badgeSupply;
@@ -658,11 +660,12 @@ export const launchServices = {
       throw new CustomError("Please try again, no collectible found.", 400);
 
     // --- Check if the collectible is already minted ---
-    const baseNFTService = new BaseNFTService(chainConfig.RPC_URL);
-    const isMinted = await baseNFTService.isNFTMinted(
-      collection.contractAddress,
-      collectible.nftId
-    );
+    // const baseNFTService = new BaseNFTService(chainConfig.RPC_URL);
+    // const isMinted = await baseNFTService.isNFTMinted(
+    //   collection.contractAddress,
+    //   collectible.nftId
+    // );
+    const isMinted = false;
     if (isMinted) {
       // Sync DB state in a transaction.
       await db.transaction().execute(async (trx) => {
@@ -758,12 +761,14 @@ export const launchServices = {
         tokenId,
         nftIpfsUrl,
         mintPrice.toString(),
-        Number(phaseInfo.phaseIndex)
+        // Number(phaseInfo.phaseIndex)
+        0
       );
 
     console.log("Signature generated", signature, uniqueId, timestamp);
 
-    const merkleProof = phaseInfo.phaseType === BigInt(2) ? [] : [];
+    // const merkleProof = phaseInfo.phaseType === BigInt(2) ? [] : [];
+    const merkleProof: any[] = [];
     console.log("Signature used", Math.floor(Date.now() / 1000));
 
     const unsignedTx = await directMintService.getUnsignedMintTransaction(
@@ -904,8 +909,9 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
 
-    const transactionDetail =
-      await confirmationService.getTransactionDetails(txid);
+    const transactionDetail = await confirmationService.getTransactionDetails(
+      txid
+    );
     if (transactionDetail.status !== 1)
       throw new CustomError(
         "Transaction not confirmed. Please try again.",
