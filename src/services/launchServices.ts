@@ -922,17 +922,17 @@ export const launchServices = {
 
     // Execute database operations in transaction
     const result = await db.transaction().execute(async (trx) => {
-      try {
-        await userRepository.acquireLockByUserLayerId(trx, userLayerId);
-      } catch (error) {
-        if (error instanceof DatabaseError && error.code === "55P03") {
-          throw new CustomError(
-            "Previous request is currently being processed. Please try again in a moment.",
-            409
-          );
-        }
-        throw error;
-      }
+      // try {
+      //   await userRepository.acquireLockByUserLayerId(trx, userLayerId);
+      // } catch (error) {
+      //   if (error instanceof DatabaseError && error.code === "55P03") {
+      //     throw new CustomError(
+      //       "Previous request is currently being processed. Please try again in a moment.",
+      //       409
+      //     );
+      //   }
+      //   throw error;
+      // }
 
       await collectibleRepository.update(trx, collectible.id, {
         status: "CONFIRMED",
