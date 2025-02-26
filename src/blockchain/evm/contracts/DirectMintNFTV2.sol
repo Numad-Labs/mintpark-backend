@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol"; // Added for Merkle proof verification
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 contract LaunchNFTV2 is
   ERC721,
@@ -38,27 +38,15 @@ contract LaunchNFTV2 is
   }
 
   uint256 private _totalSupply;
-
   address public immutable backendSigner;
   bytes32 private constant MINT_TYPEHASH =
     keccak256(
       "MintRequest(address minter,uint256 tokenId,string uri,uint256 price,uint256 phaseIndex,bytes32 uniqueId,uint256 timestamp)"
     );
-
-  // Track used uniqueIds to prevent replay
   mapping(bytes32 => bool) private usedUniqueIds;
-
-  // mapping(address => uint256) private nonces;
   Phase[] public phases;
   mapping(address => mapping(PhaseType => uint256))
     private mintedPerWalletInPhase;
-
-  // Track all token IDs minted by an address
-  mapping(address => uint256[]) private _ownedTokens;
-
-  function tokensOfOwner(address owner) public view returns (uint256[] memory) {
-    return _ownedTokens[owner];
-  }
 
   uint96 private immutable royaltyFeePercentage;
   uint96 public platformFeePercentage;
@@ -104,19 +92,6 @@ contract LaunchNFTV2 is
     platformFeeRecipient = _platformFeeRecipient;
 
     _setDefaultRoyalty(initialOwner, royaltyFeePercentage);
-
-    phases.push(
-      Phase({
-        phaseType: PhaseType.NOT_STARTED,
-        price: 0,
-        startTime: 0,
-        endTime: 0,
-        maxSupply: 0,
-        maxPerWallet: 0,
-        mintedInPhase: 0,
-        merkleRoot: bytes32(0)
-      })
-    );
   }
 
   function mint(
@@ -136,19 +111,13 @@ contract LaunchNFTV2 is
           currentPhase.merkleRoot,
           keccak256(abi.encodePacked(msg.sender))
         ),
-        "Not whitelisted for this phase"
+        "Not whitelisted"
       );
     }
 
-    // Verify timestamp is recent (e.g., within last hour)
-    require(
-      timestamp + 1 hours >= block.timestamp && timestamp <= block.timestamp,
-      "Signature expired"
-    );
+    require(timestamp + 1 hours >= block.timestamp, "Signature expired");
+    require(!usedUniqueIds[uniqueId], "UniqueId used");
 
-    require(!usedUniqueIds[uniqueId], "Signature already used");
-
-    // Verify signature
     bytes32 structHash = keccak256(
       abi.encode(
         MINT_TYPEHASH,
@@ -161,68 +130,42 @@ contract LaunchNFTV2 is
         timestamp
       )
     );
-
     require(
       _hashTypedDataV4(structHash).recover(signature) == backendSigner,
       "Invalid signature"
     );
 
-    require(msg.value == currentPhase.price, "Incorrect payment amount");
-
+    require(msg.value == currentPhase.price, "Incorrect ETH");
     require(
-      currentPhase.maxSupply == 0 ||
-        currentPhase.mintedInPhase < currentPhase.maxSupply,
-      "Phase supply limit reached"
+      currentPhase.mintedInPhase < currentPhase.maxSupply ||
+        currentPhase.maxSupply == 0,
+      "Phase supply exceeded"
     );
-
     require(
-      (currentPhase.phaseType == PhaseType.PUBLIC &&
-        currentPhase.maxPerWallet == 0) ||
-        mintedPerWalletInPhase[msg.sender][currentPhase.phaseType] <
+      mintedPerWalletInPhase[msg.sender][currentPhase.phaseType] <
         currentPhase.maxPerWallet,
-      "Wallet limit reached for this phase"
+      "Wallet limit"
     );
-    usedUniqueIds[uniqueId] = true;
 
+    usedUniqueIds[uniqueId] = true;
     _processFees(msg.value);
-    _updatePhaseStats(currentPhase, msg.sender);
-    _mintToken(msg.sender, tokenId, uri);
+    currentPhase.mintedInPhase++;
+    mintedPerWalletInPhase[msg.sender][currentPhase.phaseType]++;
+
+    _safeMint(msg.sender, tokenId);
+    _setTokenURI(tokenId, uri);
 
     emit TokenMinted(tokenId, msg.sender, currentPhase.phaseType);
   }
 
-  // Internal helper functions to break up the mint function
-
   function _processFees(uint256 amount) internal {
-    uint256 platformFeeAmount = (amount * platformFeePercentage) / 10000;
-    if (platformFeeAmount > 0) {
-      (bool success, ) = platformFeeRecipient.call{value: platformFeeAmount}(
-        ""
-      );
-      require(success, "Platform fee transfer failed");
+    uint256 platformFee = (amount * platformFeePercentage) / 10000;
+    if (platformFee > 0) {
+      (bool success, ) = platformFeeRecipient.call{value: platformFee}("");
+      require(success, "Platform fee failed");
     }
-
-    uint256 remainingAmount = amount - platformFeeAmount;
-    if (remainingAmount > 0) {
-      (bool success, ) = owner().call{value: remainingAmount}("");
-      require(success, "Owner fee transfer failed");
-    }
-  }
-
-  function _updatePhaseStats(Phase storage phase, address minter) internal {
-    phase.mintedInPhase++;
-    mintedPerWalletInPhase[minter][phase.phaseType]++;
-  }
-
-  function _mintToken(
-    address to,
-    uint256 tokenId,
-    string calldata uri
-  ) internal {
-    _safeMint(to, tokenId);
-    if (bytes(uri).length > 0) {
-      _setTokenURI(tokenId, uri);
-    }
+    (bool ownerSuccess, ) = owner().call{value: amount - platformFee}("");
+    require(ownerSuccess, "Owner transfer failed");
   }
 
   function addPhase(
@@ -234,43 +177,30 @@ contract LaunchNFTV2 is
     uint256 _maxPerWallet,
     bytes32 _merkleRoot
   ) external onlyOwner {
-    require(_startTime < _endTime, "Invalid time range");
-
+    require(_startTime < _endTime, "Invalid time");
     if (_phaseType != PhaseType.PUBLIC) {
-      require(_maxPerWallet > 0, "Invalid max per wallet for non-public phase");
-      require(
-        _merkleRoot != bytes32(0),
-        "Merkle root required for whitelist phase"
-      );
+      require(_maxPerWallet > 0 && _merkleRoot != bytes32(0), "Invalid params");
     }
 
-    // Check for overlapping phases
     for (uint256 i = 0; i < phases.length; i++) {
-      Phase memory existingPhase = phases[i];
-      if (existingPhase.phaseType == PhaseType.NOT_STARTED) continue;
-
-      require(
-        !(_startTime <= existingPhase.endTime &&
-          _endTime >= existingPhase.startTime),
-        "Phase time overlaps with existing phase"
-      );
+      Phase memory p = phases[i];
+      if (p.phaseType == PhaseType.NOT_STARTED) continue;
+      require(!(_startTime <= p.endTime && _endTime >= p.startTime), "Overlap");
     }
 
-    Phase memory newPhase = Phase({
-      phaseType: _phaseType,
-      price: _price,
-      startTime: _startTime,
-      endTime: _endTime,
-      maxSupply: _maxSupply,
-      maxPerWallet: _maxPerWallet,
-      mintedInPhase: 0,
-      merkleRoot: _merkleRoot
-    });
-
-    uint256 phaseIndex = phases.length;
-    phases.push(newPhase);
-
-    emit PhaseAdded(phaseIndex, _phaseType, _price);
+    phases.push(
+      Phase({
+        phaseType: _phaseType,
+        price: _price,
+        startTime: _startTime,
+        endTime: _endTime,
+        maxSupply: _maxSupply,
+        maxPerWallet: _maxPerWallet,
+        mintedInPhase: 0,
+        merkleRoot: _merkleRoot
+      })
+    );
+    emit PhaseAdded(phases.length - 1, _phaseType, _price);
   }
 
   function updatePhase(
@@ -320,7 +250,7 @@ contract LaunchNFTV2 is
     emit PhaseUpdated(phaseIndex, _phaseType, _price);
   }
 
-  // Required overrides
+  // Override functions r main the same but trimmed for brevity
   function supportsInterface(
     bytes4 interfaceId
   )
@@ -353,33 +283,26 @@ contract LaunchNFTV2 is
     super._increaseBalance(account, value);
   }
 
-  // View functions
-  function getDomainSeparator() external view returns (bytes32) {
-    return _domainSeparatorV4();
-  }
-
-  // function getNonce(address user) external view returns (uint256) {
-  //   return nonces[user];
-  // }
-
   function _getActivePhase()
     internal
     view
     returns (uint256 phaseIndex, Phase storage phase)
   {
-    uint256 timestamp = block.timestamp;
-
     for (uint256 i = 0; i < phases.length; i++) {
+      Phase storage p = phases[i];
       if (
-        phases[i].phaseType != PhaseType.NOT_STARTED &&
-        timestamp >= phases[i].startTime &&
-        timestamp <= phases[i].endTime
+        p.phaseType != PhaseType.NOT_STARTED &&
+        block.timestamp >= p.startTime &&
+        block.timestamp <= p.endTime
       ) {
-        return (i, phases[i]);
+        return (i, p);
       }
     }
-
     revert("No active phase");
+  }
+
+  function getPhaseCount() external view returns (uint256) {
+    return phases.length;
   }
 
   function getActivePhase()
@@ -395,25 +318,5 @@ contract LaunchNFTV2 is
     PhaseType phaseType
   ) external view returns (uint256) {
     return mintedPerWalletInPhase[user][phaseType];
-  }
-
-  function getPhaseCount() external view returns (uint256) {
-    return phases.length;
-  }
-
-  function isActivePhasePresent() public view returns (bool) {
-    uint256 timestamp = block.timestamp;
-
-    for (uint256 i = 0; i < phases.length; i++) {
-      if (
-        phases[i].phaseType != PhaseType.NOT_STARTED &&
-        timestamp >= phases[i].startTime &&
-        timestamp <= phases[i].endTime
-      ) {
-        return true;
-      }
-    }
-
-    return false;
   }
 }

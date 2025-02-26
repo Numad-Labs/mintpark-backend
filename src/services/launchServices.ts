@@ -141,9 +141,8 @@ export const launchServices = {
       const confirmationService = new TransactionConfirmationService(
         chainConfig.RPC_URL
       );
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
+      const transactionDetail =
+        await confirmationService.getTransactionDetails(txid);
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -200,9 +199,8 @@ export const launchServices = {
         chainConfig.RPC_URL
       );
       if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
+      const transactionDetail =
+        await confirmationService.getTransactionDetails(txid);
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -906,9 +904,8 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
 
-    const transactionDetail = await confirmationService.getTransactionDetails(
-      txid
-    );
+    const transactionDetail =
+      await confirmationService.getTransactionDetails(txid);
     if (transactionDetail.status !== 1)
       throw new CustomError(
         "Transaction not confirmed. Please try again.",

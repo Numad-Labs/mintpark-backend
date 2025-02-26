@@ -66,10 +66,8 @@ export interface LaunchNFTV2Interface extends Interface {
       | "eip712Domain"
       | "getActivePhase"
       | "getApproved"
-      | "getDomainSeparator"
       | "getMintedInPhase"
       | "getPhaseCount"
-      | "isActivePhasePresent"
       | "isApprovedForAll"
       | "mint"
       | "name"
@@ -88,7 +86,6 @@ export interface LaunchNFTV2Interface extends Interface {
       | "tokenByIndex"
       | "tokenOfOwnerByIndex"
       | "tokenURI"
-      | "tokensOfOwner"
       | "totalSupply"
       | "transferFrom"
       | "transferOwnership"
@@ -148,19 +145,11 @@ export interface LaunchNFTV2Interface extends Interface {
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
-    functionFragment: "getDomainSeparator",
-    values?: undefined
-  ): string;
-  encodeFunctionData(
     functionFragment: "getMintedInPhase",
     values: [AddressLike, BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "getPhaseCount",
-    values?: undefined
-  ): string;
-  encodeFunctionData(
-    functionFragment: "isActivePhasePresent",
     values?: undefined
   ): string;
   encodeFunctionData(
@@ -234,10 +223,6 @@ export interface LaunchNFTV2Interface extends Interface {
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
-    functionFragment: "tokensOfOwner",
-    values: [AddressLike]
-  ): string;
-  encodeFunctionData(
     functionFragment: "totalSupply",
     values?: undefined
   ): string;
@@ -283,19 +268,11 @@ export interface LaunchNFTV2Interface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "getDomainSeparator",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
     functionFragment: "getMintedInPhase",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
     functionFragment: "getPhaseCount",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "isActivePhasePresent",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -349,10 +326,6 @@ export interface LaunchNFTV2Interface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "tokenURI", data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: "tokensOfOwner",
-    data: BytesLike
-  ): Result;
   decodeFunctionResult(
     functionFragment: "totalSupply",
     data: BytesLike
@@ -671,8 +644,6 @@ export interface LaunchNFTV2 extends BaseContract {
 
   getApproved: TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
 
-  getDomainSeparator: TypedContractMethod<[], [string], "view">;
-
   getMintedInPhase: TypedContractMethod<
     [user: AddressLike, phaseType: BigNumberish],
     [bigint],
@@ -680,8 +651,6 @@ export interface LaunchNFTV2 extends BaseContract {
   >;
 
   getPhaseCount: TypedContractMethod<[], [bigint], "view">;
-
-  isActivePhasePresent: TypedContractMethod<[], [boolean], "view">;
 
   isApprovedForAll: TypedContractMethod<
     [owner: AddressLike, operator: AddressLike],
@@ -778,8 +747,6 @@ export interface LaunchNFTV2 extends BaseContract {
 
   tokenURI: TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
 
-  tokensOfOwner: TypedContractMethod<[owner: AddressLike], [bigint[]], "view">;
-
   totalSupply: TypedContractMethod<[], [bigint], "view">;
 
   transferFrom: TypedContractMethod<
@@ -874,9 +841,6 @@ export interface LaunchNFTV2 extends BaseContract {
     nameOrSignature: "getApproved"
   ): TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
   getFunction(
-    nameOrSignature: "getDomainSeparator"
-  ): TypedContractMethod<[], [string], "view">;
-  getFunction(
     nameOrSignature: "getMintedInPhase"
   ): TypedContractMethod<
     [user: AddressLike, phaseType: BigNumberish],
@@ -886,9 +850,6 @@ export interface LaunchNFTV2 extends BaseContract {
   getFunction(
     nameOrSignature: "getPhaseCount"
   ): TypedContractMethod<[], [bigint], "view">;
-  getFunction(
-    nameOrSignature: "isActivePhasePresent"
-  ): TypedContractMethod<[], [boolean], "view">;
   getFunction(
     nameOrSignature: "isApprovedForAll"
   ): TypedContractMethod<
@@ -998,9 +959,6 @@ export interface LaunchNFTV2 extends BaseContract {
   getFunction(
     nameOrSignature: "tokenURI"
   ): TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
-  getFunction(
-    nameOrSignature: "tokensOfOwner"
-  ): TypedContractMethod<[owner: AddressLike], [bigint[]], "view">;
   getFunction(
     nameOrSignature: "totalSupply"
   ): TypedContractMethod<[], [bigint], "view">;
