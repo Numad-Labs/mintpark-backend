@@ -70,6 +70,8 @@ export const purchaseRepository = {
     unixTimestamp: number,
     address: string
   ) => {
+    const timestampDate = new Date(unixTimestamp * 1000);
+
     const result = await db
       .selectFrom("Purchase")
       .innerJoin("LaunchItem", "Purchase.launchItemId", "LaunchItem.id")
@@ -82,13 +84,9 @@ export const purchaseRepository = {
           eb("Purchase.purchasedAddress", "=", address)
         ])
       )
-      .where(
-        "Purchase.purchasedAt",
-        ">=",
-        sql`TO_TIMESTAMP(${unixTimestamp})`.$castTo<Date>()
-      )
+      .where("Purchase.purchasedAt", ">=", timestampDate)
       .executeTakeFirst();
 
-    return result?.count;
+    return result?.count ?? 0;
   }
 };

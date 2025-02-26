@@ -269,6 +269,15 @@ model LaunchItem {
   Order      Order[]
   purchases  Purchase[]
   FailedMint FailedMint[]
+
+  @@index([launchId])
+  @@index([status])
+  @@index([onHoldBy])
+  @@index([onHoldUntil])
+
+  @@index([launchId, status])
+  @@index([launchId, status, onHoldUntil])
+  @@index([status, onHoldBy])
 }
 
 model Purchase {
@@ -280,6 +289,11 @@ model Purchase {
   purchasedAt      DateTime   @default(now())
   purchasedAddress String?
   Order            Order[]
+
+  @@index([userId])
+  @@index([purchasedAddress])
+  @@index([purchasedAt])
+  @@index([launchItemId])
 }
 
 model WlAddress {

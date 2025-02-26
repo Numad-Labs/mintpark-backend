@@ -92,8 +92,7 @@ export const launchItemRepository = {
           sql`${eb.ref("onHoldUntil")} < NOW()`.$castTo<boolean>()
         ])
       )
-      // .orderBy(sql`RANDOM()`)
-      // .limit(1)
+      .limit(1)
       .executeTakeFirst();
 
     return launchItem;
@@ -103,10 +102,13 @@ export const launchItemRepository = {
     id: string,
     buyerId: string
   ) => {
+    const oneMinuteFromNow = new Date(Date.now() + 1 * 60 * 1000);
+    const currentDate = new Date(Date.now());
+
     const launchItem = await db
       .updateTable("LaunchItem")
       .set({
-        onHoldUntil: sql`NOW() + INTERVAL '1 minute'`,
+        onHoldUntil: oneMinuteFromNow,
         onHoldBy: buyerId
       })
       .returningAll()
@@ -115,7 +117,7 @@ export const launchItemRepository = {
       .where((eb) =>
         eb.or([
           eb("LaunchItem.onHoldUntil", "is", null),
-          sql`${eb.ref("onHoldUntil")} < NOW()`.$castTo<boolean>()
+          eb("LaunchItem.onHoldUntil", "<", currentDate)
         ])
       )
       .executeTakeFirst();
@@ -141,6 +143,8 @@ export const launchItemRepository = {
     launchId: string,
     userId: string
   ) => {
+    const twoMinutesFromNow = new Date(Date.now() + 2 * 60 * 1000);
+
     const result = await db
       .selectFrom("LaunchItem")
       .select((eb) => [
@@ -149,11 +153,7 @@ export const launchItemRepository = {
       .where("LaunchItem.launchId", "=", launchId)
       .where("LaunchItem.status", "=", "ACTIVE")
       .where("LaunchItem.onHoldBy", "=", userId)
-      .where(
-        sql`${sql.ref(
-          "onHoldUntil"
-        )} <= NOW() + INTERVAL '2 minutes'`.$castTo<boolean>()
-      )
+      .where("LaunchItem.onHoldUntil", "<=", twoMinutesFromNow)
       .executeTakeFirst();
 
     return result?.count;
