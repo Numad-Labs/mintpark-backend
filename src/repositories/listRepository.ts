@@ -141,19 +141,44 @@ export const listRepository = {
 
     return result;
   },
-  getActiveListCountByAddress: async (address: string) => {
+  getActiveListCountByAddressAndLayerId: async (
+    address: string,
+    layerId: string
+  ) => {
     const result = await db
       .selectFrom("List")
-      .innerJoin("User as Seller", "Seller.id", "List.sellerId")
-      .innerJoin("UserLayer", "UserLayer.userId", "Seller.id")
+      .innerJoin("Collectible", "Collectible.id", "List.collectibleId")
+      .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
       .select((eb) => [
         eb.fn
           .coalesce(eb.fn.count("List.id").$castTo<number>(), sql<number>`0`)
           .as("activeListCount")
       ])
-      .where("UserLayer.address", "=", address)
       .where("List.status", "=", "ACTIVE")
+      .where("List.sellerId", "in", (qb) =>
+        qb
+          .selectFrom("UserLayer")
+          .select("UserLayer.userId")
+          .where("UserLayer.address", "=", address)
+          .where("UserLayer.isActive", "=", true)
+      )
+      .where("Collection.layerId", "=", layerId)
       .executeTakeFirst();
+
+    const hehe = await db
+      .selectFrom("List")
+      .select((eb) => ["List.id"])
+      .where("List.status", "=", "ACTIVE")
+      .where("List.sellerId", "in", (qb) =>
+        qb
+          .selectFrom("UserLayer")
+          .select("UserLayer.userId")
+          .where("UserLayer.address", "=", address)
+          .where("UserLayer.isActive", "=", true)
+      )
+      .execute();
+
+    console.log(hehe);
 
     return result;
   }

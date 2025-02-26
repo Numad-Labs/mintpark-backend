@@ -121,7 +121,8 @@ export const collectibleRepository = {
               sql<number>`0`
             )
             .as("floor")
-        ]);
+        ])
+        .where("Collectible.status", "=", "CONFIRMED");
 
       // Base condition - match inscription IDs and handle multiple collection IDs
       let baseCondition = (eb: any) => {
@@ -212,15 +213,72 @@ export const collectibleRepository = {
     }
   },
   getListableCollectiblesCountByInscriptionIds: async (
-    inscriptionIds: string[]
+    inscriptionIds: string[],
+    params: CollectibleQueryParams,
+    userId: string
   ) => {
-    const result = await db
+    const cleanInscriptionIds = Array.isArray(inscriptionIds)
+      ? inscriptionIds.map((id) => id.toString())
+      : [];
+
+    if (cleanInscriptionIds.length === 0) {
+      return { count: 0 };
+    }
+
+    let query = db
       .selectFrom("Collectible")
+      .leftJoin("List as CurrentList", (join) =>
+        join
+          .onRef("CurrentList.collectibleId", "=", "Collectible.id")
+          .on("CurrentList.status", "=", "ACTIVE")
+      )
       .select((eb) => [
         eb.fn.count<number>("Collectible.id").$castTo<number>().as("count")
       ])
-      .where("Collectible.uniqueIdx", "in", inscriptionIds)
-      .executeTakeFirst();
+      .where("Collectible.status", "=", "CONFIRMED")
+      .where("Collectible.uniqueIdx", "in", inscriptionIds);
+
+    // Base condition - match inscription IDs and handle multiple collection IDs
+    let baseCondition = (eb: any) => {
+      let condition = eb("Collectible.uniqueIdx", "in", cleanInscriptionIds);
+
+      // Handle multiple collection IDs with OR condition, ensuring proper type checking
+      if (
+        params.collectionIds &&
+        Array.isArray(params.collectionIds) &&
+        params.collectionIds.length > 0
+      ) {
+        // Create an array of conditions for each collection ID
+        const collectionConditions = params.collectionIds.map((id) =>
+          eb("Collectible.collectionId", "=", id)
+        );
+
+        // Combine conditions with OR
+        condition = condition.and(eb.or(collectionConditions));
+      }
+
+      return condition;
+    };
+
+    // Add the base condition
+    query = query.where(baseCondition);
+
+    // // Add listed condition if specified
+    // if (params.isListed) {
+    //   query = query.where("CurrentList.status", "=", "ACTIVE");
+    // }
+
+    if (params.query) {
+      query = query.where((eb) =>
+        eb(
+          to_tsvector(eb.ref("Collectible.nftId")),
+          "@@",
+          to_tsquery(`${params.query}`)
+        )
+      );
+    }
+
+    const result = await query.executeTakeFirst();
 
     return result;
   },
@@ -441,9 +499,18 @@ export const collectibleRepository = {
 
     return collectibles;
   },
-  getConfirmedCollectiblesCountByCollectionId: async (collectionId: string) => {
-    const countResult = await db
+  getConfirmedCollectiblesCountByCollectionId: async (
+    collectionId: string,
+    params: CollectibleQueryParams,
+    userId?: string
+  ) => {
+    let query = db
       .selectFrom("Collectible")
+      .leftJoin("List as CurrentList", (join) =>
+        join
+          .onRef("CurrentList.collectibleId", "=", "Collectible.id")
+          .on("CurrentList.status", "=", "ACTIVE")
+      )
       .select(({ eb }) => [
         eb.fn
           .coalesce(
@@ -453,8 +520,50 @@ export const collectibleRepository = {
           .as("collectibleCount")
       ])
       .where("Collectible.collectionId", "=", collectionId)
-      .where("Collectible.status", "=", "CONFIRMED")
-      .executeTakeFirst();
+      .where("Collectible.status", "=", "CONFIRMED");
+
+    if (params.isListed)
+      query = query.where("CurrentList.status", "=", "ACTIVE");
+
+    if (params.query) {
+      query = query.where((eb) =>
+        eb(
+          to_tsvector(eb.ref("Collectible.nftId")),
+          "@@",
+          to_tsquery(`${params.query}`)
+        )
+      );
+    }
+
+    // Filter by trait values
+    if (params.traitValuesByType) {
+      for (const [typeId, valueIds] of Object.entries(
+        params.traitValuesByType
+      )) {
+        if (valueIds.length > 0) {
+          query = query.where((eb) =>
+            eb.exists(
+              eb
+                .selectFrom("CollectibleTrait")
+                .innerJoin(
+                  "TraitValue",
+                  "TraitValue.id",
+                  "CollectibleTrait.traitValueId"
+                )
+                .whereRef(
+                  "CollectibleTrait.collectibleId",
+                  "=",
+                  "Collectible.id"
+                )
+                .where("TraitValue.traitTypeId", "=", typeId)
+                .where("CollectibleTrait.traitValueId", "in", valueIds)
+            )
+          );
+        }
+      }
+    }
+
+    const countResult = query.executeTakeFirst();
 
     return countResult;
   },

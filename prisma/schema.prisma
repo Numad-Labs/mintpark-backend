@@ -47,6 +47,8 @@ model UserLayer {
   Collection Collection[]
 
   @@unique([address, isActive, layerId, deactivatedAt])
+
+  @@index([address, isActive]) // For the subquery in getActiveListCountByAddressAndLayerId
 }
 
 model Currency {
@@ -156,6 +158,8 @@ model Collection {
   collectibles     Collectible[]
   childCollections Collection[]  @relation("ParentChild")
   TraitType        TraitType[]
+
+  @@index([status])
 }
 
 model Collectible {
@@ -185,6 +189,13 @@ model Collectible {
   List              List[]
   CollectibleTrait  CollectibleTrait[]
   LaunchItem        LaunchItem[]
+
+  @@index([uniqueIdx])
+  @@index([status, uniqueIdx])
+  @@index([collectionId, uniqueIdx])
+  @@index([createdAt])
+  @@index([nftId]) // For text search operations
+  @@index([collectionId, status])
 }
 
 model TraitType {
@@ -223,6 +234,8 @@ model CollectibleTrait {
   collectible   Collectible @relation(fields: [collectibleId], references: [id])
   traitValueId  String
   traitValue    TraitValue  @relation(fields: [traitValueId], references: [id])
+
+  @@index([collectibleId, traitValueId]) // For trait filtering
 }
 
 model Launch {
@@ -320,6 +333,12 @@ model List {
   soldTxid        String?
   soldAt          DateTime?
   status          LIST_STATUS @default(PENDING)
+
+  @@index([status])
+  @@index([collectibleId, status])
+  @@index([status, sellerId])
+  @@index([listedAt])
+  @@index([price]) // For price-based sorting
 }
 
 model FailedMint {

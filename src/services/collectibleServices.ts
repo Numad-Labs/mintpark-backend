@@ -130,19 +130,21 @@ export const collectibleServices = {
         user.id
       ),
       collectibleRepository.getListableCollectiblesCountByInscriptionIds(
-        uniqueIdxs
+        uniqueIdxs,
+        params,
+        user.id
       ),
-      listRepository.getActiveListCountByAddress(user.address),
+      listRepository.getActiveListCountByAddressAndLayerId(
+        user.address,
+        user.layerId
+      ),
       collectionRepository.getListedCollectionsWithCollectibleCountByInscriptionIds(
         uniqueIdxs
       )
     ]);
     const listedCount = Number(listedCountResult?.activeListCount ?? 0);
     const totalCount = Number(totalCountResult?.count ?? 0);
-    const hasMore =
-      listableCollectibles.length < params.limit
-        ? false
-        : params.offset + params.limit < totalCount;
+    const hasMore = params.offset + params.limit < totalCount;
 
     return {
       collectibles: listableCollectibles,
@@ -163,7 +165,7 @@ export const collectibleServices = {
         const [name, value] = trait.split(":");
         return { name, value };
       });
-    const [listableCollectibles, countResult, totalCountResult] =
+    const [listableCollectibles, listCount, totalCountResult] =
       await Promise.all([
         collectibleRepository.getListableCollectiblesByCollectionId(
           collectionId,
@@ -172,7 +174,9 @@ export const collectibleServices = {
         ),
         listRepository.getActiveListCountByCollectionid(collectionId),
         collectibleRepository.getConfirmedCollectiblesCountByCollectionId(
-          collectionId
+          collectionId,
+          params,
+          userId
         )
       ]);
 
@@ -186,7 +190,7 @@ export const collectibleServices = {
 
     return {
       listableCollectibles,
-      activeListCount: countResult?.activeListCount ?? 0,
+      activeListCount: listCount?.activeListCount ?? 0,
       hasMore
     };
   },

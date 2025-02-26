@@ -143,7 +143,7 @@ export const launchItemRepository = {
     launchId: string,
     userId: string
   ) => {
-    const twoMinutesFromNow = new Date(Date.now() + 2 * 60 * 1000);
+    const currentDate = new Date(Date.now());
 
     const result = await db
       .selectFrom("LaunchItem")
@@ -153,7 +153,7 @@ export const launchItemRepository = {
       .where("LaunchItem.launchId", "=", launchId)
       .where("LaunchItem.status", "=", "ACTIVE")
       .where("LaunchItem.onHoldBy", "=", userId)
-      .where("LaunchItem.onHoldUntil", "<=", twoMinutesFromNow)
+      .where("LaunchItem.onHoldUntil", ">=", currentDate)
       .executeTakeFirst();
 
     return result?.count;
