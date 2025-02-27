@@ -533,8 +533,7 @@ export const listServices = {
       list.sellerId,
       collectible.layerId
     );
-    if (!seller || !seller?.isActive)
-      throw new CustomError("Seller not found.", 400);
+    if (!seller) throw new CustomError("Seller not found.", 400);
 
     const issuerAddresses =
       await userLayerRepository.getActiveAddressesByUserIdAndLayerId(
@@ -581,8 +580,7 @@ export const listServices = {
       list.sellerId,
       collectible.layerId
     );
-    if (!seller || !seller.isActive)
-      throw new CustomError("Seller not found.", 400);
+    if (!seller) throw new CustomError("Seller not found.", 400);
 
     const issuerAddresses =
       await userLayerRepository.getActiveAddressesByUserIdAndLayerId(
