@@ -9,6 +9,7 @@ const envSchema = z.object({
   PGDATABASE: z.string(),
   PGUSER: z.string(),
   PGPASSWORD: z.string(),
+  PGPOOL_MAX: z.string(),
   JWT_ACCESS_SECRET: z.string(),
   JWT_ACCESS_EXPIRATION_TIME: z.string(),
   JWT_REFRESH_SECRET: z.string(),

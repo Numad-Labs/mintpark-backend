@@ -12,9 +12,14 @@ export const db = new Kysely<DB>({
       host: config.PGHOST,
       user: config.PGUSER,
       password: config.PGPASSWORD,
-      // ssl: config.NODE_ENV === "development" ? false : true,
-      ssl: true,
-      max: 20
+      // Use SSL only in production environments
+      ssl: config.NODE_ENV === "development" ? false : true,
+      // Allow the pool size to be configurable via an environment variable; default to 20
+      max: parseInt(config.PGPOOL_MAX || "20", 10),
+      // Optional: Close idle connections after 30 seconds to free up resources
+      idleTimeoutMillis: 30000,
+      // Optional: Fail fast if a connection isn’t established within 2 seconds
+      connectionTimeoutMillis: 2000
     })
   })
 });
