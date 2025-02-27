@@ -70,7 +70,7 @@ export const purchaseRepository = {
     unixTimestamp: number,
     address: string
   ) => {
-    const timestampDate = new Date(unixTimestamp * 1000);
+    const timestampDate = new Date(unixTimestamp * 1000).toISOString();
 
     const result = await db
       .selectFrom("Purchase")
@@ -84,7 +84,12 @@ export const purchaseRepository = {
           eb("Purchase.purchasedAddress", "=", address)
         ])
       )
-      .where("Purchase.purchasedAt", ">=", timestampDate)
+      // .where("Purchase.purchasedAt", ">=", timestampDate)
+      .where((eb) =>
+        sql`${eb.ref(
+          "Purchase.purchasedAt"
+        )} >= ${timestampDate}`.$castTo<boolean>()
+      )
       .executeTakeFirst();
 
     return result?.count ?? 0;

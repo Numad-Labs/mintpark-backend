@@ -21,11 +21,13 @@ export const launchItemRepository = {
     data: Insertable<LaunchItem>,
     userId: string
   ) => {
+    const oneMinuteFromNow = new Date(Date.now() + 1 * 60 * 1000).toISOString();
+
     const launchItem = await db
       .insertInto("LaunchItem")
       .values({
         ...data,
-        onHoldUntil: sql`NOW() + INTERVAL '1 minute'`,
+        onHoldUntil: oneMinuteFromNow,
         onHoldBy: userId
       })
       .returningAll()
@@ -81,6 +83,8 @@ export const launchItemRepository = {
     return launchItems;
   },
   getRandomItemByLaunchId: async (launchId: string) => {
+    const currentDate = new Date().toISOString();
+
     const launchItem = await db
       .selectFrom("LaunchItem")
       .selectAll()
@@ -89,7 +93,7 @@ export const launchItemRepository = {
       .where((eb) =>
         eb.or([
           eb("LaunchItem.onHoldUntil", "is", null),
-          sql`${eb.ref("onHoldUntil")} < NOW()`.$castTo<boolean>()
+          sql`${eb.ref("onHoldUntil")} < ${currentDate}`.$castTo<boolean>()
         ])
       )
       .limit(1)
@@ -102,8 +106,8 @@ export const launchItemRepository = {
     id: string,
     buyerId: string
   ) => {
-    const oneMinuteFromNow = new Date(Date.now() + 1 * 60 * 1000);
-    const currentDate = new Date(Date.now());
+    const oneMinuteFromNow = new Date(Date.now() + 1 * 60 * 1000).toISOString();
+    const currentDate = new Date().toISOString();
 
     const launchItem = await db
       .updateTable("LaunchItem")
@@ -117,7 +121,10 @@ export const launchItemRepository = {
       .where((eb) =>
         eb.or([
           eb("LaunchItem.onHoldUntil", "is", null),
-          eb("LaunchItem.onHoldUntil", "<", currentDate)
+          // eb("LaunchItem.onHoldUntil", "<", currentDate)
+          sql`${eb.ref(
+            "LaunchItem.onHoldUntil"
+          )} < ${currentDate}`.$castTo<boolean>()
         ])
       )
       .executeTakeFirst();
@@ -126,12 +133,16 @@ export const launchItemRepository = {
   },
   // Get item's current hold status
   getOnHoldById: async (db: Kysely<DB> | Transaction<DB>, id: string) => {
+    const currentDate = new Date().toISOString();
+
     const launchItem = await db
       .selectFrom("LaunchItem")
       .selectAll()
       .where("LaunchItem.id", "=", id)
       .where("LaunchItem.status", "=", "ACTIVE")
-      .where((eb) => sql`${eb.ref("onHoldUntil")} > NOW()`.$castTo<boolean>())
+      .where((eb) =>
+        sql`${eb.ref("onHoldUntil")} > ${currentDate}`.$castTo<boolean>()
+      )
       .executeTakeFirst();
 
     return launchItem;
@@ -143,7 +154,7 @@ export const launchItemRepository = {
     launchId: string,
     userId: string
   ) => {
-    const currentDate = new Date(Date.now());
+    const currentDate = new Date().toISOString();
 
     const result = await db
       .selectFrom("LaunchItem")
@@ -153,7 +164,12 @@ export const launchItemRepository = {
       .where("LaunchItem.launchId", "=", launchId)
       .where("LaunchItem.status", "=", "ACTIVE")
       .where("LaunchItem.onHoldBy", "=", userId)
-      .where("LaunchItem.onHoldUntil", ">=", currentDate)
+      // .where("LaunchItem.onHoldUntil", ">=", currentDate)
+      .where((eb) =>
+        sql`${eb.ref(
+          "LaunchItem.onHoldUntil"
+        )} >= ${currentDate}`.$castTo<boolean>()
+      )
       .executeTakeFirst();
 
     return result?.count;
