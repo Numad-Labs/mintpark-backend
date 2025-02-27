@@ -33,40 +33,33 @@ export const userServices = {
 
     const message = await generateMessage(address, nonce);
 
-    // if (layer.layerType === "EVM") {
-    //   const isValid = await citreaVerifySignedMessage(
-    //     message,
-    //     signedMessage,
-    //     address
-    //   );
-    //   if (!isValid) throw new CustomError("Invalid signature.", 400);
-    // } else if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
-    //   if (!isBitcoinTestnetAddress(address))
-    //     throw new CustomError(
-    //       `Please switch your wallet's Bitcoin network to TESTNET.`,
-    //       400
-    //     );
+    if (layer.layerType === "EVM") {
+      const isValid = await citreaVerifySignedMessage(
+        message,
+        signedMessage,
+        address
+      );
+      if (!isValid) throw new CustomError("Invalid signature.", 400);
+    } else if (layer.layer === "BITCOIN" && layer.network === "TESTNET") {
+      if (!isBitcoinTestnetAddress(address))
+        throw new CustomError(
+          `Please switch your wallet's Bitcoin network to TESTNET.`,
+          400
+        );
 
-    //   if (!pubkey)
-    //     throw new CustomError(
-    //       "Pubkey must be provided for this operation.",
-    //       400
-    //     );
+      if (!pubkey)
+        throw new CustomError(
+          "Pubkey must be provided for this operation.",
+          400
+        );
 
-    //   const isValid = await bitcoinVerifySignedMessage(
-    //     pubkey,
-    //     message,
-    //     signedMessage
-    //   );
-    //   if (!isValid) throw new CustomError("Invalid signature.", 400);
-    // } else if (layer.layer === "HEMI" && layer.network === "TESTNET") {
-    //   const isValid = await citreaVerifySignedMessage(
-    //     message,
-    //     signedMessage,
-    //     address
-    //   );
-    //   if (!isValid) throw new CustomError("Invalid signature.", 400);
-    // } else throw new CustomError("Unsupported layer.", 400);
+      const isValid = await bitcoinVerifySignedMessage(
+        pubkey,
+        message,
+        signedMessage
+      );
+      if (!isValid) throw new CustomError("Invalid signature.", 400);
+    } else throw new CustomError("Unsupported layer.", 400);
 
     const isExistingUserLayer =
       await userLayerRepository.getByAddressAndLayerId(address, layerId);
@@ -111,7 +104,7 @@ export const userServices = {
 
     const message = await generateMessage(address, nonce);
 
-    if (layer.layer === "CITREA" && layer.network === "TESTNET") {
+    if (layer.layerType === "EVM") {
       const isValid = await citreaVerifySignedMessage(
         message,
         signedMessage,
@@ -183,7 +176,7 @@ export const userServices = {
 
     const message = await generateMessage(address, nonce);
 
-    if (layer.layer === "CITREA" && layer.network === "TESTNET") {
+    if (layer.layerType === "EVM") {
       const isValid = await citreaVerifySignedMessage(
         message,
         signedMessage,

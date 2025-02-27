@@ -36,12 +36,19 @@ export const listServices = {
     if (!issuer) throw new CustomError("User not found.", 400);
     if (!issuer.isActive)
       throw new CustomError("This account is deactivated.", 400);
+    if (issuer.id !== issuerId)
+      throw new CustomError("You are not allowed to do this action.", 400);
 
     const collection = await collectionRepository.getById(db, collectionId);
     if (!collection) throw new CustomError("Collection not found.", 400);
     const layer = await layerRepository.getById(collection.layerId);
     if (!layer || !layer.chainId)
       throw new CustomError("Layer or chainid not found", 400);
+    if (issuer.layerId !== collection?.layerId)
+      throw new CustomError(
+        "Please connect to the appropriate L2 for this listing.",
+        400
+      );
 
     const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
     const marketplaceService = new MarketplaceService(
@@ -102,13 +109,16 @@ export const listServices = {
       issuerId,
       collection.layerId
     );
-    if (!issuer) throw new CustomError("User not found.", 400);
+    if (!issuer || !issuer.isActive)
+      throw new CustomError(
+        "Please connect to appropriate L2 for this listing.",
+        400
+      );
 
     let list;
 
     const layer = await layerRepository.getById(collection.layerId);
     if (!layer) throw new CustomError("Layer not found", 400);
-
     if (!layer.chainId) throw new CustomError("Layer chainid not found", 400);
 
     const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
@@ -134,7 +144,6 @@ export const listServices = {
             listing.tokenId === Number(collectible.nftId) &&
             listing.isActive
         );
-
         if (activeListings.length > 0) {
           throw new CustomError(
             "This token is already listed in the marketplace.",
@@ -228,8 +237,6 @@ export const listServices = {
         "You are not allowed to confirm this listing.",
         400
       );
-
-    // list.
     if (!list.chainId) throw new CustomError("chainid not found", 400);
 
     const chainConfig = EVM_CONFIG.CHAINS[list.chainId];
@@ -314,7 +321,7 @@ export const listServices = {
     if (list.status !== "ACTIVE")
       throw new CustomError("This list is could not be bought.", 400);
 
-    // const seller = await userRepository.getByUserLayerId(list.);
+    // const seller = await userRepository.getByUserLayerId(list.sellerId);
     // if (!seller) throw new CustomError("Seller not found.", 400);
 
     const buyer = await userRepository.getByUserLayerId(userLayerId);
@@ -526,7 +533,8 @@ export const listServices = {
       list.sellerId,
       collectible.layerId
     );
-    if (!seller) throw new CustomError("Seller not found.", 400);
+    if (!seller || !seller?.isActive)
+      throw new CustomError("Seller not found.", 400);
 
     const issuerAddresses =
       await userLayerRepository.getActiveAddressesByUserIdAndLayerId(
@@ -573,7 +581,8 @@ export const listServices = {
       list.sellerId,
       collectible.layerId
     );
-    if (!seller) throw new CustomError("Seller not found.", 400);
+    if (!seller || !seller.isActive)
+      throw new CustomError("Seller not found.", 400);
 
     const issuerAddresses =
       await userLayerRepository.getActiveAddressesByUserIdAndLayerId(

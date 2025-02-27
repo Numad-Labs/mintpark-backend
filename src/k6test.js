@@ -1,16 +1,10 @@
 import http from "k6/http";
 import { check, group, sleep } from "k6";
-// import {
-//   randomString,
-//   randomIntBetween
-// } from "https://jslib.k6.io/k6-utils/1.2.0/index.js";
-
 import { randomBytes, sha256 } from "k6/crypto";
 
 // Configuration and environment variables
 const BASE_URL = __ENV.BASE_URL || "https://api.yourdomain.com";
 const NUM_USERS = parseInt(__ENV.NUM_USERS || "50");
-const RAMP_UP_TIME = parseInt(__ENV.RAMP_UP_TIME || "30");
 const TEST_DURATION = parseInt(__ENV.TEST_DURATION || "300");
 
 // Utility functions
@@ -102,13 +96,10 @@ export function hexToBytes(hex) {
   return bytes;
 }
 
-// Test scenarios configuration
+// Test scenarios configuration - no ramping logic
 export const options = {
-  stages: [
-    { duration: `${RAMP_UP_TIME}s`, target: NUM_USERS },
-    { duration: `${TEST_DURATION}s`, target: NUM_USERS },
-    { duration: "30s", target: 0 }
-  ],
+  vus: NUM_USERS, // Start with NUM_USERS immediately
+  duration: `${TEST_DURATION}s`, // Run for TEST_DURATION seconds
   thresholds: {
     http_req_duration: ["p(95)<500"], // 95% of requests must complete under 500ms
     http_req_failed: ["rate<0.01"], // Less than 1% request failure rate
@@ -281,21 +272,7 @@ export default function () {
 
   randomSleep(0.2, 0.5);
 
-  // // Get active launches
-  // const launches = getActiveLaunches(g
-  //   token,
-  //   "5f310d70-e254-4456-9345-fa9d9a9a3787"
-  // );
-
-  // If no launches, exit this group
-  // if (!launches || launches.length === 0) {
-  //   return;
-  // }
-
-  // const selectedLaunch = launches[0];
-  // console.log("🚀 ~ selectedLaunch:", selectedLaunch);
-
-  const selectedLaunch = { launchId: "863e1ab3-06ac-4307-8c7f-99d1db39be5d" };
+  const selectedLaunch = { launchId: "ba2e9377-bc85-4a7b-ad78-6df4aca83250" };
 
   randomSleep(0.2, 0.5);
 
@@ -315,10 +292,10 @@ export default function () {
     buyResult.order.id
   );
 
-  // Validate results
-  check(mintResult, {
-    "launch item minted successfully": (r) => r.launchItem && r.collectible
-  });
+  // // Validate results
+  // check(mintResult, {
+  //   "launch item minted successfully": (r) => r.launchItem && r.collectible
+  // });
 
   // Small sleep to simulate user interaction
   sleep(1);

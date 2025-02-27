@@ -297,51 +297,51 @@ export const launchController = {
     }
   },
 
-  createOrderForReservedLaunchItems: async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      if (!req.user?.id)
-        throw new CustomError("Could not parse the id from the token.", 400);
+  // createOrderForReservedLaunchItems: async (
+  //   req: AuthenticatedRequest,
+  //   res: Response,
+  //   next: NextFunction
+  // ) => {
+  //   try {
+  //     if (!req.user?.id)
+  //       throw new CustomError("Could not parse the id from the token.", 400);
 
-      const { launchId, userLayerId } = req.body;
+  //     const { launchId, userLayerId } = req.body;
 
-      const result = await launchServices.createOrderForReservedLaunchItems(
-        launchId,
-        req.user.id,
-        userLayerId
-      );
+  //     const result = await launchServices.createOrderForReservedLaunchItems(
+  //       launchId,
+  //       req.user.id,
+  //       userLayerId
+  //     );
 
-      return res.status(200).json({ result });
-    } catch (e) {
-      next(e);
-    }
-  },
-  invokeMintingForReservedLaunchItems: async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      if (!req.user?.id)
-        throw new CustomError("Could not parse the id from the token.", 400);
+  //     return res.status(200).json({ result });
+  //   } catch (e) {
+  //     next(e);
+  //   }
+  // },
+  // invokeMintingForReservedLaunchItems: async (
+  //   req: AuthenticatedRequest,
+  //   res: Response,
+  //   next: NextFunction
+  // ) => {
+  //   try {
+  //     if (!req.user?.id)
+  //       throw new CustomError("Could not parse the id from the token.", 400);
 
-      const { orderId, launchId, userLayerId } = req.body;
+  //     const { orderId, launchId, userLayerId } = req.body;
 
-      const result = await launchServices.invokeMintingForReservedLaunchItems(
-        orderId,
-        launchId,
-        req.user.id,
-        userLayerId
-      );
+  //     const result = await launchServices.invokeMintingForReservedLaunchItems(
+  //       orderId,
+  //       launchId,
+  //       req.user.id,
+  //       userLayerId
+  //     );
 
-      return res.status(200).json({ result });
-    } catch (e) {
-      next(e);
-    }
-  },
+  //     return res.status(200).json({ result });
+  //   } catch (e) {
+  //     next(e);
+  //   }
+  // },
   addWhitelistAddress: async (
     req: AuthenticatedRequest,
     res: Response,

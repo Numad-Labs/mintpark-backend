@@ -842,6 +842,11 @@ export const launchServices = {
       );
     if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
+    if (user.layerId !== collection?.layerId)
+      throw new CustomError(
+        "Please connect to the appropriate L2 for this launch.",
+        400
+      );
 
     // Launch and collection validations
     if (!collection) throw new CustomError("Collection not found.", 400);

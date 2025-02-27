@@ -52,13 +52,13 @@ launchRouter.post(
 launchRouter.post(
   "/:id/buy",
   authenticateToken,
-  // launchRatelimiter,
+  launchRatelimiter,
   launchController.buy
 );
 launchRouter.post(
   "/mint",
   authenticateToken,
-  // launchRatelimiter,
+  launchRatelimiter,
   launchController.mint
 );
 launchRouter.post(

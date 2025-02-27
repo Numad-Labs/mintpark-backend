@@ -76,7 +76,8 @@ export const userRepository = {
         "UserLayer.pubkey",
         "UserLayer.xpub",
         "Layer.layer",
-        "Layer.network"
+        "Layer.network",
+        "UserLayer.isActive"
       ])
       .where("User.id", "=", id)
       .where("UserLayer.layerId", "=", layerId)

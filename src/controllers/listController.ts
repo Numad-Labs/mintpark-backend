@@ -46,6 +46,11 @@ export const listController = {
       if (!collection || !collection.contractAddress)
         throw new CustomError("Please provide a valid collection.", 400);
 
+      if (user.layerId !== collection?.layerId)
+        throw new CustomError(
+          "Please connect to the appropriate L2 for this launch.",
+          400
+        );
       if (!user.chainId)
         throw new CustomError("User's chainId not found.", 400);
 
@@ -77,7 +82,7 @@ export const listController = {
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
       if (!userLayerId) throw new CustomError("Invalid userLayerId.", 400);
-      const issuerId = req.user.id; // Assuming you have auth middleware
+      const issuerId = req.user.id;
 
       const result = await listServices.checkAndPrepareRegistration(
         collectionId,
