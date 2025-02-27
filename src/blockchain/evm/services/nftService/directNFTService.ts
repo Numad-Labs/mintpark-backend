@@ -221,7 +221,8 @@ export class DirectMintNFTService extends BaseNFTService {
       )
     );
 
-    const timestamp = EVM_CONFIG.DEFAULT_SIGN_DEADLINE;
+    const timestamp =
+      Math.floor(Date.now() / 1000) - EVM_CONFIG.DEFAULT_SIGN_DEADLINE;
 
     const types = {
       MintRequest: [
