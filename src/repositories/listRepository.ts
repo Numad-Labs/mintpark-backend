@@ -160,7 +160,8 @@ export const listRepository = {
           .selectFrom("UserLayer")
           .select("UserLayer.userId")
           .where("UserLayer.address", "=", address)
-          .where("UserLayer.isActive", "=", true)
+          // .where("UserLayer.isActive", "=", true)
+          .where("UserLayer.layerId", "=", layerId)
       )
       .where("Collection.layerId", "=", layerId)
       .executeTakeFirst();
