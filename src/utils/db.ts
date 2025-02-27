@@ -13,7 +13,7 @@ export const db = new Kysely<DB>({
       user: config.PGUSER,
       password: config.PGPASSWORD,
       // Use SSL only in production environments
-      ssl: config.NODE_ENV === "development" ? false : true,
+      ssl: true,
       // Allow the pool size to be configurable via an environment variable; default to 20
       max: parseInt(config.PGPOOL_MAX || "20", 10),
       // Optional: Close idle connections after 30 seconds to free up resources
