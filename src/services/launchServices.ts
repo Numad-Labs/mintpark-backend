@@ -569,9 +569,9 @@ export const launchServices = {
       collection.contractAddress
     );
     if (!phaseInfo.isActive) throw new CustomError("Phase not found", 400);
-    console.log("🚀 ~ phaseInfo:", phaseInfo);
+    // console.log("🚀 ~ phaseInfo:", phaseInfo);
 
-    console.log("date", new Date(parseInt(phaseInfo.endTime)));
+    // console.log("date", new Date(parseInt(phaseInfo.endTime)));
     if (phaseInfo.phaseType == BigInt(0))
       throw new CustomError("Phase not active", 400);
 
@@ -675,6 +675,11 @@ export const launchServices = {
         );
         if (!mintedCollectible)
           throw new CustomError("Minted collectible not found.", 400);
+
+        logger.info(
+          `Incremented collection supply in buy method. userId: ${user.id} launchItem status: ${launchItem?.status}, collectible status: ${mintedCollectible.status}`
+        );
+
         await collectibleRepository.update(trx, mintedCollectible.id, {
           status: "CONFIRMED",
           uniqueIdx: collection.contractAddress + "i" + mintedCollectible.nftId
@@ -765,11 +770,11 @@ export const launchServices = {
         0
       );
 
-    console.log("Signature generated", signature, uniqueId, timestamp);
+    // console.log("Signature generated", signature, uniqueId, timestamp);
 
     // const merkleProof = phaseInfo.phaseType === BigInt(2) ? [] : [];
     const merkleProof: any[] = [];
-    console.log("Signature used", Math.floor(Date.now() / 1000));
+    // console.log("Signature used", Math.floor(Date.now() / 1000));
 
     const unsignedTx = await directMintService.getUnsignedMintTransaction(
       collection.contractAddress,
@@ -925,6 +930,10 @@ export const launchServices = {
 
     // Execute database operations in transaction
     const result = await db.transaction().execute(async (trx) => {
+      logger.info(
+        `Incremented collection supply in buy method. userId: ${user.id} launchItem status: ${launchItem?.status}, collectible status: ${collectible.status}`
+      );
+
       // try {
       //   await userRepository.acquireLockByUserLayerId(trx, userLayerId);
       // } catch (error) {
