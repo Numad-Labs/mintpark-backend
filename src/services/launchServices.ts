@@ -931,7 +931,7 @@ export const launchServices = {
     // Execute database operations in transaction
     const result = await db.transaction().execute(async (trx) => {
       logger.info(
-        `Incremented collection supply in buy method. userId: ${user.id} launchItem status: ${launchItem?.status}, collectible status: ${collectible.status}`
+        `Incremented collection supply in confirmMint method. userId: ${user.id} launchItem status: ${launchItem?.status}, collectible status: ${collectible.status}`
       );
 
       // try {
