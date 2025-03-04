@@ -187,7 +187,7 @@ export const collectibleServices = {
         ? false
         : params.offset + params.limit < totalCount;
 
-    console.log(listableCollectibles.length, params.limit);
+    // console.log(listableCollectibles.length, params.limit);
 
     return {
       listableCollectibles,

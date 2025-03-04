@@ -16,13 +16,10 @@ export const layerController = {
       if (!id) throw new CustomError("Please provide a layer id.", 400);
 
       const cachedLayer = await redis.get(`layer:${id}`);
-      if (cachedLayer) {
-        logger.info("SERVED GETBYID FROM CACHE");
-
+      if (cachedLayer)
         return res
           .status(200)
           .json({ success: true, data: JSON.parse(cachedLayer) });
-      }
 
       const layer = await layerServices.getById(id);
       if (!layer) throw new CustomError("Layer not found", 404);
@@ -39,13 +36,10 @@ export const layerController = {
   getAll: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const cachedLayers = await redis.get("layers");
-      if (cachedLayers) {
-        logger.info("SERVED GETBYID FROM CACHE");
-
+      if (cachedLayers)
         return res
           .status(200)
           .json({ success: true, data: JSON.parse(cachedLayers) });
-      }
 
       const layers = await layerServices.getAll();
 

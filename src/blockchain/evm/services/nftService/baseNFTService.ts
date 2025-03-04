@@ -120,7 +120,7 @@ export class BaseNFTService {
       // Try to get the owner of the token
       // If the token doesn't exist (not minted), this will throw an error
       const owner = await contract.ownerOf(tokenId);
-      console.log("🚀 ~ BaseNFTService ~ owner:", owner);
+      // console.log("🚀 ~ BaseNFTService ~ owner:", owner);
 
       // If we get here, the token exists and is minted
       return true;

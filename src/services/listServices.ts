@@ -189,10 +189,10 @@ export const listServices = {
             priceInEther,
             issuer.address
           );
-        console.log(
-          "🚀 ~ returnawaitdb.transaction ~ expectedListingId:",
-          expectedListingId
-        );
+        // console.log(
+        //   "🚀 ~ returnawaitdb.transaction ~ expectedListingId:",
+        //   expectedListingId
+        // );
 
         // const preparedListingTx = await nftService.prepareUnsignedTransaction(
         //   createListingTx,
@@ -380,9 +380,9 @@ export const listServices = {
         chainConfig.RPC_URL
       );
 
-      console.log("🚀 ~ list.price:", list.price);
-      console.log("Listing price:", list.price.toString());
-      console.log("Sending price:", ethers.parseEther(list.price.toString()));
+      // console.log("🚀 ~ list.price:", list.price);
+      // console.log("Listing price:", list.price.toString());
+      // console.log("Sending price:", ethers.parseEther(list.price.toString()));
       // FCFS or Public phase - no merkle proof needed
       return serializeBigInt(
         await marketplaceService.buyListingTransaction(

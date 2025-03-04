@@ -139,14 +139,18 @@ export class DirectMintNFTService extends BaseNFTService {
 
     if (royaltyFee < 0 || royaltyFee > this.MAX_ROYALTY_FEE) {
       throw new CustomError(
-        `Royalty fee must be between 0 and ${this.MAX_ROYALTY_FEE} (${this.MAX_ROYALTY_FEE / 100}%)`,
+        `Royalty fee must be between 0 and ${this.MAX_ROYALTY_FEE} (${
+          this.MAX_ROYALTY_FEE / 100
+        }%)`,
         400
       );
     }
 
     if (platformFee < 0 || platformFee > this.MAX_PLATFORM_FEE) {
       throw new CustomError(
-        `Platform fee must be between 0 and ${this.MAX_PLATFORM_FEE} (${this.MAX_PLATFORM_FEE / 100}%)`,
+        `Platform fee must be between 0 and ${this.MAX_PLATFORM_FEE} (${
+          this.MAX_PLATFORM_FEE / 100
+        }%)`,
         400
       );
     }
@@ -261,18 +265,18 @@ export class DirectMintNFTService extends BaseNFTService {
     merkleProof: string[],
     from: string
   ): Promise<ethers.TransactionRequest> {
-    console.log(
-      "params",
-      collectionAddress,
-      tokenId,
-      uri,
-      price,
-      uniqueId,
-      timestamp,
-      signature,
-      merkleProof,
-      from
-    );
+    // console.log(
+    //   "params",
+    //   collectionAddress,
+    //   tokenId,
+    //   uri,
+    //   price,
+    //   uniqueId,
+    //   timestamp,
+    //   signature,
+    //   merkleProof,
+    //   from
+    // );
     // await this.validateMintTransaction(
     //   collectionAddress,
     //   tokenId,

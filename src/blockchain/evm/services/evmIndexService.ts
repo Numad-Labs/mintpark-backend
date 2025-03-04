@@ -32,11 +32,11 @@ export class EVMCollectibleService {
       );
 
       const balance = await contract.balanceOf(ownerAddress);
-      console.log(
-        "🚀 ~ EVMCollectibleService ~ getOwnedTokens ~ balance:",
-        balance,
-        contractAddress
-      );
+      // console.log(
+      //   "🚀 ~ EVMCollectibleService ~ getOwnedTokens ~ balance:",
+      //   balance,
+      //   contractAddress
+      // );
       const balanceNumber = Number(balance);
 
       if (balanceNumber === 0) {

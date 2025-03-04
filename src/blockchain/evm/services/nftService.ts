@@ -264,7 +264,6 @@ class NFTService {
     uri: string,
     mintPrice: number
   ) {
-    logger.info(recipientAddress);
     try {
       const minterWallet = new ethers.Wallet(
         config.VAULT_PRIVATE_KEY,
