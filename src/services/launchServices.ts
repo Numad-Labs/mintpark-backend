@@ -652,6 +652,10 @@ export const launchServices = {
     }
     if (!launchItem) throw new CustomError("Please try again.", 400);
 
+    logger.info(
+      `launchItem id: ${launchItem.id}, onHoldUntil: ${launchItem.onHoldUntil}, onHoldBy: ${launchItem.onHoldBy}, status: ${launchItem.status}, userId: ${user.id}`
+    );
+
     collectible = await collectibleRepository.getById(
       db,
       launchItem.collectibleId
@@ -677,7 +681,7 @@ export const launchServices = {
           throw new CustomError("Minted collectible not found.", 400);
 
         logger.info(
-          `Incremented collection supply in buy method. userId: ${user.id} launchItem status: ${launchItem?.status}, collectible status: ${mintedCollectible.status}`
+          `Incremented collection supply in buy method. userId: ${user.id}, launchItem id: ${launchItem?.id}, launchItem status: ${launchItem?.status}, collectible status: ${mintedCollectible.status}`
         );
 
         await collectibleRepository.update(trx, mintedCollectible.id, {
@@ -726,6 +730,10 @@ export const launchServices = {
         throw new CustomError("The launch item has already been minted.", 400);
       }
     }
+
+    logger.info(
+      `final launchItem id: ${launchItem.id}, onHoldUntil: ${launchItem.onHoldUntil}, onHoldBy: ${launchItem.onHoldBy}, status: ${launchItem.status}, userId: ${user.id}`
+    );
 
     // --- IPFS Upload & Mint Transaction Preparation ---
     let ipfsCid: string | undefined;
@@ -931,7 +939,7 @@ export const launchServices = {
     // Execute database operations in transaction
     const result = await db.transaction().execute(async (trx) => {
       logger.info(
-        `Incremented collection supply in confirmMint method. userId: ${user.id} launchItem status: ${launchItem?.status}, collectible status: ${collectible.status}`
+        `Incremented collection supply in confirmMint method. userId: ${user.id}, launchItem id: ${launchItem.id}, launchItem status: ${launchItem?.status}, collectible status: ${collectible.status}`
       );
 
       // try {
