@@ -85,27 +85,7 @@ export const launchItemRepository = {
   getRandomItemByLaunchId: async (launchId: string) => {
     const currentDate = new Date().toISOString();
 
-    // Get the total count of matching items
-    const totalCount = await db
-      .selectFrom("LaunchItem")
-      .where("LaunchItem.launchId", "=", launchId)
-      .where("LaunchItem.status", "=", "ACTIVE")
-      .where((eb) =>
-        eb.or([
-          eb("LaunchItem.onHoldUntil", "is", null),
-          sql`${eb.ref("onHoldUntil")} < ${currentDate}`.$castTo<boolean>()
-        ])
-      )
-      .select(({ fn }) => fn.count<number>("LaunchItem.id").as("count"))
-      .executeTakeFirst();
-
-    if (!totalCount || totalCount.count === 0) return null;
-
-    // Select a random offset
-    const randomOffset = Math.floor(Math.random() * totalCount.count);
-
-    // Fetch a single row at that offset
-    const launchItem = await db
+    return await db
       .selectFrom("LaunchItem")
       .selectAll()
       .where("LaunchItem.launchId", "=", launchId)
@@ -116,11 +96,9 @@ export const launchItemRepository = {
           sql`${eb.ref("onHoldUntil")} < ${currentDate}`.$castTo<boolean>()
         ])
       )
+      .orderBy(sql`RANDOM()`)
       .limit(1)
-      .offset(randomOffset)
       .executeTakeFirst();
-
-    return launchItem;
   },
   setShortHoldById: async (
     db: Kysely<DB> | Transaction<DB>,
