@@ -5,9 +5,9 @@ import { abi as MARKETPLACE_ABI } from "@artifacts/MarketplaceWithPhase.sol/Mark
 import { bytecode as MARKETPLACE_CONTRACT_BYTECODE } from "@artifacts/MarketplaceWithPhase.sol/Marketplace.json";
 import { abi as DIRECT_MINT_NFT_ABI } from "@artifacts/DirectMintNFTV2.sol/LaunchNFTV2.json";
 import { bytecode as DIRECT_MINT_NFT_BYTECODE } from "@artifacts/DirectMintNFTV2.sol/LaunchNFTV2.json";
-import { abi as LAUNCH_NFT_V3_ABI } from "@artifacts/LaunchNFTV3.sol/LaunchNFTV3.json";
-import { abi as PHASE_MANAGER_ABI } from "@artifacts/PhaseManager.sol/PhaseManager.json";
-import { abi as NFT_FACTORY_ABI } from "@artifacts/NFTFactory.sol/NFTFactory.json";
+// import { abi as LAUNCH_NFT_V3_ABI } from "@artifacts/LaunchNFTV3.sol/LaunchNFTV3.json";
+// import { abi as PHASE_MANAGER_ABI } from "@artifacts/PhaseManager.sol/PhaseManager.json";
+// import { abi as NFT_FACTORY_ABI } from "@artifacts/NFTFactory.sol/NFTFactory.json";
 
 const DEFAULT_PUBLIC_MAX_MINT = 255;
 
@@ -39,10 +39,10 @@ interface EVMConfig {
   NFT_CONTRACT_BYTECODE: any;
   MARKETPLACE_ABI: any;
   MARKETPLACE_CONTRACT_BYTECODE: any;
-  LAUNCH_NFT_V3_ABI: any;
+  // LAUNCH_NFT_V3_ABI: any;
   DIRECT_MINT_NFT_ABI: any;
-  PHASE_MANAGER_ABI: any;
-  NFT_FACTORY_ABI: any;
+  // PHASE_MANAGER_ABI: any;
+  // NFT_FACTORY_ABI: any;
   DIRECT_MINT_NFT_BYTECODE: any;
   DEFAULT_SIGN_DEADLINE: number;
   CHAINS: {
@@ -58,9 +58,9 @@ export const EVM_CONFIG: EVMConfig = {
   DIRECT_MINT_NFT_ABI,
   DIRECT_MINT_NFT_BYTECODE,
   DEFAULT_SIGN_DEADLINE,
-  LAUNCH_NFT_V3_ABI,
-  PHASE_MANAGER_ABI,
-  NFT_FACTORY_ABI,
+  // LAUNCH_NFT_V3_ABI,
+  // PHASE_MANAGER_ABI,
+  // NFT_FACTORY_ABI,
   // PHASE_TYPE_MAP,
   CHAINS: {
     "5115": {
