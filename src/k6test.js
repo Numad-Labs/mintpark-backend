@@ -270,11 +270,11 @@ export default function () {
     "32e0739b-99c5-4af0-9849-696904b47105"
   );
 
-  randomSleep(0.2, 0.5);
+  randomSleep(0.3, 0.6);
 
   const selectedLaunch = { launchId: "ba2e9377-bc85-4a7b-ad78-6df4aca83250" };
 
-  randomSleep(0.2, 0.5);
+  randomSleep(0.3, 0.6);
 
   // Buy launch item
   const buyResult = buyLaunchItem(token, selectedLaunch.launchId, userLayerId);
@@ -282,7 +282,7 @@ export default function () {
   // Simulate transaction signing
   const mockTxid = `0xa438165cf6aacb94ff29ee6aeb1a91fa12368db1124daadbe556cdc8e27c98b5`;
 
-  randomSleep(1, 3);
+  randomSleep(0.3, 0.6);
   // Mint launch item
   const mintResult = mintLaunchItem(
     token,
@@ -298,7 +298,7 @@ export default function () {
   // });
 
   // Small sleep to simulate user interaction
-  sleep(1);
+  sleep(0.5);
 }
 
 // Teardown function for any cleanup

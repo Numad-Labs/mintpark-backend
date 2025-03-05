@@ -497,17 +497,18 @@ export const launchServices = {
     id: string,
     feeRate?: number
   ) => {
-    // --- Pre-transaction Data Fetching & Validation ---
-    const [user, launch, collection] = await Promise.all([
-      userRepository.getByUserLayerId(userLayerId),
-      launchRepository.getById(db, id),
-      launchRepository
-        .getById(db, id)
-        .then((l) =>
-          l ? collectionRepository.getById(db, l.collectionId) : null
-        )
-    ]);
+    // // --- Pre-transaction Data Fetching & Validation ---
+    // const [user, launch, collection] = await Promise.all([
+    //   userRepository.getByUserLayerId(userLayerId),
+    //   launchRepository.getById(db, id),
+    //   launchRepository
+    //     .getById(db, id)
+    //     .then((l) =>
+    //       l ? collectionRepository.getById(db, l.collectionId) : null
+    //     )
+    // ]);
 
+    const user = await userRepository.getByUserLayerId(userLayerId);
     if (!user) throw new CustomError("User not found.", 400);
     if (user.id !== userId)
       throw new CustomError(
@@ -516,15 +517,23 @@ export const launchServices = {
       );
     if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
+
+    const launch = await launchRepository.getById(db, id);
+    if (!launch) throw new CustomError("Launch not found.", 400);
+    if (launch.status === "UNCONFIRMED")
+      throw new CustomError("Unconfirmed launch.", 400);
+
+    const collection = await collectionRepository.getById(
+      db,
+      launch?.collectionId
+    );
+
+    if (!collection) throw new CustomError("Collection not found.", 400);
     if (user.layerId !== collection?.layerId)
       throw new CustomError(
         "Please connect to the appropriate L2 for this launch.",
         400
       );
-    if (!launch) throw new CustomError("Launch not found.", 400);
-    if (launch.status === "UNCONFIRMED")
-      throw new CustomError("Unconfirmed launch.", 400);
-    if (!collection) throw new CustomError("Collection not found.", 400);
     if (collection.type === "SYNTHETIC" || collection.parentCollectionId)
       throw new CustomError("You cannot buy the item of this collection.", 400);
     if (
@@ -824,29 +833,29 @@ export const launchServices = {
       orderId?: string;
     }
   ) => {
-    // Initial validations and data fetching in parallel
-    const [user, launchItem, launch, collection] = await Promise.all([
-      userRepository.getByUserLayerId(userLayerId),
-      launchItemRepository.getById(db, launchItemId),
-      launchItemRepository
-        .getById(db, launchItemId)
-        .then((item) =>
-          item ? launchRepository.getById(db, item.launchId) : null
-        ),
-      launchItemRepository
-        .getById(db, launchItemId)
-        .then((item) =>
-          item
-            ? launchRepository
-                .getById(db, item.launchId)
-                .then((l) =>
-                  l ? collectionRepository.getById(db, l.collectionId) : null
-                )
-            : null
-        )
-    ]);
+    // // Initial validations and data fetching in parallel
+    // const [user, launchItem, launch, collection] = await Promise.all([
+    //   userRepository.getByUserLayerId(userLayerId),
+    //   launchItemRepository.getById(db, launchItemId),
+    //   launchItemRepository
+    //     .getById(db, launchItemId)
+    //     .then((item) =>
+    //       item ? launchRepository.getById(db, item.launchId) : null
+    //     ),
+    //   launchItemRepository
+    //     .getById(db, launchItemId)
+    //     .then((item) =>
+    //       item
+    //         ? launchRepository
+    //             .getById(db, item.launchId)
+    //             .then((l) =>
+    //               l ? collectionRepository.getById(db, l.collectionId) : null
+    //             )
+    //         : null
+    //     )
+    // ]);
 
-    // Basic validations
+    const user = await userRepository.getByUserLayerId(userLayerId);
     if (!user) throw new CustomError("User not found.", 400);
     if (user.id !== userId)
       throw new CustomError(
@@ -855,14 +864,30 @@ export const launchServices = {
       );
     if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
+
+    const launchItem = await launchItemRepository.getById(db, launchItemId);
+    if (!launchItem) throw new CustomError("Launch item not found.", 400);
+    if (launchItem.status === "SOLD")
+      throw new CustomError(
+        "This launch item has already been confirmed.",
+        400
+      );
+
+    const launch = await launchRepository.getById(db, launchItem.launchId);
+    if (!launch) throw new CustomError("Launch not found.", 400);
+    if (launch.status === "UNCONFIRMED")
+      throw new CustomError("Unconfirmed launch.", 400);
+
+    const collection = await collectionRepository.getById(
+      db,
+      launch.collectionId
+    );
+    if (!collection) throw new CustomError("Collection not found.", 400);
     if (user.layerId !== collection?.layerId)
       throw new CustomError(
         "Please connect to the appropriate L2 for this launch.",
         400
       );
-
-    // Launch and collection validations
-    if (!collection) throw new CustomError("Collection not found.", 400);
     if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
       throw new CustomError("You cannot buy the item of this collection.", 400);
     if (
@@ -875,17 +900,6 @@ export const launchServices = {
       );
     if (collection.isBadge && !collection.badgeCid)
       throw new CustomError("No badge cid.", 400);
-
-    if (!launch) throw new CustomError("Launch not found.", 400);
-    if (launch.status === "UNCONFIRMED")
-      throw new CustomError("Unconfirmed launch.", 400);
-
-    if (!launchItem) throw new CustomError("Launch item not found.", 400);
-    if (launchItem.status === "SOLD")
-      throw new CustomError(
-        "This launch item has already been confirmed.",
-        400
-      );
 
     // // Get mint price and validate phase
     // const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
