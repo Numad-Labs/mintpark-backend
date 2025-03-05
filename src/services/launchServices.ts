@@ -985,10 +985,10 @@ export const launchServices = {
         mintingTxId: txid,
         uniqueIdx: collection.contractAddress + "i" + collectible.nftId
       });
-      await collectionRepository.incrementCollectionSupplyById(
-        trx,
-        collection.id
-      );
+      // await collectionRepository.incrementCollectionSupplyById(
+      //   trx,
+      //   collection.id
+      // );
       const soldLaunchItem = await launchItemRepository.update(
         trx,
         launchItem.id,
