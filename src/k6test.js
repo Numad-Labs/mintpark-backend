@@ -267,12 +267,12 @@ export default function () {
   const { token, userLayerId } = loginUser(
     wallet,
     loginSignedMessage,
-    "32e0739b-99c5-4af0-9849-696904b47105"
+    "04b493ef-8242-4736-9de1-852d21a4dc28"
   );
 
   randomSleep(0.3, 0.6);
 
-  const selectedLaunch = { launchId: "ba2e9377-bc85-4a7b-ad78-6df4aca83250" };
+  const selectedLaunch = { launchId: "ee71bfb0-3098-4e48-a64c-f9f3f4663e0d" };
 
   randomSleep(0.3, 0.6);
 
