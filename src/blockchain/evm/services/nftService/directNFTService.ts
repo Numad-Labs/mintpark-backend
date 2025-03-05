@@ -16,142 +16,6 @@ export class DirectMintNFTService extends BaseNFTService {
   private readonly MAX_SYMBOL_LENGTH = 10;
   private readonly SIGNATURE_EXPIRY = 3600; // 1 hour in seconds
 
-  async validateUpdatePhaseParams(
-    collectionAddress: string,
-    phaseIndex: number,
-    phaseType: number,
-    price: bigint,
-    startTime: number,
-    endTime: number,
-    maxSupply: number,
-    maxPerWallet: number,
-    merkleRoot: string,
-    from: string
-  ) {
-    // Validate collection address
-    if (!ethers.isAddress(collectionAddress)) {
-      throw new CustomError("Invalid collection address", 400);
-    }
-
-    // Validate from address
-    if (!ethers.isAddress(from)) {
-      throw new CustomError("Invalid from address", 400);
-    }
-
-    if (from === ethers.ZeroAddress) {
-      throw new CustomError("From address cannot be zero address", 400);
-    }
-
-    // Validate phase index
-    if (phaseIndex < 0) {
-      throw new CustomError("Phase index cannot be negative", 400);
-    }
-
-    // Check if the phase exists
-    const contract = new ethers.Contract(
-      collectionAddress,
-      EVM_CONFIG.DIRECT_MINT_NFT_ABI,
-      this.provider
-    );
-
-    const phaseCount = await contract.getPhaseCount();
-    if (BigInt(phaseIndex) >= phaseCount) {
-      throw new CustomError("Invalid phase index", 400);
-    }
-
-    // Validate phase type
-    if (phaseType < 0 || phaseType > 2) {
-      // NOT_STARTED=0, WHITELIST=1, PUBLIC=2
-      throw new CustomError("Invalid phase type", 400);
-    }
-
-    // Validate time range
-    if (startTime >= endTime) {
-      throw new CustomError("Start time must be before end time", 400);
-    }
-
-    // Validate price
-    try {
-      const priceInEther = price;
-      if (priceInEther < BigInt(0)) {
-        throw new CustomError("Price cannot be negative", 400);
-      }
-    } catch {
-      throw new CustomError("Invalid price format", 400);
-    }
-
-    // Validate max per wallet for non-public phases
-    if (phaseType !== 2 && maxPerWallet <= 0) {
-      // 2 = PUBLIC
-      throw new CustomError(
-        "Max per wallet must be positive for non-public phases",
-        400
-      );
-    }
-
-    // Validate merkle root for whitelist phase
-    if (
-      phaseType === 1 &&
-      (!merkleRoot ||
-        merkleRoot ===
-          "0x0000000000000000000000000000000000000000000000000000000000000000")
-    ) {
-      throw new CustomError("Merkle root required for whitelist phase", 400);
-    }
-  }
-
-  async validateDeploymentParams(
-    initialOwner: string,
-    contractName: string,
-    symbol: string,
-    royaltyFee: number,
-    platformFee: number
-  ) {
-    if (!ethers.isAddress(initialOwner)) {
-      throw new CustomError("Invalid initial owner address", 400);
-    }
-
-    if (initialOwner === ethers.ZeroAddress) {
-      throw new CustomError("Initial owner cannot be zero address", 400);
-    }
-
-    if (
-      !contractName ||
-      contractName.length < this.MIN_CONTRACT_NAME_LENGTH ||
-      contractName.length > this.MAX_CONTRACT_NAME_LENGTH
-    ) {
-      throw new CustomError(
-        `Contract name must be between ${this.MIN_CONTRACT_NAME_LENGTH} and ${this.MAX_CONTRACT_NAME_LENGTH} characters`,
-        400
-      );
-    }
-
-    if (
-      !symbol ||
-      symbol.length < this.MIN_SYMBOL_LENGTH ||
-      symbol.length > this.MAX_SYMBOL_LENGTH
-    ) {
-      throw new CustomError(
-        `Symbol must be between ${this.MIN_SYMBOL_LENGTH} and ${this.MAX_SYMBOL_LENGTH} characters`,
-        400
-      );
-    }
-
-    if (royaltyFee < 0 || royaltyFee > this.MAX_ROYALTY_FEE) {
-      throw new CustomError(
-        `Royalty fee must be between 0 and ${this.MAX_ROYALTY_FEE} (${this.MAX_ROYALTY_FEE / 100}%)`,
-        400
-      );
-    }
-
-    if (platformFee < 0 || platformFee > this.MAX_PLATFORM_FEE) {
-      throw new CustomError(
-        `Platform fee must be between 0 and ${this.MAX_PLATFORM_FEE} (${this.MAX_PLATFORM_FEE / 100}%)`,
-        400
-      );
-    }
-  }
-
   async getUnsignedDeploymentTransaction(
     initialOwner: string,
     contractName: string,
@@ -160,32 +24,40 @@ export class DirectMintNFTService extends BaseNFTService {
     platformFee: number
   ) {
     try {
-      await this.validateDeploymentParams(
-        initialOwner,
-        contractName,
-        symbol,
-        royaltyFee,
-        platformFee
-      );
+      // await this.validateDeploymentParams(
+      //   initialOwner,
+      //   contractName,
+      //   symbol,
+      //   royaltyFee,
+      //   platformFee
+      // );
 
-      const factory = new ethers.ContractFactory(
-        EVM_CONFIG.DIRECT_MINT_NFT_ABI,
-        EVM_CONFIG.DIRECT_MINT_NFT_BYTECODE,
+      // Use NFTFactory contract instead of directly deploying
+      const factoryContract = new ethers.Contract(
+        EVM_CONFIG.NFT_FACTORY_ADDRESS,
+        EVM_CONFIG.NFT_FACTORY_ABI,
         this.provider
       );
 
-      const unsignedTx = await factory.getDeployTransaction(
-        initialOwner,
+      const backendSigner = config.VAULT_ADDRESS;
+      const platformFeeRecipient = config.VAULT_ADDRESS;
+
+      const unsignedTx = await factoryContract.deployNFT.populateTransaction(
         contractName,
         symbol,
         royaltyFee,
         platformFee,
-        config.VAULT_ADDRESS,
-        config.VAULT_ADDRESS
+        platformFeeRecipient,
+        backendSigner
       );
+
       return this.prepareUnsignedTransaction(unsignedTx, initialOwner);
     } catch (error) {
       console.log(error);
+      throw new CustomError(
+        `Failed to create deployment transaction: ${error}`,
+        500
+      );
     }
   }
 
@@ -208,9 +80,9 @@ export class DirectMintNFTService extends BaseNFTService {
     const { chainId } = await this.provider.getNetwork();
     const backendPrivateKey = config.VAULT_PRIVATE_KEY;
     const domain = {
-      name: "UnifiedNFT",
-      version: "1",
-      chainId: chainId,
+      name: this.DOMAIN_NAME,
+      version: this.DOMAIN_VERSION,
+      chainId: Number(chainId),
       verifyingContract: collectionAddress
     };
 
@@ -250,6 +122,7 @@ export class DirectMintNFTService extends BaseNFTService {
 
     return { signature, uniqueId, timestamp };
   }
+
   async getUnsignedMintTransaction(
     collectionAddress: string,
     tokenId: string,
@@ -290,7 +163,7 @@ export class DirectMintNFTService extends BaseNFTService {
     try {
       const contract = new ethers.Contract(
         collectionAddress,
-        EVM_CONFIG.DIRECT_MINT_NFT_ABI,
+        EVM_CONFIG.LAUNCH_NFT_V3_ABI, // Updated to use LaunchNFTV3 ABI
         this.provider
       );
 
@@ -306,7 +179,7 @@ export class DirectMintNFTService extends BaseNFTService {
           tokenId,
           uri,
           price,
-          phaseIndex: phaseInfo.phaseIndex, // Get actual phase index from contract
+          phaseIndex: phaseInfo.phaseIndex,
           uniqueId,
           timestamp
         });
@@ -385,27 +258,28 @@ export class DirectMintNFTService extends BaseNFTService {
     }
   }
 
-  // Phase Management Methods - Unchanged
+  // Phase Management Methods - Updated to use PhaseManager through the main contract
   async getActivePhase(collectionAddress: string) {
     try {
       const contract = new ethers.Contract(
         collectionAddress,
-        EVM_CONFIG.DIRECT_MINT_NFT_ABI,
+        EVM_CONFIG.LAUNCH_NFT_V3_ABI, // Updated to use LaunchNFTV3 ABI
         this.provider
       );
 
-      // // First check if any phase is active
-      // const isActive = await contract.isActivePhasePresent();
+      // Get PhaseManager address from main contract
+      const phaseManagerAddress = await contract.phaseManager();
 
-      // if (!isActive) {
-      //   // Handle case where no phase is active
-      //   return {
-      //     isActive: false,
-      //     message: "No active phase at the current time"
-      //   };
-      // }
+      // Create contract instance for PhaseManager
+      const phaseManagerContract = new ethers.Contract(
+        phaseManagerAddress,
+        EVM_CONFIG.PHASE_MANAGER_ABI,
+        this.provider
+      );
 
+      // Get active phase from PhaseManager via main contract
       const [phaseIndex, phase] = await contract.getActivePhase();
+
       return {
         isActive: true,
         phaseIndex,
@@ -423,7 +297,7 @@ export class DirectMintNFTService extends BaseNFTService {
     }
   }
 
-  // The rest of the phase and fee management methods remain unchanged
+  // Updated to interact with PhaseManager contract
   async getUnsignedAddPhaseTransaction(
     collectionAddress: string,
     phaseType: number,
@@ -438,19 +312,30 @@ export class DirectMintNFTService extends BaseNFTService {
     try {
       const contract = new ethers.Contract(
         collectionAddress,
-        EVM_CONFIG.DIRECT_MINT_NFT_ABI,
+        EVM_CONFIG.LAUNCH_NFT_V3_ABI,
         this.provider
       );
 
-      const unsignedTx = await contract.addPhase.populateTransaction(
-        phaseType,
-        ethers.parseEther(price),
-        startTime,
-        endTime,
-        maxSupply,
-        maxPerWallet,
-        merkleRoot
+      // Get PhaseManager address
+      const phaseManagerAddress = await contract.phaseManager();
+
+      // Create PhaseManager contract instance
+      const phaseManagerContract = new ethers.Contract(
+        phaseManagerAddress,
+        EVM_CONFIG.PHASE_MANAGER_ABI,
+        this.provider
       );
+
+      const unsignedTx =
+        await phaseManagerContract.addPhase.populateTransaction(
+          phaseType,
+          ethers.parseEther(price),
+          startTime,
+          endTime,
+          maxSupply,
+          maxPerWallet,
+          merkleRoot
+        );
 
       return this.prepareUnsignedTransaction(unsignedTx, from);
     } catch (error) {
@@ -474,36 +359,47 @@ export class DirectMintNFTService extends BaseNFTService {
     from: string
   ): Promise<ethers.TransactionRequest> {
     try {
-      // Validate parameters
-      await this.validateUpdatePhaseParams(
-        collectionAddress,
-        phaseIndex,
-        phaseType,
-        ethers.parseEther(price),
-        startTime,
-        endTime,
-        maxSupply,
-        maxPerWallet,
-        merkleRoot,
-        from
-      );
+      // // Validate parameters
+      // await this.validateUpdatePhaseParams(
+      //   collectionAddress,
+      //   phaseIndex,
+      //   phaseType,
+      //   ethers.parseEther(price),
+      //   startTime,
+      //   endTime,
+      //   maxSupply,
+      //   maxPerWallet,
+      //   merkleRoot,
+      //   from
+      // );
 
       const contract = new ethers.Contract(
         collectionAddress,
-        EVM_CONFIG.DIRECT_MINT_NFT_ABI,
+        EVM_CONFIG.LAUNCH_NFT_V3_ABI,
         this.provider
       );
 
-      const unsignedTx = await contract.updatePhase.populateTransaction(
-        phaseIndex,
-        phaseType,
-        ethers.parseEther(price),
-        startTime,
-        endTime,
-        maxSupply,
-        maxPerWallet,
-        merkleRoot
+      // Get PhaseManager address
+      const phaseManagerAddress = await contract.phaseManager();
+
+      // Create PhaseManager contract instance
+      const phaseManagerContract = new ethers.Contract(
+        phaseManagerAddress,
+        EVM_CONFIG.PHASE_MANAGER_ABI,
+        this.provider
       );
+
+      const unsignedTx =
+        await phaseManagerContract.updatePhase.populateTransaction(
+          phaseIndex,
+          phaseType,
+          ethers.parseEther(price),
+          startTime,
+          endTime,
+          maxSupply,
+          maxPerWallet,
+          merkleRoot
+        );
 
       return this.prepareUnsignedTransaction(unsignedTx, from);
     } catch (error) {
@@ -517,7 +413,7 @@ export class DirectMintNFTService extends BaseNFTService {
     }
   }
 
-  // Additional helper methods (removed getNonce since it's no longer needed)
+  // Updated to interact with PhaseManager contract
   async getMintedInPhase(
     collectionAddress: string,
     user: string,
@@ -526,11 +422,21 @@ export class DirectMintNFTService extends BaseNFTService {
     try {
       const contract = new ethers.Contract(
         collectionAddress,
-        EVM_CONFIG.DIRECT_MINT_NFT_ABI,
+        EVM_CONFIG.LAUNCH_NFT_V3_ABI,
         this.provider
       );
 
-      return await contract.getMintedInPhase(user, phaseType);
+      // Get PhaseManager address
+      const phaseManagerAddress = await contract.phaseManager();
+
+      // Create PhaseManager contract instance
+      const phaseManagerContract = new ethers.Contract(
+        phaseManagerAddress,
+        EVM_CONFIG.PHASE_MANAGER_ABI,
+        this.provider
+      );
+
+      return await phaseManagerContract.getMintedInPhase(user, phaseType);
     } catch (error) {
       throw new CustomError(`Failed to get minted in phase: ${error}`, 500);
     }
@@ -540,14 +446,66 @@ export class DirectMintNFTService extends BaseNFTService {
     try {
       const contract = new ethers.Contract(
         collectionAddress,
-        EVM_CONFIG.DIRECT_MINT_NFT_ABI,
+        EVM_CONFIG.LAUNCH_NFT_V3_ABI,
         this.provider
       );
 
-      const count = await contract.getPhaseCount();
+      // Get PhaseManager address
+      const phaseManagerAddress = await contract.phaseManager();
+
+      // Create PhaseManager contract instance
+      const phaseManagerContract = new ethers.Contract(
+        phaseManagerAddress,
+        EVM_CONFIG.PHASE_MANAGER_ABI,
+        this.provider
+      );
+
+      const count = await phaseManagerContract.getPhaseCount();
       return count;
     } catch (error) {
       throw new CustomError(`Failed to get phase count: ${error}`, 500);
+    }
+  }
+
+  // New method to handle the pause functionality
+  async getUnsignedSetPausedTransaction(
+    collectionAddress: string,
+    isPaused: boolean,
+    from: string
+  ): Promise<ethers.TransactionRequest> {
+    try {
+      const contract = new ethers.Contract(
+        collectionAddress,
+        EVM_CONFIG.LAUNCH_NFT_V3_ABI,
+        this.provider
+      );
+
+      const unsignedTx = await contract.setPaused.populateTransaction(isPaused);
+
+      return this.prepareUnsignedTransaction(unsignedTx, from);
+    } catch (error) {
+      throw new CustomError(
+        `Failed to create set paused transaction: ${error}`,
+        500
+      );
+    }
+  }
+
+  // Method to check if contract is paused
+  async isContractPaused(collectionAddress: string): Promise<boolean> {
+    try {
+      const contract = new ethers.Contract(
+        collectionAddress,
+        EVM_CONFIG.LAUNCH_NFT_V3_ABI,
+        this.provider
+      );
+
+      return await contract.isPaused();
+    } catch (error) {
+      throw new CustomError(
+        `Failed to check if contract is paused: ${error}`,
+        500
+      );
     }
   }
 }

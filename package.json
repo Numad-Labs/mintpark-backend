@@ -19,6 +19,7 @@
   "devDependencies": {
     "@babel/preset-env": "^7.25.8",
     "@babel/preset-typescript": "^7.25.7",
+    "@nomicfoundation/hardhat-verify": "^2.0.13",
     "@types/axios": "^0.14.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",

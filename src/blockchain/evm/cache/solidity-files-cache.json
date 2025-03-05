@@ -1,50 +1,6 @@
 {
   "_format": "hh-sol-cache-2",
   "files": {
-    "/Users/apple/projects/mintpark-backend/src/blockchain/evm/contracts/DirectMintNFT.sol": {
-      "lastModificationDate": 1740381939775,
-      "contentHash": "72db3c30243ea28961e628120e50588e",
-      "sourceName": "src/blockchain/evm/contracts/DirectMintNFT.sol",
-      "solcConfig": {
-        "version": "0.8.27",
-        "settings": {
-          "evmVersion": "paris",
-          "optimizer": {
-            "enabled": false,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/token/ERC721/ERC721.sol",
-        "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol",
-        "@openzeppelin/contracts/token/common/ERC2981.sol",
-        "@openzeppelin/contracts/access/Ownable.sol",
-        "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol",
-        "@openzeppelin/contracts/utils/cryptography/ECDSA.sol",
-        "@openzeppelin/contracts/utils/cryptography/EIP712.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "LaunchNFT"
-      ]
-    },
     "/Users/apple/projects/mintpark-backend/node_modules/@openzeppelin/contracts/access/Ownable.sol": {
       "lastModificationDate": 1729765723341,
       "contentHash": "d3c790edc9ccf808a17c5a6cd13614fd",
@@ -1380,6 +1336,523 @@
       ],
       "artifacts": [
         "ReentrancyGuard"
+      ]
+    },
+    "/Users/apple/projects/mintpark-backend/src/blockchain/evm/contracts/DirectMintNFTV3.sol": {
+      "lastModificationDate": 1741152803025,
+      "contentHash": "8ecd8b4b5dfaf5e4af2f9fd8af8be8c4",
+      "sourceName": "src/blockchain/evm/contracts/DirectMintNFTV3.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC721/ERC721.sol",
+        "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol",
+        "@openzeppelin/contracts/token/common/ERC2981.sol",
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol",
+        "@openzeppelin/contracts/utils/cryptography/ECDSA.sol",
+        "@openzeppelin/contracts/utils/cryptography/EIP712.sol",
+        "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "LaunchNFTV3"
+      ]
+    },
+    "/Users/apple/projects/mintpark-backend/src/blockchain/evm/contracts/SignatureVerifier.sol": {
+      "lastModificationDate": 1741153630531,
+      "contentHash": "922388e45bb894e24aa6b2c87fd8db2f",
+      "sourceName": "src/blockchain/evm/contracts/SignatureVerifier.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./interfaces/ISignatureVerifier.sol",
+        "@openzeppelin/contracts/utils/cryptography/ECDSA.sol",
+        "@openzeppelin/contracts/utils/cryptography/EIP712.sol",
+        "@openzeppelin/contracts/access/Ownable.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "SignatureVerifier"
+      ]
+    },
+    "/Users/apple/projects/mintpark-backend/src/blockchain/evm/contracts/interfaces/ISignatureVerifier.sol": {
+      "lastModificationDate": 1741149385720,
+      "contentHash": "8b34ea4990d3f177a95337b8aa8e37dc",
+      "sourceName": "src/blockchain/evm/contracts/interfaces/ISignatureVerifier.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./IPhaseManager.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "ISignatureVerifier"
+      ]
+    },
+    "/Users/apple/projects/mintpark-backend/src/blockchain/evm/contracts/interfaces/IPhaseManager.sol": {
+      "lastModificationDate": 1741149345728,
+      "contentHash": "d525d1864a920d09a6bcb9cc98ac1da8",
+      "sourceName": "src/blockchain/evm/contracts/interfaces/IPhaseManager.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "IPhaseManager"
+      ]
+    },
+    "/Users/apple/projects/mintpark-backend/src/blockchain/evm/contracts/WhitelistVerifier.sol": {
+      "lastModificationDate": 1741153630551,
+      "contentHash": "eba92b7fbf9943f609707e507b581bd7",
+      "sourceName": "src/blockchain/evm/contracts/WhitelistVerifier.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./interfaces/IWhitelistVerifier.sol",
+        "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "WhitelistVerifier"
+      ]
+    },
+    "/Users/apple/projects/mintpark-backend/src/blockchain/evm/contracts/interfaces/IWhitelistVerifier.sol": {
+      "lastModificationDate": 1741149408467,
+      "contentHash": "ac9cbe620c2535036d434f81b2710938",
+      "sourceName": "src/blockchain/evm/contracts/interfaces/IWhitelistVerifier.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "IWhitelistVerifier"
+      ]
+    },
+    "/Users/apple/projects/mintpark-backend/src/blockchain/evm/contracts/LaunchNFTV3.sol": {
+      "lastModificationDate": 1741153630349,
+      "contentHash": "a425ee8387ec4ce48a2b59468ed94692",
+      "sourceName": "src/blockchain/evm/contracts/LaunchNFTV3.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./interfaces/INFTBase.sol",
+        "./interfaces/IPhaseManager.sol",
+        "./interfaces/IFeeManager.sol",
+        "./interfaces/ISignatureVerifier.sol",
+        "./interfaces/IWhitelistVerifier.sol",
+        "@openzeppelin/contracts/access/Ownable.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "LaunchNFTV3"
+      ]
+    },
+    "/Users/apple/projects/mintpark-backend/src/blockchain/evm/contracts/interfaces/INFTBase.sol": {
+      "lastModificationDate": 1741149424689,
+      "contentHash": "6fda8bb1c9ed233bf0a1a85ac839f911",
+      "sourceName": "src/blockchain/evm/contracts/interfaces/INFTBase.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./IPhaseManager.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "INFTBase"
+      ]
+    },
+    "/Users/apple/projects/mintpark-backend/src/blockchain/evm/contracts/interfaces/IFeeManager.sol": {
+      "lastModificationDate": 1741149362688,
+      "contentHash": "0a24d6dcbd37f749398dc65258ce9f96",
+      "sourceName": "src/blockchain/evm/contracts/interfaces/IFeeManager.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "IFeeManager"
+      ]
+    },
+    "/Users/apple/projects/mintpark-backend/src/blockchain/evm/contracts/NFTFactory.sol": {
+      "lastModificationDate": 1741153630434,
+      "contentHash": "55abc13fa6e1cc849699278ad822156b",
+      "sourceName": "src/blockchain/evm/contracts/NFTFactory.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./NFTBase.sol",
+        "./PhaseManager.sol",
+        "./FeeManager.sol",
+        "./SignatureVerifier.sol",
+        "./WhitelistVerifier.sol",
+        "./LaunchNFTV3.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "NFTFactory"
+      ]
+    },
+    "/Users/apple/projects/mintpark-backend/src/blockchain/evm/contracts/NFTBase.sol": {
+      "lastModificationDate": 1741153630406,
+      "contentHash": "07cb733c4f7535bb01ac996263194bf3",
+      "sourceName": "src/blockchain/evm/contracts/NFTBase.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./interfaces/INFTBase.sol",
+        "./interfaces/IPhaseManager.sol",
+        "@openzeppelin/contracts/token/ERC721/ERC721.sol",
+        "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol",
+        "@openzeppelin/contracts/token/common/ERC2981.sol",
+        "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol",
+        "@openzeppelin/contracts/access/Ownable.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "NFTBase"
+      ]
+    },
+    "/Users/apple/projects/mintpark-backend/src/blockchain/evm/contracts/PhaseManager.sol": {
+      "lastModificationDate": 1741153630474,
+      "contentHash": "5f837fed9db833025116fc5cf5c26bd8",
+      "sourceName": "src/blockchain/evm/contracts/PhaseManager.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./interfaces/IPhaseManager.sol",
+        "@openzeppelin/contracts/access/Ownable.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "PhaseManager"
+      ]
+    },
+    "/Users/apple/projects/mintpark-backend/src/blockchain/evm/contracts/FeeManager.sol": {
+      "lastModificationDate": 1741153630256,
+      "contentHash": "68dda99410d042f68ee736a907cee624",
+      "sourceName": "src/blockchain/evm/contracts/FeeManager.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./interfaces/IFeeManager.sol",
+        "@openzeppelin/contracts/access/Ownable.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "FeeManager"
       ]
     }
   }

@@ -110,13 +110,89 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.Strings__factory>;
     getContractFactory(
-      name: "LaunchNFT",
+      name: "FeeManager",
       signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.LaunchNFT__factory>;
+    ): Promise<Contracts.FeeManager__factory>;
+    getContractFactory(
+      name: "IFeeManager",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IFeeManager__factory>;
+    getContractFactory(
+      name: "INFTBase",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.INFTBase__factory>;
+    getContractFactory(
+      name: "IPhaseManager",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IPhaseManager__factory>;
+    getContractFactory(
+      name: "ISignatureVerifier",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.ISignatureVerifier__factory>;
+    getContractFactory(
+      name: "IWhitelistVerifier",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IWhitelistVerifier__factory>;
+    getContractFactory(
+      name: "LaunchNFTV3",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.LaunchNFTV3__factory>;
+    getContractFactory(
+      name: "NFTBase",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.NFTBase__factory>;
+    getContractFactory(
+      name: "NFTFactory",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.NFTFactory__factory>;
+    getContractFactory(
+      name: "PhaseManager",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.PhaseManager__factory>;
+    getContractFactory(
+      name: "SignatureVerifier",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.SignatureVerifier__factory>;
+    getContractFactory(
+      name: "WhitelistVerifier",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.WhitelistVerifier__factory>;
     getContractFactory(
       name: "LaunchNFTV2",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.LaunchNFTV2__factory>;
+    getContractFactory(
+      name: "LaunchNFTV3",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.LaunchNFTV3__factory>;
+    getContractFactory(
+      name: "FeeManager",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.FeeManager__factory>;
+    getContractFactory(
+      name: "IFeeManager",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IFeeManager__factory>;
+    getContractFactory(
+      name: "INFTBase",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.INFTBase__factory>;
+    getContractFactory(
+      name: "IPhaseManager",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IPhaseManager__factory>;
+    getContractFactory(
+      name: "ISignatureVerifier",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.ISignatureVerifier__factory>;
+    getContractFactory(
+      name: "IWhitelistVerifier",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IWhitelistVerifier__factory>;
+    getContractFactory(
+      name: "LaunchNFTV3",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.LaunchNFTV3__factory>;
     getContractFactory(
       name: "Marketplace",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -125,6 +201,26 @@ declare module "hardhat/types/runtime" {
       name: "UnifiedNFT",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.UnifiedNFT__factory>;
+    getContractFactory(
+      name: "NFTBase",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.NFTBase__factory>;
+    getContractFactory(
+      name: "NFTFactory",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.NFTFactory__factory>;
+    getContractFactory(
+      name: "PhaseManager",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.PhaseManager__factory>;
+    getContractFactory(
+      name: "SignatureVerifier",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.SignatureVerifier__factory>;
+    getContractFactory(
+      name: "WhitelistVerifier",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.WhitelistVerifier__factory>;
 
     getContractAt(
       name: "Ownable",
@@ -247,15 +343,110 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.Strings>;
     getContractAt(
-      name: "LaunchNFT",
+      name: "FeeManager",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
-    ): Promise<Contracts.LaunchNFT>;
+    ): Promise<Contracts.FeeManager>;
+    getContractAt(
+      name: "IFeeManager",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IFeeManager>;
+    getContractAt(
+      name: "INFTBase",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.INFTBase>;
+    getContractAt(
+      name: "IPhaseManager",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IPhaseManager>;
+    getContractAt(
+      name: "ISignatureVerifier",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.ISignatureVerifier>;
+    getContractAt(
+      name: "IWhitelistVerifier",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IWhitelistVerifier>;
+    getContractAt(
+      name: "LaunchNFTV3",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.LaunchNFTV3>;
+    getContractAt(
+      name: "NFTBase",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.NFTBase>;
+    getContractAt(
+      name: "NFTFactory",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.NFTFactory>;
+    getContractAt(
+      name: "PhaseManager",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.PhaseManager>;
+    getContractAt(
+      name: "SignatureVerifier",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.SignatureVerifier>;
+    getContractAt(
+      name: "WhitelistVerifier",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.WhitelistVerifier>;
     getContractAt(
       name: "LaunchNFTV2",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.LaunchNFTV2>;
+    getContractAt(
+      name: "LaunchNFTV3",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.LaunchNFTV3>;
+    getContractAt(
+      name: "FeeManager",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.FeeManager>;
+    getContractAt(
+      name: "IFeeManager",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IFeeManager>;
+    getContractAt(
+      name: "INFTBase",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.INFTBase>;
+    getContractAt(
+      name: "IPhaseManager",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IPhaseManager>;
+    getContractAt(
+      name: "ISignatureVerifier",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.ISignatureVerifier>;
+    getContractAt(
+      name: "IWhitelistVerifier",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IWhitelistVerifier>;
+    getContractAt(
+      name: "LaunchNFTV3",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.LaunchNFTV3>;
     getContractAt(
       name: "Marketplace",
       address: string | ethers.Addressable,
@@ -266,6 +457,31 @@ declare module "hardhat/types/runtime" {
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.UnifiedNFT>;
+    getContractAt(
+      name: "NFTBase",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.NFTBase>;
+    getContractAt(
+      name: "NFTFactory",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.NFTFactory>;
+    getContractAt(
+      name: "PhaseManager",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.PhaseManager>;
+    getContractAt(
+      name: "SignatureVerifier",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.SignatureVerifier>;
+    getContractAt(
+      name: "WhitelistVerifier",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.WhitelistVerifier>;
 
     deployContract(
       name: "Ownable",
@@ -364,13 +580,89 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Strings>;
     deployContract(
-      name: "LaunchNFT",
+      name: "FeeManager",
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.LaunchNFT>;
+    ): Promise<Contracts.FeeManager>;
+    deployContract(
+      name: "IFeeManager",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IFeeManager>;
+    deployContract(
+      name: "INFTBase",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.INFTBase>;
+    deployContract(
+      name: "IPhaseManager",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IPhaseManager>;
+    deployContract(
+      name: "ISignatureVerifier",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ISignatureVerifier>;
+    deployContract(
+      name: "IWhitelistVerifier",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IWhitelistVerifier>;
+    deployContract(
+      name: "LaunchNFTV3",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.LaunchNFTV3>;
+    deployContract(
+      name: "NFTBase",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.NFTBase>;
+    deployContract(
+      name: "NFTFactory",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.NFTFactory>;
+    deployContract(
+      name: "PhaseManager",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.PhaseManager>;
+    deployContract(
+      name: "SignatureVerifier",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.SignatureVerifier>;
+    deployContract(
+      name: "WhitelistVerifier",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.WhitelistVerifier>;
     deployContract(
       name: "LaunchNFTV2",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.LaunchNFTV2>;
+    deployContract(
+      name: "LaunchNFTV3",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.LaunchNFTV3>;
+    deployContract(
+      name: "FeeManager",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.FeeManager>;
+    deployContract(
+      name: "IFeeManager",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IFeeManager>;
+    deployContract(
+      name: "INFTBase",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.INFTBase>;
+    deployContract(
+      name: "IPhaseManager",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IPhaseManager>;
+    deployContract(
+      name: "ISignatureVerifier",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ISignatureVerifier>;
+    deployContract(
+      name: "IWhitelistVerifier",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IWhitelistVerifier>;
+    deployContract(
+      name: "LaunchNFTV3",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.LaunchNFTV3>;
     deployContract(
       name: "Marketplace",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -379,6 +671,26 @@ declare module "hardhat/types/runtime" {
       name: "UnifiedNFT",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.UnifiedNFT>;
+    deployContract(
+      name: "NFTBase",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.NFTBase>;
+    deployContract(
+      name: "NFTFactory",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.NFTFactory>;
+    deployContract(
+      name: "PhaseManager",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.PhaseManager>;
+    deployContract(
+      name: "SignatureVerifier",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.SignatureVerifier>;
+    deployContract(
+      name: "WhitelistVerifier",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.WhitelistVerifier>;
 
     deployContract(
       name: "Ownable",
@@ -501,15 +813,110 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Strings>;
     deployContract(
-      name: "LaunchNFT",
+      name: "FeeManager",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.LaunchNFT>;
+    ): Promise<Contracts.FeeManager>;
+    deployContract(
+      name: "IFeeManager",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IFeeManager>;
+    deployContract(
+      name: "INFTBase",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.INFTBase>;
+    deployContract(
+      name: "IPhaseManager",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IPhaseManager>;
+    deployContract(
+      name: "ISignatureVerifier",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ISignatureVerifier>;
+    deployContract(
+      name: "IWhitelistVerifier",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IWhitelistVerifier>;
+    deployContract(
+      name: "LaunchNFTV3",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.LaunchNFTV3>;
+    deployContract(
+      name: "NFTBase",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.NFTBase>;
+    deployContract(
+      name: "NFTFactory",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.NFTFactory>;
+    deployContract(
+      name: "PhaseManager",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.PhaseManager>;
+    deployContract(
+      name: "SignatureVerifier",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.SignatureVerifier>;
+    deployContract(
+      name: "WhitelistVerifier",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.WhitelistVerifier>;
     deployContract(
       name: "LaunchNFTV2",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.LaunchNFTV2>;
+    deployContract(
+      name: "LaunchNFTV3",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.LaunchNFTV3>;
+    deployContract(
+      name: "FeeManager",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.FeeManager>;
+    deployContract(
+      name: "IFeeManager",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IFeeManager>;
+    deployContract(
+      name: "INFTBase",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.INFTBase>;
+    deployContract(
+      name: "IPhaseManager",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IPhaseManager>;
+    deployContract(
+      name: "ISignatureVerifier",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ISignatureVerifier>;
+    deployContract(
+      name: "IWhitelistVerifier",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IWhitelistVerifier>;
+    deployContract(
+      name: "LaunchNFTV3",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.LaunchNFTV3>;
     deployContract(
       name: "Marketplace",
       args: any[],
@@ -520,6 +927,31 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.UnifiedNFT>;
+    deployContract(
+      name: "NFTBase",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.NFTBase>;
+    deployContract(
+      name: "NFTFactory",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.NFTFactory>;
+    deployContract(
+      name: "PhaseManager",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.PhaseManager>;
+    deployContract(
+      name: "SignatureVerifier",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.SignatureVerifier>;
+    deployContract(
+      name: "WhitelistVerifier",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.WhitelistVerifier>;
 
     // default types
     getContractFactory(
