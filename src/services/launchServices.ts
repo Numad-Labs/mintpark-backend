@@ -716,15 +716,21 @@ export const launchServices = {
 
       if (isInfiniteBadge) {
         // For infinite supply badges, after syncing, create a new launch item.
-        const creationResult = await db.transaction().execute(async (trx) => {
-          const { badgeCurrentNftId } =
-            await collectionRepository.incrementBadgeCurrentNftIdById(
+        // Step 1: Get the next badgeCurrentNftId in a separate, quick transaction
+        const { badgeCurrentNftId } = await db
+          .transaction()
+          .execute(async (trx) => {
+            return await collectionRepository.incrementBadgeCurrentNftIdById(
               trx,
               collection.id
             );
-          if (!badgeCurrentNftId)
-            throw new CustomError("Badge current nft id not found.", 400);
-          const nftId = badgeCurrentNftId.toString();
+          });
+        if (!badgeCurrentNftId) {
+          throw new CustomError("Badge current nft id not found.", 400);
+        }
+        const nftId = badgeCurrentNftId.toString();
+
+        const creationResult = await db.transaction().execute(async (trx) => {
           const newCollectible = await collectibleRepository.create(trx, {
             name: `${collection.name} #${nftId}`,
             collectionId: collection.id,
@@ -787,8 +793,7 @@ export const launchServices = {
     const { signature, uniqueId, timestamp } =
       await directMintService.generateMintSignature(
         collection.contractAddress,
-        // user.address,
-        "0xAba4D17C285F234bFd722FF36123A4C9c6b73b71",
+        user.address,
         tokenId,
         nftIpfsUrl,
         mintPrice.toString(),
@@ -811,8 +816,7 @@ export const launchServices = {
       timestamp,
       signature,
       merkleProof,
-      // user.address
-      "0xAba4D17C285F234bFd722FF36123A4C9c6b73b71"
+      user.address
     );
 
     const order = await orderRepository.create(db, {
