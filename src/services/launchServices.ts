@@ -881,32 +881,42 @@ export const launchServices = {
       throw new CustomError("Unconfirmed launch.", 400);
 
     if (!launchItem) throw new CustomError("Launch item not found.", 400);
+    if (launchItem.status === "SOLD")
+      throw new CustomError(
+        "This launch item has already been confirmed.",
+        400
+      );
 
-    // Get mint price and validate phase
-    const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
-    await validatePhaseAndGetPrice(launch, user, currentUnixTimeStamp);
+    // // Get mint price and validate phase
+    // const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
+    // await validatePhaseAndGetPrice(launch, user, currentUnixTimeStamp);
 
     // Validate launch item status
     const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
       db,
       launchItemId
     );
-    if (isLaunchItemOnHold && isLaunchItemOnHold.onHoldBy !== user.id)
+    if (!isLaunchItemOnHold)
+      throw new CustomError("Launch item hasn't been set on hold.", 400);
+    if (isLaunchItemOnHold.onHoldBy !== user.id)
       throw new CustomError(
         "This launch item is currently reserved to another user.",
         400
       );
-    if (isLaunchItemOnHold && isLaunchItemOnHold.status === "SOLD")
-      throw new CustomError("Launch item has already been sold.", 400);
 
-    // Validate purchase limits inside transaction
-    await validatePurchaseLimits(db, launch, user, currentUnixTimeStamp);
+    // // Validate purchase limits inside transaction
+    // await validatePurchaseLimits(db, launch, user, currentUnixTimeStamp);
 
     const collectible = await collectibleRepository.getById(
       db,
       launchItem.collectibleId
     );
     if (!collectible) throw new CustomError("Collectible not found.", 400);
+    if (collectible.status === "CONFIRMED")
+      throw new CustomError(
+        "This collectible has already been confirmed.",
+        400
+      );
 
     if (!verification)
       throw new CustomError("You must provide verification.", 400);

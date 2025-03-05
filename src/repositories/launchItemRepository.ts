@@ -21,13 +21,13 @@ export const launchItemRepository = {
     data: Insertable<LaunchItem>,
     userId: string
   ) => {
-    const oneMinuteFromNow = new Date(Date.now() + 1 * 60 * 1000).toISOString();
+    const ninetySecondsFromNow = new Date(Date.now() + 90 * 1000).toISOString();
 
     const launchItem = await db
       .insertInto("LaunchItem")
       .values({
         ...data,
-        onHoldUntil: oneMinuteFromNow,
+        onHoldUntil: ninetySecondsFromNow,
         onHoldBy: userId
       })
       .returningAll()
@@ -106,13 +106,13 @@ export const launchItemRepository = {
     id: string,
     buyerId: string
   ) => {
-    const oneMinuteFromNow = new Date(Date.now() + 1 * 60 * 1000).toISOString();
+    const ninetySecondsFromNow = new Date(Date.now() + 90 * 1000).toISOString();
     const currentDate = new Date().toISOString();
 
     const launchItem = await db
       .updateTable("LaunchItem")
       .set({
-        onHoldUntil: oneMinuteFromNow,
+        onHoldUntil: ninetySecondsFromNow,
         onHoldBy: buyerId
       })
       .returningAll()
@@ -141,7 +141,7 @@ export const launchItemRepository = {
       .where("LaunchItem.id", "=", id)
       .where("LaunchItem.status", "=", "ACTIVE")
       .where((eb) =>
-        sql`${eb.ref("onHoldUntil")} > ${currentDate}`.$castTo<boolean>()
+        sql`${eb.ref("onHoldUntil")} >= ${currentDate}`.$castTo<boolean>()
       )
       .executeTakeFirst();
 
