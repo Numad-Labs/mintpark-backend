@@ -280,7 +280,7 @@ export default function () {
   const buyResult = buyLaunchItem(token, selectedLaunch.launchId, userLayerId);
 
   // Simulate transaction signing
-  const mockTxid = `0xa438165cf6aacb94ff29ee6aeb1a91fa12368db1124daadbe556cdc8e27c98b5`;
+  const mockTxid = `0x957903e42e0d7ef7126bdb726de6e265630166b5ed634657de476c063540b68d`;
 
   randomSleep(0.3, 0.6);
   // Mint launch item

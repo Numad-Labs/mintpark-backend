@@ -297,11 +297,20 @@ export const collectionRepository = {
       )
       .selectFrom("Collection")
       .leftJoin("CollectionStats", "CollectionStats.id", "Collection.id")
-      .select(({ eb }) => [
+      .select(({ eb, selectFrom }) => [
         "Collection.id",
         "Collection.name",
         "Collection.description",
-        "Collection.supply",
+        // "Collection.supply",
+        selectFrom("Collectible")
+          .select((eb) => [
+            sql<number>`COUNT("Collectible"."id")`
+              .$castTo<number>()
+              .as("confirmedSupply")
+          ])
+          .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
+          .where("Collectible.status", "=", "CONFIRMED")
+          .as("supply"),
         "Collection.type",
         "Collection.logoKey",
         "Collection.contractAddress",
@@ -386,11 +395,20 @@ export const collectionRepository = {
       )
       .selectFrom("Collection")
       .leftJoin("CollectionStats", "CollectionStats.id", "Collection.id")
-      .select(({ eb }) => [
+      .select(({ eb, selectFrom }) => [
         "Collection.id",
         "Collection.name",
         "Collection.description",
-        "Collection.supply",
+        // "Collection.supply",
+        selectFrom("Collectible")
+          .select((eb) => [
+            sql<number>`COUNT("Collectible"."id")`
+              .$castTo<number>()
+              .as("confirmedSupply")
+          ])
+          .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
+          .where("Collectible.status", "=", "CONFIRMED")
+          .as("supply"),
         "Collection.type",
         "Collection.logoKey",
         "Collection.layerId",

@@ -1,6 +1,8 @@
 // transactionConfirmationService.ts
 import { ethers } from "ethers";
 import { redis } from "../../..";
+import { CustomError } from "../../../exceptions/CustomError";
+import logger from "../../../config/winston";
 // import { redis } from "../../../src";
 interface TransactionStatus {
   status: "pending" | "confirmed" | "failed";
@@ -81,7 +83,7 @@ export class TransactionConfirmationService {
     try {
       const tx = await this.provider.getTransaction(txHash);
       if (!tx) {
-        throw new Error("Transaction not found");
+        throw new CustomError("Transaction not found", 400);
       }
 
       const receipt = await this.provider.getTransactionReceipt(txHash);
@@ -114,7 +116,6 @@ export class TransactionConfirmationService {
           : 0
       };
     } catch (error) {
-      console.error("Error getting transaction details:", error);
       throw error;
     }
   }

@@ -622,15 +622,22 @@ export const launchServices = {
       }
       // If no launch item exists OR setting the hold fails, create a new one.
       if (!launchItem) {
-        const creationResult = await db.transaction().execute(async (trx) => {
-          const { badgeCurrentNftId } =
-            await collectionRepository.incrementBadgeCurrentNftIdById(
+        // Step 1: Get the next badgeCurrentNftId in a separate, quick transaction
+        const { badgeCurrentNftId } = await db
+          .transaction()
+          .execute(async (trx) => {
+            return await collectionRepository.incrementBadgeCurrentNftIdById(
               trx,
               collection.id
             );
-          if (!badgeCurrentNftId)
-            throw new CustomError("Badge current nft id not found.", 400);
-          const nftId = badgeCurrentNftId.toString();
+          });
+        if (!badgeCurrentNftId) {
+          throw new CustomError("Badge current nft id not found.", 400);
+        }
+        const nftId = badgeCurrentNftId.toString();
+
+        // Step 2: Create the collectible and launch item in a separate transaction
+        const creationResult = await db.transaction().execute(async (trx) => {
           const newCollectible = await collectibleRepository.create(trx, {
             name: `${collection.name} #${nftId}`,
             collectionId: collection.id,
@@ -646,6 +653,7 @@ export const launchServices = {
             );
           return { launchItem: newLaunchItem, collectible: newCollectible };
         });
+
         launchItem = creationResult.launchItem;
         collectible = creationResult.collectible;
       }
@@ -697,10 +705,10 @@ export const launchServices = {
           status: "CONFIRMED",
           uniqueIdx: collection.contractAddress + "i" + mintedCollectible.nftId
         });
-        await collectionRepository.incrementCollectionSupplyById(
-          trx,
-          collection.id
-        );
+        // await collectionRepository.incrementCollectionSupplyById(
+        //   trx,
+        //   collection.id
+        // );
         await launchItemRepository.update(trx, launchItem!.id, {
           status: "SOLD"
         });

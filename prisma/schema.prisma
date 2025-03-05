@@ -160,6 +160,7 @@ model Collection {
   TraitType        TraitType[]
 
   @@index([status])
+  @@index([layerId, status])
 }
 
 model Collectible {
@@ -307,6 +308,7 @@ model Purchase {
   @@index([purchasedAddress])
   @@index([purchasedAt])
   @@index([launchItemId])
+  @@index([purchasedAddress, purchasedAt])
 }
 
 model WlAddress {
@@ -339,6 +341,9 @@ model List {
   @@index([status, sellerId])
   @@index([listedAt])
   @@index([price]) // For price-based sorting
+  @@index([collectibleId, status, listedAt])
+  @@index([price, status])
+  @@index([collectibleId, status, price])
 }
 
 model FailedMint {
