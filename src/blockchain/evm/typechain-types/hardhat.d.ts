@@ -110,13 +110,13 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.Strings__factory>;
     getContractFactory(
-      name: "LaunchNFT",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.LaunchNFT__factory>;
-    getContractFactory(
       name: "LaunchNFTV2",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.LaunchNFTV2__factory>;
+    getContractFactory(
+      name: "LaunchNFTV3",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.LaunchNFTV3__factory>;
     getContractFactory(
       name: "Marketplace",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -247,15 +247,15 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.Strings>;
     getContractAt(
-      name: "LaunchNFT",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.LaunchNFT>;
-    getContractAt(
       name: "LaunchNFTV2",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.LaunchNFTV2>;
+    getContractAt(
+      name: "LaunchNFTV3",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.LaunchNFTV3>;
     getContractAt(
       name: "Marketplace",
       address: string | ethers.Addressable,
@@ -364,13 +364,13 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Strings>;
     deployContract(
-      name: "LaunchNFT",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.LaunchNFT>;
-    deployContract(
       name: "LaunchNFTV2",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.LaunchNFTV2>;
+    deployContract(
+      name: "LaunchNFTV3",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.LaunchNFTV3>;
     deployContract(
       name: "Marketplace",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -501,15 +501,15 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Strings>;
     deployContract(
-      name: "LaunchNFT",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.LaunchNFT>;
-    deployContract(
       name: "LaunchNFTV2",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.LaunchNFTV2>;
+    deployContract(
+      name: "LaunchNFTV3",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.LaunchNFTV3>;
     deployContract(
       name: "Marketplace",
       args: any[],

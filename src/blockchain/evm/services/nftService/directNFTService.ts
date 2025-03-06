@@ -1,5 +1,4 @@
 import { ethers } from "ethers";
-import { PinataSDK } from "pinata-web3";
 import { CustomError } from "../../../../exceptions/CustomError";
 import { EVM_CONFIG } from "../../evm-config";
 import { config } from "../../../../config/config";
@@ -25,7 +24,6 @@ export class DirectMintNFTService extends BaseNFTService {
     endTime: number,
     maxSupply: number,
     maxPerWallet: number,
-    merkleRoot: string,
     from: string
   ) {
     // Validate collection address
@@ -61,7 +59,7 @@ export class DirectMintNFTService extends BaseNFTService {
 
     // Validate phase type
     if (phaseType < 0 || phaseType > 2) {
-      // NOT_STARTED=0, WHITELIST=1, PUBLIC=2
+      // PUBLIC=0, WHITELIST=1, FCFS=2
       throw new CustomError("Invalid phase type", 400);
     }
 
@@ -87,16 +85,6 @@ export class DirectMintNFTService extends BaseNFTService {
         "Max per wallet must be positive for non-public phases",
         400
       );
-    }
-
-    // Validate merkle root for whitelist phase
-    if (
-      phaseType === 1 &&
-      (!merkleRoot ||
-        merkleRoot ===
-          "0x0000000000000000000000000000000000000000000000000000000000000000")
-    ) {
-      throw new CustomError("Merkle root required for whitelist phase", 400);
     }
   }
 
@@ -262,7 +250,6 @@ export class DirectMintNFTService extends BaseNFTService {
     uniqueId: string,
     timestamp: number,
     signature: string,
-    merkleProof: string[],
     from: string
   ): Promise<ethers.TransactionRequest> {
     // console.log(
@@ -324,7 +311,7 @@ export class DirectMintNFTService extends BaseNFTService {
         uniqueId,
         timestamp,
         signature,
-        merkleProof,
+        // merkleProof,
         { value: ethers.parseEther(price) }
       );
 
@@ -419,8 +406,7 @@ export class DirectMintNFTService extends BaseNFTService {
         endTime: phase.endTime,
         maxSupply: phase.maxSupply,
         maxPerWallet: phase.maxPerWallet,
-        mintedInPhase: phase.mintedInPhase,
-        merkleRoot: phase.merkleRoot
+        mintedInPhase: phase.mintedInPhase
       };
     } catch (error) {
       throw new CustomError(`Failed to get active phase: ${error}`, 500);
@@ -436,7 +422,7 @@ export class DirectMintNFTService extends BaseNFTService {
     endTime: number,
     maxSupply: number,
     maxPerWallet: number,
-    merkleRoot: string,
+    // merkleRoot: string,
     from: string
   ): Promise<ethers.TransactionRequest> {
     try {
@@ -452,8 +438,8 @@ export class DirectMintNFTService extends BaseNFTService {
         startTime,
         endTime,
         maxSupply,
-        maxPerWallet,
-        merkleRoot
+        maxPerWallet
+        // merkleRoot
       );
 
       return this.prepareUnsignedTransaction(unsignedTx, from);
@@ -474,7 +460,7 @@ export class DirectMintNFTService extends BaseNFTService {
     endTime: number,
     maxSupply: number,
     maxPerWallet: number,
-    merkleRoot: string,
+    // merkleRoot: string,
     from: string
   ): Promise<ethers.TransactionRequest> {
     try {
@@ -488,7 +474,7 @@ export class DirectMintNFTService extends BaseNFTService {
         endTime,
         maxSupply,
         maxPerWallet,
-        merkleRoot,
+        // merkleRoot,
         from
       );
 
@@ -505,8 +491,8 @@ export class DirectMintNFTService extends BaseNFTService {
         startTime,
         endTime,
         maxSupply,
-        maxPerWallet,
-        merkleRoot
+        maxPerWallet
+        // merkleRoot
       );
 
       return this.prepareUnsignedTransaction(unsignedTx, from);

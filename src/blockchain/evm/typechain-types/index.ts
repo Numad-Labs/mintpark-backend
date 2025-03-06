@@ -54,10 +54,10 @@ export type { ShortStrings } from "./@openzeppelin/contracts/utils/ShortStrings"
 export { ShortStrings__factory } from "./factories/@openzeppelin/contracts/utils/ShortStrings__factory";
 export type { Strings } from "./@openzeppelin/contracts/utils/Strings";
 export { Strings__factory } from "./factories/@openzeppelin/contracts/utils/Strings__factory";
-export type { LaunchNFT } from "./src/blockchain/evm/contracts/DirectMintNFT.sol/LaunchNFT";
-export { LaunchNFT__factory } from "./factories/src/blockchain/evm/contracts/DirectMintNFT.sol/LaunchNFT__factory";
 export type { LaunchNFTV2 } from "./src/blockchain/evm/contracts/DirectMintNFTV2.sol/LaunchNFTV2";
 export { LaunchNFTV2__factory } from "./factories/src/blockchain/evm/contracts/DirectMintNFTV2.sol/LaunchNFTV2__factory";
+export type { LaunchNFTV3 } from "./src/blockchain/evm/contracts/LaunchNFTV3";
+export { LaunchNFTV3__factory } from "./factories/src/blockchain/evm/contracts/LaunchNFTV3__factory";
 export type { Marketplace } from "./src/blockchain/evm/contracts/MarketplaceWithPhase.sol/Marketplace";
 export { Marketplace__factory } from "./factories/src/blockchain/evm/contracts/MarketplaceWithPhase.sol/Marketplace__factory";
 export type { UnifiedNFT } from "./src/blockchain/evm/contracts/MPMNFT.sol/UnifiedNFT";

@@ -225,11 +225,11 @@ export const collectionServices = {
     const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
     const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
 
-    // For whitelist phase, validate merkle root
-    if (phaseType === 1 && !merkleRoot) {
-      // 1 is whitelist phase
-      throw new CustomError("Merkle root is required for whitelist phase", 400);
-    }
+    // // For whitelist phase, validate merkle root
+    // if (phaseType === 1 && !merkleRoot) {
+    //   // 1 is whitelist phase
+    //   throw new CustomError("Merkle root is required for whitelist phase", 400);
+    // }
 
     // Get unsigned transaction
     const unsignedTx = await directMintService.getUnsignedAddPhaseTransaction(
@@ -240,7 +240,7 @@ export const collectionServices = {
       endTime,
       maxSupply,
       maxPerWallet,
-      merkleRoot || ethers.ZeroHash, // Use zero hash for public phase
+      // merkleRoot || ethers.ZeroHash, // Use zero hash for public phase
       user.address
     );
 
@@ -490,7 +490,7 @@ export const collectionServices = {
         endTime,
         maxSupply,
         maxPerWallet,
-        merkleRoot || ethers.ZeroHash, // Use zero hash for public phase
+        // merkleRoot || ethers.ZeroHash, // Use zero hash for public phase
         user.address
       );
 

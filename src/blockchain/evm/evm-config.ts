@@ -3,8 +3,8 @@ import { bytecode as NFT_CONTRACT_BYTECODE } from "@artifacts/MPMNFT.sol/Unified
 
 import { abi as MARKETPLACE_ABI } from "@artifacts/MarketplaceWithPhase.sol/Marketplace.json";
 import { bytecode as MARKETPLACE_CONTRACT_BYTECODE } from "@artifacts/MarketplaceWithPhase.sol/Marketplace.json";
-import { abi as DIRECT_MINT_NFT_ABI } from "@artifacts/DirectMintNFTV2.sol/LaunchNFTV2.json";
-import { bytecode as DIRECT_MINT_NFT_BYTECODE } from "@artifacts/DirectMintNFTV2.sol/LaunchNFTV2.json";
+import { abi as DIRECT_MINT_NFT_ABI } from "@artifacts/LaunchNFTV3.sol/LaunchNFTV3.json";
+import { bytecode as DIRECT_MINT_NFT_BYTECODE } from "@artifacts/LaunchNFTV3.sol/LaunchNFTV3.json";
 // import { abi as LAUNCH_NFT_V3_ABI } from "@artifacts/LaunchNFTV3.sol/LaunchNFTV3.json";
 // import { abi as PHASE_MANAGER_ABI } from "@artifacts/PhaseManager.sol/PhaseManager.json";
 // import { abi as NFT_FACTORY_ABI } from "@artifacts/NFTFactory.sol/NFTFactory.json";
