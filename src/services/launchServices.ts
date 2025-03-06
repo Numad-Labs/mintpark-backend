@@ -120,8 +120,9 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
     if (!txid) throw new CustomError("txid not found.", 400);
-    const transactionDetail =
-      await confirmationService.getTransactionDetails(txid);
+    const transactionDetail = await confirmationService.getTransactionDetails(
+      txid
+    );
     if (transactionDetail.status !== 1) {
       throw new CustomError(
         "Transaction not confirmed. Please try again.",
@@ -837,8 +838,9 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
 
-    const transactionDetail =
-      await confirmationService.getTransactionDetails(txid);
+    const transactionDetail = await confirmationService.getTransactionDetails(
+      txid
+    );
     if (transactionDetail.status !== 1)
       throw new CustomError(
         "Transaction not confirmed. Please try again.",
@@ -1017,8 +1019,10 @@ export const launchServices = {
   ) => {
     const launch = await launchRepository.getById(db, launchId);
     if (!launch) throw new CustomError("Launch not found.", 400);
-    if (!launch.isWhitelisted)
+    if (!launch.isWhitelisted && phase === "WHITELIST")
       throw new CustomError("Launch is not whitelisted.", 400);
+    if (!launch.hasFCFS && phase === "FCFS_WHITELIST")
+      throw new CustomError("Launch does not have FCFS phase.", 400);
 
     const collection = await collectionRepository.getById(
       db,

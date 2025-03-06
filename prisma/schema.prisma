@@ -297,6 +297,8 @@ model WlAddress {
   createdAt DateTime     @default(now())
   phase     LAUNCH_PHASE @default(WHITELIST)
   launch    Launch       @relation(fields: [launchId], references: [id])
+
+  @@index([launchId, address, phase])
 }
 
 model List {

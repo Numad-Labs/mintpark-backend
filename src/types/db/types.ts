@@ -31,7 +31,6 @@ export type Collectible = {
   id: Generated<string>;
   name: string;
   fileKey: string | null;
-  fileName: string | null;
   highResolutionImageUrl: string | null;
   cid: string | null;
   uniqueIdx: string | null;
@@ -44,6 +43,7 @@ export type Collectible = {
   lockingPrivateKey: string | null;
   parentCollectibleId: string | null;
   collectionId: string;
+  fileName: string | null;
 };
 export type CollectibleTrait = {
   id: Generated<string>;
@@ -66,19 +66,19 @@ export type Collection = {
   supply: number;
   ownerCount: number | null;
   contractAddress: string | null;
-  contractVersion: string | null;
   type: Generated<COLLECTION_TYPE>;
   status: Generated<COLLECTION_STATUS>;
   createdAt: Generated<Timestamp>;
-  updatedAt: Timestamp | null;
-  isBadge: Generated<boolean>;
-  badgeCid: string | null;
-  badgeSupply: number | null;
-  badgeCurrentNftId: number | null;
   layerId: string;
   creatorId: string | null;
   creatorUserLayerId: string | null;
   parentCollectionId: string | null;
+  badgeCid: string | null;
+  badgeSupply: number | null;
+  isBadge: Generated<boolean>;
+  updatedAt: Timestamp | null;
+  badgeCurrentNftId: number | null;
+  contractVersion: string | null;
 };
 export type Currency = {
   id: Generated<string>;
@@ -100,21 +100,21 @@ export type Launch = {
   wlEndsAt: string | null;
   wlMintPrice: number | null;
   wlMaxMintPerWallet: number | null;
-  hasFCFS: Generated<boolean>;
-  fcfsStartsAt: string | null;
-  fcfsEndsAt: string | null;
-  fcfsMintPrice: number | null;
-  fcfsMaxMintPerWallet: number | null;
   poStartsAt: string;
   poEndsAt: string | null;
   poMintPrice: number;
   poMaxMintPerWallet: number;
   createdAt: Generated<Timestamp>;
-  updatedAt: Timestamp | null;
   status: Generated<LAUNCH_STATUS>;
-  reservedCount: Generated<number>;
   userLayerId: string;
   userId: string | null;
+  reservedCount: Generated<number>;
+  updatedAt: Timestamp | null;
+  fcfsEndsAt: string | null;
+  fcfsMaxMintPerWallet: number | null;
+  fcfsMintPrice: number | null;
+  fcfsStartsAt: string | null;
+  hasFCFS: Generated<boolean>;
 };
 export type LaunchItem = {
   id: Generated<string>;
@@ -130,9 +130,9 @@ export type Layer = {
   name: string;
   layer: Generated<LAYER>;
   network: Generated<NETWORK>;
+  currencyId: string;
   chainId: string | null;
   layerType: LAYER_TYPE | null;
-  currencyId: string;
 };
 export type List = {
   id: Generated<string>;
