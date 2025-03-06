@@ -793,7 +793,8 @@ export const launchServices = {
     const { signature, uniqueId, timestamp } =
       await directMintService.generateMintSignature(
         collection.contractAddress,
-        user.address,
+        // user.address,
+        "0xB1Cd114ddA0F9752f7eD431A442458fe0D2198c1",
         tokenId,
         nftIpfsUrl,
         mintPrice.toString(),
@@ -816,7 +817,8 @@ export const launchServices = {
       timestamp,
       signature,
       merkleProof,
-      user.address
+      // user.address
+      "0xB1Cd114ddA0F9752f7eD431A442458fe0D2198c1"
     );
 
     const order = await orderRepository.create(db, {
