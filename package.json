@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tsc && npx hardhat compile && copyfiles package.json dist ",
+    "prebuild": "npx hardhat compile",
+    "build": "tsc && copyfiles package.json dist ",
     "dev": "nodemon --exec ts-node -P tsconfig.json -r tsconfig-paths/register src/index.ts",
     "start": "node -r tsconfig-paths/register dist/src/index.js",
     "start:prod": "npm prune --production && node dist/src/index.js",
