@@ -8,6 +8,7 @@ import { Launch } from "../types/db/types";
 import { launchRepository } from "../repositories/launchRepository";
 import { ipfsData, recursiveInscriptionParams } from "./collectibleController";
 import { db } from "../utils/db";
+import { LAUNCH_PHASE } from "types/db/enums";
 export interface LaunchOfferType {
   offerType: "public" | "whitelist";
 }
@@ -24,12 +25,10 @@ export const launchController = {
 
       const parsedData = JSON.parse(req.body.data);
       const data: Insertable<Launch> = { ...parsedData };
-      const { txid, totalFileSize, totalTraitCount, feeRate } = req.body;
+      const { txid } = req.body;
 
       const { badgeSupply } = req.body;
       const file = req.file as Express.Multer.File;
-
-      console.log(file);
 
       if (!txid || !data.userLayerId)
         throw new CustomError("Invalid input.", 400);
@@ -59,18 +58,15 @@ export const launchController = {
           400
         );
 
-      const { launch, order } = await launchServices.create(
+      const { launch } = await launchServices.create(
         req.user.id,
         data,
         txid,
-        totalFileSize,
-        totalTraitCount,
-        feeRate,
         file,
         badgeSupply
       );
 
-      return res.status(200).json({ success: true, data: { launch, order } });
+      return res.status(200).json({ success: true, data: { launch } });
     } catch (e) {
       next(e);
     }
@@ -352,11 +348,16 @@ export const launchController = {
         throw new CustomError("Could not parse the id from the token.", 400);
 
       const { launchId, addresses } = req.body;
+      const phase: LAUNCH_PHASE = req.body.phase;
+
+      if (phase !== "FCFS_WHITELIST" && phase !== "WHITELIST")
+        throw new CustomError("Invalid phase.", 400);
 
       const result = await launchServices.addWhitelistAddress(
         req.user.id,
         launchId,
-        addresses
+        addresses,
+        phase
       );
 
       return res.status(200).json({ success: true, data: result });
@@ -387,8 +388,14 @@ export const launchController = {
 //   isWhitelisted,
 //   wlStartsAt,
 //   wlEndsAt,
+
+//   hasFCFS,
+//   fcfsStartsAt,
+//   fcfsEndsAt,
+
 //   poStartsAt,
 //   poEndsAt,
+
 //   mintedAmount,
 //   supply,
 //   isBadge,
@@ -397,6 +404,9 @@ export const launchController = {
 //   isWhitelisted: boolean;
 //   wlStartsAt: string | null;
 //   wlEndsAt: string | null;
+//   hasFCFS: boolean;
+//   fcfsStartsAt: string | null;
+//   fcfsEndsAt: string | null;
 //   poStartsAt: string;
 //   poEndsAt: string | null;
 //   mintedAmount: number;
@@ -405,24 +415,34 @@ export const launchController = {
 //   badgeSupply: number | null;
 // }): LAUNCH_STATE {
 //   if (isWhitelisted && (!wlStartsAt || !wlEndsAt)) return LAUNCH_STATE.UNKNOWN;
+//   if (hasFCFS && (!fcfsStartsAt || !fcfsEndsAt)) return LAUNCH_STATE.UNKNOWN;
 
 //   const now = Math.floor(Date.now() / 1000);
 //   const isInfiniteSupplyBadge = isBadge && badgeSupply === null;
 //   const isSoldOut = !isInfiniteSupplyBadge && mintedAmount >= supply;
 
-//   const whitelistUpcoming = isWhitelisted && now < Number(wlStartsAt);
-//   const publicUpcoming = !whitelistUpcoming && now < Number(poStartsAt);
-//   if (whitelistUpcoming || publicUpcoming) return LAUNCH_STATE.UPCOMING;
+//   const isWhiteListActive =
+//     isWhitelisted && now >= Number(wlStartsAt) && now < Number(wlEndsAt);
+//   const isFCFSActive =
+//     hasFCFS && now >= Number(fcfsStartsAt) && now < Number(fcfsEndsAt);
+//   const isPublicOfferingActive =
+//     now >= Number(poStartsAt) && poEndsAt !== null && now <= Number(poEndsAt);
+//   if (
+//     (isWhiteListActive || isFCFSActive || isPublicOfferingActive) &&
+//     !isSoldOut
+//   )
+//     return LAUNCH_STATE.LIVE;
 
 //   if (poEndsAt === null && !isSoldOut && now >= Number(poStartsAt))
 //     return LAUNCH_STATE.INDEFINITE;
 
-//   const isWhiteListActive =
-//     isWhitelisted && now >= Number(wlStartsAt) && now < Number(wlEndsAt);
-//   const isPublicOfferingActive =
-//     now >= Number(poStartsAt) && poEndsAt !== null && now <= Number(poEndsAt);
-//   if ((isWhiteListActive || isPublicOfferingActive) && !isSoldOut)
-//     return LAUNCH_STATE.LIVE;
+//   const whitelistUpcoming = isWhitelisted && now < Number(wlStartsAt);
+//   const fcfsUpcoming =
+//     !whitelistUpcoming && hasFCFS && now < Number(fcfsStartsAt);
+//   const publicUpcoming =
+//     !whitelistUpcoming && !fcfsUpcoming && now < Number(poStartsAt);
+//   if (whitelistUpcoming || fcfsUpcoming || publicUpcoming)
+//     return LAUNCH_STATE.UPCOMING;
 
 //   return LAUNCH_STATE.ENDED;
 // }

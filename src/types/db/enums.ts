@@ -94,3 +94,8 @@ export const ROLES = {
   SUPER_ADMIN: "SUPER_ADMIN"
 } as const;
 export type ROLES = (typeof ROLES)[keyof typeof ROLES];
+export const LAUNCH_PHASE = {
+  WHITELIST: "WHITELIST",
+  FCFS_WHITELIST: "FCFS_WHITELIST"
+} as const;
+export type LAUNCH_PHASE = (typeof LAUNCH_PHASE)[keyof typeof LAUNCH_PHASE];

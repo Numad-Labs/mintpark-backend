@@ -1,16 +1,14 @@
 import { randomUUID } from "crypto";
 import { launchRepository } from "../repositories/launchRepository";
-import { getObjectFromS3, uploadToS3 } from "../utils/aws";
+import { uploadToS3 } from "../utils/aws";
 import { launchItemRepository } from "../repositories/launchItemRepository";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { userRepository } from "../repositories/userRepository";
-import { LaunchOfferType } from "../controllers/launchController";
-import { nftMetaData, orderServices } from "./orderServices";
 import { orderRepository } from "../repositories/orderRepostory";
 import { layerRepository } from "../repositories/layerRepository";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import { CustomError } from "../exceptions/CustomError";
-import { Insertable, Updateable } from "kysely";
+import { Insertable } from "kysely";
 import {
   Collectible,
   Launch,
@@ -20,7 +18,7 @@ import {
 } from "../types/db/types";
 import { EVM_CONFIG } from "../blockchain/evm/evm-config";
 import { TransactionConfirmationService } from "../blockchain/evm/services/transactionConfirmationService";
-import { BADGE_BATCH_SIZE, FILE_COUNT_LIMIT } from "../libs/constants";
+import { BADGE_BATCH_SIZE } from "../libs/constants";
 import { db } from "../utils/db";
 import logger from "../config/winston";
 import { recursiveInscriptionParams } from "../controllers/collectibleController";
@@ -28,46 +26,19 @@ import { collectibleServices } from "./collectibleServices";
 import { serializeBigInt } from "../blockchain/evm/utils";
 import { createFundingAddress } from "../blockchain/bitcoin/createFundingAddress";
 import { purchaseRepository } from "../repositories/purchaseRepository";
-import { getBalance, getEstimatedFee } from "../blockchain/bitcoin/libs";
-import {
-  COMMIT_TX_SIZE,
-  REVEAL_TX_SIZE
-} from "../blockchain/bitcoin/constants";
-import NFTService from "../blockchain/evm/services/nftService";
-import { sendRawTransaction } from "../blockchain/bitcoin/sendTransaction";
 import { hideSensitiveData } from "../libs/hideDataHelper";
 import { orderItemRepository } from "../repositories/orderItemRepository";
-// import { producer, sqs } from "..";
 import { wlRepository } from "../repositories/wlRepository";
-import { FundingAddressService } from "../blockchain/evm/services/fundingAddress";
-import { ethers, toBeHex } from "ethers";
-import { DatabaseError } from "pg";
-import { SQSMessageBody } from "../queue/types";
-import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { SQSClientFactory } from "../queue/sqsClient";
-import { config } from "../config/config";
-import { airdropRepository } from "../repositories/airdropRepository";
 import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
-import { VaultMintNFTService } from "../blockchain/evm/services/nftService/vaultNFTService";
 import { BaseNFTService } from "../blockchain/evm/services/nftService/baseNFTService";
-import { bigint } from "hardhat/internal/core/params/argumentTypes";
-
-// // const nftService = new NFTService(EVM_CONFIG.RPC_URL);
-
-// const confirmationService = new TransactionConfirmationService(
-//   EVM_CONFIG.RPC_URL!
-// );
-// const fundingService = new FundingAddressService(EVM_CONFIG.RPC_URL);
-const sqsClient = SQSClientFactory.getInstance("eu-central-1");
+import { LAUNCH_PHASE } from "types/db/enums";
 
 export const launchServices = {
   create: async (
     userId: string,
     data: Insertable<Launch>,
     txid: string,
-    totalFileSize: number | null,
-    totalTraitCount: number | null,
-    feeRate: number | null,
     badge: Express.Multer.File | null,
     badgeSupply: number | null
   ) => {
@@ -78,11 +49,11 @@ export const launchServices = {
     if (!collection) throw new CustomError("Invalid collectionId.", 400);
     if (
       collection.type === "SYNTHETIC" ||
-      // collection.type === "IPFS_FILE" ||
-      collection.parentCollectionId
+      collection.parentCollectionId ||
+      collection.type === "INSCRIPTION" ||
+      collection.type === "RECURSIVE_INSCRIPTION"
     )
       throw new CustomError("Invalid collection type.", 400);
-
     if (collection.creatorId !== userId)
       throw new CustomError("You are not the creator of this collection.", 400);
 
@@ -114,154 +85,64 @@ export const launchServices = {
         400
       );
 
-    if (
-      collection.type === "INSCRIPTION" ||
-      collection.type === "RECURSIVE_INSCRIPTION"
-    ) {
-      const childCollection =
-        await collectionRepository.getChildCollectionByParentCollectionId(
-          db,
-          collection.id
-        );
-      if (!childCollection)
-        throw new CustomError(
-          "Child collection must be recorded for this operation.",
-          400
-        );
+    const layer = await layerRepository.getById(collection.layerId);
+    if (!layer || !layer.chainId) throw new CustomError("Invalid layer", 400);
 
-      const layerType = await layerRepository.getById(childCollection.layerId);
-      if (!layerType) throw new CustomError("Layer not found.", 400);
+    if (collection.isBadge) {
+      if (!badge) throw new CustomError("Badge file must be provided.", 400);
+      if (!badgeSupply)
+        throw new CustomError("Badge supply must be provided.", 400);
+      if (Number(badgeSupply) < 1)
+        throw new CustomError("Invalid badge supply.", 400);
 
-      if (!txid) throw new CustomError("txid not found.", 400);
+      const key = randomUUID();
+      await uploadToS3(key, badge);
 
-      if (!layerType.chainId)
-        throw new CustomError("Chaind id not found.", 400);
-      const chainConfig = EVM_CONFIG.CHAINS[layerType.chainId];
-
-      const confirmationService = new TransactionConfirmationService(
-        chainConfig.RPC_URL
-      );
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
-      if (transactionDetail.status !== 1) {
-        throw new CustomError(
-          "Transaction not confirmed. Please try again.",
-          500
-        );
-      }
-      if (!transactionDetail.deployedContractAddress) {
-        throw new CustomError(
-          "Transaction does not contain deployed contract address.",
-          500
-        );
-      }
-
-      await collectionRepository.update(db, childCollection.id, {
-        contractAddress: transactionDetail.deployedContractAddress
-      });
-    } else if (
-      collection.type === "IPFS_CID" ||
-      collection.type === "IPFS_FILE"
-    ) {
-      const layer = await layerRepository.getById(collection.layerId);
-      if (!layer || !layer.chainId) throw new CustomError("Invalid layer", 400);
-
-      if (collection.isBadge) {
-        if (!badge) throw new CustomError("Badge file must be provided.", 400);
-        if (!badgeSupply)
-          throw new CustomError("Badge supply must be provided.", 400);
-        if (Number(badgeSupply) < 1)
-          throw new CustomError("Invalid badge supply.", 400);
-
-        const key = randomUUID();
-        await uploadToS3(key, badge);
-
-        const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
-        const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
-
-        const ipfsUri = await nftService.uploadNFTMetadata(
-          badge,
-          collection.name || "Unnamed NFT"
-        );
-
-        await collectionRepository.update(db, collection.id, {
-          logoKey: key,
-          badgeSupply: badgeSupply,
-          // badgeCid: badgeCid.IpfsHash,
-          badgeCid: ipfsUri
-        });
-      }
-
-      if (!layer.chainId) throw new CustomError("Chaind id not found.", 400);
       const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+      const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
 
-      const confirmationService = new TransactionConfirmationService(
-        chainConfig.RPC_URL
+      const ipfsUri = await nftService.uploadNFTMetadata(
+        badge,
+        collection.name || "Unnamed NFT"
       );
-      if (!txid) throw new CustomError("txid not found.", 400);
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
-      if (transactionDetail.status !== 1) {
-        throw new CustomError(
-          "Transaction not confirmed. Please try again.",
-          500
-        );
-      }
-      if (!transactionDetail.deployedContractAddress) {
-        throw new CustomError(
-          "Transaction does not contain deployed contract address.",
-          500
-        );
-      }
 
       await collectionRepository.update(db, collection.id, {
-        contractAddress: transactionDetail.deployedContractAddress
+        logoKey: key,
+        badgeSupply: badgeSupply,
+        badgeCid: ipfsUri
       });
     }
 
-    let order;
-    if (collection.type === "RECURSIVE_INSCRIPTION") {
-      if (!feeRate || feeRate < 1)
-        throw new CustomError("Invalid fee rate.", 400);
-      if (!totalFileSize)
-        throw new CustomError(
-          "Please provide an total file size of the recursive traits.",
-          400
-        );
+    if (!layer.chainId) throw new CustomError("Chaind id not found.", 400);
+    const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
 
-      const funder = createFundingAddress("TESTNET");
-      if (!totalFileSize || !totalTraitCount)
-        throw new CustomError(
-          "Please provide an totalFileSize or totalTraitCount",
-          400
-        );
-
-      // let inscriptionFee = Math.min(totalFileSize * Number(feeRate), 0.00001);
-      let networkFee =
-        getEstimatedFee([10], [totalFileSize], 0, feeRate, 0).estimatedFee
-          .totalAmount +
-        feeRate * (COMMIT_TX_SIZE + REVEAL_TX_SIZE) * totalTraitCount;
-      let serviceFee = 0;
-      let totalAmount = networkFee * 1.5 + serviceFee;
-
-      order = await orderRepository.create(db, {
-        userId: userId,
-        fundingAmount: totalAmount,
-        fundingAddress: funder.address,
-        privateKey: funder.privateKey,
-        orderType: "MINT_COLLECTIBLE",
-        collectionId: collection.id,
-        feeRate: feeRate,
-        userLayerId: data.userLayerId,
-        createdAt: new Date().toISOString()
-      });
+    const confirmationService = new TransactionConfirmationService(
+      chainConfig.RPC_URL
+    );
+    if (!txid) throw new CustomError("txid not found.", 400);
+    const transactionDetail = await confirmationService.getTransactionDetails(
+      txid
+    );
+    if (transactionDetail.status !== 1) {
+      throw new CustomError(
+        "Transaction not confirmed. Please try again.",
+        500
+      );
     }
+    if (!transactionDetail.deployedContractAddress) {
+      throw new CustomError(
+        "Transaction does not contain deployed contract address.",
+        500
+      );
+    }
+
+    await collectionRepository.update(db, collection.id, {
+      contractAddress: transactionDetail.deployedContractAddress
+    });
 
     const launch = await launchRepository.create(db, data);
 
-    return { launch, order };
+    return { launch };
   },
   createInscriptionAndLaunchItemInBatch: async (
     userId: string,
@@ -1141,7 +1022,8 @@ export const launchServices = {
   addWhitelistAddress: async (
     issuerId: string,
     launchId: string,
-    addresses: string[]
+    addresses: string[],
+    phase: LAUNCH_PHASE
   ) => {
     const launch = await launchRepository.getById(db, launchId);
     if (!launch) throw new CustomError("Launch not found.", 400);
@@ -1163,7 +1045,8 @@ export const launchServices = {
     addresses.forEach((address) =>
       whitelistAddresses.push({
         launchId: launch.id,
-        address: address.toLowerCase()
+        address: address.toLowerCase(),
+        phase
       })
     );
 
@@ -1184,10 +1067,11 @@ const validatePhaseAndGetPrice = async (
     Number(launch.wlStartsAt) < currentTime &&
     Number(launch.wlEndsAt) > currentTime
   ) {
-    const wlAddress = await wlRepository.getByLaunchIdAndAddress(
+    const wlAddress = await wlRepository.getByLaunchIdAndAddressAndPhase(
       db,
       launch.id,
-      user.address
+      user.address,
+      "WHITELIST"
     );
     if (!wlAddress)
       throw new CustomError(
@@ -1195,6 +1079,25 @@ const validatePhaseAndGetPrice = async (
         400
       );
     return Number(launch.wlMintPrice);
+  }
+
+  if (
+    launch.hasFCFS &&
+    Number(launch.fcfsStartsAt) < currentTime &&
+    Number(launch.fcfsEndsAt) > currentTime
+  ) {
+    const wlAddress = await wlRepository.getByLaunchIdAndAddressAndPhase(
+      db,
+      launch.id,
+      user.address,
+      "FCFS_WHITELIST"
+    );
+    if (!wlAddress)
+      throw new CustomError(
+        "You are not allowed to participate in this phase.",
+        400
+      );
+    return Number(launch.fcfsMintPrice);
   }
 
   if (Number(launch.poStartsAt) > currentTime) {
@@ -1233,6 +1136,28 @@ const validatePurchaseLimits = async (
     )
       throw new CustomError(
         "Wallet limit has been reached for whitelist phase.",
+        400
+      );
+  } else if (
+    launch.hasFCFS &&
+    Number(launch.fcfsStartsAt) < currentTime &&
+    Number(launch.fcfsEndsAt) > currentTime
+  ) {
+    const fcfsUserPurchaseCount =
+      await purchaseRepository.getCountByLaunchIdUnixTimestampAndUserIdOrAddress(
+        trx,
+        launch.id,
+        user.id,
+        Number(launch.wlStartsAt),
+        user.address
+      );
+
+    if (
+      fcfsUserPurchaseCount &&
+      fcfsUserPurchaseCount >= Number(launch.fcfsMaxMintPerWallet)
+    )
+      throw new CustomError(
+        "Wallet limit has been reached for FCFS phase.",
         400
       );
   } else {

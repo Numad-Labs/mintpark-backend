@@ -1,18 +1,21 @@
 import { Insertable, Kysely, Transaction, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { DB, WlAddress } from "../types/db/types";
+import { LAUNCH_PHASE } from "types/db/enums";
 
 export const wlRepository = {
-  getByLaunchIdAndAddress: async (
+  getByLaunchIdAndAddressAndPhase: async (
     db: Kysely<DB> | Transaction<DB>,
     launchId: string,
-    address: string
+    address: string,
+    phase: LAUNCH_PHASE
   ) => {
     const wlAddress = await db
       .selectFrom("WlAddress")
       .selectAll()
       .where("WlAddress.launchId", "=", launchId)
       .where("WlAddress.address", "=", address)
+      .where("WlAddress.phase", "=", phase)
       .executeTakeFirst();
 
     return wlAddress;

@@ -18,7 +18,8 @@ import type {
   LAYER,
   LAYER_TYPE,
   NETWORK,
-  ROLES
+  ROLES,
+  LAUNCH_PHASE
 } from "./enums";
 
 export type Airdrop = {
@@ -65,6 +66,7 @@ export type Collection = {
   supply: number;
   ownerCount: number | null;
   contractAddress: string | null;
+  contractVersion: string | null;
   type: Generated<COLLECTION_TYPE>;
   status: Generated<COLLECTION_STATUS>;
   createdAt: Generated<Timestamp>;
@@ -93,11 +95,16 @@ export type FailedMint = {
 export type Launch = {
   id: Generated<string>;
   collectionId: string;
-  isWhitelisted: boolean;
+  isWhitelisted: Generated<boolean>;
   wlStartsAt: string | null;
   wlEndsAt: string | null;
   wlMintPrice: number | null;
   wlMaxMintPerWallet: number | null;
+  hasFCFS: Generated<boolean>;
+  fcfsStartsAt: string | null;
+  fcfsEndsAt: string | null;
+  fcfsMintPrice: number | null;
+  fcfsMaxMintPerWallet: number | null;
   poStartsAt: string;
   poEndsAt: string | null;
   poMintPrice: number;
@@ -216,6 +223,7 @@ export type WlAddress = {
   launchId: string;
   address: string;
   createdAt: Generated<Timestamp>;
+  phase: Generated<LAUNCH_PHASE>;
 };
 export type DB = {
   Airdrop: Airdrop;

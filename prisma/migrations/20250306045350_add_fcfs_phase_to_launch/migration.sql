@@ -1,0 +1,13 @@
+-- CreateEnum
+CREATE TYPE "LAUNCH_PHASE" AS ENUM ('WHITELIST', 'FCFS_WHITELIST');
+
+-- AlterTable
+ALTER TABLE "Launch" ADD COLUMN     "fcfsEndsAt" BIGINT,
+ADD COLUMN     "fcfsMaxMintPerWallet" INTEGER,
+ADD COLUMN     "fcfsMintPrice" DOUBLE PRECISION,
+ADD COLUMN     "fcfsStartsAt" BIGINT,
+ADD COLUMN     "hasFCFS" BOOLEAN NOT NULL DEFAULT false,
+ALTER COLUMN "isWhitelisted" SET DEFAULT false;
+
+-- AlterTable
+ALTER TABLE "WlAddress" ADD COLUMN     "phase" "LAUNCH_PHASE" NOT NULL DEFAULT 'WHITELIST';

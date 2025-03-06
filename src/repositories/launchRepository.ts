@@ -97,15 +97,24 @@ export const launchRepository = {
         "parentCollection.twitterUrl",
         "parentCollection.websiteUrl",
         "Launch.id as launchId",
+
+        "Launch.hasFCFS",
+        "Launch.fcfsStartsAt",
+        "Launch.fcfsEndsAt",
+        "Launch.fcfsMintPrice",
+        "Launch.fcfsMaxMintPerWallet",
+
+        "Launch.isWhitelisted",
         "Launch.wlStartsAt",
         "Launch.wlEndsAt",
         "Launch.wlMintPrice",
         "Launch.wlMaxMintPerWallet",
+
         "Launch.poStartsAt",
         "Launch.poEndsAt",
         "Launch.poMintPrice",
         "Launch.poMaxMintPerWallet",
-        "Launch.isWhitelisted",
+
         "Launch.createdAt",
         "Launch.status",
         "childCollection.layerId as layerId",
@@ -142,6 +151,13 @@ export const launchRepository = {
               eb("Launch.wlStartsAt", "<=", now.toString()),
               eb("Launch.wlEndsAt", ">=", now.toString())
             ]),
+            // FCFS is active
+            eb.and([
+              eb("Launch.fcfsStartsAt", "is not", null),
+              eb("Launch.fcfsEndsAt", "is not", null),
+              eb("Launch.fcfsStartsAt", "<=", now.toString()),
+              eb("Launch.fcfsEndsAt", ">=", now.toString())
+            ]),
             // Public sale is active
             eb.and([
               eb("Launch.poStartsAt", "<=", now.toString()),
@@ -151,7 +167,9 @@ export const launchRepository = {
               ])
             ]),
             //Whitelist hasn't started
-            eb("Launch.wlStartsAt", ">", now.toString())
+            eb("Launch.wlStartsAt", ">", now.toString()),
+            //FCFS hasn't started
+            eb("Launch.fcfsStartsAt", ">", now.toString())
           ]);
         } else {
           // Ended interval
@@ -168,6 +186,16 @@ export const launchRepository = {
               ]),
               // Whitelist has ended
               eb("Launch.wlEndsAt", "<=", now.toString())
+            ]),
+            // FCFS either never existed or has ended
+            eb.or([
+              // No FCFS
+              eb.or([
+                eb("Launch.fcfsStartsAt", "is", null),
+                eb("Launch.fcfsEndsAt", "is", null)
+              ]),
+              // FCFS has ended
+              eb("Launch.fcfsEndsAt", "<=", now.toString())
             ])
           ]);
         }
@@ -211,15 +239,23 @@ export const launchRepository = {
         "parentCollection.websiteUrl",
         "parentCollection.contractAddress",
         "Launch.id as launchId",
+
+        "Launch.isWhitelisted",
         "Launch.wlStartsAt",
         "Launch.wlEndsAt",
         "Launch.wlMintPrice",
         "Launch.wlMaxMintPerWallet",
+
+        "Launch.hasFCFS",
+        "Launch.fcfsStartsAt",
+        "Launch.fcfsEndsAt",
+        "Launch.fcfsMintPrice",
+        "Launch.fcfsMaxMintPerWallet",
+
         "Launch.poStartsAt",
         "Launch.poEndsAt",
         "Launch.poMintPrice",
         "Launch.poMaxMintPerWallet",
-        "Launch.isWhitelisted",
         "Launch.createdAt",
         sql<number>`COALESCE((
         SELECT COUNT(*)::integer

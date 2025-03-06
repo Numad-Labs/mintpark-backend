@@ -427,7 +427,8 @@ export const collectionRepository = {
         "Collection.inscriptionIcon",
         "Collection.slug",
         "Collection.isBadge",
-        "Collection.badgeSupply"
+        "Collection.badgeSupply",
+        "Collection.ownerCount"
       ])
       .where("Collection.status", "=", "CONFIRMED")
       .where("Collection.id", "=", id)

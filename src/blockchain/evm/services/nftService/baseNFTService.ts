@@ -44,7 +44,7 @@ export class BaseNFTService {
       data: unsignedTx.data,
       value: unsignedTx.value || "0x0",
 
-      gasLimit: gasLimit,
+      // gasLimit: gasLimit,
       nonce: await this.provider.getTransactionCount(from),
       chainId: chainId
     };
