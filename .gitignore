@@ -8,4 +8,5 @@ test_concurrency.sh
 
 # Hardhat files
 src/blockchain/evm/cache/
-src/blockchain/evm/artifacts/
+src/blockchain/evm/artifacts/**
+ga
