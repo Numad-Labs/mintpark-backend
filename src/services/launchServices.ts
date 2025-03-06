@@ -120,9 +120,8 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
     if (!txid) throw new CustomError("txid not found.", 400);
-    const transactionDetail = await confirmationService.getTransactionDetails(
-      txid
-    );
+    const transactionDetail =
+      await confirmationService.getTransactionDetails(txid);
     if (transactionDetail.status !== 1) {
       throw new CustomError(
         "Transaction not confirmed. Please try again.",
@@ -678,15 +677,8 @@ export const launchServices = {
         tokenId,
         nftIpfsUrl,
         mintPrice.toString(),
-        // Number(phaseInfo.phaseIndex)
-        0
+        Number(phaseInfo.phaseIndex)
       );
-
-    // console.log("Signature generated", signature, uniqueId, timestamp);
-
-    // const merkleProof = phaseInfo.phaseType === BigInt(2) ? [] : [];
-    const merkleProof: any[] = [];
-    // console.log("Signature used", Math.floor(Date.now() / 1000));
 
     const unsignedTx = await directMintService.getUnsignedMintTransaction(
       collection.contractAddress,
@@ -696,7 +688,6 @@ export const launchServices = {
       uniqueId,
       timestamp,
       signature,
-      merkleProof,
       user.address
     );
 
@@ -846,9 +837,8 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
 
-    const transactionDetail = await confirmationService.getTransactionDetails(
-      txid
-    );
+    const transactionDetail =
+      await confirmationService.getTransactionDetails(txid);
     if (transactionDetail.status !== 1)
       throw new CustomError(
         "Transaction not confirmed. Please try again.",

@@ -37,7 +37,7 @@ export class BaseNFTService {
     });
 
     // Add 20% buffer to estimated gas
-    const gasLimit = (estimatedGas * BigInt(120)) / BigInt(100);
+    const gasLimit = (estimatedGas * BigInt(110)) / BigInt(100);
 
     const baseTx: Partial<ethers.TransactionRequest> = {
       from: from,

@@ -5,3 +5,7 @@ node_modules
 .DS_STORE
 dist
 test_concurrency.sh
+
+# Hardhat files
+src/blockchain/evm/cache/
+src/blockchain/evm/artifacts/

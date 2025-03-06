@@ -1,18 +1,18 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { LaunchNFTV2 } from "../typechain-types";
+import { LaunchNFTV3 } from "../typechain-types";
 import { MerkleTree } from "merkletreejs";
 import keccak256 from "keccak256";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
-describe("LaunchNFTV2 Extended Tests", () => {
-  let contract: LaunchNFTV2;
+describe("LaunchNFTV3 Tests", () => {
+  let contract: LaunchNFTV3;
   let owner: SignerWithAddress;
   let backendSigner: SignerWithAddress;
   let platformFeeRecipient: SignerWithAddress;
   let minter: SignerWithAddress;
   let otherUser: SignerWithAddress;
-  let globalTimestamp: number;
+  let baseTimestamp: number; // Base timestamp for all tests
   let currentTimestamp: number; // Track the current timestamp to avoid conflicts
 
   const INITIAL_ROYALTY_FEE = 500; // 5%
@@ -20,38 +20,56 @@ describe("LaunchNFTV2 Extended Tests", () => {
   const CONTRACT_NAME = "Test NFT";
   const CONTRACT_SYMBOL = "TNFT";
 
+  // Phase type enum values - updated order based on your changes
+  enum PhaseType {
+    WHITELIST = 0,
+    FCFS = 1,
+    PUBLIC = 2
+  }
+
+  // Helper function to add phase
+  async function addPhase(
+    phaseType: PhaseType,
+    price: string,
+    startOffset: number,
+    duration: number,
+    maxSupply: number = 0,
+    maxPerWallet: number = 10
+  ) {
+    const phaseStart = currentTimestamp + startOffset;
+    const phaseEnd = phaseStart + duration;
+
+    await contract
+      .connect(owner)
+      .addPhase(
+        phaseType,
+        ethers.parseEther(price),
+        BigInt(phaseStart),
+        BigInt(phaseEnd),
+        maxSupply,
+        maxPerWallet
+      );
+
+    // Just create the phase but don't advance time yet
+    return { phaseStart, phaseEnd };
+  }
+
   // Setup and helper functions
   before(async () => {
-    await ethers.provider.send("hardhat_reset", [
-      {
-        allowBlocksWithSameTimestamp: true
-      }
-    ]);
-    const latestBlock = await ethers.provider.getBlock("latest");
-    globalTimestamp = Number(latestBlock!.timestamp);
-    currentTimestamp = globalTimestamp;
-  });
-
-  after(async () => {
+    // Reset the hardhat network for a clean state
     await ethers.provider.send("hardhat_reset", []);
   });
 
-  async function mineBlock(timestamp?: number) {
-    await ethers.provider.send("evm_mine", timestamp ? [timestamp] : []);
-    // Update currentTimestamp after mining
-    const latestBlock = await ethers.provider.getBlock("latest");
-    currentTimestamp = Number(latestBlock!.timestamp);
-  }
-
-  async function advanceTime(seconds: number) {
-    currentTimestamp += seconds;
+  // Helper to advance time and mine a block
+  async function advanceTimeAndBlock(time: number) {
+    currentTimestamp += time;
     await ethers.provider.send("evm_setNextBlockTimestamp", [currentTimestamp]);
-    await mineBlock();
+    await ethers.provider.send("evm_mine", []);
     return currentTimestamp;
   }
 
   async function deployContract() {
-    const Factory = await ethers.getContractFactory("LaunchNFTV2", owner);
+    const Factory = await ethers.getContractFactory("LaunchNFTV3", owner);
     contract = await Factory.deploy(
       await owner.getAddress(),
       CONTRACT_NAME,
@@ -62,16 +80,21 @@ describe("LaunchNFTV2 Extended Tests", () => {
       await backendSigner.getAddress()
     );
     await contract.waitForDeployment();
-    await mineBlock();
+
+    // Get the latest block timestamp after deployment
+    const latestBlock = await ethers.provider.getBlock("latest");
+    baseTimestamp = Number(latestBlock!.timestamp);
+    currentTimestamp = baseTimestamp; // Start tracking from here
   }
 
-  async function generateSignature(
+  // Create a robust signature generation function
+  async function signMintRequest(
     minterAddress: string,
     tokenId: string,
     uri: string,
     price: string,
     phaseIndex: number,
-    customTimestamp?: number
+    signatureTimestamp: number
   ) {
     const domain = {
       name: "UnifiedNFT",
@@ -80,21 +103,13 @@ describe("LaunchNFTV2 Extended Tests", () => {
       verifyingContract: await contract.getAddress()
     };
 
-    // Create unique identifier that's consistent for tests
-    const uniqueIdBase = Date.now() + parseInt(tokenId);
+    // Create deterministic uniqueId
     const uniqueId = ethers.keccak256(
       ethers.solidityPacked(
         ["address", "uint256", "string", "uint256"],
-        [minterAddress, tokenId, uri, uniqueIdBase]
+        [minterAddress, tokenId, uri, signatureTimestamp]
       )
     );
-
-    // Use provided timestamp or increment current timestamp
-    if (!customTimestamp) {
-      // Increment timestamp to ensure it's always moving forward
-      currentTimestamp += 10;
-    }
-    const timestamp = customTimestamp || currentTimestamp;
 
     const types = {
       MintRequest: [
@@ -115,195 +130,470 @@ describe("LaunchNFTV2 Extended Tests", () => {
       price: ethers.parseEther(price),
       phaseIndex: phaseIndex,
       uniqueId: uniqueId,
-      timestamp: timestamp
+      timestamp: signatureTimestamp
     };
 
     const signature = await backendSigner.signTypedData(domain, types, value);
-    return { signature, uniqueId, timestamp };
+    return { signature, uniqueId, timestamp: signatureTimestamp };
   }
 
-  function createMerkleProof(addresses: string[]) {
-    const leaves = addresses.map((addr) => keccak256(addr));
-    const tree = new MerkleTree(leaves, keccak256, { sortPairs: true });
-    const root = tree.getHexRoot();
-    const proof = tree.getHexProof(keccak256(addresses[0]));
-    return { root, proof };
+  // Helper function to mint tokens that handles timestamps properly
+  async function mintTokenInPhase(
+    user: SignerWithAddress,
+    tokenId: string,
+    uri: string,
+    price: string,
+    phaseIndex: number
+  ) {
+    // Generate a signature using the current timestamp plus a small buffer
+    const signatureTimestamp = currentTimestamp + 5;
+
+    const { signature, uniqueId, timestamp } = await signMintRequest(
+      user.address,
+      tokenId,
+      uri,
+      price,
+      phaseIndex,
+      signatureTimestamp
+    );
+
+    // Advance time to match the signature timestamp
+    await advanceTimeAndBlock(10); // Add a bit more time to ensure we're past the signature timestamp
+
+    await contract
+      .connect(user)
+      .mint(tokenId, uri, uniqueId, timestamp, signature, {
+        value: ethers.parseEther(price)
+      });
+
+    return { tokenId, uri };
   }
 
   beforeEach(async () => {
     [owner, backendSigner, platformFeeRecipient, minter, otherUser] =
       await ethers.getSigners();
     await deployContract();
-    const latestBlock = await ethers.provider.getBlock("latest");
-    globalTimestamp = Number(latestBlock!.timestamp);
-    currentTimestamp = globalTimestamp;
   });
 
   describe("Phase Transitions", () => {
     it("should correctly transition from whitelist to public phase", async () => {
-      // Set up whitelist phase
-      const { root: whitelistRoot, proof: whitelistProof } = createMerkleProof([
-        minter.address
-      ]);
-
-      const whitelistStart = globalTimestamp + 100;
-      const whitelistEnd = whitelistStart + 1000;
-      const publicStart = whitelistEnd + 100;
-      const publicEnd = publicStart + 1000;
-
       // Add whitelist phase
-      await contract.connect(owner).addPhase(
-        1, // WHITELIST
-        ethers.parseEther("0.1"),
-        BigInt(whitelistStart),
-        BigInt(whitelistEnd),
-        10, // maxSupply
-        5, // maxPerWallet - increased to avoid "Wallet limit" error
-        whitelistRoot
+      const { phaseStart: whitelistStart } = await addPhase(
+        PhaseType.WHITELIST, // WHITELIST
+        "0.1", // price
+        100, // start in 100 seconds
+        500 // duration 500 seconds
       );
 
-      // Add public phase
-      await contract.connect(owner).addPhase(
-        2, // PUBLIC
-        ethers.parseEther("0.2"),
-        BigInt(publicStart),
-        BigInt(publicEnd),
-        20, // maxSupply
-        5, // wallet limit for public phase
-        ethers.ZeroHash
+      // Add public phase right after whitelist
+      const { phaseStart: publicStart } = await addPhase(
+        PhaseType.PUBLIC, // PUBLIC
+        "0.2", // price
+        600, // start after whitelist ends
+        500 // duration 500 seconds
       );
 
-      // Fast forward to whitelist phase
-      await ethers.provider.send("evm_setNextBlockTimestamp", [
-        whitelistStart + 10
-      ]);
-      await mineBlock();
+      // Advance time to whitelist phase
+      await advanceTimeAndBlock(110); // Go into whitelist phase
 
-      // Get active phase (verify we're in whitelist phase)
-      let [phaseIndex, phase] = await contract.getActivePhase();
-      expect(phase.phaseType).to.equal(1); // WHITELIST
+      // Verify we're in whitelist phase
+      const [phaseIndex1, phase1] = await contract.getActivePhase();
+      expect(phase1.phaseType).to.equal(PhaseType.WHITELIST); // WHITELIST
 
-      // Mint during whitelist phase
-      const tokenId = "1";
-      const uri = "ipfs://testWhitelist";
-      const { signature, uniqueId, timestamp } = await generateSignature(
+      // Mint during whitelist
+      await mintTokenInPhase(
+        minter,
+        "1",
+        "ipfs://whitelist",
+        "0.1",
+        Number(phaseIndex1)
+      );
+
+      // Advance time to public phase
+      await advanceTimeAndBlock(500); // Move to public phase
+
+      // Verify we're in public phase
+      const [phaseIndex2, phase2] = await contract.getActivePhase();
+      expect(phase2.phaseType).to.equal(PhaseType.PUBLIC); // PUBLIC
+
+      // Mint during public phase
+      await mintTokenInPhase(
+        otherUser,
+        "2",
+        "ipfs://public",
+        "0.2",
+        Number(phaseIndex2)
+      );
+
+      // Verify both tokens were minted correctly
+      expect(await contract.ownerOf("1")).to.equal(minter.address);
+      expect(await contract.ownerOf("2")).to.equal(otherUser.address);
+    });
+
+    it("should correctly transition through whitelist, FCFS, and public phases", async () => {
+      // Add whitelist phase
+      await addPhase(
+        PhaseType.WHITELIST, // WHITELIST
+        "0.1", // price
+        100, // start in 100 seconds
+        300 // duration 300 seconds
+      );
+
+      // Add FCFS phase after whitelist
+      await addPhase(
+        PhaseType.FCFS, // FCFS
+        "0.15", // price
+        400, // start after whitelist ends
+        300 // duration 300 seconds
+      );
+
+      // Add public phase after FCFS
+      await addPhase(
+        PhaseType.PUBLIC, // PUBLIC
+        "0.2", // price
+        700, // start after FCFS ends
+        300 // duration 300 seconds
+      );
+
+      // Advance time to whitelist phase
+      await advanceTimeAndBlock(110);
+
+      // Verify we're in whitelist phase
+      const [whitelistPhaseIndex, whitelistPhase] =
+        await contract.getActivePhase();
+      expect(whitelistPhase.phaseType).to.equal(PhaseType.WHITELIST);
+
+      // Mint during whitelist
+      await mintTokenInPhase(
+        minter,
+        "1",
+        "ipfs://whitelist",
+        "0.1",
+        Number(whitelistPhaseIndex)
+      );
+
+      // Advance time to FCFS phase
+      await advanceTimeAndBlock(300);
+
+      // Verify we're in FCFS phase
+      const [fcfsPhaseIndex, fcfsPhase] = await contract.getActivePhase();
+      expect(fcfsPhase.phaseType).to.equal(PhaseType.FCFS);
+
+      // Mint during FCFS
+      await mintTokenInPhase(
+        minter,
+        "2",
+        "ipfs://fcfs",
+        "0.15",
+        Number(fcfsPhaseIndex)
+      );
+
+      // Advance time to public phase
+      await advanceTimeAndBlock(300);
+
+      // Verify we're in public phase
+      const [publicPhaseIndex, publicPhase] = await contract.getActivePhase();
+      expect(publicPhase.phaseType).to.equal(PhaseType.PUBLIC);
+
+      // Mint during public phase
+      await mintTokenInPhase(
+        otherUser,
+        "3",
+        "ipfs://public",
+        "0.2",
+        Number(publicPhaseIndex)
+      );
+
+      // Verify all tokens were minted correctly
+      expect(await contract.ownerOf("1")).to.equal(minter.address);
+      expect(await contract.ownerOf("2")).to.equal(minter.address);
+      expect(await contract.ownerOf("3")).to.equal(otherUser.address);
+    });
+  });
+
+  describe("FCFS Phase Specific Tests", () => {
+    it("should enforce max supply in FCFS phase", async () => {
+      // Add FCFS phase with limited supply
+      await addPhase(
+        PhaseType.FCFS,
+        "0.15",
+        100,
+        500,
+        2, // maxSupply of 2
+        5 // maxPerWallet of 5
+      );
+
+      // Advance to phase start
+      await advanceTimeAndBlock(110);
+
+      // Get phase index
+      const [phaseIndex] = await contract.getActivePhase();
+
+      // Mint first token
+      await mintTokenInPhase(
+        minter,
+        "1",
+        "ipfs://fcfs1",
+        "0.15",
+        Number(phaseIndex)
+      );
+
+      // Mint second token
+      await mintTokenInPhase(
+        otherUser,
+        "2",
+        "ipfs://fcfs2",
+        "0.15",
+        Number(phaseIndex)
+      );
+
+      // Try to mint third token - should fail due to max supply
+      const signatureTimestamp = currentTimestamp + 5;
+      const { signature, uniqueId, timestamp } = await signMintRequest(
         minter.address,
-        tokenId,
-        uri,
+        "3",
+        "ipfs://fcfs3",
+        "0.15",
+        Number(phaseIndex),
+        signatureTimestamp
+      );
+
+      // Advance time for the mint attempt
+      await advanceTimeAndBlock(10);
+
+      // This should fail due to max supply limit
+      await expect(
+        contract
+          .connect(minter)
+          .mint("3", "ipfs://fcfs3", uniqueId, timestamp, signature, {
+            value: ethers.parseEther("0.15")
+          })
+      ).to.be.revertedWith("Phase supply limit reached");
+    });
+
+    it("should enforce max per wallet in FCFS phase", async () => {
+      // Add FCFS phase with limit per wallet
+      await addPhase(
+        PhaseType.FCFS,
+        "0.15",
+        100,
+        500,
+        10, // maxSupply of 10
+        2 // maxPerWallet of 2
+      );
+
+      // Advance to phase start
+      await advanceTimeAndBlock(110);
+
+      // Get phase index
+      const [phaseIndex] = await contract.getActivePhase();
+
+      // Mint first token
+      await mintTokenInPhase(
+        minter,
+        "1",
+        "ipfs://fcfs1",
+        "0.15",
+        Number(phaseIndex)
+      );
+
+      // Mint second token
+      await mintTokenInPhase(
+        minter,
+        "2",
+        "ipfs://fcfs2",
+        "0.15",
+        Number(phaseIndex)
+      );
+
+      // Try to mint third token with same wallet - should fail
+      const signatureTimestamp = currentTimestamp + 5;
+      const { signature, uniqueId, timestamp } = await signMintRequest(
+        minter.address,
+        "3",
+        "ipfs://fcfs3",
+        "0.15",
+        Number(phaseIndex),
+        signatureTimestamp
+      );
+
+      // Advance time for the mint attempt
+      await advanceTimeAndBlock(10);
+
+      // This should fail due to max per wallet limit
+      await expect(
+        contract
+          .connect(minter)
+          .mint("3", "ipfs://fcfs3", uniqueId, timestamp, signature, {
+            value: ethers.parseEther("0.15")
+          })
+      ).to.be.revertedWith("Wallet limit reached for this phase");
+
+      // But another wallet should be able to mint
+      await mintTokenInPhase(
+        otherUser,
+        "3",
+        "ipfs://fcfs3",
+        "0.15",
+        Number(phaseIndex)
+      );
+    });
+  });
+
+  describe("Indefinite Phase Support", () => {
+    it("should support a phase with no end time (indefinite duration)", async () => {
+      // Add phase with indefinite duration (endTime = 0)
+      await contract.connect(owner).addPhase(
+        PhaseType.PUBLIC, // PUBLIC
+        ethers.parseEther("0.1"),
+        BigInt(currentTimestamp + 100), // Start soon
+        BigInt(0), // No end time (indefinite)
+        10, // maxSupply
+        5 // maxPerWallet
+      );
+
+      // Advance time to phase start
+      await advanceTimeAndBlock(110);
+
+      // Verify phase is active
+      const [phaseIndex, phase] = await contract.getActivePhase();
+      expect(phase.phaseType).to.equal(PhaseType.PUBLIC); // PUBLIC
+      expect(phase.endTime).to.equal(0); // Confirm indefinite
+
+      // Mint a token
+      await mintTokenInPhase(
+        minter,
+        "1",
+        "ipfs://indefinite",
         "0.1",
         Number(phaseIndex)
       );
 
-      // Use exact timestamp from signature
-      await ethers.provider.send("evm_setNextBlockTimestamp", [timestamp]);
-      await mineBlock();
+      // Fast forward a long time (e.g., 1 year)
+      const oneYear = 365 * 24 * 60 * 60;
+      await advanceTimeAndBlock(oneYear);
 
-      await contract
-        .connect(minter)
-        .mint(tokenId, uri, uniqueId, timestamp, signature, whitelistProof, {
-          value: ethers.parseEther("0.1")
-        });
+      // Verify phase is still active
+      const [laterPhaseIndex, laterPhase] = await contract.getActivePhase();
+      expect(laterPhase.phaseType).to.equal(PhaseType.PUBLIC); // Still PUBLIC
 
-      // Fast forward to public phase
-      await ethers.provider.send("evm_setNextBlockTimestamp", [
-        publicStart + 10
-      ]);
-      await mineBlock();
-
-      // Get active phase (verify we're in public phase)
-      [phaseIndex, phase] = await contract.getActivePhase();
-      expect(phase.phaseType).to.equal(2); // PUBLIC
-
-      // Mint during public phase
-      const tokenId2 = "2";
-      const uri2 = "ipfs://testPublic";
-      const {
-        signature: publicSignature,
-        uniqueId: publicUniqueId,
-        timestamp: publicTimestamp
-      } = await generateSignature(
-        otherUser.address,
-        tokenId2,
-        uri2,
-        "0.2",
-        Number(phaseIndex)
+      // Mint another token after a long time
+      await mintTokenInPhase(
+        otherUser,
+        "2",
+        "ipfs://indefiniteLater",
+        "0.1",
+        Number(laterPhaseIndex)
       );
 
-      // Use exact timestamp from signature
-      await ethers.provider.send("evm_setNextBlockTimestamp", [
-        publicTimestamp
-      ]);
-      await mineBlock();
+      // Verify both tokens
+      expect(await contract.ownerOf("1")).to.equal(minter.address);
+      expect(await contract.ownerOf("2")).to.equal(otherUser.address);
+    });
+  });
 
-      await contract.connect(otherUser).mint(
-        tokenId2,
-        uri2,
-        publicUniqueId,
-        publicTimestamp,
-        publicSignature,
-        [], // Empty proof for public phase
-        { value: ethers.parseEther("0.2") }
+  describe("Unlimited Supply Support", () => {
+    it("should handle phase with zero maxSupply correctly (unlimited supply)", async () => {
+      // Add phase with unlimited supply
+      const { phaseStart } = await addPhase(
+        PhaseType.PUBLIC, // PUBLIC
+        "0.1", // price
+        100, // start in 100 seconds
+        1000, // duration 1000 seconds
+        0, // unlimited supply
+        10 // max per wallet
       );
 
-      // Verify both tokens were minted correctly
-      expect(await contract.ownerOf(tokenId)).to.equal(minter.address);
-      expect(await contract.ownerOf(tokenId2)).to.equal(otherUser.address);
+      // Advance to phase start
+      await advanceTimeAndBlock(110);
+
+      // Get phase index
+      const [phaseIndex] = await contract.getActivePhase();
+
+      // Mint multiple tokens
+      for (let i = 1; i <= 5; i++) {
+        const tokenId = i.toString();
+        const uri = `ipfs://unlimited${i}`;
+        const user = i % 2 === 0 ? minter : otherUser;
+
+        await mintTokenInPhase(user, tokenId, uri, "0.1", Number(phaseIndex));
+      }
+
+      // Verify tokens
+      for (let i = 1; i <= 5; i++) {
+        const expectedOwner = i % 2 === 0 ? minter.address : otherUser.address;
+        expect(await contract.ownerOf(i.toString())).to.equal(expectedOwner);
+      }
+    });
+  });
+
+  describe("Unlimited Mints Per Wallet", () => {
+    it("should support unlimited mints per wallet when maxPerWallet is zero", async () => {
+      // Add phase with unlimited mints per wallet
+      await addPhase(
+        PhaseType.PUBLIC, // PUBLIC
+        "0.1", // price
+        100, // start in 100 seconds
+        1000, // duration 1000 seconds
+        20, // max supply
+        0 // unlimited mints per wallet
+      );
+
+      // Advance to phase start
+      await advanceTimeAndBlock(110);
+
+      // Get phase index
+      const [phaseIndex] = await contract.getActivePhase();
+
+      // Mint multiple tokens with same wallet
+      for (let i = 1; i <= 5; i++) {
+        await mintTokenInPhase(
+          minter,
+          i.toString(),
+          `ipfs://unlimited${i}`,
+          "0.1",
+          Number(phaseIndex)
+        );
+      }
+
+      // Verify all tokens were minted by same user
+      for (let i = 1; i <= 5; i++) {
+        expect(await contract.ownerOf(i.toString())).to.equal(minter.address);
+      }
     });
   });
 
   describe("ERC2981 Royalty Standard Tests", () => {
     it("should correctly calculate royalty info", async () => {
-      // Add a public phase
-      await contract.connect(owner).addPhase(
-        2, // PUBLIC
-        ethers.parseEther("0.5"),
-        BigInt(globalTimestamp),
-        BigInt(globalTimestamp + 86400),
-        100, // maxSupply
-        5, // maxPerWallet
-        ethers.ZeroHash // No merkle root needed for public
+      // Add a phase
+      await addPhase(
+        PhaseType.PUBLIC, // PUBLIC
+        "0.5", // price
+        100, // start in 100 seconds
+        1000 // duration 1000 seconds
       );
 
-      // Move to phase
-      await ethers.provider.send("evm_setNextBlockTimestamp", [
-        globalTimestamp + 10
-      ]);
-      await mineBlock();
+      // Advance to phase start
+      await advanceTimeAndBlock(110);
 
-      // Get active phase index for signature
+      // Get phase index
       const [phaseIndex] = await contract.getActivePhase();
 
-      // Mint a token first
-      const tokenId = "1";
-      const uri = "ipfs://testRoyalty";
-      const { signature, uniqueId, timestamp } = await generateSignature(
-        minter.address,
-        tokenId,
-        uri,
+      // Mint a token
+      await mintTokenInPhase(
+        minter,
+        "1",
+        "ipfs://royalty",
         "0.5",
-        Number(phaseIndex) // Use correct phase index
-      );
-
-      // Use exact timestamp from signature
-      await ethers.provider.send("evm_setNextBlockTimestamp", [timestamp]);
-      await mineBlock();
-
-      await contract.connect(minter).mint(
-        tokenId,
-        uri,
-        uniqueId,
-        timestamp,
-        signature,
-        [], // Empty proof for public
-        { value: ethers.parseEther("0.5") }
+        Number(phaseIndex)
       );
 
       // Set sale price for royalty calculation
       const salePrice = ethers.parseEther("10"); // 10 ETH
 
-      // Get royalty info for token
+      // Get royalty info
       const [receiver, royaltyAmount] = await contract.royaltyInfo(
-        tokenId,
+        "1",
         salePrice
       );
 
@@ -319,26 +609,26 @@ describe("LaunchNFTV2 Extended Tests", () => {
 
   describe("Error Handling", () => {
     it("should revert with reason string when wrong signer is used", async () => {
-      // Setup phase
-      await contract.connect(owner).addPhase(
-        2, // PUBLIC
-        ethers.parseEther("0.1"),
-        BigInt(globalTimestamp),
-        BigInt(globalTimestamp + 86400),
-        100,
-        10,
-        ethers.ZeroHash
+      // Add phase
+      await addPhase(
+        PhaseType.PUBLIC, // PUBLIC
+        "0.1", // price
+        100, // start in 100 seconds
+        1000 // duration 1000 seconds
       );
 
-      await ethers.provider.send("evm_setNextBlockTimestamp", [
-        globalTimestamp + 10
-      ]);
-      await mineBlock();
+      // Advance to phase start
+      await advanceTimeAndBlock(110);
 
-      // Setup a different signer
-      const wrongSigner = otherUser; // Using otherUser as wrong signer
+      // Get phase index
+      const [phaseIndex] = await contract.getActivePhase();
 
-      // Generate domain and data
+      // Generate signature using the wrong signer (otherUser instead of backendSigner)
+      const tokenId = "1";
+      const uri = "ipfs://wrongSigner";
+      const signatureTimestamp = currentTimestamp + 5;
+
+      // Create the domain and data just like in the correct signature
       const domain = {
         name: "UnifiedNFT",
         version: "1",
@@ -346,16 +636,12 @@ describe("LaunchNFTV2 Extended Tests", () => {
         verifyingContract: await contract.getAddress()
       };
 
-      const tokenId = "1";
-      const uri = "ipfs://test";
       const uniqueId = ethers.keccak256(
         ethers.solidityPacked(
           ["address", "uint256", "string", "uint256"],
-          [minter.address, tokenId, uri, Date.now()]
+          [minter.address, tokenId, uri, signatureTimestamp]
         )
       );
-
-      const timestamp = Math.floor(Date.now() / 1000);
 
       const types = {
         MintRequest: [
@@ -374,27 +660,26 @@ describe("LaunchNFTV2 Extended Tests", () => {
         tokenId: tokenId,
         uri: uri,
         price: ethers.parseEther("0.1"),
-        phaseIndex: 1, // First active phase
+        phaseIndex: Number(phaseIndex),
         uniqueId: uniqueId,
-        timestamp: timestamp
+        timestamp: signatureTimestamp
       };
 
       // Sign with wrong signer
-      const invalidSignature = await wrongSigner.signTypedData(
+      const invalidSignature = await otherUser.signTypedData(
         domain,
         types,
         value
       );
 
-      // Set blockchain time to match timestamp
-      await ethers.provider.send("evm_setNextBlockTimestamp", [timestamp]);
-      await mineBlock();
+      // Advance time to match signature timestamp
+      await advanceTimeAndBlock(10);
 
-      // Attempt to mint with invalid signature - using revertedWith instead of revertedWithCustomError
+      // Attempt to mint with invalid signature
       await expect(
         contract
           .connect(minter)
-          .mint(tokenId, uri, uniqueId, timestamp, invalidSignature, [], {
+          .mint(tokenId, uri, uniqueId, signatureTimestamp, invalidSignature, {
             value: ethers.parseEther("0.1")
           })
       ).to.be.revertedWith("Invalid signature");
@@ -402,120 +687,55 @@ describe("LaunchNFTV2 Extended Tests", () => {
   });
 
   describe("Edge Cases", () => {
-    it("should handle phase with zero maxSupply correctly (unlimited supply)", async () => {
-      // Add a phase with unlimited supply (maxSupply = 0)
-      await contract.connect(owner).addPhase(
-        2, // PUBLIC
-        ethers.parseEther("0.1"),
-        BigInt(globalTimestamp),
-        BigInt(globalTimestamp + 86400),
-        0, // Unlimited supply
-        10, // maxPerWallet - increased to handle multiple mints
-        ethers.ZeroHash
-      );
-
-      await ethers.provider.send("evm_setNextBlockTimestamp", [
-        globalTimestamp + 10
-      ]);
-      await mineBlock();
-
-      const [phaseIndex] = await contract.getActivePhase();
-
-      // Mint multiple tokens (limiting to 5 for test speed)
-      for (let i = 1; i <= 5; i++) {
-        const tokenId = i.toString();
-        const uri = `ipfs://unlimited${i}`;
-
-        // Mint with the current user
-        const currentUser = i % 2 === 0 ? minter : otherUser;
-
-        const { signature, uniqueId, timestamp } = await generateSignature(
-          currentUser.address,
-          tokenId,
-          uri,
-          "0.1",
-          Number(phaseIndex)
-        );
-
-        // Set blockchain time to match each signature timestamp, ensuring we advance forward
-        await ethers.provider.send("evm_setNextBlockTimestamp", [
-          timestamp + i
-        ]);
-        await mineBlock();
-
-        await contract
-          .connect(currentUser)
-          .mint(tokenId, uri, uniqueId, timestamp, signature, [], {
-            value: ethers.parseEther("0.1")
-          });
-      }
-
-      // Verify tokens were minted
-      for (let i = 1; i <= 5; i++) {
-        const expectedOwner = i % 2 === 0 ? minter.address : otherUser.address;
-        expect(await contract.ownerOf(i.toString())).to.equal(expectedOwner);
-      }
-    });
-
     it("should revert when attempting to mint during a gap between phases", async () => {
-      const phase1Start = globalTimestamp + 100;
-      const phase1End = phase1Start + 1000;
-      const phase2Start = phase1End + 500; // 500 second gap
-      const phase2End = phase2Start + 1000;
-
       // Add two phases with a gap between them
-      const { root, proof } = createMerkleProof([minter.address]);
-
-      await contract.connect(owner).addPhase(
-        1, // WHITELIST
-        ethers.parseEther("0.1"),
-        BigInt(phase1Start),
-        BigInt(phase1End),
-        10,
-        2,
-        root
+      const { phaseEnd: phase1End } = await addPhase(
+        PhaseType.WHITELIST, // WHITELIST
+        "0.1", // price
+        100, // start in 100 seconds
+        500 // duration 500 seconds
       );
 
-      await contract.connect(owner).addPhase(
-        2, // PUBLIC
-        ethers.parseEther("0.2"),
-        BigInt(phase2Start),
-        BigInt(phase2End),
-        20,
-        5,
-        ethers.ZeroHash
+      const { phaseStart: phase2Start } = await addPhase(
+        PhaseType.PUBLIC, // PUBLIC
+        "0.2", // price
+        700, // start with 100s gap after phase1
+        500 // duration 500 seconds
       );
 
-      // Fast forward to the gap between phases
-      const gapTime = phase1End + 100; // Sometime in the gap
-      await ethers.provider.send("evm_setNextBlockTimestamp", [gapTime]);
-      await mineBlock();
+      // Advance time to the gap between phases
+      await advanceTimeAndBlock(110); // Go to phase 1
+      await advanceTimeAndBlock(500); // Now we should be in the gap
 
-      // Attempt to get active phase - using revertedWith instead of revertedWithCustomError
+      // Attempt to get active phase
       await expect(contract.getActivePhase()).to.be.revertedWith(
         "No active phase"
       );
 
-      // Generate signature anyway (using phase index 0)
+      // Try to mint during the gap - this should fail
+      // We'll generate a signature but it will fail at the contract level
       const tokenId = "1";
-      const uri = "ipfs://testGap";
-      const { signature, uniqueId, timestamp } = await generateSignature(
+      const uri = "ipfs://gapMint";
+      const signatureTimestamp = currentTimestamp + 5;
+
+      // Create signature with a fake phaseIndex (0)
+      const { signature, uniqueId } = await signMintRequest(
         minter.address,
         tokenId,
         uri,
         "0.1",
-        0 // Using 0 as there's no active phase
+        0, // Using 0 as there's no active phase
+        signatureTimestamp
       );
 
-      // Set blockchain time to match signature timestamp
-      await ethers.provider.send("evm_setNextBlockTimestamp", [timestamp]);
-      await mineBlock();
+      // Advance time a bit for the mint attempt
+      await advanceTimeAndBlock(10);
 
-      // Attempt to mint during gap should fail - using revertedWith instead of revertedWithCustomError
+      // Attempt to mint during gap should fail
       await expect(
         contract
           .connect(minter)
-          .mint(tokenId, uri, uniqueId, timestamp, signature, proof, {
+          .mint(tokenId, uri, uniqueId, signatureTimestamp, signature, {
             value: ethers.parseEther("0.1")
           })
       ).to.be.revertedWith("No active phase");
@@ -524,49 +744,30 @@ describe("LaunchNFTV2 Extended Tests", () => {
 
   describe("Interoperability Tests", () => {
     it("should correctly support ERC721Enumerable functionality", async () => {
-      // Setup phase
-      await contract.connect(owner).addPhase(
-        2, // PUBLIC
-        ethers.parseEther("0.1"),
-        BigInt(globalTimestamp),
-        BigInt(globalTimestamp + 86400),
-        100,
-        10,
-        ethers.ZeroHash
+      // Add phase
+      await addPhase(
+        PhaseType.PUBLIC, // PUBLIC
+        "0.1", // price
+        100, // start in 100 seconds
+        1000 // duration 1000 seconds
       );
 
-      await ethers.provider.send("evm_setNextBlockTimestamp", [
-        globalTimestamp + 10
-      ]);
-      await mineBlock();
+      // Advance to phase start
+      await advanceTimeAndBlock(110);
 
-      // Get actual phase index for signature
+      // Get phase index
       const [phaseIndex] = await contract.getActivePhase();
 
-      // Mint several tokens with sequential timestamps
-      const numTokens = 3; // Reduced for faster tests
+      // Mint several tokens
+      const numTokens = 3;
       for (let i = 1; i <= numTokens; i++) {
-        const tokenId = i.toString();
-        const uri = `ipfs://enum${i}`;
-        const { signature, uniqueId, timestamp } = await generateSignature(
-          minter.address,
-          tokenId,
-          uri,
+        await mintTokenInPhase(
+          minter,
+          i.toString(),
+          `ipfs://enum${i}`,
           "0.1",
-          Number(phaseIndex) // Use correct phase index
+          Number(phaseIndex)
         );
-
-        // Set blockchain time to match each signature timestamp, ensuring we advance forward
-        await ethers.provider.send("evm_setNextBlockTimestamp", [
-          timestamp + i * 10
-        ]);
-        await mineBlock();
-
-        await contract
-          .connect(minter)
-          .mint(tokenId, uri, uniqueId, timestamp, signature, [], {
-            value: ethers.parseEther("0.1")
-          });
       }
 
       // Test totalSupply

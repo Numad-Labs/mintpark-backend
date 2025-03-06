@@ -5,8 +5,8 @@ generator client {
 generator kysely {
   provider     = "prisma-kysely"
   output       = "../src/types/db"
-  enumFileName = "enums.ts"
   fileName     = "types.ts"
+  enumFileName = "enums.ts"
 }
 
 datasource db {
@@ -15,39 +15,36 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(dbgenerated("gen_random_uuid()"))
-  role      ROLES    @default(USER)
-  createdAt DateTime @default(now())
-
-  purchases  Purchase[]
-  orders     Order[]
-  LaunchItem LaunchItem[]
-  Launch     Launch[]
-  UserLayer  UserLayer[]
+  id         String       @id @default(dbgenerated("gen_random_uuid()"))
+  role       ROLES        @default(USER)
+  createdAt  DateTime     @default(now())
   Collection Collection[]
   FailedMint FailedMint[]
+  Launch     Launch[]
+  LaunchItem LaunchItem[]
+  orders     Order[]
+  purchases  Purchase[]
+  UserLayer  UserLayer[]
 }
 
 model UserLayer {
-  id      String  @id @default(dbgenerated("gen_random_uuid()"))
-  address String
-  pubkey  String?
-  xpub    String?
-
-  createdAt     DateTime  @default(now())
-  isActive      Boolean   @default(true)
+  id            String       @id @default(dbgenerated("gen_random_uuid()"))
+  address       String
+  pubkey        String?
+  xpub          String?
+  createdAt     DateTime     @default(now())
+  isActive      Boolean      @default(true)
   deactivatedAt DateTime?
-
-  userId     String
-  user       User         @relation(fields: [userId], references: [id])
-  layerId    String
-  layer      Layer        @relation(fields: [layerId], references: [id])
-  Order      Order[]
-  Launch     Launch[]
-  Collection Collection[]
+  userId        String
+  layerId       String
+  Collection    Collection[]
+  Launch        Launch[]
+  Order         Order[]
+  layer         Layer        @relation(fields: [layerId], references: [id])
+  user          User         @relation(fields: [userId], references: [id])
 
   @@unique([address, isActive, layerId, deactivatedAt])
-  @@index([address, isActive]) // For the subquery in getActiveListCountByAddressAndLayerId
+  @@index([address, isActive])
 }
 
 model Currency {
@@ -61,103 +58,93 @@ model Currency {
 }
 
 model Layer {
-  id      String  @id @default(dbgenerated("gen_random_uuid()"))
-  name    String
-  layer   LAYER   @default(CITREA)
-  network NETWORK @default(TESTNET)
-  chainId String?
-
-  layerType  LAYER_TYPE?
+  id         String       @id @default(dbgenerated("gen_random_uuid()"))
+  name       String
+  layer      LAYER        @default(CITREA)
+  network    NETWORK      @default(TESTNET)
   currencyId String
-  currency   Currency     @relation(fields: [currencyId], references: [id])
+  chainId    String?
+  layerType  LAYER_TYPE?
   Collection Collection[]
+  currency   Currency     @relation(fields: [currencyId], references: [id])
   UserLayer  UserLayer[]
 }
 
 model Order {
-  id             String  @id @default(dbgenerated("gen_random_uuid()"))
-  feeRate        Float   @default(1)
+  id             String       @id @default(dbgenerated("gen_random_uuid()"))
+  feeRate        Float        @default(1)
   fundingAddress String?
   fundingAmount  Float
   fundingTxId    String?
   privateKey     String?
-
-  createdAt DateTime  @default(now())
-  mintedAt  DateTime?
-
-  orderType   ORDER_TYPE   @default(MINT_COLLECTIBLE)
-  orderStatus ORDER_STATUS @default(PENDING)
-
-  userId       String
-  user         User        @relation(fields: [userId], references: [id])
-  userLayerId  String
-  userLayer    UserLayer   @relation(fields: [userLayerId], references: [id])
-  collectionId String?
-  collection   Collection? @relation(fields: [collectionId], references: [id])
-  launchItemId String?
-  launchItem   LaunchItem? @relation(fields: [launchItemId], references: [id], onDelete: Cascade)
-  Purchase     Purchase?   @relation(fields: [purchaseId], references: [id])
-  purchaseId   String?
-
-  orderItems OrderItem[]
+  createdAt      DateTime     @default(now())
+  mintedAt       DateTime?
+  orderType      ORDER_TYPE   @default(MINT_COLLECTIBLE)
+  orderStatus    ORDER_STATUS @default(PENDING)
+  userId         String
+  userLayerId    String
+  collectionId   String?
+  launchItemId   String?
+  purchaseId     String?
+  collection     Collection?  @relation(fields: [collectionId], references: [id])
+  launchItem     LaunchItem?  @relation(fields: [launchItemId], references: [id], onDelete: Cascade)
+  Purchase       Purchase?    @relation(fields: [purchaseId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+  userLayer      UserLayer    @relation(fields: [userLayerId], references: [id])
+  orderItems     OrderItem[]
 }
 
 model OrderItem {
-  id         String            @id @default(dbgenerated("gen_random_uuid()"))
-  mintedTxId String?
-  createdAt  DateTime          @default(now())
-  type       ORDER_ITEM_TYPE
-  status     ORDER_ITEM_STATUS @default(PENDING)
-
+  id            String            @id @default(dbgenerated("gen_random_uuid()"))
+  mintedTxId    String?
+  createdAt     DateTime          @default(now())
+  type          ORDER_ITEM_TYPE
+  status        ORDER_ITEM_STATUS @default(PENDING)
   orderId       String
-  order         Order        @relation(fields: [orderId], references: [id])
   collectibleId String?
-  collectible   Collectible? @relation(fields: [collectibleId], references: [id])
   traitValueId  String?
-  traitValue    TraitValue?  @relation(fields: [traitValueId], references: [id])
+  collectible   Collectible?      @relation(fields: [collectibleId], references: [id])
+  order         Order             @relation(fields: [orderId], references: [id])
+  traitValue    TraitValue?       @relation(fields: [traitValueId], references: [id])
 }
 
 model Collection {
-  id              String  @id @default(dbgenerated("gen_random_uuid()"))
-  name            String
-  creatorName     String?
-  description     String
-  discordUrl      String?
-  twitterUrl      String?
-  websiteUrl      String?
-  iconUrl         String?
-  inscriptionIcon String?
-  slug            String?
-  logoKey         String?
-  supply          Int
-  ownerCount      Int?
-
-  contractAddress String?
-  contractVersion String?
-  type            COLLECTION_TYPE   @default(RECURSIVE_INSCRIPTION)
-  status          COLLECTION_STATUS @default(UNCONFIRMED)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime?
-
-  isBadge           Boolean @default(false)
-  badgeCid          String?
-  badgeSupply       Int?
-  badgeCurrentNftId Int?
-
+  id                 String            @id @default(dbgenerated("gen_random_uuid()"))
+  name               String
+  creatorName        String?
+  description        String
+  discordUrl         String?
+  twitterUrl         String?
+  websiteUrl         String?
+  iconUrl            String?
+  inscriptionIcon    String?
+  slug               String?
+  logoKey            String?
+  supply             Int
+  ownerCount         Int?
+  contractAddress    String?
+  type               COLLECTION_TYPE   @default(RECURSIVE_INSCRIPTION)
+  status             COLLECTION_STATUS @default(UNCONFIRMED)
+  createdAt          DateTime          @default(now())
   layerId            String
-  layer              Layer       @relation(fields: [layerId], references: [id])
   creatorId          String?
-  creator            User?       @relation(fields: [creatorId], references: [id])
   creatorUserLayerId String?
-  creatorUserLayer   UserLayer?  @relation(fields: [creatorUserLayerId], references: [id])
   parentCollectionId String?
-  parentCollection   Collection? @relation("ParentChild", fields: [parentCollectionId], references: [id])
-
-  launches         Launch[]
-  orders           Order[]
-  collectibles     Collectible[]
-  childCollections Collection[]  @relation("ParentChild")
-  TraitType        TraitType[]
+  badgeCid           String?
+  badgeSupply        Int?
+  isBadge            Boolean           @default(false)
+  updatedAt          DateTime?
+  badgeCurrentNftId  Int?
+  contractVersion    String?
+  collectibles       Collectible[]
+  creator            User?             @relation(fields: [creatorId], references: [id])
+  creatorUserLayer   UserLayer?        @relation(fields: [creatorUserLayerId], references: [id])
+  layer              Layer             @relation(fields: [layerId], references: [id])
+  parentCollection   Collection?       @relation("ParentChild", fields: [parentCollectionId], references: [id])
+  childCollections   Collection[]      @relation("ParentChild")
+  launches           Launch[]
+  orders             Order[]
+  TraitType          TraitType[]
 
   @@index([status])
   @@index([layerId, status])
@@ -167,7 +154,6 @@ model Collectible {
   id                     String             @id @default(dbgenerated("gen_random_uuid()"))
   name                   String
   fileKey                String?
-  fileName               String?
   highResolutionImageUrl String?
   cid                    String?
   uniqueIdx              String?
@@ -176,121 +162,107 @@ model Collectible {
   status                 COLLECTIBLE_STATUS @default(UNCONFIRMED)
   createdAt              DateTime           @default(now())
   mintingTxId            String?
-
-  lockingAddress    String?
-  lockingPrivateKey String?
-
-  parentCollectibleId String?
-  parentCollectible   Collectible? @relation("ParentChild", fields: [parentCollectibleId], references: [id])
-  collectionId        String
-  collection          Collection   @relation(fields: [collectionId], references: [id])
-
-  childCollectibles Collectible[]      @relation("ParentChild")
-  OrderItem         OrderItem[]
-  List              List[]
-  CollectibleTrait  CollectibleTrait[]
-  LaunchItem        LaunchItem[]
+  lockingAddress         String?
+  lockingPrivateKey      String?
+  parentCollectibleId    String?
+  collectionId           String
+  fileName               String?
+  collection             Collection         @relation(fields: [collectionId], references: [id])
+  parentCollectible      Collectible?       @relation("ParentChild", fields: [parentCollectibleId], references: [id])
+  childCollectibles      Collectible[]      @relation("ParentChild")
+  CollectibleTrait       CollectibleTrait[]
+  LaunchItem             LaunchItem[]
+  List                   List[]
+  OrderItem              OrderItem[]
 
   @@index([uniqueIdx])
   @@index([status, uniqueIdx])
   @@index([collectionId, uniqueIdx])
   @@index([createdAt])
-  @@index([nftId]) // For text search operations
+  @@index([nftId])
   @@index([collectionId, status])
 }
 
 model TraitType {
-  id        String   @id @default(dbgenerated("gen_random_uuid()"))
-  name      String
-  zIndex    Int
-  createdAt DateTime @default(now())
-
+  id           String       @id @default(dbgenerated("gen_random_uuid()"))
+  name         String
+  zIndex       Int
+  createdAt    DateTime     @default(now())
   collectionId String
   collection   Collection   @relation(fields: [collectionId], references: [id])
   TraitValue   TraitValue[]
 }
 
 model TraitValue {
-  id            String    @id @default(dbgenerated("gen_random_uuid()"))
-  value         String
-  inscriptionId String?
-  fileKey       String
-  createdAt     DateTime  @default(now())
-  mintedAt      DateTime?
-
+  id                String             @id @default(dbgenerated("gen_random_uuid()"))
+  value             String
+  inscriptionId     String?
+  fileKey           String
+  createdAt         DateTime           @default(now())
+  mintedAt          DateTime?
   lockingAddress    String?
   lockingPrivateKey String?
-
-  traitTypeId      String
-  traitType        TraitType          @relation(fields: [traitTypeId], references: [id])
-  CollectibleTrait CollectibleTrait[]
-  OrderItem        OrderItem[]
+  traitTypeId       String
+  CollectibleTrait  CollectibleTrait[]
+  OrderItem         OrderItem[]
+  traitType         TraitType          @relation(fields: [traitTypeId], references: [id])
 }
 
 model CollectibleTrait {
-  id        String   @id @default(dbgenerated("gen_random_uuid()"))
-  createdAt DateTime @default(now())
-
+  id            String      @id @default(dbgenerated("gen_random_uuid()"))
+  createdAt     DateTime    @default(now())
   collectibleId String
-  collectible   Collectible @relation(fields: [collectibleId], references: [id])
   traitValueId  String
+  collectible   Collectible @relation(fields: [collectibleId], references: [id])
   traitValue    TraitValue  @relation(fields: [traitValueId], references: [id])
 
-  @@index([collectibleId, traitValueId]) // For trait filtering
+  @@index([collectibleId, traitValueId])
 }
 
 model Launch {
-  id           String     @id @default(dbgenerated("gen_random_uuid()"))
-  collectionId String
-  collection   Collection @relation(fields: [collectionId], references: [id])
-
-  isWhitelisted      Boolean @default(false)
-  wlStartsAt         BigInt?
-  wlEndsAt           BigInt?
-  wlMintPrice        Float?
-  wlMaxMintPerWallet Int?
-
-  hasFCFS              Boolean @default(false)
-  fcfsStartsAt         BigInt?
+  id                   String        @id @default(dbgenerated("gen_random_uuid()"))
+  collectionId         String
+  isWhitelisted        Boolean       @default(false)
+  wlStartsAt           BigInt?
+  wlEndsAt             BigInt?
+  wlMintPrice          Float?
+  wlMaxMintPerWallet   Int?
+  poStartsAt           BigInt
+  poEndsAt             BigInt?
+  poMintPrice          Float
+  poMaxMintPerWallet   Int
+  createdAt            DateTime      @default(now())
+  status               LAUNCH_STATUS @default(UNCONFIRMED)
+  userLayerId          String
+  userId               String?
+  reservedCount        Int           @default(0)
+  updatedAt            DateTime?
   fcfsEndsAt           BigInt?
-  fcfsMintPrice        Float?
   fcfsMaxMintPerWallet Int?
-
-  poStartsAt         BigInt
-  poEndsAt           BigInt?
-  poMintPrice        Float
-  poMaxMintPerWallet Int
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime?
-  status             LAUNCH_STATUS @default(UNCONFIRMED)
-  reservedCount      Int           @default(0)
-
-  userLayerId String
-  userLayer   UserLayer @relation(fields: [userLayerId], references: [id])
-
-  launchItems LaunchItem[]
-  wlAddresses WlAddress[]
-  User        User?        @relation(fields: [userId], references: [id])
-  userId      String?
+  fcfsMintPrice        Float?
+  fcfsStartsAt         BigInt?
+  hasFCFS              Boolean       @default(false)
+  collection           Collection    @relation(fields: [collectionId], references: [id])
+  User                 User?         @relation(fields: [userId], references: [id])
+  userLayer            UserLayer     @relation(fields: [userLayerId], references: [id])
+  launchItems          LaunchItem[]
+  wlAddresses          WlAddress[]
 }
 
 model LaunchItem {
-  id     String             @id @default(dbgenerated("gen_random_uuid()"))
-  status LAUNCH_ITEM_STATUS @default(ACTIVE)
-
-  onHoldUntil DateTime?
-  mintingTxId String?
-
+  id            String             @id @default(dbgenerated("gen_random_uuid()"))
+  status        LAUNCH_ITEM_STATUS @default(ACTIVE)
+  onHoldUntil   DateTime?
+  mintingTxId   String?
   launchId      String
-  launch        Launch      @relation(fields: [launchId], references: [id])
   collectibleId String
-  collectible   Collectible @relation(fields: [collectibleId], references: [id])
   onHoldBy      String?
-  User          User?       @relation(fields: [onHoldBy], references: [id])
-
-  Order      Order[]
-  purchases  Purchase[]
-  FailedMint FailedMint[]
+  FailedMint    FailedMint[]
+  collectible   Collectible        @relation(fields: [collectibleId], references: [id])
+  launch        Launch             @relation(fields: [launchId], references: [id])
+  User          User?              @relation(fields: [onHoldBy], references: [id])
+  Order         Order[]
+  purchases     Purchase[]
 
   @@index([launchId])
   @@index([status])
@@ -304,12 +276,12 @@ model LaunchItem {
 model Purchase {
   id               String     @id @default(dbgenerated("gen_random_uuid()"))
   userId           String
-  user             User       @relation(fields: [userId], references: [id])
   launchItemId     String
-  launchItem       LaunchItem @relation(fields: [launchItemId], references: [id])
   purchasedAt      DateTime   @default(now())
   purchasedAddress String?
   Order            Order[]
+  launchItem       LaunchItem @relation(fields: [launchItemId], references: [id])
+  user             User       @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([purchasedAddress])
@@ -321,16 +293,15 @@ model Purchase {
 model WlAddress {
   id        String       @id @default(dbgenerated("gen_random_uuid()"))
   launchId  String
-  launch    Launch       @relation(fields: [launchId], references: [id])
   address   String
   createdAt DateTime     @default(now())
   phase     LAUNCH_PHASE @default(WHITELIST)
+  launch    Launch       @relation(fields: [launchId], references: [id])
 }
 
 model List {
   id              String      @id @default(dbgenerated("gen_random_uuid()"))
   collectibleId   String
-  collectible     Collectible @relation(fields: [collectibleId], references: [id])
   sellerId        String
   buyerId         String?
   address         String
@@ -343,25 +314,25 @@ model List {
   soldTxid        String?
   soldAt          DateTime?
   status          LIST_STATUS @default(PENDING)
+  collectible     Collectible @relation(fields: [collectibleId], references: [id])
 
   @@index([status])
   @@index([collectibleId, status])
   @@index([status, sellerId])
   @@index([listedAt])
-  @@index([price]) // For price-based sorting
+  @@index([price])
   @@index([collectibleId, status, listedAt])
   @@index([price, status])
   @@index([collectibleId, status, price])
 }
 
 model FailedMint {
-  id        String   @id @default(dbgenerated("gen_random_uuid()"))
-  createdAt DateTime @default(now())
-
+  id           String     @id @default(dbgenerated("gen_random_uuid()"))
+  createdAt    DateTime   @default(now())
   userId       String
-  user         User       @relation(fields: [userId], references: [id])
   launchItemId String
   launchItem   LaunchItem @relation(fields: [launchItemId], references: [id])
+  user         User       @relation(fields: [userId], references: [id])
 }
 
 model Airdrop {
@@ -426,8 +397,8 @@ enum LAUNCH_STATUS {
 enum LAUNCH_ITEM_STATUS {
   ACTIVE
   SOLD
-  RESERVED
   CANCELLED
+  RESERVED
 }
 
 enum LIST_STATUS {
