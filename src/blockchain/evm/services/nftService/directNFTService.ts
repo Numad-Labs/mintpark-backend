@@ -58,8 +58,8 @@ export class DirectMintNFTService extends BaseNFTService {
     }
 
     // Validate phase type
-    if (phaseType < 0 || phaseType > 2) {
-      // PUBLIC=0, WHITELIST=1, FCFS=2
+    if (phaseType <= 0 || phaseType > 2) {
+      // PUBLIC=2, WHITELIST=0, FCFS=1
       throw new CustomError("Invalid phase type", 400);
     }
 
