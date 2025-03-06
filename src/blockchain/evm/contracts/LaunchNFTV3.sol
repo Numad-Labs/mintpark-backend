@@ -20,7 +20,6 @@ contract LaunchNFTV3 is
   using ECDSA for bytes32;
 
   enum PhaseType {
-    // NOT_STARTED,
     WHITELIST,
     FCFS,
     PUBLIC

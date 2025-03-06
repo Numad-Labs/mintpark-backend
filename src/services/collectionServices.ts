@@ -498,7 +498,7 @@ export const collectionServices = {
       updatedAt: new Date()
     });
 
-    if (phaseType == 1) {
+    if (phaseType == 0) {
       await launchRepository.update(launchId, {
         wlEndsAt: endTime.toString(),
         wlStartsAt: startTime.toString(),

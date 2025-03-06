@@ -134,7 +134,7 @@ export const collectionController = {
       }
 
       // Validate phase type
-      if (![1, 2, 3].includes(phaseType)) {
+      if (![0, 1, 2].includes(phaseType)) {
         // 1: Whitelist, 2: FCFS,  3:Public
         throw new CustomError("Invalid phase type", 400);
       }
@@ -212,7 +212,7 @@ export const collectionController = {
       }
 
       // Validate phase type
-      if (![1, 2].includes(phaseType)) {
+      if (![0, 1, 2].includes(phaseType)) {
         // 1: Whitelist, 2: Public
         throw new CustomError("Invalid phase type", 400);
       }
