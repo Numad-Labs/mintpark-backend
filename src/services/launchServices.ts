@@ -1142,7 +1142,7 @@ const validatePurchaseLimits = async (
         trx,
         launch.id,
         user.id,
-        Number(launch.wlStartsAt),
+        Number(launch.fcfsStartsAt),
         user.address
       );
 

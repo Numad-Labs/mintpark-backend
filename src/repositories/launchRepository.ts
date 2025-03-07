@@ -169,7 +169,9 @@ export const launchRepository = {
             //Whitelist hasn't started
             eb("Launch.wlStartsAt", ">", now.toString()),
             //FCFS hasn't started
-            eb("Launch.fcfsStartsAt", ">", now.toString())
+            eb("Launch.fcfsStartsAt", ">", now.toString()),
+            //PO hasn't started
+            eb("Launch.poStartsAt", ">", now.toString())
           ]);
         } else {
           // Ended interval
