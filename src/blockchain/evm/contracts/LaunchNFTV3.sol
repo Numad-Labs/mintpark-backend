@@ -69,6 +69,12 @@ contract LaunchNFTV3 is
     uint256 endTime
   );
 
+  event PhaseUpdated(
+    uint256 indexed phaseIndex,
+    PhaseType phaseType,
+    uint256 price
+  );
+
   constructor(
     address initialOwner,
     string memory name,
@@ -264,6 +270,46 @@ contract LaunchNFTV3 is
     phases.push(newPhase);
 
     emit PhaseAdded(phaseIndex, _phaseType, _price, _endTime);
+  }
+
+  function updatePhase(
+    uint256 phaseIndex,
+    PhaseType _phaseType,
+    uint256 _price,
+    uint256 _startTime,
+    uint256 _endTime,
+    uint256 _maxSupply,
+    uint256 _maxPerWallet
+  ) external onlyOwner {
+    require(phaseIndex < phases.length, "Invalid phase index");
+    require(_startTime < _endTime, "Invalid time range");
+
+    if (_phaseType != PhaseType.PUBLIC) {
+      require(_maxPerWallet > 0, "Invalid max per wallet for non-public phase");
+    }
+
+    // Check for overlapping phases with other phases (excluding the one being updated)
+    for (uint256 i = 0; i < phases.length; i++) {
+      if (i == phaseIndex) continue; // Skip the phase being updated
+
+      Phase memory existingPhase = phases[i];
+
+      require(
+        !(_startTime <= existingPhase.endTime &&
+          _endTime >= existingPhase.startTime),
+        "Phase time overlaps with existing phase"
+      );
+    }
+
+    // Update the phase
+    phases[phaseIndex].phaseType = _phaseType;
+    phases[phaseIndex].price = _price;
+    phases[phaseIndex].startTime = _startTime;
+    phases[phaseIndex].endTime = _endTime;
+    phases[phaseIndex].maxSupply = _maxSupply;
+    phases[phaseIndex].maxPerWallet = _maxPerWallet;
+
+    emit PhaseUpdated(phaseIndex, _phaseType, _price);
   }
 
   function tokensOfOwner(address owner) public view returns (uint256[] memory) {
