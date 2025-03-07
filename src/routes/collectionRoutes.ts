@@ -38,6 +38,8 @@ collectionRouter.get("/phase", collectionController.getPhasesByContractAddress);
 
 collectionRouter.get("/listed", collectionController.getListedCollections);
 
+collectionRouter.get("/:id", collectionController.getById);
+
 // collectionRouter.put(
 //   "/:id",
 //   authenticateToken,

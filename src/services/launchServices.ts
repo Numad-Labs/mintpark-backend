@@ -546,10 +546,6 @@ export const launchServices = {
     }
     if (!launchItem) throw new CustomError("Please try again.", 400);
 
-    logger.info(
-      `launchItem id: ${launchItem.id}, onHoldUntil: ${launchItem.onHoldUntil}, onHoldBy: ${launchItem.onHoldBy}, status: ${launchItem.status}, userId: ${user.id}`
-    );
-
     collectible = await collectibleRepository.getById(
       db,
       launchItem.collectibleId
@@ -574,18 +570,10 @@ export const launchServices = {
         if (!mintedCollectible)
           throw new CustomError("Minted collectible not found.", 400);
 
-        logger.info(
-          `Incremented collection supply in buy method. userId: ${user.id}, launchItem id: ${launchItem?.id}, launchItem status: ${launchItem?.status}, collectible status: ${mintedCollectible.status}`
-        );
-
         await collectibleRepository.update(trx, mintedCollectible.id, {
           status: "CONFIRMED",
           uniqueIdx: collection.contractAddress + "i" + mintedCollectible.nftId
         });
-        // await collectionRepository.incrementCollectionSupplyById(
-        //   trx,
-        //   collection.id
-        // );
         await launchItemRepository.update(trx, launchItem!.id, {
           status: "SOLD"
         });
@@ -670,8 +658,7 @@ export const launchServices = {
     const { signature, uniqueId, timestamp } =
       await directMintService.generateMintSignature(
         collection.contractAddress,
-        // user.address,
-        "0xAba4D17C285F234bFd722FF36123A4C9c6b73b71",
+        user.address,
         tokenId,
         nftIpfsUrl,
         mintPrice.toString(),
@@ -686,8 +673,7 @@ export const launchServices = {
       uniqueId,
       timestamp,
       signature,
-      // user.address
-      "0xAba4D17C285F234bFd722FF36123A4C9c6b73b71"
+      user.address
     );
 
     logger.info(`Mint tx generated`, {
@@ -844,30 +830,26 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
 
-    // // Now validate that the transaction minted the expected token ID
-    // const tokenIdValidation = await confirmationService.validateMintedTokenId(
-    //   txid,
-    //   collection.contractAddress,
-    //   collectible.nftId,
-    //   user.address
-    // );
-    // console.log("🚀 ~ tokenIdValidation:", tokenIdValidation);
+    // Now validate that the transaction minted the expected token ID
+    const tokenIdValidation = await confirmationService.validateMintedTokenId(
+      txid,
+      collection.contractAddress,
+      collectible.nftId,
+      user.address
+    );
+    console.log("🚀 ~ tokenIdValidation:", tokenIdValidation);
 
-    // if (!tokenIdValidation.isValid) {
-    //   throw new CustomError(
-    //     `Token validation failed: ${
-    //       tokenIdValidation.error || "Invalid token or owner"
-    //     }`,
-    //     400
-    //   );
-    // }
+    if (!tokenIdValidation.isValid) {
+      throw new CustomError(
+        `Token validation failed: ${
+          tokenIdValidation.error || "Invalid token or owner"
+        }`,
+        400
+      );
+    }
 
     // Execute database operations in transaction
     const result = await db.transaction().execute(async (trx) => {
-      logger.info(
-        `Incremented collection supply in confirmMint method. userId: ${user.id}, launchItem id: ${launchItem.id}, launchItem status: ${launchItem?.status}, collectible status: ${collectible.status}`
-      );
-
       // try {
       //   await userRepository.acquireLockByUserLayerId(trx, userLayerId);
       // } catch (error) {
@@ -885,10 +867,6 @@ export const launchServices = {
         mintingTxId: txid,
         uniqueIdx: collection.contractAddress + "i" + collectible.nftId
       });
-      // await collectionRepository.incrementCollectionSupplyById(
-      //   trx,
-      //   collection.id
-      // );
       const soldLaunchItem = await launchItemRepository.update(
         trx,
         launchItem.id,

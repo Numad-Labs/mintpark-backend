@@ -239,6 +239,9 @@ function mintLaunchItem(token, launchItemId, userLayerId, txid, orderId) {
     }
   });
   console.log(`mintres ${response.status}`);
+  if (response.status >= 400) {
+    console.log(JSON.parse(response.body));
+  }
 
   check(response, {
     "mint launch item status is 200": (r) => r.status === 200,
@@ -256,10 +259,10 @@ export default function () {
   // Generate a simulated wallet
   const wallet = generateWalletData();
 
-  // Get active layers
-  let layers;
-  // Generate message and login
-  layers = getLayers();
+  // // Get active layers
+  // let layers;
+  // // Generate message and login
+  // layers = getLayers();
 
   // Generate message and login again (to ensure fresh token)
   const { message: loginMessage, signedMessage: loginSignedMessage } =
