@@ -282,7 +282,11 @@ contract LaunchNFTV3 is
     uint256 _maxPerWallet
   ) external onlyOwner {
     require(phaseIndex < phases.length, "Invalid phase index");
-    require(_startTime < _endTime, "Invalid time range");
+
+    // Only require start time < end time when end time is not indefinite (0)
+    if (_endTime != 0) {
+      require(_startTime < _endTime, "Invalid time range");
+    }
 
     if (_phaseType != PhaseType.PUBLIC) {
       require(_maxPerWallet > 0, "Invalid max per wallet for non-public phase");
@@ -294,11 +298,18 @@ contract LaunchNFTV3 is
 
       Phase memory existingPhase = phases[i];
 
-      require(
-        !(_startTime <= existingPhase.endTime &&
-          _endTime >= existingPhase.startTime),
-        "Phase time overlaps with existing phase"
-      );
+      // No overlap if existing phase ends before new phase starts
+      if (existingPhase.endTime != 0 && existingPhase.endTime <= _startTime) {
+        continue;
+      }
+
+      // No overlap if new phase ends before existing phase starts
+      if (_endTime != 0 && _endTime <= existingPhase.startTime) {
+        continue;
+      }
+      // If we get here, there's an overlap
+
+      revert("Phase time overlaps with existing phase");
     }
 
     // Update the phase

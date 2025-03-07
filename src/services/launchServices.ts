@@ -120,9 +120,8 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
     if (!txid) throw new CustomError("txid not found.", 400);
-    const transactionDetail = await confirmationService.getTransactionDetails(
-      txid
-    );
+    const transactionDetail =
+      await confirmationService.getTransactionDetails(txid);
     if (transactionDetail.status !== 1) {
       throw new CustomError(
         "Transaction not confirmed. Please try again.",
@@ -461,10 +460,6 @@ export const launchServices = {
     if (!phaseInfo.isActive) throw new CustomError("Phase not found", 400);
     // console.log("🚀 ~ phaseInfo:", phaseInfo);
 
-    // console.log("date", new Date(parseInt(phaseInfo.endTime)));
-    if (phaseInfo.phaseType == BigInt(0))
-      throw new CustomError("Phase not active", 400);
-
     const mintedInPhase = await directMintService.getMintedInPhase(
       collection.contractAddress,
       user.address,
@@ -692,6 +687,14 @@ export const launchServices = {
       user.address
     );
 
+    logger.info(`Mint tx generated`, {
+      contractAddress: collection.contractAddress,
+      tokenId,
+      user: user.address,
+      chainId: user.chainId,
+      timestamp: new Date().toISOString()
+    });
+
     const order = await orderRepository.create(db, {
       userId: user.id,
       collectionId: collection.id,
@@ -838,14 +841,21 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
 
-    const transactionDetail = await confirmationService.getTransactionDetails(
-      txid
+    // Now validate that the transaction minted the expected token ID
+    const tokenIdValidation = await confirmationService.validateMintedTokenId(
+      txid,
+      collection.contractAddress,
+      collectible.nftId,
+      user.address
     );
-    if (transactionDetail.status !== 1)
+    console.log("🚀 ~ tokenIdValidation:", tokenIdValidation);
+
+    if (!tokenIdValidation.isValid) {
       throw new CustomError(
-        "Transaction not confirmed. Please try again.",
-        500
+        `Token validation failed: ${tokenIdValidation.error || "Invalid token or owner"}`,
+        400
       );
+    }
 
     // Execute database operations in transaction
     const result = await db.transaction().execute(async (trx) => {

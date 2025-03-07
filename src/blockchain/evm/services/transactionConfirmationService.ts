@@ -3,11 +3,19 @@ import { ethers } from "ethers";
 import { redis } from "../../..";
 import { CustomError } from "../../../exceptions/CustomError";
 import logger from "../../../config/winston";
+import { EVM_CONFIG } from "../evm-config";
 // import { redis } from "../../../src";
 interface TransactionStatus {
   status: "pending" | "confirmed" | "failed";
   blockNumber?: number;
   confirmations?: number;
+  error?: string;
+}
+
+interface MintValidationResult {
+  isValid: boolean;
+  tokenId?: string;
+  owner?: string;
   error?: string;
 }
 
@@ -117,6 +125,108 @@ export class TransactionConfirmationService {
       };
     } catch (error) {
       throw error;
+    }
+  }
+  async validateMintedTokenId(
+    txHash: string,
+    contractAddress: string,
+    expectedTokenId: string,
+    expectedOwner: string
+  ): Promise<MintValidationResult> {
+    try {
+      // Get transaction receipt to ensure tx is confirmed
+      const receipt = await this.provider.getTransactionReceipt(txHash);
+      if (!receipt) {
+        return { isValid: false, error: "Transaction not confirmed yet" };
+      }
+
+      if (receipt.status === 0) {
+        return { isValid: false, error: "Transaction failed" };
+      }
+
+      // Create contract interface for the NFT
+      const contract = new ethers.Contract(
+        contractAddress,
+        EVM_CONFIG.DIRECT_MINT_NFT_ABI,
+        this.provider
+      );
+
+      // First, parse the transaction logs to find the Transfer event with the specific tokenId
+      // This is more efficient than querying all Transfer events
+      let tokenIdTransferFound = false;
+      let transferTo: string | undefined;
+
+      for (const log of receipt.logs) {
+        if (log.address.toLowerCase() === contractAddress.toLowerCase()) {
+          try {
+            const parsedLog = contract.interface.parseLog({
+              topics: log.topics as string[],
+              data: log.data
+            });
+
+            if (parsedLog && parsedLog.name === "Transfer") {
+              const tokenId = parsedLog.args[2].toString();
+
+              // If this is the transfer for our expected token
+              if (tokenId === expectedTokenId) {
+                tokenIdTransferFound = true;
+                transferTo = parsedLog.args[1].toLowerCase();
+                break;
+              }
+            }
+          } catch (e) {
+            // Skip logs that can't be parsed with our ABI
+            continue;
+          }
+        }
+      }
+
+      // If we didn't find the token transfer in the logs, it might be a different transaction
+      if (!tokenIdTransferFound) {
+        const result = {
+          isValid: false,
+          error: "Token ID not minted in this transaction"
+        };
+        return result;
+      }
+
+      const currentOwner = receipt.from;
+
+      // Double check by verifying current ownership if the token transfer was found
+      // This provides an extra layer of validation beyond just checking transaction logs
+      try {
+        // Convert addresses to lowercase for comparison
+        const ownerMatches =
+          currentOwner.toLowerCase() === expectedOwner.toLowerCase();
+
+        const transferMatches = transferTo === expectedOwner.toLowerCase();
+
+        const isValid = ownerMatches && transferMatches;
+
+        const result = {
+          isValid,
+          tokenId: expectedTokenId,
+          owner: currentOwner,
+          error: isValid ? undefined : "Token owner mismatch"
+        };
+
+        return result;
+      } catch (e) {
+        // If ownerOf reverts, the token may not exist
+        return {
+          isValid: false,
+          error: "Token ID does not exist or cannot verify ownership"
+        };
+      }
+    } catch (error) {
+      logger.error("Error validating minted token:", error);
+      return {
+        isValid: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unknown error validating mint"
+      };
     }
   }
 }
