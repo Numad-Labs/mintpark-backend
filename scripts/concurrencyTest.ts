@@ -1,5 +1,5 @@
+import NFTService from "blockchain/evm/services/nftService";
 import { ethers } from "ethers";
-import NFTService from "./blockchain/evm/services/nftService";
 
 // Configuration
 const RPC_URL = "https://rpc.testnet.citrea.xyz";

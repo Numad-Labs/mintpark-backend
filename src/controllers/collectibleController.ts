@@ -4,6 +4,7 @@ import { CustomError } from "../exceptions/CustomError";
 import { collectibleServices } from "../services/collectibleServices";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import logger from "../config/winston";
+import { z } from "zod";
 
 const DEFAULT_LIMIT = 30,
   MAX_LIMIT = 50;
@@ -39,6 +40,35 @@ export interface recursiveInscriptionParams {
   name: string;
   traits: { type: string; value: string }[];
 }
+
+const attributeSchema = z.object({
+  trait_type: z.string(),
+  value: z.string()
+});
+
+const fileSchema = z.object({
+  uri: z.string(),
+  type: z.string()
+});
+
+const propertiesSchema = z.object({
+  files: z.array(fileSchema),
+  category: z.string(),
+  creators: z.array(z.unknown()) // Adjust type if creators have a known structure
+});
+
+const payloadSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  external_url: z.string().optional(), // Allow empty string
+  image: z.string(),
+  attributes: z.array(attributeSchema),
+  properties: propertiesSchema,
+  compiler: z.string()
+});
+
+const payloadArraySchema = z.array(payloadSchema);
+export type TraitPayload = z.infer<typeof payloadSchema>;
 
 export const collectibleControllers = {
   getListableCollectibles: async (
@@ -265,6 +295,71 @@ export const collectibleControllers = {
       );
 
       return res.status(200).json({ success: true, data: result });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getCollectiblesForIpfsUpload: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user?.id)
+        throw new CustomError("Could not parse the id from the token.", 400);
+
+      const { offset, limit } = req.query;
+      const { collectionId } = req.query;
+
+      logger.info({ offset, limit, collectionId });
+
+      if (!collectionId || !offset || !limit)
+        throw new CustomError("Invalid input.", 400);
+
+      const collectibles =
+        await collectibleRepository.getCollectiblesWithNoCidByCollectionId(
+          collectionId.toString(),
+          parseInt(offset.toString()),
+          parseInt(limit.toString())
+        );
+
+      return res.status(200).json({ success: true, data: collectibles });
+    } catch (e) {
+      next(e);
+    }
+  },
+  uploadFileToIpfs: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user?.id)
+        throw new CustomError("Could not parse the id from the token.", 400);
+
+      const { collectibleId } = req.body;
+
+      await collectibleServices.uploadFileToIpfs(collectibleId);
+
+      return res.status(200).json({ success: true });
+    } catch (e) {
+      next(e);
+    }
+  },
+  insertTraits: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user?.id)
+        throw new CustomError("Could not parse the id from the token.", 400);
+
+      const data = payloadArraySchema.parse(req.body.items);
+
+      await collectibleServices.insertTraits(data);
+
+      return res.status(200).json({ success: true });
     } catch (e) {
       next(e);
     }

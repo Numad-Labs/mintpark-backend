@@ -2,7 +2,8 @@ import {
   CollectibleQueryParams,
   ipfsData,
   recursiveInscriptionParams,
-  traitFilter
+  traitFilter,
+  TraitPayload
 } from "../controllers/collectibleController";
 import { CustomError } from "../exceptions/CustomError";
 import { collectibleRepository } from "../repositories/collectibleRepository";
@@ -30,6 +31,10 @@ import { collectibleTraitRepository } from "../repositories/collectibleTraitRepo
 import { getBalance } from "../blockchain/bitcoin/libs";
 import logger from "../config/winston";
 import { BADGE_BATCH_SIZE } from "../libs/constants";
+import { launchRepository } from "repositories/launchRepository";
+import { DirectMintNFTService } from "blockchain/evm/services/nftService/directNFTService";
+import { traitTypeRepository } from "repositories/traitTypeRepository";
+import { capitalizeWords } from "libs/capitalizeWords";
 // import * as isIPFS from "is-ipfs";
 
 const validateCid = (cid: string): boolean => {
@@ -535,5 +540,121 @@ export const collectibleServices = {
     );
 
     return collectibles;
+  },
+  uploadFileToIpfs: async (collectibleId: string) => {
+    const collectible = await collectibleRepository.getById(db, collectibleId);
+    if (!collectible) throw new CustomError("Invalid collectible id.", 400);
+    if (!collectible.fileKey)
+      throw new CustomError("Invalid collectible file key.", 400);
+    if (collectible.cid) throw new CustomError("Already has cid.", 400);
+
+    const collection = await collectionRepository.getById(
+      db,
+      collectible.collectionId
+    );
+    if (!collection) throw new CustomError("Collection not found.", 400);
+
+    const layer = await layerRepository.getById(collection.layerId);
+    if (!layer || !layer.chainId)
+      throw new CustomError("Layer not found.", 400);
+
+    const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+    const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
+    const ipfsCid = await nftService.uploadS3FileToIpfs(
+      collectible.fileKey,
+      collectible.name || "Unnamed NFT"
+    );
+
+    await collectibleRepository.update(db, collectible.id, {
+      cid: ipfsCid
+    });
+  },
+  insertTraits: async (data: TraitPayload[]) => {
+    interface TraitTypeCache {
+      [key: string]: string;
+    }
+
+    interface TraitValueCache {
+      [key: string]: string;
+    }
+
+    const traitTypeCache: TraitTypeCache = {};
+    const traitValueCache: TraitValueCache = {};
+
+    // Process items in batches
+    for (let i = 0; i < data.length; i++) {
+      const batchTraits: Insertable<CollectibleTrait>[] = [];
+
+      const collectible = await collectibleRepository.getCollectibleByFilename(
+        data[i].image
+      );
+      if (!collectible) {
+        console.warn(`Collectible not found for image: ${data[i].image}`);
+        continue;
+      }
+
+      // Process attributes for the current item
+      for (const attribute of data[i].attributes) {
+        const trait_type = capitalizeWords(attribute.trait_type).trim();
+        const trait_value = capitalizeWords(attribute.value).trim();
+        const cacheKey = `${collectible.collectionId}-${trait_type}`;
+
+        // Get or create trait type
+        let traitTypeId = traitTypeCache[cacheKey];
+        if (!traitTypeId) {
+          const existingType =
+            await traitTypeRepository.getByNameAndCollectionId(
+              trait_type,
+              collectible.collectionId
+            );
+
+          if (existingType) {
+            traitTypeId = existingType.id;
+          } else {
+            const [newType] = await traitTypeRepository.bulkInsert([
+              {
+                name: trait_type,
+                collectionId: collectible.collectionId,
+                zIndex: 0
+              }
+            ]);
+            traitTypeId = newType.id;
+          }
+          traitTypeCache[cacheKey] = traitTypeId;
+        }
+
+        // Get or create trait value
+        const valueKey = `${traitTypeId}-${trait_value}`;
+        let traitValueId = traitValueCache[valueKey];
+        if (!traitValueId) {
+          const existingValue =
+            await traitValueRepository.getByTraitTypeIdAndValue(
+              traitTypeId,
+              trait_value
+            );
+
+          if (existingValue) {
+            traitValueId = existingValue.id;
+          } else {
+            const [newValue] = await traitValueRepository.bulkInsert([
+              {
+                fileKey: "",
+                value: trait_value,
+                traitTypeId
+              }
+            ]);
+            traitValueId = newValue.id;
+          }
+          traitValueCache[valueKey] = traitValueId;
+        }
+
+        batchTraits.push({
+          collectibleId: collectible.id,
+          traitValueId
+        });
+      }
+
+      await collectibleTraitRepository.bulkInsert(batchTraits);
+    }
   }
 };

@@ -11,6 +11,27 @@ import { authorize } from "../middlewares/authorize";
 const collectibleRouter = Router();
 
 collectibleRouter.get(
+  "/collectibles-for-ipfs-upload",
+  authenticateToken,
+  authorize("SUPER_ADMIN"),
+  collectibleControllers.getCollectiblesForIpfsUpload
+);
+
+collectibleRouter.post(
+  "/ipfs-file-upload",
+  authenticateToken,
+  authorize("SUPER_ADMIN"),
+  collectibleControllers.uploadFileToIpfs
+);
+
+collectibleRouter.post(
+  "/traits-insertion",
+  authenticateToken,
+  authorize("SUPER_ADMIN"),
+  collectibleControllers.insertTraits
+);
+
+collectibleRouter.get(
   "/:userId/listable",
   // authenticateToken,
   // collectibleslimiter,

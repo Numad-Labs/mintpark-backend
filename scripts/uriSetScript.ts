@@ -1,7 +1,7 @@
+import NFTService from "blockchain/evm/services/nftService";
 import { ethers } from "ethers";
-import { collectibleRepository } from "./repositories/collectibleRepository";
-import NFTService from "./blockchain/evm/services/nftService";
-import { db } from "./utils/db";
+import { collectibleRepository } from "repositories/collectibleRepository";
+import { db } from "utils/db";
 
 // Configuration - Replace these values
 const RPC_URL = "https://rpc.testnet.citrea.xyz";

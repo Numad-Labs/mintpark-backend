@@ -92,5 +92,15 @@ export const traitValueRepository = {
       .execute();
 
     return traitValues;
+  },
+  getByTraitTypeIdAndValue: async (traitTypeId: string, value: string) => {
+    const collectible = await db
+      .selectFrom("TraitValue")
+      .selectAll()
+      .where("TraitValue.traitTypeId", "=", traitTypeId)
+      .where("TraitValue.value", "=", value)
+      .executeTakeFirst();
+
+    return collectible;
   }
 };

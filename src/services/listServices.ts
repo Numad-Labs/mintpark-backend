@@ -99,6 +99,8 @@ export const listServices = {
       collectible?.collectionId
     );
     if (!collection) throw new CustomError("Collectible not found.", 400);
+    if (collection.status !== "CONFIRMED")
+      throw new CustomError("This collection cannot be listed yet.", 400);
     if (
       collection.type === "INSCRIPTION" ||
       collection.type === "RECURSIVE_INSCRIPTION"

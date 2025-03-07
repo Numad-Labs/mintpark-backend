@@ -608,5 +608,30 @@ export const collectibleRepository = {
       .execute();
 
     return collectibles;
+  },
+  getCollectiblesWithNoCidByCollectionId: async (
+    collectionId: string,
+    offset: number,
+    limit: number
+  ) => {
+    const collectibles = await db
+      .selectFrom("Collectible")
+      .selectAll()
+      .where("Collectible.collectionId", "=", collectionId)
+      .where("Collectible.cid", "is", null)
+      .offset(offset)
+      .limit(limit)
+      .execute();
+
+    return collectibles;
+  },
+  getCollectibleByFilename: async (filename: string) => {
+    const collectible = await db
+      .selectFrom("Collectible")
+      .selectAll()
+      .where("Collectible.fileName", "=", filename)
+      .executeTakeFirst();
+
+    return collectible;
   }
 };

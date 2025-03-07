@@ -282,12 +282,12 @@ export const launchServices = {
       launchItemsData
     );
 
-    if (isLastBatch) {
-      if (Number(existingLaunchItemCount) + launchItems.length <= 0)
-        throw new CustomError("Launch with no launch items.", 400);
+    // if (isLastBatch) {
+    //   if (Number(existingLaunchItemCount) + launchItems.length <= 0)
+    //     throw new CustomError("Launch with no launch items.", 400);
 
-      await launchRepository.update(launch.id, { status: "CONFIRMED" });
-    }
+    //   await launchRepository.update(launch.id, { status: "CONFIRMED" });
+    // }
 
     return { collectibles, launchItems };
   },
