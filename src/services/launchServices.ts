@@ -120,8 +120,9 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
     if (!txid) throw new CustomError("txid not found.", 400);
-    const transactionDetail =
-      await confirmationService.getTransactionDetails(txid);
+    const transactionDetail = await confirmationService.getTransactionDetails(
+      txid
+    );
     if (transactionDetail.status !== 1) {
       throw new CustomError(
         "Transaction not confirmed. Please try again.",
@@ -669,7 +670,8 @@ export const launchServices = {
     const { signature, uniqueId, timestamp } =
       await directMintService.generateMintSignature(
         collection.contractAddress,
-        user.address,
+        // user.address,
+        "0xAba4D17C285F234bFd722FF36123A4C9c6b73b71",
         tokenId,
         nftIpfsUrl,
         mintPrice.toString(),
@@ -684,7 +686,8 @@ export const launchServices = {
       uniqueId,
       timestamp,
       signature,
-      user.address
+      // user.address
+      "0xAba4D17C285F234bFd722FF36123A4C9c6b73b71"
     );
 
     logger.info(`Mint tx generated`, {
@@ -852,7 +855,9 @@ export const launchServices = {
 
     if (!tokenIdValidation.isValid) {
       throw new CustomError(
-        `Token validation failed: ${tokenIdValidation.error || "Invalid token or owner"}`,
+        `Token validation failed: ${
+          tokenIdValidation.error || "Invalid token or owner"
+        }`,
         400
       );
     }
