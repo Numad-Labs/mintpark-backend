@@ -10,7 +10,7 @@ import { collectionRepository } from "../repositories/collectionRepository";
 import { db } from "../utils/db";
 import { Insertable } from "kysely";
 import { TraitType, TraitValue } from "../types/db/types";
-import { capitalizeWords } from "libs/capitalizeWords";
+import { capitalizeWords } from "../libs/capitalizeWords";
 
 export const traitValueServices = {
   create: async (
