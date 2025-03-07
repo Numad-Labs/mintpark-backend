@@ -272,7 +272,7 @@ export default function () {
 
   randomSleep(0.3, 0.6);
 
-  const selectedLaunch = { launchId: "ee71bfb0-3098-4e48-a64c-f9f3f4663e0d" };
+  const selectedLaunch = { launchId: "7493be21-db44-42a7-9035-ca7bd606eeae" };
 
   randomSleep(0.3, 0.6);
 

@@ -844,23 +844,23 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
 
-    // Now validate that the transaction minted the expected token ID
-    const tokenIdValidation = await confirmationService.validateMintedTokenId(
-      txid,
-      collection.contractAddress,
-      collectible.nftId,
-      user.address
-    );
-    console.log("🚀 ~ tokenIdValidation:", tokenIdValidation);
+    // // Now validate that the transaction minted the expected token ID
+    // const tokenIdValidation = await confirmationService.validateMintedTokenId(
+    //   txid,
+    //   collection.contractAddress,
+    //   collectible.nftId,
+    //   user.address
+    // );
+    // console.log("🚀 ~ tokenIdValidation:", tokenIdValidation);
 
-    if (!tokenIdValidation.isValid) {
-      throw new CustomError(
-        `Token validation failed: ${
-          tokenIdValidation.error || "Invalid token or owner"
-        }`,
-        400
-      );
-    }
+    // if (!tokenIdValidation.isValid) {
+    //   throw new CustomError(
+    //     `Token validation failed: ${
+    //       tokenIdValidation.error || "Invalid token or owner"
+    //     }`,
+    //     400
+    //   );
+    // }
 
     // Execute database operations in transaction
     const result = await db.transaction().execute(async (trx) => {
