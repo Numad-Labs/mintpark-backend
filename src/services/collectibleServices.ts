@@ -32,9 +32,9 @@ import { getBalance } from "../blockchain/bitcoin/libs";
 import logger from "../config/winston";
 import { BADGE_BATCH_SIZE } from "../libs/constants";
 import { launchRepository } from "repositories/launchRepository";
-import { DirectMintNFTService } from "blockchain/evm/services/nftService/directNFTService";
-import { traitTypeRepository } from "repositories/traitTypeRepository";
-import { capitalizeWords } from "libs/capitalizeWords";
+import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
+import { traitTypeRepository } from "../repositories/traitTypeRepository";
+import { capitalizeWords } from "../libs/capitalizeWords";
 // import * as isIPFS from "is-ipfs";
 
 const validateCid = (cid: string): boolean => {
@@ -269,9 +269,8 @@ export const collectibleServices = {
         nftId: (startIndex + i).toString(),
         fileName: fileKeys[i].fileName
       });
-    const collectibles = await collectibleRepository.bulkInsert(
-      collectiblesData
-    );
+    const collectibles =
+      await collectibleRepository.bulkInsert(collectiblesData);
 
     return collectibles;
   },
@@ -353,12 +352,10 @@ export const collectibleServices = {
       }
     }
 
-    const collectibles = await collectibleRepository.bulkInsert(
-      collectiblesData
-    );
-    const collectibleTraits = await collectibleTraitRepository.bulkInsert(
-      collectibleTraitData
-    );
+    const collectibles =
+      await collectibleRepository.bulkInsert(collectiblesData);
+    const collectibleTraits =
+      await collectibleTraitRepository.bulkInsert(collectibleTraitData);
 
     return { collectibles, collectibleTraits };
   },
@@ -437,9 +434,8 @@ export const collectibleServices = {
         nftId: (startIndex + i).toString()
       });
     }
-    const collectibles = await collectibleRepository.bulkInsert(
-      collectiblesData
-    );
+    const collectibles =
+      await collectibleRepository.bulkInsert(collectiblesData);
 
     return collectibles;
   },
@@ -535,9 +531,8 @@ export const collectibleServices = {
         cid,
         fileKey
       });
-    const collectibles = await collectibleRepository.bulkInsert(
-      collectiblesData
-    );
+    const collectibles =
+      await collectibleRepository.bulkInsert(collectiblesData);
 
     return collectibles;
   },
