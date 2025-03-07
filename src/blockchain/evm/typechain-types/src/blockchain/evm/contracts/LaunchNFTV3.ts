@@ -91,6 +91,7 @@ export interface LaunchNFTV3Interface extends Interface {
       | "totalSupply"
       | "transferFrom"
       | "transferOwnership"
+      | "updatePhase"
   ): FunctionFragment;
 
   getEvent(
@@ -102,6 +103,7 @@ export interface LaunchNFTV3Interface extends Interface {
       | "MetadataUpdate"
       | "OwnershipTransferred"
       | "PhaseAdded"
+      | "PhaseUpdated"
       | "TokenMinted"
       | "Transfer"
   ): EventFragment;
@@ -238,6 +240,18 @@ export interface LaunchNFTV3Interface extends Interface {
     functionFragment: "transferOwnership",
     values: [AddressLike]
   ): string;
+  encodeFunctionData(
+    functionFragment: "updatePhase",
+    values: [
+      BigNumberish,
+      BigNumberish,
+      BigNumberish,
+      BigNumberish,
+      BigNumberish,
+      BigNumberish,
+      BigNumberish
+    ]
+  ): string;
 
   decodeFunctionResult(functionFragment: "addPhase", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "approve", data: BytesLike): Result;
@@ -341,6 +355,10 @@ export interface LaunchNFTV3Interface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "transferOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "updatePhase",
     data: BytesLike
   ): Result;
 }
@@ -454,6 +472,28 @@ export namespace PhaseAddedEvent {
     phaseType: bigint;
     price: bigint;
     endTime: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace PhaseUpdatedEvent {
+  export type InputTuple = [
+    phaseIndex: BigNumberish,
+    phaseType: BigNumberish,
+    price: BigNumberish
+  ];
+  export type OutputTuple = [
+    phaseIndex: bigint,
+    phaseType: bigint,
+    price: bigint
+  ];
+  export interface OutputObject {
+    phaseIndex: bigint;
+    phaseType: bigint;
+    price: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -721,6 +761,20 @@ export interface LaunchNFTV3 extends BaseContract {
     "nonpayable"
   >;
 
+  updatePhase: TypedContractMethod<
+    [
+      phaseIndex: BigNumberish,
+      _phaseType: BigNumberish,
+      _price: BigNumberish,
+      _startTime: BigNumberish,
+      _endTime: BigNumberish,
+      _maxSupply: BigNumberish,
+      _maxPerWallet: BigNumberish
+    ],
+    [void],
+    "nonpayable"
+  >;
+
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
@@ -929,6 +983,21 @@ export interface LaunchNFTV3 extends BaseContract {
   getFunction(
     nameOrSignature: "transferOwnership"
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "updatePhase"
+  ): TypedContractMethod<
+    [
+      phaseIndex: BigNumberish,
+      _phaseType: BigNumberish,
+      _price: BigNumberish,
+      _startTime: BigNumberish,
+      _endTime: BigNumberish,
+      _maxSupply: BigNumberish,
+      _maxPerWallet: BigNumberish
+    ],
+    [void],
+    "nonpayable"
+  >;
 
   getEvent(
     key: "Approval"
@@ -978,6 +1047,13 @@ export interface LaunchNFTV3 extends BaseContract {
     PhaseAddedEvent.InputTuple,
     PhaseAddedEvent.OutputTuple,
     PhaseAddedEvent.OutputObject
+  >;
+  getEvent(
+    key: "PhaseUpdated"
+  ): TypedContractEvent<
+    PhaseUpdatedEvent.InputTuple,
+    PhaseUpdatedEvent.OutputTuple,
+    PhaseUpdatedEvent.OutputObject
   >;
   getEvent(
     key: "TokenMinted"
@@ -1070,6 +1146,17 @@ export interface LaunchNFTV3 extends BaseContract {
       PhaseAddedEvent.InputTuple,
       PhaseAddedEvent.OutputTuple,
       PhaseAddedEvent.OutputObject
+    >;
+
+    "PhaseUpdated(uint256,uint8,uint256)": TypedContractEvent<
+      PhaseUpdatedEvent.InputTuple,
+      PhaseUpdatedEvent.OutputTuple,
+      PhaseUpdatedEvent.OutputObject
+    >;
+    PhaseUpdated: TypedContractEvent<
+      PhaseUpdatedEvent.InputTuple,
+      PhaseUpdatedEvent.OutputTuple,
+      PhaseUpdatedEvent.OutputObject
     >;
 
     "TokenMinted(uint256,address,uint8)": TypedContractEvent<

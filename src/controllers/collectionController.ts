@@ -261,6 +261,28 @@ export const collectionController = {
       next(e);
     }
   },
+  getPhasesByContractAddress: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { collectionId, layerId } = req.body;
+
+      if (!collectionId || !layerId)
+        throw new CustomError("Missing collectionId or layerId", 400);
+
+      const phases = await collectionServices.getPhasesByContractAddress({
+        collectionId,
+        layerId
+      });
+      if (!phases) throw new CustomError("phase not found", 404);
+
+      return res.status(200).json({ success: true, data: phases });
+    } catch (e) {
+      next(e);
+    }
+  },
   getListedCollections: async (
     req: Request<{}, {}, {}, CollectionQueryParams>,
     res: Response,

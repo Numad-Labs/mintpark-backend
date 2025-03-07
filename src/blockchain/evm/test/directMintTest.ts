@@ -789,4 +789,751 @@ describe("LaunchNFTV3 Tests", () => {
       expect(await contract.balanceOf(minter.address)).to.equal(numTokens);
     });
   });
+
+  describe("Phase Update Tests", () => {
+    it("should correctly update a WHITELIST phase", async () => {
+      // Add initial whitelist phase
+      const initialPrice = "0.1";
+      const initialMaxSupply = 10;
+      const initialMaxPerWallet = 2;
+
+      await addPhase(
+        PhaseType.WHITELIST,
+        initialPrice,
+        100, // start in 100 seconds
+        500, // duration 500 seconds
+        initialMaxSupply,
+        initialMaxPerWallet
+      );
+
+      // Get the phase before update
+      const phaseIndex = 0; // First phase
+      const phaseBefore = await contract.phases(phaseIndex);
+
+      // Update the phase
+      const newPrice = "0.15";
+      const newStartOffset = 200;
+      const newDuration = 600;
+      const newMaxSupply = 15;
+      const newMaxPerWallet = 3;
+
+      const newStartTime = currentTimestamp + newStartOffset;
+      const newEndTime = newStartTime + newDuration;
+
+      await contract
+        .connect(owner)
+        .updatePhase(
+          phaseIndex,
+          PhaseType.WHITELIST,
+          ethers.parseEther(newPrice),
+          BigInt(newStartTime),
+          BigInt(newEndTime),
+          newMaxSupply,
+          newMaxPerWallet
+        );
+
+      // Get the phase after update
+      const phaseAfter = await contract.phases(phaseIndex);
+
+      // Verify changes
+      expect(phaseAfter.phaseType).to.equal(PhaseType.WHITELIST);
+      expect(phaseAfter.price).to.equal(ethers.parseEther(newPrice));
+      expect(phaseAfter.startTime).to.equal(newStartTime);
+      expect(phaseAfter.endTime).to.equal(newEndTime);
+      expect(phaseAfter.maxSupply).to.equal(newMaxSupply);
+      expect(phaseAfter.maxPerWallet).to.equal(newMaxPerWallet);
+
+      // Advance time to the updated phase start
+      await advanceTimeAndBlock(newStartOffset);
+
+      // Verify we can mint with new price
+      const [activePhaseIndex] = await contract.getActivePhase();
+      await mintTokenInPhase(
+        minter,
+        "1",
+        "ipfs://updated-whitelist",
+        newPrice,
+        Number(activePhaseIndex)
+      );
+
+      // Verify ownership
+      expect(await contract.ownerOf("1")).to.equal(minter.address);
+    });
+
+    it("should correctly update an FCFS phase", async () => {
+      // Add initial FCFS phase
+      const initialPrice = "0.2";
+      const initialMaxSupply = 20;
+      const initialMaxPerWallet = 3;
+
+      await addPhase(
+        PhaseType.FCFS,
+        initialPrice,
+        100, // start in 100 seconds
+        500, // duration 500 seconds
+        initialMaxSupply,
+        initialMaxPerWallet
+      );
+
+      // Get the phase before update
+      const phaseIndex = 0; // First phase
+      const phaseBefore = await contract.phases(phaseIndex);
+
+      // Update the phase
+      const newPrice = "0.25";
+      const newStartOffset = 200;
+      const newDuration = 700;
+      const newMaxSupply = 25;
+      const newMaxPerWallet = 5;
+
+      const newStartTime = currentTimestamp + newStartOffset;
+      const newEndTime = newStartTime + newDuration;
+
+      await contract
+        .connect(owner)
+        .updatePhase(
+          phaseIndex,
+          PhaseType.FCFS,
+          ethers.parseEther(newPrice),
+          BigInt(newStartTime),
+          BigInt(newEndTime),
+          newMaxSupply,
+          newMaxPerWallet
+        );
+
+      // Get the phase after update
+      const phaseAfter = await contract.phases(phaseIndex);
+
+      // Verify changes
+      expect(phaseAfter.phaseType).to.equal(PhaseType.FCFS);
+      expect(phaseAfter.price).to.equal(ethers.parseEther(newPrice));
+      expect(phaseAfter.startTime).to.equal(newStartTime);
+      expect(phaseAfter.endTime).to.equal(newEndTime);
+      expect(phaseAfter.maxSupply).to.equal(newMaxSupply);
+      expect(phaseAfter.maxPerWallet).to.equal(newMaxPerWallet);
+
+      // Advance time to the updated phase start
+      await advanceTimeAndBlock(newStartOffset);
+
+      // Verify we can mint with new price
+      const [activePhaseIndex] = await contract.getActivePhase();
+      await mintTokenInPhase(
+        minter,
+        "1",
+        "ipfs://updated-fcfs",
+        newPrice,
+        Number(activePhaseIndex)
+      );
+
+      // Verify ownership
+      expect(await contract.ownerOf("1")).to.equal(minter.address);
+
+      // Verify the wallet minting limit
+      for (let i = 2; i <= newMaxPerWallet; i++) {
+        await mintTokenInPhase(
+          minter,
+          i.toString(),
+          `ipfs://updated-fcfs-${i}`,
+          newPrice,
+          Number(activePhaseIndex)
+        );
+      }
+
+      // Attempt to mint beyond the new wallet limit
+      const signatureTimestamp = currentTimestamp + 5;
+      const { signature, uniqueId, timestamp } = await signMintRequest(
+        minter.address,
+        (newMaxPerWallet + 1).toString(),
+        "ipfs://updated-fcfs-beyond-limit",
+        newPrice,
+        Number(activePhaseIndex),
+        signatureTimestamp
+      );
+
+      await advanceTimeAndBlock(10);
+
+      // This should fail due to the new wallet limit
+      await expect(
+        contract
+          .connect(minter)
+          .mint(
+            (newMaxPerWallet + 1).toString(),
+            "ipfs://updated-fcfs-beyond-limit",
+            uniqueId,
+            timestamp,
+            signature,
+            { value: ethers.parseEther(newPrice) }
+          )
+      ).to.be.revertedWith("Wallet limit reached for this phase");
+    });
+
+    it("should correctly update a PUBLIC phase", async () => {
+      // Add initial PUBLIC phase
+      const initialPrice = "0.3";
+      const initialMaxSupply = 0; // unlimited
+      const initialMaxPerWallet = 0; // unlimited
+
+      await addPhase(
+        PhaseType.PUBLIC,
+        initialPrice,
+        100, // start in 100 seconds
+        500, // duration 500 seconds
+        initialMaxSupply,
+        initialMaxPerWallet
+      );
+
+      // Get the phase before update
+      const phaseIndex = 0; // First phase
+      const phaseBefore = await contract.phases(phaseIndex);
+
+      // Update the phase
+      const newPrice = "0.35";
+      const newStartOffset = 200;
+      const newDuration = 800;
+      const newMaxSupply = 50; // now limited
+      const newMaxPerWallet = 10; // now limited
+
+      const newStartTime = currentTimestamp + newStartOffset;
+      const newEndTime = newStartTime + newDuration;
+
+      await contract
+        .connect(owner)
+        .updatePhase(
+          phaseIndex,
+          PhaseType.PUBLIC,
+          ethers.parseEther(newPrice),
+          BigInt(newStartTime),
+          BigInt(newEndTime),
+          newMaxSupply,
+          newMaxPerWallet
+        );
+
+      // Get the phase after update
+      const phaseAfter = await contract.phases(phaseIndex);
+
+      // Verify changes
+      expect(phaseAfter.phaseType).to.equal(PhaseType.PUBLIC);
+      expect(phaseAfter.price).to.equal(ethers.parseEther(newPrice));
+      expect(phaseAfter.startTime).to.equal(newStartTime);
+      expect(phaseAfter.endTime).to.equal(newEndTime);
+      expect(phaseAfter.maxSupply).to.equal(newMaxSupply);
+      expect(phaseAfter.maxPerWallet).to.equal(newMaxPerWallet);
+
+      // Advance time to the updated phase start
+      await advanceTimeAndBlock(newStartOffset);
+
+      // Verify we can mint with new price
+      const [activePhaseIndex] = await contract.getActivePhase();
+      await mintTokenInPhase(
+        minter,
+        "1",
+        "ipfs://updated-public",
+        newPrice,
+        Number(activePhaseIndex)
+      );
+
+      // Verify ownership
+      expect(await contract.ownerOf("1")).to.equal(minter.address);
+    });
+
+    it("should handle changing a phase type during update", async () => {
+      // Add initial WHITELIST phase
+      const initialPrice = "0.1";
+      await addPhase(
+        PhaseType.WHITELIST,
+        initialPrice,
+        100, // start in 100 seconds
+        500, // duration 500 seconds
+        10, // maxSupply
+        2 // maxPerWallet
+      );
+
+      // Get the phase before update
+      const phaseIndex = 0; // First phase
+      const phaseBefore = await contract.phases(phaseIndex);
+      expect(phaseBefore.phaseType).to.equal(PhaseType.WHITELIST);
+
+      // Update the phase type to PUBLIC
+      const newPrice = "0.2";
+      const newStartOffset = 200;
+      const newDuration = 600;
+
+      const newStartTime = currentTimestamp + newStartOffset;
+      const newEndTime = newStartTime + newDuration;
+
+      await contract.connect(owner).updatePhase(
+        phaseIndex,
+        PhaseType.PUBLIC, // Changed from WHITELIST to PUBLIC
+        ethers.parseEther(newPrice),
+        BigInt(newStartTime),
+        BigInt(newEndTime),
+        0, // unlimited supply for public
+        0 // unlimited per wallet for public
+      );
+
+      // Get the phase after update
+      const phaseAfter = await contract.phases(phaseIndex);
+
+      // Verify the phase type changed
+      expect(phaseAfter.phaseType).to.equal(PhaseType.PUBLIC);
+
+      // Advance time to the updated phase start
+      await advanceTimeAndBlock(newStartOffset);
+
+      // Verify we can mint with new price under PUBLIC phase rules
+      const [activePhaseIndex] = await contract.getActivePhase();
+
+      // Should be able to mint multiple tokens without per-wallet limit
+      for (let i = 1; i <= 5; i++) {
+        await mintTokenInPhase(
+          minter,
+          i.toString(),
+          `ipfs://changed-type-${i}`,
+          newPrice,
+          Number(activePhaseIndex)
+        );
+      }
+
+      // Verify all tokens were minted
+      for (let i = 1; i <= 5; i++) {
+        expect(await contract.ownerOf(i.toString())).to.equal(minter.address);
+      }
+    });
+
+    it("should prevent overlapping phases when updating", async () => {
+      // Add first phase
+      await addPhase(
+        PhaseType.WHITELIST,
+        "0.1",
+        100, // start in 100 seconds
+        500 // duration 500 seconds
+      );
+
+      // Add second phase after first
+      await addPhase(
+        PhaseType.PUBLIC,
+        "0.2",
+        700, // starts 100s after first phase ends
+        500 // duration 500 seconds
+      );
+
+      // Try to update first phase to overlap with second
+      const phaseIndex = 0;
+      const newStartOffset = 100;
+      const newDuration = 700; // This would overlap with second phase
+
+      const newStartTime = currentTimestamp + newStartOffset;
+      const newEndTime = newStartTime + newDuration;
+
+      // Update should be rejected
+      await expect(
+        contract
+          .connect(owner)
+          .updatePhase(
+            phaseIndex,
+            PhaseType.WHITELIST,
+            ethers.parseEther("0.15"),
+            BigInt(newStartTime),
+            BigInt(newEndTime),
+            10,
+            2
+          )
+      ).to.be.revertedWith("Phase time overlaps with existing phase");
+    });
+
+    it("should enforce valid max per wallet values for non-public phases", async () => {
+      // Add initial phase
+      await addPhase(PhaseType.WHITELIST, "0.1", 100, 500, 10, 2);
+
+      // Try to update to invalid values
+      const phaseIndex = 0;
+      const newStartOffset = 200;
+      const newDuration = 600;
+
+      const newStartTime = currentTimestamp + newStartOffset;
+      const newEndTime = newStartTime + newDuration;
+
+      // Should reject maxPerWallet = 0 for WHITELIST
+      await expect(
+        contract.connect(owner).updatePhase(
+          phaseIndex,
+          PhaseType.WHITELIST,
+          ethers.parseEther("0.15"),
+          BigInt(newStartTime),
+          BigInt(newEndTime),
+          10,
+          0 // Invalid for WHITELIST
+        )
+      ).to.be.revertedWith("Invalid max per wallet for non-public phase");
+
+      // Should also reject for FCFS
+      await expect(
+        contract.connect(owner).updatePhase(
+          phaseIndex,
+          PhaseType.FCFS,
+          ethers.parseEther("0.15"),
+          BigInt(newStartTime),
+          BigInt(newEndTime),
+          10,
+          0 // Invalid for FCFS
+        )
+      ).to.be.revertedWith("Invalid max per wallet for non-public phase");
+
+      // But should accept for PUBLIC
+      await contract.connect(owner).updatePhase(
+        phaseIndex,
+        PhaseType.PUBLIC,
+        ethers.parseEther("0.15"),
+        BigInt(newStartTime),
+        BigInt(newEndTime),
+        10,
+        0 // Valid for PUBLIC
+      );
+
+      const phaseAfter = await contract.phases(phaseIndex);
+      expect(phaseAfter.phaseType).to.equal(PhaseType.PUBLIC);
+      expect(phaseAfter.maxPerWallet).to.equal(0);
+    });
+
+    it("should validate phase index when updating", async () => {
+      // Try to update a non-existent phase
+      const invalidPhaseIndex = 99; // Assuming we don't have 100 phases
+
+      await expect(
+        contract
+          .connect(owner)
+          .updatePhase(
+            invalidPhaseIndex,
+            PhaseType.PUBLIC,
+            ethers.parseEther("0.15"),
+            BigInt(currentTimestamp + 100),
+            BigInt(currentTimestamp + 600),
+            10,
+            5
+          )
+      ).to.be.revertedWith("Invalid phase index");
+    });
+
+    it("should only allow owner to update phases", async () => {
+      // Add a phase first
+      await addPhase(PhaseType.PUBLIC, "0.1", 100, 500);
+
+      // Non-owner tries to update
+      const phaseIndex = 0;
+
+      await expect(
+        contract.connect(minter).updatePhase(
+          // minter is not owner
+          phaseIndex,
+          PhaseType.PUBLIC,
+          ethers.parseEther("0.15"),
+          BigInt(currentTimestamp + 100),
+          BigInt(currentTimestamp + 600),
+          10,
+          5
+        )
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+  });
+
+  describe("Complete Phase Update Test", () => {
+    it("should correctly update all parameters of each phase when all phases are set", async () => {
+      // ==================== SETUP INITIAL PHASES ====================
+      // Set up all three phases with clear spacing between them
+
+      // Define initial time slots with gaps between phases
+      const initialPhase1Start = currentTimestamp + 100;
+      const initialPhase1End = initialPhase1Start + 300;
+
+      const initialPhase2Start = initialPhase1End + 100; // Gap after phase 1
+      const initialPhase2End = initialPhase2Start + 300;
+
+      const initialPhase3Start = initialPhase2End + 100; // Gap after phase 2
+      const initialPhase3End = initialPhase3Start + 300;
+
+      // Set initial prices, maxSupply, and maxPerWallet
+      const initialWhitelistPrice = "0.1";
+      const initialFcfsPrice = "0.15";
+      const initialPublicPrice = "0.2";
+
+      // Add WHITELIST phase
+      await contract.connect(owner).addPhase(
+        PhaseType.WHITELIST,
+        ethers.parseEther(initialWhitelistPrice),
+        BigInt(initialPhase1Start),
+        BigInt(initialPhase1End),
+        10, // maxSupply
+        2 // maxPerWallet
+      );
+
+      // Add FCFS phase
+      await contract.connect(owner).addPhase(
+        PhaseType.FCFS,
+        ethers.parseEther(initialFcfsPrice),
+        BigInt(initialPhase2Start),
+        BigInt(initialPhase2End),
+        20, // maxSupply
+        3 // maxPerWallet
+      );
+
+      // Add PUBLIC phase
+      await contract.connect(owner).addPhase(
+        PhaseType.PUBLIC,
+        ethers.parseEther(initialPublicPrice),
+        BigInt(initialPhase3Start),
+        BigInt(initialPhase3End),
+        0, // unlimited supply
+        0 // unlimited per wallet
+      );
+
+      // Verify initial phase setup
+      expect(await contract.getPhaseCount()).to.equal(3);
+
+      // ==================== UPDATE WHITELIST PHASE (ALL PARAMETERS) ====================
+      // Define new parameters for WHITELIST phase
+      const newWhitelistPrice = "0.12";
+      const newWhitelistMaxSupply = 15;
+      const newWhitelistMaxPerWallet = 3;
+
+      // Define new time slots with DIFFERENT timing but still no overlap
+      const newPhase1Start = initialPhase1Start + 50; // Start 50s later
+      const newPhase1End = initialPhase1End - 50; // End 50s earlier
+
+      // Update WHITELIST phase with all new parameters
+      await contract.connect(owner).updatePhase(
+        0, // WHITELIST phase index
+        PhaseType.WHITELIST, // Same type
+        ethers.parseEther(newWhitelistPrice),
+        BigInt(newPhase1Start),
+        BigInt(newPhase1End),
+        newWhitelistMaxSupply,
+        newWhitelistMaxPerWallet
+      );
+
+      // Verify WHITELIST phase updates
+      const updatedPhase0 = await contract.phases(0);
+      expect(updatedPhase0.price).to.equal(
+        ethers.parseEther(newWhitelistPrice)
+      );
+      expect(updatedPhase0.startTime).to.equal(BigInt(newPhase1Start));
+      expect(updatedPhase0.endTime).to.equal(BigInt(newPhase1End));
+      expect(updatedPhase0.maxSupply).to.equal(newWhitelistMaxSupply);
+      expect(updatedPhase0.maxPerWallet).to.equal(newWhitelistMaxPerWallet);
+
+      // ==================== UPDATE FCFS PHASE (ALL PARAMETERS) ====================
+      // Define new parameters for FCFS phase
+      const newFcfsPrice = "0.18";
+      const newFcfsMaxSupply = 25;
+      const newFcfsMaxPerWallet = 4;
+
+      // Define new time slots with DIFFERENT timing but still no overlap
+      const newPhase2Start = initialPhase2Start + 50; // Start 50s later
+      const newPhase2End = initialPhase2End - 50; // End 50s earlier
+
+      // Update FCFS phase with all new parameters
+      await contract.connect(owner).updatePhase(
+        1, // FCFS phase index
+        PhaseType.FCFS, // Same type
+        ethers.parseEther(newFcfsPrice),
+        BigInt(newPhase2Start),
+        BigInt(newPhase2End),
+        newFcfsMaxSupply,
+        newFcfsMaxPerWallet
+      );
+
+      // Verify FCFS phase updates
+      const updatedPhase1 = await contract.phases(1);
+      expect(updatedPhase1.price).to.equal(ethers.parseEther(newFcfsPrice));
+      expect(updatedPhase1.startTime).to.equal(BigInt(newPhase2Start));
+      expect(updatedPhase1.endTime).to.equal(BigInt(newPhase2End));
+      expect(updatedPhase1.maxSupply).to.equal(newFcfsMaxSupply);
+      expect(updatedPhase1.maxPerWallet).to.equal(newFcfsMaxPerWallet);
+
+      // ==================== UPDATE PUBLIC PHASE (ALL PARAMETERS) ====================
+      // Define new parameters for PUBLIC phase
+      const newPublicPrice = "0.25";
+      const newPublicMaxSupply = 50; // Set a limit
+      const newPublicMaxPerWallet = 10; // Set a limit
+
+      // Define new time slots with DIFFERENT timing but still no overlap
+      const newPhase3Start = initialPhase3Start + 50; // Start 50s later
+      const newPhase3End = initialPhase3End - 50; // End 50s earlier
+
+      // Update PUBLIC phase with all new parameters
+      await contract.connect(owner).updatePhase(
+        2, // PUBLIC phase index
+        PhaseType.PUBLIC, // Same type
+        ethers.parseEther(newPublicPrice),
+        BigInt(newPhase3Start),
+        BigInt(newPhase3End),
+        newPublicMaxSupply,
+        newPublicMaxPerWallet
+      );
+
+      // Verify PUBLIC phase updates
+      const updatedPhase2 = await contract.phases(2);
+      expect(updatedPhase2.price).to.equal(ethers.parseEther(newPublicPrice));
+      expect(updatedPhase2.startTime).to.equal(BigInt(newPhase3Start));
+      expect(updatedPhase2.endTime).to.equal(BigInt(newPhase3End));
+      expect(updatedPhase2.maxSupply).to.equal(newPublicMaxSupply);
+      expect(updatedPhase2.maxPerWallet).to.equal(newPublicMaxPerWallet);
+
+      // ==================== TEST WHITELIST PHASE - TIMING AND PARAMETERS ====================
+      // Advance to updated WHITELIST phase
+      await advanceTimeAndBlock(newPhase1Start - currentTimestamp + 10);
+
+      // Get the latest timestamp
+      const latestBlock1 = await ethers.provider.getBlock("latest");
+      currentTimestamp = Number(latestBlock1!.timestamp);
+
+      // Verify active phase is WHITELIST
+      const [whitelistPhaseIndex, whitelistPhase] =
+        await contract.getActivePhase();
+      expect(whitelistPhase.phaseType).to.equal(PhaseType.WHITELIST);
+
+      // Test all parameters by minting multiple tokens
+      // This tests both price and maxPerWallet
+      for (let i = 1; i <= newWhitelistMaxPerWallet; i++) {
+        await mintTokenInPhase(
+          minter,
+          i.toString(),
+          `ipfs://whitelist-${i}`,
+          newWhitelistPrice,
+          Number(whitelistPhaseIndex)
+        );
+      }
+
+      // Verify minted tokens
+      for (let i = 1; i <= newWhitelistMaxPerWallet; i++) {
+        expect(await contract.ownerOf(i.toString())).to.equal(minter.address);
+      }
+
+      // ==================== TEST FCFS PHASE - TIMING AND PARAMETERS ====================
+      // Advance to updated FCFS phase
+      await advanceTimeAndBlock(newPhase2Start - currentTimestamp + 10);
+
+      // Get the latest timestamp
+      const latestBlock2 = await ethers.provider.getBlock("latest");
+      currentTimestamp = Number(latestBlock2!.timestamp);
+
+      // Verify active phase is FCFS
+      const [fcfsPhaseIndex, fcfsPhase] = await contract.getActivePhase();
+      expect(fcfsPhase.phaseType).to.equal(PhaseType.FCFS);
+
+      // Test all parameters by minting multiple tokens
+      // Start token ID where whitelist ended
+      const fcfsStartId = newWhitelistMaxPerWallet + 1;
+      for (let i = 0; i < newFcfsMaxPerWallet; i++) {
+        const tokenId = (fcfsStartId + i).toString();
+        await mintTokenInPhase(
+          minter,
+          tokenId,
+          `ipfs://fcfs-${tokenId}`,
+          newFcfsPrice,
+          Number(fcfsPhaseIndex)
+        );
+      }
+
+      // Verify minted tokens
+      for (let i = fcfsStartId; i < fcfsStartId + newFcfsMaxPerWallet; i++) {
+        expect(await contract.ownerOf(i.toString())).to.equal(minter.address);
+      }
+
+      // ==================== TEST PUBLIC PHASE - TIMING AND PARAMETERS ====================
+      // Advance to updated PUBLIC phase
+      await advanceTimeAndBlock(newPhase3Start - currentTimestamp + 10);
+
+      // Get the latest timestamp
+      const latestBlock3 = await ethers.provider.getBlock("latest");
+      currentTimestamp = Number(latestBlock3!.timestamp);
+
+      // Verify active phase is PUBLIC
+      const [publicPhaseIndex, publicPhase] = await contract.getActivePhase();
+      expect(publicPhase.phaseType).to.equal(PhaseType.PUBLIC);
+
+      // Test all parameters by minting multiple tokens
+      // Start token ID where FCFS ended, but limit to just 3 mints for brevity
+      const publicStartId = fcfsStartId + newFcfsMaxPerWallet;
+      const publicTestMints = 3; // Just mint a few to test
+
+      for (let i = 0; i < publicTestMints; i++) {
+        const tokenId = (publicStartId + i).toString();
+        await mintTokenInPhase(
+          minter,
+          tokenId,
+          `ipfs://public-${tokenId}`,
+          newPublicPrice,
+          Number(publicPhaseIndex)
+        );
+      }
+
+      // Verify minted tokens
+      for (let i = publicStartId; i < publicStartId + publicTestMints; i++) {
+        expect(await contract.ownerOf(i.toString())).to.equal(minter.address);
+      }
+    });
+
+    it("should reject updates that would cause phase overlap", async () => {
+      // ==================== SETUP INITIAL PHASES ====================
+      // Set up phases with minimal gaps
+      const initialPhase1Start = currentTimestamp + 100;
+      const initialPhase1End = initialPhase1Start + 300;
+
+      const initialPhase2Start = initialPhase1End + 10; // Small gap
+      const initialPhase2End = initialPhase2Start + 300;
+
+      // Add two phases
+      await contract
+        .connect(owner)
+        .addPhase(
+          PhaseType.WHITELIST,
+          ethers.parseEther("0.1"),
+          BigInt(initialPhase1Start),
+          BigInt(initialPhase1End),
+          10,
+          2
+        );
+
+      await contract
+        .connect(owner)
+        .addPhase(
+          PhaseType.FCFS,
+          ethers.parseEther("0.15"),
+          BigInt(initialPhase2Start),
+          BigInt(initialPhase2End),
+          20,
+          3
+        );
+
+      // Try to update the first phase to overlap with the second
+      const newPhase1End = initialPhase1End + 20; // This would overlap
+
+      await expect(
+        contract.connect(owner).updatePhase(
+          0, // First phase
+          PhaseType.WHITELIST,
+          ethers.parseEther("0.12"),
+          BigInt(initialPhase1Start),
+          BigInt(newPhase1End), // This end time overlaps with phase 2
+          15,
+          3
+        )
+      ).to.be.revertedWith("Phase time overlaps with existing phase");
+
+      // Try to update the second phase to overlap with the first
+      const newPhase2Start = initialPhase2Start - 20; // This would overlap
+
+      await expect(
+        contract.connect(owner).updatePhase(
+          1, // Second phase
+          PhaseType.FCFS,
+          ethers.parseEther("0.18"),
+          BigInt(newPhase2Start), // This start time overlaps with phase 1
+          BigInt(initialPhase2End),
+          25,
+          4
+        )
+      ).to.be.revertedWith("Phase time overlaps with existing phase");
+    });
+  });
 });

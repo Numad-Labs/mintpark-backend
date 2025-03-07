@@ -246,142 +246,7 @@ export const collectionServices = {
 
     return serializeBigInt(unsignedTx);
   },
-  // updatePhase: async ({
-  //   collectionId,
-  //   launchId,
-  //   phaseIndex,
-  //   phaseType,
-  //   price,
-  //   startTime,
-  //   endTime,
-  //   maxSupply,
-  //   maxPerWallet,
-  //   merkleRoot,
-  //   layerId,
-  //   userId,
-  //   userLayerId
-  // }: {
-  //   collectionId: string;
-  //   launchId: string;
-  //   phaseIndex: number;
-  //   phaseType: number;
-  //   price: string;
-  //   startTime: number;
-  //   endTime: number;
-  //   maxSupply: number;
-  //   maxPerWallet: number;
-  //   merkleRoot: string;
-  //   layerId: string;
-  //   userId: string;
-  //   userLayerId: string;
-  // }) => {
-  //   // Get collection and verify ownership
-  //   const collection = await collectionRepository.getById(db, collectionId);
-  //   if (!collection) {
-  //     throw new CustomError("Collection not found", 404);
-  //   }
 
-  //   if (collection.creatorId !== userId) {
-  //     throw new CustomError(
-  //       "You are not authorized to modify this collection",
-  //       403
-  //     );
-  //   }
-
-  //   // Verify collection status
-  //   if (collection.status !== "UNCONFIRMED") {
-  //     throw new CustomError(
-  //       "Collection must be in UNCONFIRMED status to update phases",
-  //       400
-  //     );
-  //   }
-
-  //   // Get layer and validate
-  //   const layer = await layerServices.checkIfSupportedLayerOrThrow(layerId);
-  //   if (!layer.chainId) {
-  //     throw new CustomError("Invalid layer for phase setup", 400);
-  //   }
-
-  //   // Get user and validate
-  //   const user = await userRepository.getByUserLayerId(userLayerId);
-  //   if (!user) {
-  //     throw new CustomError("User not found", 404);
-  //   }
-  //   if (!user.isActive) {
-  //     throw new CustomError("This account is deactivated", 400);
-  //   }
-  //   if (user.layer !== layer.layer || user.network !== layer.network) {
-  //     throw new CustomError(
-  //       "You cannot modify collection for this layerId with the current active account",
-  //       400
-  //     );
-  //   }
-
-  //   if (!collection.contractAddress) {
-  //     throw new CustomError("Collection contract address not found", 400);
-  //   }
-
-  //   // Initialize NFT service
-  //   const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
-  //   const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
-
-  //   // For whitelist phase, validate merkle root
-  //   if (phaseType === 1 && !merkleRoot) {
-  //     // 1 is whitelist phase
-  //     throw new CustomError("Merkle root is required for whitelist phase", 400);
-  //   }
-
-  //   // Validate phase index
-  //   const phaseCount = await directMintService.getPhaseCount(
-  //     collection.contractAddress
-  //   );
-  //   if (phaseIndex < 0 || phaseIndex >= Number(phaseCount)) {
-  //     throw new CustomError(
-  //       `Invalid phase index. Must be between 0 and ${Number(phaseCount) - 1}`,
-  //       400
-  //     );
-  //   }
-
-  //   // Get unsigned transaction
-  //   const unsignedTx =
-  //     await directMintService.getUnsignedUpdatePhaseTransaction(
-  //       collection.contractAddress,
-  //       phaseIndex,
-  //       phaseType,
-  //       price,
-  //       startTime,
-  //       endTime,
-  //       maxSupply,
-  //       maxPerWallet,
-  //       merkleRoot || ethers.ZeroHash, // Use zero hash for public phase
-  //       user.address
-  //     );
-
-  //   await collectionRepository.update(db, collectionId, {
-  //     updatedAt: new Date()
-  //   });
-
-  //   if (phaseType == 1) {
-  //     await launchRepository.update(launchId, {
-  //       wlEndsAt: endTime.toString(),
-  //       wlStartsAt: startTime.toString(),
-  //       wlMintPrice: parseInt(price),
-  //       wlMaxMintPerWallet: maxPerWallet,
-  //       updatedAt: new Date()
-  //     });
-  //   } else if (phaseType == 2) {
-  //     await launchRepository.update(launchId, {
-  //       poEndsAt: endTime.toString(),
-  //       poStartsAt: startTime.toString(),
-  //       poMintPrice: parseInt(price),
-  //       poMaxMintPerWallet: maxPerWallet,
-  //       updatedAt: new Date()
-  //     });
-  //   } else {
-  //     throw new CustomError("Invalid phase type", 400);
-  //   }
-  //   return serializeBigInt(unsignedTx);
-  // },
   updatePhase: async ({
     collectionId,
     launchId,
@@ -424,15 +289,6 @@ export const collectionServices = {
       );
     }
 
-    //todo: unconfirmed bhd l update hiideg bh uu?
-    // // Verify collection status
-    // if (collection.status !== "UNCONFIRMED") {
-    //   throw new CustomError(
-    //     "Collection must be in UNCONFIRMED status to update phases",
-    //     400
-    //   );
-    // }
-
     // Get layer and validate
     const layer = await layerServices.checkIfSupportedLayerOrThrow(layerId);
     if (!layer.chainId) {
@@ -462,12 +318,6 @@ export const collectionServices = {
     const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
     const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
 
-    // For whitelist phase, validate merkle root
-    if (phaseType === 1 && !merkleRoot) {
-      // 1 is whitelist phase
-      throw new CustomError("Merkle root is required for whitelist phase", 400);
-    }
-
     // Validate phase index
     const phaseCount = await directMintService.getPhaseCount(
       collection.contractAddress
@@ -477,6 +327,35 @@ export const collectionServices = {
         `Invalid phase index. Must be between 0 and ${Number(phaseCount) - 1}`,
         400
       );
+    }
+
+    // Get all phases to check for overlaps
+    const phasesResponse = await directMintService.getAllPhases(
+      collection.contractAddress
+    );
+    const allPhases = phasesResponse.phases;
+
+    // Check for time overlaps with other phases
+    for (let i = 0; i < allPhases.length; i++) {
+      if (i === phaseIndex) continue; // Skip the phase we're updating
+
+      const otherPhase = allPhases[i];
+      const otherStart = otherPhase.startTime;
+      const otherEnd = otherPhase.endTime;
+
+      // Check if there's an overlap
+      const hasOverlap =
+        (startTime <= otherEnd || otherEnd === 0) && // Our start is before other's end (or other has no end)
+        (endTime >= otherStart || endTime === 0); // Our end is after other's start (or we have no end)
+
+      if (hasOverlap) {
+        throw new CustomError(
+          `Phase time overlaps with existing ${otherPhase.phaseTypeName} phase (index ${i}). ` +
+            `It runs from ${new Date(otherStart * 1000).toLocaleString()} to ` +
+            `${otherEnd > 0 ? new Date(otherEnd * 1000).toLocaleString() : "no end date"}.`,
+          400
+        );
+      }
     }
 
     // Get unsigned transaction
@@ -502,15 +381,23 @@ export const collectionServices = {
       await launchRepository.update(launchId, {
         wlEndsAt: endTime.toString(),
         wlStartsAt: startTime.toString(),
-        wlMintPrice: parseInt(price),
+        wlMintPrice: parseFloat(price),
         wlMaxMintPerWallet: maxPerWallet,
+        updatedAt: new Date()
+      });
+    } else if (phaseType == 1) {
+      await launchRepository.update(launchId, {
+        fcfsEndsAt: endTime.toString(),
+        fcfsStartsAt: startTime.toString(),
+        fcfsMintPrice: parseFloat(price),
+        fcfsMaxMintPerWallet: maxPerWallet,
         updatedAt: new Date()
       });
     } else if (phaseType == 2) {
       await launchRepository.update(launchId, {
         poEndsAt: endTime.toString(),
         poStartsAt: startTime.toString(),
-        poMintPrice: parseInt(price),
+        poMintPrice: parseFloat(price),
         poMaxMintPerWallet: maxPerWallet,
         updatedAt: new Date()
       });
@@ -518,6 +405,40 @@ export const collectionServices = {
       throw new CustomError("Invalid phase type", 400);
     }
     return serializeBigInt(unsignedTx);
+  },
+
+  getPhasesByContractAddress: async ({
+    collectionId,
+    layerId
+  }: {
+    collectionId: string;
+    layerId: string;
+  }) => {
+    // Get collection
+    const collection = await collectionRepository.getById(db, collectionId);
+    if (!collection) {
+      throw new CustomError("Collection not found", 404);
+    }
+
+    // Get layer and validate
+    const layer = await layerServices.checkIfSupportedLayerOrThrow(layerId);
+    if (!layer.chainId) {
+      throw new CustomError("Invalid layer for phase setup", 400);
+    }
+
+    if (!collection.contractAddress) {
+      throw new CustomError("Collection contract address not found", 400);
+    }
+
+    // Initialize NFT service
+    const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+    const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
+
+    const phases = await directMintService.getAllPhases(
+      collection.contractAddress
+    );
+
+    return serializeBigInt(phases);
   },
   delete: async (id: string) => {
     const collection = await collectionRepository.delete(id);

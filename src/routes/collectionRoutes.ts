@@ -27,6 +27,7 @@ collectionRouter.put(
   authorize("SUPER_ADMIN"),
   collectionController.updatePhase
 );
+collectionRouter.get("/phase", collectionController.getPhasesByContractAddress);
 
 // collectionRouter.post(
 //   "/list-evm",
@@ -36,7 +37,6 @@ collectionRouter.put(
 // );
 
 collectionRouter.get("/listed", collectionController.getListedCollections);
-collectionRouter.get("/:id", collectionController.getById);
 
 // collectionRouter.put(
 //   "/:id",

@@ -58,11 +58,10 @@ export class DirectMintNFTService extends BaseNFTService {
     }
 
     // Validate phase type
-    if (phaseType <= 0 || phaseType > 2) {
-      // PUBLIC=2, WHITELIST=0, FCFS=1
+    if (![0, 1, 2].includes(phaseType)) {
+      // 1: Whitelist, 2: FCFS,  3:Public
       throw new CustomError("Invalid phase type", 400);
     }
-
     // Validate time range
     if (startTime >= endTime) {
       throw new CustomError("Start time must be before end time", 400);
@@ -85,6 +84,91 @@ export class DirectMintNFTService extends BaseNFTService {
         "Max per wallet must be positive for non-public phases",
         400
       );
+    }
+  }
+
+  async validatePhaseUpdate(
+    contractAddress: string,
+    phaseIndex: number,
+    phaseType: number,
+    price: bigint,
+    startTime: number,
+    endTime: number,
+    maxSupply: number,
+    maxPerWallet: number
+  ) {
+    try {
+      const contract = new ethers.Contract(
+        contractAddress,
+        EVM_CONFIG.DIRECT_MINT_NFT_ABI,
+        this.provider
+      );
+
+      // Get existing phase data
+      const existingPhase = await contract.phases(phaseIndex);
+
+      // Check if any parameters actually changed
+      const priceChanged =
+        existingPhase.price !== ethers.parseEther(price.toString());
+      const startTimeChanged =
+        BigInt(existingPhase.startTime) !== BigInt(startTime);
+      const endTimeChanged = BigInt(existingPhase.endTime) !== BigInt(endTime);
+      const maxSupplyChanged =
+        BigInt(existingPhase.maxSupply) !== BigInt(maxSupply);
+      const maxPerWalletChanged =
+        BigInt(existingPhase.maxPerWallet) !== BigInt(maxPerWallet);
+      const phaseTypeChanged =
+        BigInt(existingPhase.phaseType) !== BigInt(phaseType);
+
+      // Check all other phases for overlaps
+      const phaseCount = await contract.getPhaseCount();
+      for (let i = 0; i < Number(phaseCount); i++) {
+        if (i === phaseIndex) continue;
+
+        const otherPhase = await contract.phases(i);
+        const otherStart = Number(otherPhase.startTime);
+        const otherEnd = Number(otherPhase.endTime);
+
+        if (
+          (startTime < otherEnd || otherEnd === 0) &&
+          (endTime > otherStart || endTime === 0)
+        ) {
+          return {
+            success: false,
+            error: `Overlaps with phase ${i}`,
+            overlappingPhase: {
+              index: i,
+              start: otherStart,
+              end: otherEnd
+            }
+          };
+        }
+      }
+
+      return {
+        success: true,
+        changedParameters: {
+          priceChanged,
+          startTimeChanged,
+          endTimeChanged,
+          maxSupplyChanged,
+          maxPerWalletChanged,
+          phaseTypeChanged
+        },
+        originalPhase: {
+          phaseType: Number(existingPhase.phaseType),
+          price: ethers.formatEther(existingPhase.price),
+          startTime: Number(existingPhase.startTime),
+          endTime: Number(existingPhase.endTime),
+          maxSupply: Number(existingPhase.maxSupply),
+          maxPerWallet: Number(existingPhase.maxPerWallet)
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error || "Unknown error"
+      };
     }
   }
 
@@ -463,20 +547,28 @@ export class DirectMintNFTService extends BaseNFTService {
     // merkleRoot: string,
     from: string
   ): Promise<ethers.TransactionRequest> {
+    // Ensure all numeric values are properly converted
+    const phaseIndexNum = Number(phaseIndex);
+    const phaseTypeNum = Number(phaseType);
+    const priceWei = ethers.parseEther(String(price));
+    const startTimeNum = BigInt(String(startTime));
+    const endTimeNum = BigInt(String(endTime));
+    const maxSupplyNum = Number(maxSupply);
+    const maxPerWalletNum = Number(maxPerWallet);
     try {
-      // Validate parameters
-      await this.validateUpdatePhaseParams(
-        collectionAddress,
-        phaseIndex,
-        phaseType,
-        ethers.parseEther(price),
-        startTime,
-        endTime,
-        maxSupply,
-        maxPerWallet,
-        // merkleRoot,
-        from
-      );
+      // // Validate parameters
+      // await this.validateUpdatePhaseParams(
+      //   collectionAddress,
+      //   phaseIndexNum,
+      //   phaseTypeNum,
+      //   priceWei,
+      //   startTime,
+      //   endTime,
+      //   maxSupply,
+      //   maxPerWallet,
+      //   // merkleRoot,
+      //   from
+      // );
 
       const contract = new ethers.Contract(
         collectionAddress,
@@ -485,13 +577,13 @@ export class DirectMintNFTService extends BaseNFTService {
       );
 
       const unsignedTx = await contract.updatePhase.populateTransaction(
-        phaseIndex,
-        phaseType,
-        ethers.parseEther(price),
-        startTime,
-        endTime,
-        maxSupply,
-        maxPerWallet
+        phaseIndexNum,
+        phaseTypeNum,
+        priceWei,
+        startTimeNum,
+        endTimeNum,
+        maxSupplyNum,
+        maxPerWalletNum
         // merkleRoot
       );
 
@@ -504,6 +596,21 @@ export class DirectMintNFTService extends BaseNFTService {
         `Failed to create update phase transaction: ${error}`,
         500
       );
+    }
+  }
+
+  async getPhaseCount(collectionAddress: string): Promise<bigint> {
+    try {
+      const contract = new ethers.Contract(
+        collectionAddress,
+        EVM_CONFIG.DIRECT_MINT_NFT_ABI,
+        this.provider
+      );
+
+      const count = await contract.getPhaseCount();
+      return count;
+    } catch (error) {
+      throw new CustomError(`Failed to get phase count: ${error}`, 500);
     }
   }
 
@@ -526,18 +633,98 @@ export class DirectMintNFTService extends BaseNFTService {
     }
   }
 
-  async getPhaseCount(collectionAddress: string): Promise<bigint> {
+  /**
+   * Gets all phases from the NFT contract
+   * @param collectionAddress The address of the NFT contract
+   * @returns An array of all phases with their details
+   */
+  async getAllPhases(collectionAddress: string) {
     try {
+      // Validate collection address
+      if (!ethers.isAddress(collectionAddress)) {
+        throw new CustomError("Invalid collection address", 400);
+      }
+
       const contract = new ethers.Contract(
         collectionAddress,
         EVM_CONFIG.DIRECT_MINT_NFT_ABI,
         this.provider
       );
 
-      const count = await contract.getPhaseCount();
-      return count;
+      // Get the total number of phases
+      const phaseCount = await contract.getPhaseCount();
+
+      // Create an array to store all phases
+      const phases = [];
+
+      // Retrieve each phase
+      for (let i = 0; i < Number(phaseCount); i++) {
+        const phase = await contract.phases(i);
+
+        // Transform the phase data into a more readable format
+        const phaseData = {
+          phaseIndex: i,
+          phaseType: phase.phaseType,
+          phaseTypeName: this.getPhaseTypeName(Number(phase.phaseType)),
+          price: ethers.formatEther(phase.price),
+          priceWei: phase.price,
+          startTime: Number(phase.startTime),
+          endTime: Number(phase.endTime),
+          maxSupply: Number(phase.maxSupply),
+          maxPerWallet: Number(phase.maxPerWallet),
+          mintedInPhase: Number(phase.mintedInPhase),
+          // Add these properties for easy date comparison
+          startDate: new Date(Number(phase.startTime) * 1000).toISOString(),
+          endDate:
+            phase.endTime > 0
+              ? new Date(Number(phase.endTime) * 1000).toISOString()
+              : "No end date (indefinite)",
+          isActive: this.isPhaseActive(
+            Number(phase.startTime),
+            Number(phase.endTime)
+          )
+        };
+
+        phases.push(phaseData);
+      }
+
+      return {
+        totalPhases: Number(phaseCount),
+        phases: phases
+      };
     } catch (error) {
-      throw new CustomError(`Failed to get phase count: ${error}`, 500);
+      if (error instanceof CustomError) {
+        throw error;
+      }
+      throw new CustomError(`Failed to get all phases: ${error}`, 500);
     }
+  }
+
+  /**
+   * Converts numeric phase type to string representation
+   * @param phaseType The numeric phase type from contract
+   * @returns String representation of phase type
+   */
+  private getPhaseTypeName(phaseType: number): string {
+    const phaseTypes = {
+      0: "WHITELIST",
+      1: "FCFS",
+      2: "PUBLIC"
+    };
+
+    return phaseTypes[phaseType as keyof typeof phaseTypes] || "UNKNOWN";
+  }
+
+  /**
+   * Checks if a phase is currently active
+   * @param startTime Phase start time in seconds
+   * @param endTime Phase end time in seconds (0 means no end)
+   * @returns Boolean indicating if phase is active
+   */
+  private isPhaseActive(startTime: number, endTime: number): boolean {
+    const currentTime = Math.floor(Date.now() / 1000);
+    return (
+      currentTime >= startTime && (endTime === 0 || currentTime <= endTime)
+    );
   }
 }
