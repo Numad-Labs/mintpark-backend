@@ -1082,6 +1082,8 @@ const validatePhaseAndGetPrice = async (
     return Number(launch.fcfsMintPrice);
   }
 
+  if (!launch.poStartsAt) throw new CustomError("Launch has ended.", 400);
+
   if (Number(launch.poStartsAt) > currentTime) {
     throw new CustomError("Launch hasn't started.", 400);
   }

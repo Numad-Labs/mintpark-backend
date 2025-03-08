@@ -462,7 +462,6 @@ export class DirectMintNFTService extends BaseNFTService {
     }
   }
 
-  // Phase Management Methods - Unchanged
   async getActivePhase(collectionAddress: string) {
     try {
       const contract = new ethers.Contract(
@@ -471,13 +470,25 @@ export class DirectMintNFTService extends BaseNFTService {
         this.provider
       );
 
-      const now = Math.floor(Date.now() / 1000);
+      const now = BigInt(Math.floor(Date.now() / 1000));
+
       const cachedPhase = await redis.get(`phase:${collectionAddress}`);
       if (cachedPhase) {
-        const [phaseIndex, phase] = JSON.parse(cachedPhase);
+        const [phaseIndexStr, cachePhase] = JSON.parse(cachedPhase);
+        const phaseIndex = BigInt(phaseIndexStr);
+        const phase = {
+          phaseType: BigInt(cachePhase.phaseType),
+          price: BigInt(cachePhase.price),
+          startTime: BigInt(cachePhase.startTime),
+          endTime: BigInt(cachePhase.endTime),
+          maxSupply: BigInt(cachePhase.maxSupply),
+          maxPerWallet: BigInt(cachePhase.maxPerWallet),
+          mintedInPhase: BigInt(cachePhase.mintedInPhase)
+        };
+
         if (now < phase.startTime || now > phase.endTime) {
           logger.info(`Stale cachedPhase found: ${collectionAddress}`);
-          redis.del(`phase:${collectionAddress}`);
+          await redis.del(`phase:${collectionAddress}`);
         } else {
           return {
             isActive: true,
@@ -494,12 +505,23 @@ export class DirectMintNFTService extends BaseNFTService {
       }
 
       const [phaseIndex, phase] = await contract.getActivePhase();
+
+      const cachePhase = {
+        phaseType: phase.phaseType.toString(),
+        price: phase.price.toString(),
+        startTime: phase.startTime.toString(),
+        endTime: phase.endTime.toString(),
+        maxSupply: phase.maxSupply.toString(),
+        maxPerWallet: phase.maxPerWallet.toString(),
+        mintedInPhase: phase.mintedInPhase.toString()
+      };
       await redis.set(
         `phase:${collectionAddress}`,
-        JSON.stringify([phaseIndex, phase]),
+        JSON.stringify([phaseIndex.toString(), cachePhase]),
         "EX",
         30
       );
+
       return {
         isActive: true,
         phaseIndex,
