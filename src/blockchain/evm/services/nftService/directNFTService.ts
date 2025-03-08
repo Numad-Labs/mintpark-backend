@@ -26,6 +26,7 @@ export class DirectMintNFTService extends BaseNFTService {
   // Store contract version information
   private contractVersion: string;
   private versionConfig: any;
+  private networkCache: { chainId: bigint } | null = null;
 
   constructor(
     rpcUrl: string,
@@ -48,6 +49,15 @@ export class DirectMintNFTService extends BaseNFTService {
     }
 
     this.versionConfig = CONTRACT_VERSIONS[contractVersion];
+  }
+
+  // Cached method to get network information
+  async getNetwork(): Promise<{ chainId: bigint }> {
+    if (!this.networkCache) {
+      const network = await this.provider.getNetwork();
+      this.networkCache = network;
+    }
+    return this.networkCache;
   }
 
   async validateUpdatePhaseParams(
@@ -316,7 +326,8 @@ export class DirectMintNFTService extends BaseNFTService {
     //   price,
     //   phaseIndex
     // );
-    const { chainId } = await this.provider.getNetwork();
+    const { chainId } = await this.getNetwork();
+
     const backendPrivateKey = config.VAULT_PRIVATE_KEY;
     const domain = {
       name: "UnifiedNFT",
@@ -499,7 +510,8 @@ export class DirectMintNFTService extends BaseNFTService {
       );
 
       try {
-        const { chainId } = await this.provider.getNetwork();
+        const { chainId } = await this.getNetwork();
+
         await this.verifySignature(collectionAddress, signature, chainId, {
           minter: from,
           tokenId,
