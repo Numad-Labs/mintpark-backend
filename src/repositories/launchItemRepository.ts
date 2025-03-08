@@ -21,13 +21,13 @@ export const launchItemRepository = {
     data: Insertable<LaunchItem>,
     userId: string
   ) => {
-    const ninetySecondsFromNow = new Date(Date.now() + 90 * 1000).toISOString();
+    const oneMinuteFromNow = new Date(Date.now() + 1 * 60 * 1000).toISOString();
 
     const launchItem = await db
       .insertInto("LaunchItem")
       .values({
         ...data,
-        onHoldUntil: ninetySecondsFromNow,
+        onHoldUntil: oneMinuteFromNow,
         onHoldBy: userId
       })
       .returningAll()
@@ -105,13 +105,13 @@ export const launchItemRepository = {
     id: string,
     buyerId: string
   ) => {
-    const ninetySecondsFromNow = new Date(Date.now() + 90 * 1000).toISOString();
+    const oneMinuteFromNow = new Date(Date.now() + 1 * 60 * 1000).toISOString();
     const currentDate = new Date().toISOString();
 
     const launchItem = await db
       .updateTable("LaunchItem")
       .set({
-        onHoldUntil: ninetySecondsFromNow,
+        onHoldUntil: oneMinuteFromNow,
         onHoldBy: buyerId
       })
       .returningAll()

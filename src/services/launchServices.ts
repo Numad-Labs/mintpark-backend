@@ -459,7 +459,6 @@ export const launchServices = {
       collection.contractAddress
     );
     if (!phaseInfo.isActive) throw new CustomError("Phase not found", 400);
-    // console.log("🚀 ~ phaseInfo:", phaseInfo);
 
     const mintedInPhase = await directMintService.getMintedInPhase(
       collection.contractAddress,
@@ -537,7 +536,10 @@ export const launchServices = {
     } else {
       // Finite supply collection
       if (!launchItem)
-        throw new CustomError("No available launch item was found.", 400);
+        throw new CustomError(
+          "No available launch item was found, please try again.",
+          400
+        );
       launchItem = await launchItemRepository.setShortHoldById(
         db,
         launchItem.id,
@@ -615,7 +617,7 @@ export const launchServices = {
         collectible = creationResult.collectible;
       } else {
         // For finite supply collections, synchronize then throw an error.
-        throw new CustomError("The launch item has already been minted.", 400);
+        throw new CustomError("Stale data detected, please try again.", 400);
       }
     }
 
@@ -746,11 +748,7 @@ export const launchServices = {
 
     const launchItem = await launchItemRepository.getById(db, launchItemId);
     if (!launchItem) throw new CustomError("Launch item not found.", 400);
-    if (launchItem.status === "SOLD")
-      throw new CustomError(
-        "This launch item has already been confirmed.",
-        400
-      );
+    if (launchItem.status === "SOLD") return { launchItem };
 
     const launch = await launchRepository.getById(db, launchItem.launchId);
     if (!launch) throw new CustomError("Launch not found.", 400);
@@ -784,18 +782,18 @@ export const launchServices = {
     // const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
     // await validatePhaseAndGetPrice(launch, user, currentUnixTimeStamp);
 
-    // Validate launch item status
-    const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
-      db,
-      launchItemId
-    );
-    if (!isLaunchItemOnHold)
-      throw new CustomError("Launch item hasn't been set on hold.", 400);
-    if (isLaunchItemOnHold.onHoldBy !== user.id)
-      throw new CustomError(
-        "This launch item is currently reserved to another user.",
-        400
-      );
+    // // Validate launch item status
+    // const isLaunchItemOnHold = await launchItemRepository.getOnHoldById(
+    //   db,
+    //   launchItemId
+    // );
+    // if (!isLaunchItemOnHold)
+    //   throw new CustomError("Launch item hasn't been set on hold.", 400);
+    // if (isLaunchItemOnHold.onHoldBy !== user.id)
+    //   throw new CustomError(
+    //     "This launch item is currently reserved to another user.",
+    //     400
+    //   );
 
     // // Validate purchase limits inside transaction
     // await validatePurchaseLimits(db, launch, user, currentUnixTimeStamp);
@@ -805,11 +803,7 @@ export const launchServices = {
       launchItem.collectibleId
     );
     if (!collectible) throw new CustomError("Collectible not found.", 400);
-    if (collectible.status === "CONFIRMED")
-      throw new CustomError(
-        "This collectible has already been confirmed.",
-        400
-      );
+    if (collectible.status === "CONFIRMED") return { launchItem };
 
     if (!verification)
       throw new CustomError("You must provide verification.", 400);
