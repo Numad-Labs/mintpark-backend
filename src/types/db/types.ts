@@ -100,10 +100,10 @@ export type Launch = {
   wlEndsAt: string | null;
   wlMintPrice: number | null;
   wlMaxMintPerWallet: number | null;
-  poStartsAt: string;
+  poStartsAt: string | null;
   poEndsAt: string | null;
-  poMintPrice: number;
-  poMaxMintPerWallet: number;
+  poMintPrice: number | null;
+  poMaxMintPerWallet: number | null;
   createdAt: Generated<Timestamp>;
   status: Generated<LAUNCH_STATUS>;
   userLayerId: string;

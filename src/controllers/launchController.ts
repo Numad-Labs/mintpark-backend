@@ -42,17 +42,39 @@ export const launchController = {
         )
           throw new CustomError("Invalid whitelist info.", 400);
 
-        if (
-          data.wlStartsAt > data.poStartsAt &&
-          data.wlEndsAt > data.poStartsAt
-        )
+        if (data.wlEndsAt < data.wlStartsAt)
           throw new CustomError(
-            "The starting and ending date of whitelisting phase must be before the starting date of public offering phase.",
+            "WL The ending date must be after the starting date.",
+            400
+          );
+
+        // if (
+        //   data.wlStartsAt > data.poStartsAt &&
+        //   data.wlEndsAt > data.poStartsAt
+        // )
+        //   throw new CustomError(
+        //     "The starting and ending date of whitelisting phase must be before the starting date of public offering phase.",
+        //     400
+        //   );
+      }
+
+      if (data.hasFCFS) {
+        if (
+          !data.fcfsEndsAt ||
+          !data.fcfsStartsAt ||
+          data.fcfsMintPrice === undefined ||
+          !data.fcfsMaxMintPerWallet
+        )
+          throw new CustomError("Invalid whitelist info.", 400);
+
+        if (data.fcfsEndsAt < data.fcfsStartsAt)
+          throw new CustomError(
+            "FCFS The ending date must be after the starting date.",
             400
           );
       }
 
-      if (data.poEndsAt && data.poEndsAt < data.poStartsAt)
+      if (data.poEndsAt && data.poStartsAt && data.poEndsAt < data.poStartsAt)
         throw new CustomError(
           "The ending date must be after the starting date.",
           400

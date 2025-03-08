@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Launch" ALTER COLUMN "poStartsAt" DROP NOT NULL,
+ALTER COLUMN "poMintPrice" DROP NOT NULL,
+ALTER COLUMN "poMaxMintPerWallet" DROP NOT NULL;

@@ -227,10 +227,10 @@ model Launch {
   wlEndsAt             BigInt?
   wlMintPrice          Float?
   wlMaxMintPerWallet   Int?
-  poStartsAt           BigInt
+  poStartsAt           BigInt?
   poEndsAt             BigInt?
-  poMintPrice          Float
-  poMaxMintPerWallet   Int
+  poMintPrice          Float?
+  poMaxMintPerWallet   Int?
   createdAt            DateTime      @default(now())
   status               LAUNCH_STATUS @default(UNCONFIRMED)
   userLayerId          String
