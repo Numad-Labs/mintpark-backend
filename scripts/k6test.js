@@ -270,12 +270,12 @@ export default function () {
   const { token, userLayerId } = loginUser(
     wallet,
     loginSignedMessage,
-    "04b493ef-8242-4736-9de1-852d21a4dc28"
+    "32e0739b-99c5-4af0-9849-696904b47105"
   );
 
   randomSleep(0.3, 0.6);
 
-  const selectedLaunch = { launchId: "7493be21-db44-42a7-9035-ca7bd606eeae" };
+  const selectedLaunch = { launchId: "5fb8631c-05ab-4a0f-b68b-e000f0010b84" };
 
   randomSleep(0.3, 0.6);
 
@@ -283,7 +283,7 @@ export default function () {
   const buyResult = buyLaunchItem(token, selectedLaunch.launchId, userLayerId);
 
   // Simulate transaction signing
-  const mockTxid = `0x957903e42e0d7ef7126bdb726de6e265630166b5ed634657de476c063540b68d`;
+  const mockTxid = `0x8b9aba6dcb6c179d6b0415e1e4bcccdd42bf3e31572483386ecbc5d7e88a78fc`;
 
   randomSleep(0.3, 0.6);
   // Mint launch item
