@@ -3,6 +3,8 @@ import { CustomError } from "../../../../exceptions/CustomError";
 import { EVM_CONFIG } from "../../evm-config";
 import { config } from "../../../../config/config";
 import { BaseNFTService } from "./baseNFTService";
+import { redis } from "index";
+import logger from "config/winston";
 
 export class DirectMintNFTService extends BaseNFTService {
   private readonly DOMAIN_NAME = "UnifiedNFT";
@@ -469,18 +471,35 @@ export class DirectMintNFTService extends BaseNFTService {
         this.provider
       );
 
-      // // First check if any phase is active
-      // const isActive = await contract.isActivePhasePresent();
-
-      // if (!isActive) {
-      //   // Handle case where no phase is active
-      //   return {
-      //     isActive: false,
-      //     message: "No active phase at the current time"
-      //   };
-      // }
+      const now = Math.floor(Date.now() / 1000);
+      const cachedPhase = await redis.get(`phase:${collectionAddress}`);
+      if (cachedPhase) {
+        const [phaseIndex, phase] = JSON.parse(cachedPhase);
+        if (now < phase.startTime || now > phase.endTime) {
+          logger.info(`Stale cachedPhase found: ${collectionAddress}`);
+          redis.del(`phase:${collectionAddress}`);
+        } else {
+          return {
+            isActive: true,
+            phaseIndex,
+            phaseType: phase.phaseType,
+            price: phase.price,
+            startTime: phase.startTime,
+            endTime: phase.endTime,
+            maxSupply: phase.maxSupply,
+            maxPerWallet: phase.maxPerWallet,
+            mintedInPhase: phase.mintedInPhase
+          };
+        }
+      }
 
       const [phaseIndex, phase] = await contract.getActivePhase();
+      await redis.set(
+        `phase:${collectionAddress}`,
+        JSON.stringify([phaseIndex, phase]),
+        "EX",
+        30
+      );
       return {
         isActive: true,
         phaseIndex,
