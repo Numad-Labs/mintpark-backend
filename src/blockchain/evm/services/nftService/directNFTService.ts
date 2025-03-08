@@ -3,8 +3,8 @@ import { CustomError } from "../../../../exceptions/CustomError";
 import { EVM_CONFIG } from "../../evm-config";
 import { config } from "../../../../config/config";
 import { BaseNFTService } from "./baseNFTService";
-import { redis } from "index";
-import logger from "config/winston";
+import { redis } from "../../../../index";
+import logger from "../../../../config/winston";
 
 export class DirectMintNFTService extends BaseNFTService {
   private readonly DOMAIN_NAME = "UnifiedNFT";
