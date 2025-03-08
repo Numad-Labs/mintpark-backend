@@ -38,7 +38,7 @@ contract LaunchNFTV3 is
   address public immutable backendSigner;
   bytes32 private constant MINT_TYPEHASH =
     keccak256(
-      "MintRequest(address minter,uint256 tokenId,string uri,uint256 price,uint256 phaseIndex,bytes32 uniqueId,uint256 timestamp)"
+      "MintRequest(address minter,uint256 tokenId,string uri,uint256 price,uint256 phaseIndex,bytes32 uniqueId)"
     );
 
   // Track used uniqueIds to prevent replay
@@ -112,16 +112,9 @@ contract LaunchNFTV3 is
     uint256 tokenId,
     string calldata uri,
     bytes32 uniqueId,
-    uint256 timestamp,
     bytes calldata signature
   ) external payable whenNotPaused {
     (uint256 phaseIndex, Phase storage currentPhase) = _getActivePhase();
-
-    // Verify timestamp is recent (e.g., within last hour)
-    require(
-      timestamp + 1 hours >= block.timestamp && timestamp <= block.timestamp,
-      "Signature expired"
-    );
 
     require(!usedUniqueIds[uniqueId], "Signature already used");
 
@@ -134,8 +127,7 @@ contract LaunchNFTV3 is
         keccak256(bytes(uri)),
         currentPhase.price,
         phaseIndex,
-        uniqueId,
-        timestamp
+        uniqueId
       )
     );
 

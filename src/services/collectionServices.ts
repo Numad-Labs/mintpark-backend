@@ -22,6 +22,7 @@ import { VaultMintNFTService } from "../blockchain/evm/services/nftService/vault
 import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
 import { ethers } from "ethers";
 import { launchRepository } from "../repositories/launchRepository";
+import { DEFAULT_CONTRACT_VERSION } from "blockchain/evm/contract-versions";
 
 export const collectionServices = {
   create: async (
@@ -30,7 +31,8 @@ export const collectionServices = {
     priceForLaunchpad: number,
     issuerId: string,
     userLayerId: string,
-    file?: Express.Multer.File
+    file?: Express.Multer.File,
+    contractVersion: string = DEFAULT_CONTRACT_VERSION // Default to the latest version
   ) => {
     if (data.type === "SYNTHETIC")
       throw new CustomError(
@@ -66,6 +68,21 @@ export const collectionServices = {
         400
       );
 
+    // Validate contract version
+    try {
+      // Check if the provided contract version is supported
+      if (
+        !DirectMintNFTService.getSupportedVersions().includes(contractVersion)
+      ) {
+        throw new CustomError(
+          `Unsupported contract version: ${contractVersion}`,
+          400
+        );
+      }
+    } catch (error) {
+      throw new CustomError(`Invalid contract version: ${error}`, 400);
+    }
+
     let deployContractTxHex = null,
       ordinalCollection = null,
       l2Collection = null;
@@ -95,7 +112,11 @@ export const collectionServices = {
         deployContractTxHex = serializeBigInt(unsignedTx);
       } else if (data.type === "IPFS_CID" || data.type === "IPFS_FILE") {
         // For IPFS collections, use DirectMintNFTService since users will mint directly
-        const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
+        const directMintService = new DirectMintNFTService(
+          chainConfig.RPC_URL,
+          contractVersion
+        );
+
         const unsignedTx =
           await directMintService.getUnsignedDeploymentTransaction(
             user.address, // contract owner
@@ -104,11 +125,13 @@ export const collectionServices = {
             chainConfig.DEFAULT_ROYALTY_FEE,
             chainConfig.DEFAULT_PLATFORM_FEE
           );
+
         deployContractTxHex = serializeBigInt(unsignedTx);
       }
     }
-    if (layer.layerType == "EVM" && deployContractTxHex === null)
-      throw new CustomError("Couldn't create deploy contract hext", 400);
+    console.log("🚀 ~ layer:", layer);
+    if (layer.layerType == "EVM" && deployContractTxHex == null)
+      throw new CustomError("Couldn't create deploy contract hex", 400);
 
     if (file) {
       const key = randomUUID();
@@ -125,6 +148,7 @@ export const collectionServices = {
         creatorId: user.id,
         layerId: bitcoinLayer.id,
         ownerCount: 0
+
         // creatorUserLayerId: userLayerId,
       });
 
@@ -135,7 +159,8 @@ export const collectionServices = {
         parentCollectionId: ordinalCollection.id,
         creatorId: user.id,
         creatorUserLayerId: userLayerId,
-        ownerCount: 0
+        ownerCount: 0,
+        contractVersion
       });
     } else if (data.type === "IPFS_CID" || data.type === "IPFS_FILE") {
       l2Collection = await collectionRepository.create({
@@ -144,7 +169,8 @@ export const collectionServices = {
         status: "UNCONFIRMED",
         creatorId: user.id,
         creatorUserLayerId: userLayerId,
-        ownerCount: 0
+        ownerCount: 0,
+        contractVersion
       });
     }
 
@@ -223,13 +249,12 @@ export const collectionServices = {
 
     // Initialize NFT service
     const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
-    const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
-
-    // // For whitelist phase, validate merkle root
-    // if (phaseType === 1 && !merkleRoot) {
-    //   // 1 is whitelist phase
-    //   throw new CustomError("Merkle root is required for whitelist phase", 400);
-    // }
+    const contractVersion =
+      collection.contractVersion || DEFAULT_CONTRACT_VERSION;
+    const directMintService = new DirectMintNFTService(
+      chainConfig.RPC_URL,
+      contractVersion
+    );
 
     // Get unsigned transaction
     const unsignedTx = await directMintService.getUnsignedAddPhaseTransaction(
@@ -316,7 +341,15 @@ export const collectionServices = {
 
     // Initialize NFT service
     const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
-    const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
+    console.log("🚀 ~ collection.contractVersion:", collection.contractVersion);
+
+    const contractVersion =
+      collection.contractVersion || DEFAULT_CONTRACT_VERSION;
+    console.log("🚀 ~ contractVersion:", contractVersion);
+    const directMintService = new DirectMintNFTService(
+      chainConfig.RPC_URL,
+      contractVersion
+    );
 
     // Validate phase index
     const phaseCount = await directMintService.getPhaseCount(
@@ -430,9 +463,14 @@ export const collectionServices = {
       throw new CustomError("Collection contract address not found", 400);
     }
 
+    const contractVersion =
+      collection.contractVersion || DEFAULT_CONTRACT_VERSION;
     // Initialize NFT service
     const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
-    const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
+    const directMintService = new DirectMintNFTService(
+      chainConfig.RPC_URL,
+      contractVersion
+    );
 
     const phases = await directMintService.getAllPhases(
       collection.contractAddress

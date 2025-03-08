@@ -336,14 +336,6 @@ export const orderServices = {
       const layer = await layerRepository.getById(collection.layerId);
       if (!layer || !layer.chainId)
         throw new CustomError("Layer or chainid not found", 400);
-
-      const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
-      const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
-      // txHex = nftService.generateFeeTransferTransaction(
-      //   user.address,
-      //   collection.contractAddress,
-      //   funder.address
-      // );
     }
     let totalAmount = networkFee * 1.5 + mintFee + serviceFee;
 

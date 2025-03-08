@@ -7,4 +7,5 @@ import type * as mpmnftSol from "./MPMNFT.sol";
 export type { mpmnftSol };
 import type * as marketplaceWithPhaseSol from "./MarketplaceWithPhase.sol";
 export type { marketplaceWithPhaseSol };
+export type { LaunchNFTV2 } from "./LaunchNFTV2";
 export type { LaunchNFTV3 } from "./LaunchNFTV3";

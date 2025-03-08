@@ -33,6 +33,7 @@ import { SQSClientFactory } from "../queue/sqsClient";
 import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
 import { BaseNFTService } from "../blockchain/evm/services/nftService/baseNFTService";
 import { LAUNCH_PHASE } from "types/db/enums";
+import { DEFAULT_CONTRACT_VERSION } from "blockchain/evm/contract-versions";
 
 export const launchServices = {
   create: async (
@@ -99,9 +100,9 @@ export const launchServices = {
       await uploadToS3(key, badge);
 
       const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
-      const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
+      const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
 
-      const ipfsUri = await nftService.uploadNFTMetadata(
+      const ipfsUri = await directMintService.uploadNFTMetadata(
         badge,
         collection.name || "Unnamed NFT"
       );
@@ -120,9 +121,8 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
     if (!txid) throw new CustomError("txid not found.", 400);
-    const transactionDetail = await confirmationService.getTransactionDetails(
-      txid
-    );
+    const transactionDetail =
+      await confirmationService.getTransactionDetails(txid);
     if (transactionDetail.status !== 1) {
       throw new CustomError(
         "Transaction not confirmed. Please try again.",
@@ -452,8 +452,12 @@ export const launchServices = {
 
     if (!user.chainId) throw new CustomError("User chain id not found.", 400);
     const chainConfig = EVM_CONFIG.CHAINS[user.chainId];
-    const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
-    const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
+    const contractVersion =
+      collection.contractVersion || DEFAULT_CONTRACT_VERSION;
+    const directMintService = new DirectMintNFTService(
+      chainConfig.RPC_URL,
+      contractVersion
+    );
 
     const phaseInfo = await directMintService.getActivePhase(
       collection.contractAddress
@@ -634,7 +638,7 @@ export const launchServices = {
     ) {
       if (!collectible.fileKey)
         throw new CustomError("Collectible has no file key.", 400);
-      ipfsCid = await nftService.uploadS3FileToIpfs(
+      ipfsCid = await directMintService.uploadS3FileToIpfs(
         collectible.fileKey,
         collectible.name || "Unnamed NFT"
       );
@@ -667,6 +671,7 @@ export const launchServices = {
         Number(phaseInfo.phaseIndex)
       );
 
+    // Get unsigned transaction for minting (also respects version)
     const unsignedTx = await directMintService.getUnsignedMintTransaction(
       collection.contractAddress,
       tokenId,

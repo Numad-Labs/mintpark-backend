@@ -114,6 +114,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.LaunchNFTV2__factory>;
     getContractFactory(
+      name: "LaunchNFTV2",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.LaunchNFTV2__factory>;
+    getContractFactory(
       name: "LaunchNFTV3",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.LaunchNFTV3__factory>;
@@ -252,6 +256,11 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.LaunchNFTV2>;
     getContractAt(
+      name: "LaunchNFTV2",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.LaunchNFTV2>;
+    getContractAt(
       name: "LaunchNFTV3",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
@@ -363,6 +372,10 @@ declare module "hardhat/types/runtime" {
       name: "Strings",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Strings>;
+    deployContract(
+      name: "LaunchNFTV2",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.LaunchNFTV2>;
     deployContract(
       name: "LaunchNFTV2",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -500,6 +513,11 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Strings>;
+    deployContract(
+      name: "LaunchNFTV2",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.LaunchNFTV2>;
     deployContract(
       name: "LaunchNFTV2",
       args: any[],
