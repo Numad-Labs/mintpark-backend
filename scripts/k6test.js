@@ -275,7 +275,7 @@ export default function () {
 
   randomSleep(0.3, 0.6);
 
-  const selectedLaunch = { launchId: "5fb8631c-05ab-4a0f-b68b-e000f0010b84" };
+  const selectedLaunch = { launchId: "23c78c1c-a04a-4910-be82-423036951a17" };
 
   randomSleep(0.3, 0.6);
 
@@ -283,7 +283,7 @@ export default function () {
   const buyResult = buyLaunchItem(token, selectedLaunch.launchId, userLayerId);
 
   // Simulate transaction signing
-  const mockTxid = `0x8b9aba6dcb6c179d6b0415e1e4bcccdd42bf3e31572483386ecbc5d7e88a78fc`;
+  const mockTxid = `0x5d885724254fc53dafa7811b9c5b8ba3498842dc4bb667c2ee1228081c229692`;
 
   randomSleep(0.3, 0.6);
   // Mint launch item

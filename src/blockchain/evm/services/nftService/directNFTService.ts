@@ -611,6 +611,7 @@ export class DirectMintNFTService extends BaseNFTService {
         maxPerWallet: phase.maxPerWallet.toString(),
         mintedInPhase: phase.mintedInPhase.toString()
       };
+      logger.info(`Cache miss: ${cachePhase}`);
       await redis.set(
         `phase:${collectionAddress}`,
         JSON.stringify([phaseIndex.toString(), cachePhase]),
