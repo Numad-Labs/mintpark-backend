@@ -3,8 +3,10 @@ import { bytecode as NFT_CONTRACT_BYTECODE } from "@artifacts/MPMNFT.sol/Unified
 
 import { abi as MARKETPLACE_ABI } from "@artifacts/MarketplaceWithPhase.sol/Marketplace.json";
 import { bytecode as MARKETPLACE_CONTRACT_BYTECODE } from "@artifacts/MarketplaceWithPhase.sol/Marketplace.json";
-import { abi as DIRECT_MINT_NFT_ABI } from "@artifacts/LaunchNFTV3.sol/LaunchNFTV3.json";
-import { bytecode as DIRECT_MINT_NFT_BYTECODE } from "@artifacts/LaunchNFTV3.sol/LaunchNFTV3.json";
+import {
+  CONTRACT_VERSIONS,
+  DEFAULT_CONTRACT_VERSION
+} from "./contract-versions";
 // import { abi as LAUNCH_NFT_V3_ABI } from "@artifacts/LaunchNFTV3.sol/LaunchNFTV3.json";
 // import { abi as PHASE_MANAGER_ABI } from "@artifacts/PhaseManager.sol/PhaseManager.json";
 // import { abi as NFT_FACTORY_ABI } from "@artifacts/NFTFactory.sol/NFTFactory.json";
@@ -21,6 +23,8 @@ export const PHASE_TYPE_MAP = {
   WHITELIST: 1,
   PUBLIC: 2
 };
+
+const defaultVersion = CONTRACT_VERSIONS[DEFAULT_CONTRACT_VERSION];
 
 export interface EVMChainConfig {
   RPC_URL: string;
@@ -55,8 +59,8 @@ export const EVM_CONFIG: EVMConfig = {
   NFT_CONTRACT_BYTECODE,
   MARKETPLACE_ABI,
   MARKETPLACE_CONTRACT_BYTECODE,
-  DIRECT_MINT_NFT_ABI,
-  DIRECT_MINT_NFT_BYTECODE,
+  DIRECT_MINT_NFT_ABI: defaultVersion.directMintNftAbi,
+  DIRECT_MINT_NFT_BYTECODE: defaultVersion.directMintNftBytecode,
   DEFAULT_SIGN_DEADLINE,
   // LAUNCH_NFT_V3_ABI,
   // PHASE_MANAGER_ABI,

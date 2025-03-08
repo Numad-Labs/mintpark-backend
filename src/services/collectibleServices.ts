@@ -568,8 +568,8 @@ export const collectibleServices = {
       throw new CustomError("Layer not found.", 400);
 
     const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
-    const nftService = new DirectMintNFTService(chainConfig.RPC_URL);
-    const ipfsCid = await nftService.uploadS3FileToIpfs(
+    const directMintService = new DirectMintNFTService(chainConfig.RPC_URL);
+    const ipfsCid = await directMintService.uploadS3FileToIpfs(
       collectible.fileKey,
       collectible.name || "Unnamed NFT"
     );

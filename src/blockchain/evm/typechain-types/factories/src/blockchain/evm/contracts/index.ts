@@ -4,4 +4,5 @@
 export * as directMintNftv2Sol from "./DirectMintNFTV2.sol";
 export * as mpmnftSol from "./MPMNFT.sol";
 export * as marketplaceWithPhaseSol from "./MarketplaceWithPhase.sol";
+export { LaunchNFTV2__factory } from "./LaunchNFTV2__factory";
 export { LaunchNFTV3__factory } from "./LaunchNFTV3__factory";

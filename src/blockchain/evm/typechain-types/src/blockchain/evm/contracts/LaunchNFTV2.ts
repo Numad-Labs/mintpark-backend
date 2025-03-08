@@ -23,7 +23,7 @@ import type {
   TypedContractMethod,
 } from "../../../../common";
 
-export declare namespace LaunchNFTV3 {
+export declare namespace LaunchNFTV2 {
   export type PhaseStruct = {
     phaseType: BigNumberish;
     price: BigNumberish;
@@ -32,6 +32,7 @@ export declare namespace LaunchNFTV3 {
     maxSupply: BigNumberish;
     maxPerWallet: BigNumberish;
     mintedInPhase: BigNumberish;
+    merkleRoot: BytesLike;
   };
 
   export type PhaseStructOutput = [
@@ -41,7 +42,8 @@ export declare namespace LaunchNFTV3 {
     endTime: bigint,
     maxSupply: bigint,
     maxPerWallet: bigint,
-    mintedInPhase: bigint
+    mintedInPhase: bigint,
+    merkleRoot: string
   ] & {
     phaseType: bigint;
     price: bigint;
@@ -50,10 +52,11 @@ export declare namespace LaunchNFTV3 {
     maxSupply: bigint;
     maxPerWallet: bigint;
     mintedInPhase: bigint;
+    merkleRoot: string;
   };
 }
 
-export interface LaunchNFTV3Interface extends Interface {
+export interface LaunchNFTV2Interface extends Interface {
   getFunction(
     nameOrSignature:
       | "addPhase"
@@ -63,12 +66,9 @@ export interface LaunchNFTV3Interface extends Interface {
       | "eip712Domain"
       | "getActivePhase"
       | "getApproved"
-      | "getDomainSeparator"
       | "getMintedInPhase"
       | "getPhaseCount"
-      | "isActivePhasePresent"
       | "isApprovedForAll"
-      | "isPaused"
       | "mint"
       | "name"
       | "owner"
@@ -81,13 +81,11 @@ export interface LaunchNFTV3Interface extends Interface {
       | "safeTransferFrom(address,address,uint256)"
       | "safeTransferFrom(address,address,uint256,bytes)"
       | "setApprovalForAll"
-      | "setPaused"
       | "supportsInterface"
       | "symbol"
       | "tokenByIndex"
       | "tokenOfOwnerByIndex"
       | "tokenURI"
-      | "tokensOfOwner"
       | "totalSupply"
       | "transferFrom"
       | "transferOwnership"
@@ -104,8 +102,10 @@ export interface LaunchNFTV3Interface extends Interface {
       | "OwnershipTransferred"
       | "PhaseAdded"
       | "PhaseUpdated"
+      | "PlatformFeeUpdated"
       | "TokenMinted"
       | "Transfer"
+      | "WithdrawCompleted"
   ): EventFragment;
 
   encodeFunctionData(
@@ -116,7 +116,8 @@ export interface LaunchNFTV3Interface extends Interface {
       BigNumberish,
       BigNumberish,
       BigNumberish,
-      BigNumberish
+      BigNumberish,
+      BytesLike
     ]
   ): string;
   encodeFunctionData(
@@ -144,10 +145,6 @@ export interface LaunchNFTV3Interface extends Interface {
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
-    functionFragment: "getDomainSeparator",
-    values?: undefined
-  ): string;
-  encodeFunctionData(
     functionFragment: "getMintedInPhase",
     values: [AddressLike, BigNumberish]
   ): string;
@@ -156,17 +153,19 @@ export interface LaunchNFTV3Interface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "isActivePhasePresent",
-    values?: undefined
-  ): string;
-  encodeFunctionData(
     functionFragment: "isApprovedForAll",
     values: [AddressLike, AddressLike]
   ): string;
-  encodeFunctionData(functionFragment: "isPaused", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "mint",
-    values: [BigNumberish, string, BytesLike, BytesLike]
+    values: [
+      BigNumberish,
+      string,
+      BytesLike,
+      BigNumberish,
+      BytesLike,
+      BytesLike[]
+    ]
   ): string;
   encodeFunctionData(functionFragment: "name", values?: undefined): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
@@ -206,7 +205,6 @@ export interface LaunchNFTV3Interface extends Interface {
     functionFragment: "setApprovalForAll",
     values: [AddressLike, boolean]
   ): string;
-  encodeFunctionData(functionFragment: "setPaused", values: [boolean]): string;
   encodeFunctionData(
     functionFragment: "supportsInterface",
     values: [BytesLike]
@@ -223,10 +221,6 @@ export interface LaunchNFTV3Interface extends Interface {
   encodeFunctionData(
     functionFragment: "tokenURI",
     values: [BigNumberish]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "tokensOfOwner",
-    values: [AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "totalSupply",
@@ -249,7 +243,8 @@ export interface LaunchNFTV3Interface extends Interface {
       BigNumberish,
       BigNumberish,
       BigNumberish,
-      BigNumberish
+      BigNumberish,
+      BytesLike
     ]
   ): string;
 
@@ -273,10 +268,6 @@ export interface LaunchNFTV3Interface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "getDomainSeparator",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
     functionFragment: "getMintedInPhase",
     data: BytesLike
   ): Result;
@@ -285,14 +276,9 @@ export interface LaunchNFTV3Interface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "isActivePhasePresent",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
     functionFragment: "isApprovedForAll",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(functionFragment: "isPaused", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "mint", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "name", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
@@ -326,7 +312,6 @@ export interface LaunchNFTV3Interface extends Interface {
     functionFragment: "setApprovalForAll",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(functionFragment: "setPaused", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "supportsInterface",
     data: BytesLike
@@ -341,10 +326,6 @@ export interface LaunchNFTV3Interface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "tokenURI", data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: "tokensOfOwner",
-    data: BytesLike
-  ): Result;
   decodeFunctionResult(
     functionFragment: "totalSupply",
     data: BytesLike
@@ -458,20 +439,17 @@ export namespace PhaseAddedEvent {
   export type InputTuple = [
     phaseIndex: BigNumberish,
     phaseType: BigNumberish,
-    price: BigNumberish,
-    endTime: BigNumberish
+    price: BigNumberish
   ];
   export type OutputTuple = [
     phaseIndex: bigint,
     phaseType: bigint,
-    price: bigint,
-    endTime: bigint
+    price: bigint
   ];
   export interface OutputObject {
     phaseIndex: bigint;
     phaseType: bigint;
     price: bigint;
-    endTime: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -494,6 +472,22 @@ export namespace PhaseUpdatedEvent {
     phaseIndex: bigint;
     phaseType: bigint;
     price: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace PlatformFeeUpdatedEvent {
+  export type InputTuple = [
+    newPercentage: BigNumberish,
+    newRecipient: AddressLike
+  ];
+  export type OutputTuple = [newPercentage: bigint, newRecipient: string];
+  export interface OutputObject {
+    newPercentage: bigint;
+    newRecipient: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -541,11 +535,24 @@ export namespace TransferEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export interface LaunchNFTV3 extends BaseContract {
-  connect(runner?: ContractRunner | null): LaunchNFTV3;
+export namespace WithdrawCompletedEvent {
+  export type InputTuple = [recipient: AddressLike, amount: BigNumberish];
+  export type OutputTuple = [recipient: string, amount: bigint];
+  export interface OutputObject {
+    recipient: string;
+    amount: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export interface LaunchNFTV2 extends BaseContract {
+  connect(runner?: ContractRunner | null): LaunchNFTV2;
   waitForDeployment(): Promise<this>;
 
-  interface: LaunchNFTV3Interface;
+  interface: LaunchNFTV2Interface;
 
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,
@@ -591,7 +598,8 @@ export interface LaunchNFTV3 extends BaseContract {
       _startTime: BigNumberish,
       _endTime: BigNumberish,
       _maxSupply: BigNumberish,
-      _maxPerWallet: BigNumberish
+      _maxPerWallet: BigNumberish,
+      _merkleRoot: BytesLike
     ],
     [void],
     "nonpayable"
@@ -626,17 +634,15 @@ export interface LaunchNFTV3 extends BaseContract {
   getActivePhase: TypedContractMethod<
     [],
     [
-      [bigint, LaunchNFTV3.PhaseStructOutput] & {
+      [bigint, LaunchNFTV2.PhaseStructOutput] & {
         phaseIndex: bigint;
-        phase: LaunchNFTV3.PhaseStructOutput;
+        phase: LaunchNFTV2.PhaseStructOutput;
       }
     ],
     "view"
   >;
 
   getApproved: TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
-
-  getDomainSeparator: TypedContractMethod<[], [string], "view">;
 
   getMintedInPhase: TypedContractMethod<
     [user: AddressLike, phaseType: BigNumberish],
@@ -646,22 +652,20 @@ export interface LaunchNFTV3 extends BaseContract {
 
   getPhaseCount: TypedContractMethod<[], [bigint], "view">;
 
-  isActivePhasePresent: TypedContractMethod<[], [boolean], "view">;
-
   isApprovedForAll: TypedContractMethod<
     [owner: AddressLike, operator: AddressLike],
     [boolean],
     "view"
   >;
 
-  isPaused: TypedContractMethod<[], [boolean], "view">;
-
   mint: TypedContractMethod<
     [
       tokenId: BigNumberish,
       uri: string,
       uniqueId: BytesLike,
-      signature: BytesLike
+      timestamp: BigNumberish,
+      signature: BytesLike,
+      merkleProof: BytesLike[]
     ],
     [void],
     "payable"
@@ -676,7 +680,7 @@ export interface LaunchNFTV3 extends BaseContract {
   phases: TypedContractMethod<
     [arg0: BigNumberish],
     [
-      [bigint, bigint, bigint, bigint, bigint, bigint, bigint] & {
+      [bigint, bigint, bigint, bigint, bigint, bigint, bigint, string] & {
         phaseType: bigint;
         price: bigint;
         startTime: bigint;
@@ -684,6 +688,7 @@ export interface LaunchNFTV3 extends BaseContract {
         maxSupply: bigint;
         maxPerWallet: bigint;
         mintedInPhase: bigint;
+        merkleRoot: string;
       }
     ],
     "view"
@@ -724,8 +729,6 @@ export interface LaunchNFTV3 extends BaseContract {
     "nonpayable"
   >;
 
-  setPaused: TypedContractMethod<[_isPaused: boolean], [void], "nonpayable">;
-
   supportsInterface: TypedContractMethod<
     [interfaceId: BytesLike],
     [boolean],
@@ -743,8 +746,6 @@ export interface LaunchNFTV3 extends BaseContract {
   >;
 
   tokenURI: TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
-
-  tokensOfOwner: TypedContractMethod<[owner: AddressLike], [bigint[]], "view">;
 
   totalSupply: TypedContractMethod<[], [bigint], "view">;
 
@@ -768,7 +769,8 @@ export interface LaunchNFTV3 extends BaseContract {
       _startTime: BigNumberish,
       _endTime: BigNumberish,
       _maxSupply: BigNumberish,
-      _maxPerWallet: BigNumberish
+      _maxPerWallet: BigNumberish,
+      _merkleRoot: BytesLike
     ],
     [void],
     "nonpayable"
@@ -787,7 +789,8 @@ export interface LaunchNFTV3 extends BaseContract {
       _startTime: BigNumberish,
       _endTime: BigNumberish,
       _maxSupply: BigNumberish,
-      _maxPerWallet: BigNumberish
+      _maxPerWallet: BigNumberish,
+      _merkleRoot: BytesLike
     ],
     [void],
     "nonpayable"
@@ -827,9 +830,9 @@ export interface LaunchNFTV3 extends BaseContract {
   ): TypedContractMethod<
     [],
     [
-      [bigint, LaunchNFTV3.PhaseStructOutput] & {
+      [bigint, LaunchNFTV2.PhaseStructOutput] & {
         phaseIndex: bigint;
-        phase: LaunchNFTV3.PhaseStructOutput;
+        phase: LaunchNFTV2.PhaseStructOutput;
       }
     ],
     "view"
@@ -837,9 +840,6 @@ export interface LaunchNFTV3 extends BaseContract {
   getFunction(
     nameOrSignature: "getApproved"
   ): TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
-  getFunction(
-    nameOrSignature: "getDomainSeparator"
-  ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "getMintedInPhase"
   ): TypedContractMethod<
@@ -851,9 +851,6 @@ export interface LaunchNFTV3 extends BaseContract {
     nameOrSignature: "getPhaseCount"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
-    nameOrSignature: "isActivePhasePresent"
-  ): TypedContractMethod<[], [boolean], "view">;
-  getFunction(
     nameOrSignature: "isApprovedForAll"
   ): TypedContractMethod<
     [owner: AddressLike, operator: AddressLike],
@@ -861,16 +858,15 @@ export interface LaunchNFTV3 extends BaseContract {
     "view"
   >;
   getFunction(
-    nameOrSignature: "isPaused"
-  ): TypedContractMethod<[], [boolean], "view">;
-  getFunction(
     nameOrSignature: "mint"
   ): TypedContractMethod<
     [
       tokenId: BigNumberish,
       uri: string,
       uniqueId: BytesLike,
-      signature: BytesLike
+      timestamp: BigNumberish,
+      signature: BytesLike,
+      merkleProof: BytesLike[]
     ],
     [void],
     "payable"
@@ -889,7 +885,7 @@ export interface LaunchNFTV3 extends BaseContract {
   ): TypedContractMethod<
     [arg0: BigNumberish],
     [
-      [bigint, bigint, bigint, bigint, bigint, bigint, bigint] & {
+      [bigint, bigint, bigint, bigint, bigint, bigint, bigint, string] & {
         phaseType: bigint;
         price: bigint;
         startTime: bigint;
@@ -897,6 +893,7 @@ export interface LaunchNFTV3 extends BaseContract {
         maxSupply: bigint;
         maxPerWallet: bigint;
         mintedInPhase: bigint;
+        merkleRoot: string;
       }
     ],
     "view"
@@ -944,9 +941,6 @@ export interface LaunchNFTV3 extends BaseContract {
     "nonpayable"
   >;
   getFunction(
-    nameOrSignature: "setPaused"
-  ): TypedContractMethod<[_isPaused: boolean], [void], "nonpayable">;
-  getFunction(
     nameOrSignature: "supportsInterface"
   ): TypedContractMethod<[interfaceId: BytesLike], [boolean], "view">;
   getFunction(
@@ -965,9 +959,6 @@ export interface LaunchNFTV3 extends BaseContract {
   getFunction(
     nameOrSignature: "tokenURI"
   ): TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
-  getFunction(
-    nameOrSignature: "tokensOfOwner"
-  ): TypedContractMethod<[owner: AddressLike], [bigint[]], "view">;
   getFunction(
     nameOrSignature: "totalSupply"
   ): TypedContractMethod<[], [bigint], "view">;
@@ -991,7 +982,8 @@ export interface LaunchNFTV3 extends BaseContract {
       _startTime: BigNumberish,
       _endTime: BigNumberish,
       _maxSupply: BigNumberish,
-      _maxPerWallet: BigNumberish
+      _maxPerWallet: BigNumberish,
+      _merkleRoot: BytesLike
     ],
     [void],
     "nonpayable"
@@ -1054,6 +1046,13 @@ export interface LaunchNFTV3 extends BaseContract {
     PhaseUpdatedEvent.OutputObject
   >;
   getEvent(
+    key: "PlatformFeeUpdated"
+  ): TypedContractEvent<
+    PlatformFeeUpdatedEvent.InputTuple,
+    PlatformFeeUpdatedEvent.OutputTuple,
+    PlatformFeeUpdatedEvent.OutputObject
+  >;
+  getEvent(
     key: "TokenMinted"
   ): TypedContractEvent<
     TokenMintedEvent.InputTuple,
@@ -1066,6 +1065,13 @@ export interface LaunchNFTV3 extends BaseContract {
     TransferEvent.InputTuple,
     TransferEvent.OutputTuple,
     TransferEvent.OutputObject
+  >;
+  getEvent(
+    key: "WithdrawCompleted"
+  ): TypedContractEvent<
+    WithdrawCompletedEvent.InputTuple,
+    WithdrawCompletedEvent.OutputTuple,
+    WithdrawCompletedEvent.OutputObject
   >;
 
   filters: {
@@ -1135,7 +1141,7 @@ export interface LaunchNFTV3 extends BaseContract {
       OwnershipTransferredEvent.OutputObject
     >;
 
-    "PhaseAdded(uint256,uint8,uint256,uint256)": TypedContractEvent<
+    "PhaseAdded(uint256,uint8,uint256)": TypedContractEvent<
       PhaseAddedEvent.InputTuple,
       PhaseAddedEvent.OutputTuple,
       PhaseAddedEvent.OutputObject
@@ -1155,6 +1161,17 @@ export interface LaunchNFTV3 extends BaseContract {
       PhaseUpdatedEvent.InputTuple,
       PhaseUpdatedEvent.OutputTuple,
       PhaseUpdatedEvent.OutputObject
+    >;
+
+    "PlatformFeeUpdated(uint96,address)": TypedContractEvent<
+      PlatformFeeUpdatedEvent.InputTuple,
+      PlatformFeeUpdatedEvent.OutputTuple,
+      PlatformFeeUpdatedEvent.OutputObject
+    >;
+    PlatformFeeUpdated: TypedContractEvent<
+      PlatformFeeUpdatedEvent.InputTuple,
+      PlatformFeeUpdatedEvent.OutputTuple,
+      PlatformFeeUpdatedEvent.OutputObject
     >;
 
     "TokenMinted(uint256,address,uint8)": TypedContractEvent<
@@ -1177,6 +1194,17 @@ export interface LaunchNFTV3 extends BaseContract {
       TransferEvent.InputTuple,
       TransferEvent.OutputTuple,
       TransferEvent.OutputObject
+    >;
+
+    "WithdrawCompleted(address,uint256)": TypedContractEvent<
+      WithdrawCompletedEvent.InputTuple,
+      WithdrawCompletedEvent.OutputTuple,
+      WithdrawCompletedEvent.OutputObject
+    >;
+    WithdrawCompleted: TypedContractEvent<
+      WithdrawCompletedEvent.InputTuple,
+      WithdrawCompletedEvent.OutputTuple,
+      WithdrawCompletedEvent.OutputObject
     >;
   };
 }

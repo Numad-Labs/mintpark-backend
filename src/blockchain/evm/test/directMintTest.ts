@@ -1,8 +1,6 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { LaunchNFTV3 } from "../typechain-types";
-import { MerkleTree } from "merkletreejs";
-import keccak256 from "keccak256";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
 describe("LaunchNFTV3 Tests", () => {
@@ -93,8 +91,7 @@ describe("LaunchNFTV3 Tests", () => {
     tokenId: string,
     uri: string,
     price: string,
-    phaseIndex: number,
-    signatureTimestamp: number
+    phaseIndex: number
   ) {
     const domain = {
       name: "UnifiedNFT",
@@ -106,8 +103,8 @@ describe("LaunchNFTV3 Tests", () => {
     // Create deterministic uniqueId
     const uniqueId = ethers.keccak256(
       ethers.solidityPacked(
-        ["address", "uint256", "string", "uint256"],
-        [minterAddress, tokenId, uri, signatureTimestamp]
+        ["address", "uint256", "string"],
+        [minterAddress, tokenId, uri]
       )
     );
 
@@ -118,8 +115,7 @@ describe("LaunchNFTV3 Tests", () => {
         { name: "uri", type: "string" },
         { name: "price", type: "uint256" },
         { name: "phaseIndex", type: "uint256" },
-        { name: "uniqueId", type: "bytes32" },
-        { name: "timestamp", type: "uint256" }
+        { name: "uniqueId", type: "bytes32" }
       ]
     };
 
@@ -129,12 +125,11 @@ describe("LaunchNFTV3 Tests", () => {
       uri: uri,
       price: ethers.parseEther(price),
       phaseIndex: phaseIndex,
-      uniqueId: uniqueId,
-      timestamp: signatureTimestamp
+      uniqueId: uniqueId
     };
 
     const signature = await backendSigner.signTypedData(domain, types, value);
-    return { signature, uniqueId, timestamp: signatureTimestamp };
+    return { signature, uniqueId };
   }
 
   // Helper function to mint tokens that handles timestamps properly
@@ -145,26 +140,20 @@ describe("LaunchNFTV3 Tests", () => {
     price: string,
     phaseIndex: number
   ) {
-    // Generate a signature using the current timestamp plus a small buffer
-    const signatureTimestamp = currentTimestamp + 5;
-
-    const { signature, uniqueId, timestamp } = await signMintRequest(
+    const { signature, uniqueId } = await signMintRequest(
       user.address,
       tokenId,
       uri,
       price,
-      phaseIndex,
-      signatureTimestamp
+      phaseIndex
     );
 
     // Advance time to match the signature timestamp
     await advanceTimeAndBlock(10); // Add a bit more time to ensure we're past the signature timestamp
 
-    await contract
-      .connect(user)
-      .mint(tokenId, uri, uniqueId, timestamp, signature, {
-        value: ethers.parseEther(price)
-      });
+    await contract.connect(user).mint(tokenId, uri, uniqueId, signature, {
+      value: ethers.parseEther(price)
+    });
 
     return { tokenId, uri };
   }
@@ -347,15 +336,12 @@ describe("LaunchNFTV3 Tests", () => {
         Number(phaseIndex)
       );
 
-      // Try to mint third token - should fail due to max supply
-      const signatureTimestamp = currentTimestamp + 5;
-      const { signature, uniqueId, timestamp } = await signMintRequest(
+      const { signature, uniqueId } = await signMintRequest(
         minter.address,
         "3",
         "ipfs://fcfs3",
         "0.15",
-        Number(phaseIndex),
-        signatureTimestamp
+        Number(phaseIndex)
       );
 
       // Advance time for the mint attempt
@@ -365,7 +351,7 @@ describe("LaunchNFTV3 Tests", () => {
       await expect(
         contract
           .connect(minter)
-          .mint("3", "ipfs://fcfs3", uniqueId, timestamp, signature, {
+          .mint("3", "ipfs://fcfs3", uniqueId, signature, {
             value: ethers.parseEther("0.15")
           })
       ).to.be.revertedWith("Phase supply limit reached");
@@ -407,14 +393,12 @@ describe("LaunchNFTV3 Tests", () => {
       );
 
       // Try to mint third token with same wallet - should fail
-      const signatureTimestamp = currentTimestamp + 5;
-      const { signature, uniqueId, timestamp } = await signMintRequest(
+      const { signature, uniqueId } = await signMintRequest(
         minter.address,
         "3",
         "ipfs://fcfs3",
         "0.15",
-        Number(phaseIndex),
-        signatureTimestamp
+        Number(phaseIndex)
       );
 
       // Advance time for the mint attempt
@@ -424,7 +408,7 @@ describe("LaunchNFTV3 Tests", () => {
       await expect(
         contract
           .connect(minter)
-          .mint("3", "ipfs://fcfs3", uniqueId, timestamp, signature, {
+          .mint("3", "ipfs://fcfs3", uniqueId, signature, {
             value: ethers.parseEther("0.15")
           })
       ).to.be.revertedWith("Wallet limit reached for this phase");
@@ -626,7 +610,6 @@ describe("LaunchNFTV3 Tests", () => {
       // Generate signature using the wrong signer (otherUser instead of backendSigner)
       const tokenId = "1";
       const uri = "ipfs://wrongSigner";
-      const signatureTimestamp = currentTimestamp + 5;
 
       // Create the domain and data just like in the correct signature
       const domain = {
@@ -638,8 +621,8 @@ describe("LaunchNFTV3 Tests", () => {
 
       const uniqueId = ethers.keccak256(
         ethers.solidityPacked(
-          ["address", "uint256", "string", "uint256"],
-          [minter.address, tokenId, uri, signatureTimestamp]
+          ["address", "uint256", "string"],
+          [minter.address, tokenId, uri]
         )
       );
 
@@ -650,8 +633,7 @@ describe("LaunchNFTV3 Tests", () => {
           { name: "uri", type: "string" },
           { name: "price", type: "uint256" },
           { name: "phaseIndex", type: "uint256" },
-          { name: "uniqueId", type: "bytes32" },
-          { name: "timestamp", type: "uint256" }
+          { name: "uniqueId", type: "bytes32" }
         ]
       };
 
@@ -661,8 +643,7 @@ describe("LaunchNFTV3 Tests", () => {
         uri: uri,
         price: ethers.parseEther("0.1"),
         phaseIndex: Number(phaseIndex),
-        uniqueId: uniqueId,
-        timestamp: signatureTimestamp
+        uniqueId: uniqueId
       };
 
       // Sign with wrong signer
@@ -679,7 +660,7 @@ describe("LaunchNFTV3 Tests", () => {
       await expect(
         contract
           .connect(minter)
-          .mint(tokenId, uri, uniqueId, signatureTimestamp, invalidSignature, {
+          .mint(tokenId, uri, uniqueId, invalidSignature, {
             value: ethers.parseEther("0.1")
           })
       ).to.be.revertedWith("Invalid signature");
@@ -716,7 +697,6 @@ describe("LaunchNFTV3 Tests", () => {
       // We'll generate a signature but it will fail at the contract level
       const tokenId = "1";
       const uri = "ipfs://gapMint";
-      const signatureTimestamp = currentTimestamp + 5;
 
       // Create signature with a fake phaseIndex (0)
       const { signature, uniqueId } = await signMintRequest(
@@ -724,8 +704,7 @@ describe("LaunchNFTV3 Tests", () => {
         tokenId,
         uri,
         "0.1",
-        0, // Using 0 as there's no active phase
-        signatureTimestamp
+        0 // Using 0 as there's no active phase
       );
 
       // Advance time a bit for the mint attempt
@@ -733,11 +712,9 @@ describe("LaunchNFTV3 Tests", () => {
 
       // Attempt to mint during gap should fail
       await expect(
-        contract
-          .connect(minter)
-          .mint(tokenId, uri, uniqueId, signatureTimestamp, signature, {
-            value: ethers.parseEther("0.1")
-          })
+        contract.connect(minter).mint(tokenId, uri, uniqueId, signature, {
+          value: ethers.parseEther("0.1")
+        })
       ).to.be.revertedWith("No active phase");
     });
   });
@@ -939,15 +916,12 @@ describe("LaunchNFTV3 Tests", () => {
         );
       }
 
-      // Attempt to mint beyond the new wallet limit
-      const signatureTimestamp = currentTimestamp + 5;
-      const { signature, uniqueId, timestamp } = await signMintRequest(
+      const { signature, uniqueId } = await signMintRequest(
         minter.address,
         (newMaxPerWallet + 1).toString(),
         "ipfs://updated-fcfs-beyond-limit",
         newPrice,
-        Number(activePhaseIndex),
-        signatureTimestamp
+        Number(activePhaseIndex)
       );
 
       await advanceTimeAndBlock(10);
@@ -960,7 +934,6 @@ describe("LaunchNFTV3 Tests", () => {
             (newMaxPerWallet + 1).toString(),
             "ipfs://updated-fcfs-beyond-limit",
             uniqueId,
-            timestamp,
             signature,
             { value: ethers.parseEther(newPrice) }
           )
