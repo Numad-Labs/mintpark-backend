@@ -33,7 +33,7 @@ import { SQSClientFactory } from "../queue/sqsClient";
 import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
 import { BaseNFTService } from "../blockchain/evm/services/nftService/baseNFTService";
 import { LAUNCH_PHASE } from "types/db/enums";
-import { DEFAULT_CONTRACT_VERSION } from "blockchain/evm/contract-versions";
+import { DEFAULT_CONTRACT_VERSION } from "../blockchain/evm/contract-versions";
 
 export const launchServices = {
   create: async (
@@ -560,8 +560,7 @@ export const launchServices = {
       throw new CustomError("Please try again, no collectible found.", 400);
 
     // --- Check if the collectible is already minted ---
-    const baseNFTService = new BaseNFTService(chainConfig.RPC_URL);
-    const isMinted = await baseNFTService.isNFTMinted(
+    const isMinted = await directMintService.isNFTMinted(
       collection.contractAddress,
       collectible.nftId
     );

@@ -22,7 +22,7 @@ import { VaultMintNFTService } from "../blockchain/evm/services/nftService/vault
 import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
 import { ethers } from "ethers";
 import { launchRepository } from "../repositories/launchRepository";
-import { DEFAULT_CONTRACT_VERSION } from "blockchain/evm/contract-versions";
+import { DEFAULT_CONTRACT_VERSION } from "../blockchain/evm/contract-versions";
 
 export const collectionServices = {
   create: async (
