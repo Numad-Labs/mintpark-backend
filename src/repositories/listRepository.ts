@@ -125,7 +125,7 @@ export const listRepository = {
 
     return list;
   },
-  getActiveListCountByCollectionid: async (collectionId: string) => {
+  getActiveListCountByCollectionId: async (collectionId: string) => {
     const result = await db
       .selectFrom("List")
       .innerJoin("Collectible", "Collectible.id", "List.collectibleId")
@@ -178,8 +178,6 @@ export const listRepository = {
           .where("UserLayer.isActive", "=", true)
       )
       .execute();
-
-    console.log(hehe);
 
     return result;
   }

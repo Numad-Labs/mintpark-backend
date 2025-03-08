@@ -263,7 +263,7 @@ export class DirectMintNFTService extends BaseNFTService {
       );
       return this.prepareUnsignedTransaction(unsignedTx, initialOwner);
     } catch (error) {
-      console.log(error);
+      logger.error(error);
     }
   }
 

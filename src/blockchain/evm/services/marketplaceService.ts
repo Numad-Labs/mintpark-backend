@@ -77,7 +77,6 @@ class MarketplaceService {
     );
 
     if (!isApproved) {
-      console.log("Approval needed. Preparing approval transaction...");
       const approvalTx =
         await nftContract.setApprovalForAll.populateTransaction(
           this.marketplaceAddress,

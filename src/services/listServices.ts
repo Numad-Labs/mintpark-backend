@@ -99,8 +99,8 @@ export const listServices = {
       collectible?.collectionId
     );
     if (!collection) throw new CustomError("Collectible not found.", 400);
-    if (collection.status !== "CONFIRMED")
-      throw new CustomError("This collection cannot be listed yet.", 400);
+    // if (collection.status !== "CONFIRMED")
+    //   throw new CustomError("This collection cannot be listed yet.", 400);
     if (
       collection.type === "INSCRIPTION" ||
       collection.type === "RECURSIVE_INSCRIPTION"
@@ -351,6 +351,8 @@ export const listServices = {
       );
       if (!collection || !collection.contractAddress)
         throw new CustomError("Collection not found", 400);
+      if (collection.status !== "CONFIRMED")
+        throw new CustomError("Collection is not confirmed", 400);
 
       // const listingData = await marketplaceContract.getListing(
       //   collectible.uniqueIdx.split("i")[0],
@@ -478,7 +480,7 @@ export const listServices = {
     //   layerId
     // );
     // if (!seller) throw new CustomError("Seller not found.", 400);
-    if (!list.chainId) throw new CustomError(" chainid not found", 400);
+    if (!list.chainId) throw new CustomError("chainid not found", 400);
     const chainConfig = EVM_CONFIG.CHAINS[list.chainId];
 
     const confirmationService = new TransactionConfirmationService(

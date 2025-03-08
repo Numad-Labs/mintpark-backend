@@ -410,11 +410,6 @@ export const launchServices = {
     );
 
     if (!collection) throw new CustomError("Collection not found.", 400);
-    if (user.layerId !== collection?.layerId)
-      throw new CustomError(
-        "Please connect to the appropriate L2 for this launch.",
-        400
-      );
     if (collection.type === "SYNTHETIC" || collection.parentCollectionId)
       throw new CustomError("You cannot buy the item of this collection.", 400);
     if (
@@ -429,6 +424,11 @@ export const launchServices = {
       throw new CustomError("No contract address.", 400);
     if (collection.isBadge && !collection.badgeCid)
       throw new CustomError("No badge cid.", 400);
+    if (user.layerId !== collection?.layerId)
+      throw new CustomError(
+        "Please connect to the appropriate L2 for this launch.",
+        400
+      );
 
     const currentUnixTimeStamp = Math.floor(Date.now() / 1000);
     const mintPrice = await validatePhaseAndGetPrice(
@@ -831,7 +831,7 @@ export const launchServices = {
       collectible.nftId,
       user.address
     );
-    console.log("🚀 ~ tokenIdValidation:", tokenIdValidation);
+    logger.info("🚀 ~ tokenIdValidation:", tokenIdValidation);
 
     if (!tokenIdValidation.isValid) {
       throw new CustomError(
@@ -876,11 +876,12 @@ export const launchServices = {
       await orderRepository.update(trx, orderId, {
         orderStatus: "DONE"
       });
-      if (collection.status === "UNCONFIRMED") {
-        await collectionRepository.update(trx, collection.id, {
-          status: "CONFIRMED"
-        });
-      }
+
+      // if (collection.status === "UNCONFIRMED") {
+      //   await collectionRepository.update(trx, collection.id, {
+      //     status: "CONFIRMED"
+      //   });
+      // }
 
       return {
         launchItem: soldLaunchItem

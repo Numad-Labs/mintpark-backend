@@ -72,7 +72,7 @@ export type TraitPayload = z.infer<typeof payloadSchema>;
 
 export const collectibleControllers = {
   getListableCollectibles: async (
-    req: Request,
+    req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {
@@ -90,6 +90,9 @@ export const collectibleControllers = {
         MAX_LIMIT
       );
       const offset = Number(req.query.offset) || 0;
+
+      if (req.user?.id !== userId)
+        throw new CustomError("You are not allowed to fetch this data.", 400);
 
       const result = await collectibleServices.getListableCollectibles(userId, {
         isListed,
@@ -239,7 +242,6 @@ export const collectibleControllers = {
         throw new CustomError("Could not parse the id from the token.", 400);
 
       const { collectionId } = req.body;
-      console.log(req.body.data);
       const data: recursiveInscriptionParams[] = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data

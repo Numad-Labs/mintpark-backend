@@ -32,15 +32,17 @@ collectibleRouter.post(
 );
 
 collectibleRouter.get(
-  "/:userId/listable",
-  // authenticateToken,
-  // collectibleslimiter,
-  collectibleControllers.getListableCollectibles
-);
-collectibleRouter.get(
   "/:collectionId/collection/listable",
   optionalAuth(),
   collectibleControllers.getListableCollectiblesByCollectionId
+);
+
+collectibleRouter.get(
+  "/:userId/listable",
+  // authenticateToken,
+  // collectibleslimiter,
+  authenticateToken,
+  collectibleControllers.getListableCollectibles
 );
 collectibleRouter.get(
   "/:id",

@@ -345,6 +345,7 @@ export const collectibleRepository = {
           : sql`false`.as("isOwnListing")
       ])
       .where("Collectible.status", "=", "CONFIRMED")
+      .where("Collection.status", "=", "CONFIRMED")
       .where("Collectible.collectionId", "=", collectionId);
 
     if (params.isListed)
@@ -494,6 +495,7 @@ export const collectibleRepository = {
             )
           : sql`false`.as("isOwnListing")
       ])
+      .where("Collectible.status", "=", "CONFIRMED")
       .where("Collectible.id", "=", id)
       .execute();
 

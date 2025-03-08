@@ -467,7 +467,7 @@ export const collectionRepository = {
       .selectAll()
       .where("Layer.id", "=", layerId)
       .where("Collection.contractAddress", "is not", null)
-      .where("Collection.status", "=", "CONFIRMED")
+      // .where("Collection.status", "=", "CONFIRMED")
       .execute();
 
     return collections;
