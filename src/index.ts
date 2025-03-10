@@ -37,6 +37,14 @@ app.get("/", (req: Request, res: Response) => {
   });
 });
 
+// // Get environment variables
+// const isProduction = process.env.NODE_ENV === "production";
+// const corsOptions = {
+//   origin: isProduction
+//     ? "https://mintpark.io"
+//     : ["http://localhost:3000", "http://127.0.0.1:3000"]
+// };
+
 app.use(cors());
 app.use(helmet());
 app.use(express.json({ limit: sizeLimitConstants.jsonSizeLimit }));

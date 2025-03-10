@@ -57,7 +57,7 @@ export const layerServices = {
     const layer = await layerRepository.getById(layerId);
     if (!layer) throw new CustomError("Layer not found.", 400);
 
-    if (layer.layerType === "EVM" && layer.network === "TESTNET") return layer;
+    if (layer.layerType === "EVM") return layer;
 
     throw new CustomError("Unsupported layer.", 400);
   }

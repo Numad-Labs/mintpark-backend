@@ -178,13 +178,58 @@ function loginUser(wallet, signedMessage, layerId) {
 
 // Get active layers
 function getLayers() {
-  // const params = authenticateUser(token);
   const response = http.get(`${BASE_URL}/layers`);
 
   check(response, {
-    "layers status is 200": (r) => r.status === 200,
-    "layers returned data": (r) => JSON.parse(r.body).data.length > 0
+    "getLayers status is 200": (r) => r.status === 200,
+    "getLayers returned data": (r) => JSON.parse(r.body).data.length > 0
   });
+
+  return JSON.parse(response.body).data;
+}
+
+// Get layer by id
+function getLayerById(id) {
+  const response = http.get(`${BASE_URL}/layers/${id}`);
+
+  console.log(`getLayerById response.body: ${response.body}`);
+
+  check(response, {
+    "getLayerById status is 200": (r) => r.status === 200,
+    "getLayerById returned data": (r) => JSON.parse(r.body).data
+  });
+
+  return JSON.parse(response.body).data;
+}
+
+// Get launches
+function getLaunchesByLayerId(layerId) {
+  const response = http.get(
+    `${BASE_URL}/launchpad?layerId=${layerId}&interval=all`
+  );
+
+  check(response, {
+    "getLaunches status is 200": (r) => r.status === 200,
+    "getLaunches returned data": (r) => JSON.parse(r.body).data
+  });
+
+  console.log(`getLaunches response.body: ${response.body}`);
+
+  return JSON.parse(response.body).data;
+}
+
+// Get launch by id
+function getLaunchByCollectionId(collectionId) {
+  const response = http.get(
+    `${BASE_URL}/launchpad/collections/${collectionId}`
+  );
+
+  check(response, {
+    "getLaunchByCollectionId status is 200": (r) => r.status === 200,
+    "getLaunchByCollectionId returned data": (r) => JSON.parse(r.body).data
+  });
+
+  console.log(`getLaunchByCollectionId response.body: ${response.body}`);
 
   return JSON.parse(response.body).data;
 }
@@ -256,13 +301,18 @@ function mintLaunchItem(token, launchItemId, userLayerId, txid, orderId) {
 
 // Main test scenario
 export default function () {
+  const LAYER_ID = "32e0739b-99c5-4af0-9849-696904b47105";
+  const COLLECTION_ID = "44409c9d-3330-48ea-9608-f38c53c49e51";
+  const LAUNCH_ID = "23c78c1c-a04a-4910-be82-423036951a17";
+
   // Generate a simulated wallet
   const wallet = generateWalletData();
 
-  // // Get active layers
-  // let layers;
-  // // Generate message and login
-  // layers = getLayers();
+  // Get active layers
+  let layers;
+  layers = getLayers();
+
+  getLayerById(LAYER_ID);
 
   // Generate message and login again (to ensure fresh token)
   const { message: loginMessage, signedMessage: loginSignedMessage } =
@@ -270,12 +320,17 @@ export default function () {
   const { token, userLayerId } = loginUser(
     wallet,
     loginSignedMessage,
-    "32e0739b-99c5-4af0-9849-696904b47105"
+    LAYER_ID
   );
 
   randomSleep(0.3, 0.6);
 
-  const selectedLaunch = { launchId: "23c78c1c-a04a-4910-be82-423036951a17" };
+  getLaunchesByLayerId(LAYER_ID);
+
+  randomSleep(0.3, 0.6);
+
+  getLaunchByCollectionId(COLLECTION_ID);
+  const selectedLaunch = { launchId: LAUNCH_ID };
 
   randomSleep(0.3, 0.6);
 
