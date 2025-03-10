@@ -192,8 +192,6 @@ function getLayers() {
 function getLayerById(id) {
   const response = http.get(`${BASE_URL}/layers/${id}`);
 
-  console.log(`getLayerById response.body: ${response.body}`);
-
   check(response, {
     "getLayerById status is 200": (r) => r.status === 200,
     "getLayerById returned data": (r) => JSON.parse(r.body).data
@@ -213,8 +211,6 @@ function getLaunchesByLayerId(layerId) {
     "getLaunches returned data": (r) => JSON.parse(r.body).data
   });
 
-  console.log(`getLaunches response.body: ${response.body}`);
-
   return JSON.parse(response.body).data;
 }
 
@@ -228,8 +224,6 @@ function getLaunchByCollectionId(collectionId) {
     "getLaunchByCollectionId status is 200": (r) => r.status === 200,
     "getLaunchByCollectionId returned data": (r) => JSON.parse(r.body).data
   });
-
-  console.log(`getLaunchByCollectionId response.body: ${response.body}`);
 
   return JSON.parse(response.body).data;
 }
