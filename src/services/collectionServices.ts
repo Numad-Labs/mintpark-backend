@@ -107,7 +107,7 @@ export const collectionServices = {
             symbol,
             chainConfig.DEFAULT_ROYALTY_FEE,
             chainConfig.DEFAULT_PLATFORM_FEE,
-            config.VAULT_ADDRESS
+            config.PLATFORM_FEE_RECIPIENT
           );
         deployContractTxHex = serializeBigInt(unsignedTx);
       } else if (data.type === "IPFS_CID" || data.type === "IPFS_FILE") {
