@@ -221,10 +221,15 @@ export const listController = {
   ) => {
     try {
       const { id } = req.params;
+      const { txid } = req.body;
 
       if (!req.user?.id)
         throw new CustomError("Could not retrieve id from the token.", 400);
-      const result = await listServices.confirmListingCancel(req.user.id, id);
+      const result = await listServices.confirmListingCancel(
+        req.user.id,
+        id,
+        txid
+      );
 
       return res.status(200).json({
         success: true,

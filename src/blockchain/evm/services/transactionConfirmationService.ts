@@ -316,4 +316,161 @@ export class TransactionConfirmationService {
       throw error;
     }
   }
+  async validateCreateListingTransaction(
+    txHash: string,
+    nftContractAddress: string,
+    tokenId: string,
+    sellerAddress: string,
+    expectedPrice: string,
+    expectedListingId?: string
+  ): Promise<boolean> {
+    try {
+      // Get transaction receipt
+      const txReceipt = await this.provider.getTransactionReceipt(txHash);
+      if (!txReceipt) {
+        throw new CustomError("Transaction not found", 400);
+      }
+
+      // Verify transaction status
+      if (txReceipt.status === 0) {
+        throw new CustomError("Transaction failed", 400);
+      }
+
+      // First, verify the transaction was sent by the seller
+      if (txReceipt.from.toLowerCase() !== sellerAddress.toLowerCase()) {
+        throw new CustomError("Transaction not initiated by the seller", 400);
+      }
+
+      // Parse ListingCreated event
+      const listingCreatedTopic = ethers.id(
+        "ListingCreated(uint256,address,uint256,uint256)"
+      );
+      const listingEvents = txReceipt.logs.filter((log) => {
+        return log.topics[0] === listingCreatedTopic;
+      });
+
+      if (listingEvents.length === 0) {
+        throw new CustomError("No ListingCreated event found", 400);
+      }
+
+      // Parse the event data
+      const marketplaceInterface = new ethers.Interface([
+        "event ListingCreated(uint256 indexed listingId, address indexed nftContract, uint256 tokenId, uint256 price)"
+      ]);
+
+      const parsedEvent = marketplaceInterface.parseLog({
+        topics: listingEvents[0].topics as string[],
+        data: listingEvents[0].data
+      });
+
+      if (!parsedEvent) {
+        throw new CustomError("Failed to parse ListingCreated event", 400);
+      }
+
+      // Verify listing details
+      const listingId = parsedEvent.args[0].toString();
+      const listedNftContract = parsedEvent.args[1].toLowerCase();
+      const listedTokenId = parsedEvent.args[2].toString();
+      const listedPrice = parsedEvent.args[3].toString();
+
+      // Check if the listing ID matches (if provided)
+      if (expectedListingId && listingId !== expectedListingId) {
+        throw new CustomError(
+          `Invalid listing ID: expected ${expectedListingId}, got ${listingId}`,
+          400
+        );
+      }
+
+      // Check NFT contract address
+      if (listedNftContract !== nftContractAddress.toLowerCase()) {
+        throw new CustomError("Invalid NFT contract address", 400);
+      }
+
+      // Check token ID
+      if (listedTokenId !== tokenId) {
+        throw new CustomError("Invalid token ID", 400);
+      }
+
+      // Check price - convert to same format for comparison
+      const expectedPriceWei = ethers
+        .parseEther(expectedPrice.toString())
+        .toString();
+      if (listedPrice !== expectedPriceWei) {
+        throw new CustomError(
+          `Invalid price: expected ${expectedPriceWei}, got ${listedPrice}`,
+          400
+        );
+      }
+
+      // If we made it this far, the transaction is valid
+      return true;
+    } catch (error) {
+      console.error("Listing validation error:", error);
+      throw error;
+    }
+  }
+  async validateListingCancellation(
+    txHash: string,
+    listingId: string,
+    sellerAddress: string
+  ): Promise<boolean> {
+    try {
+      // Get transaction receipt
+      const txReceipt = await this.provider.getTransactionReceipt(txHash);
+      if (!txReceipt) {
+        throw new CustomError("Transaction not found", 400);
+      }
+
+      // Verify transaction status
+      if (txReceipt.status === 0) {
+        throw new CustomError("Transaction failed", 400);
+      }
+
+      // Verify transaction sender
+      if (txReceipt.from.toLowerCase() !== sellerAddress.toLowerCase()) {
+        throw new CustomError("Transaction not initiated by the seller", 400);
+      }
+
+      // Parse ListingCancelled event
+      const listingCancelledTopic = ethers.id("ListingCancelled(uint256)");
+      const cancelEvents = txReceipt.logs.filter((log) => {
+        return log.topics[0] === listingCancelledTopic;
+      });
+
+      if (cancelEvents.length === 0) {
+        throw new CustomError("No ListingCancelled event found", 400);
+      }
+
+      // Parse the event data
+      const marketplaceInterface = new ethers.Interface([
+        "event ListingCancelled(uint256 indexed listingId)"
+      ]);
+
+      const parsedEvent = marketplaceInterface.parseLog({
+        topics: cancelEvents[0].topics as string[],
+        data: cancelEvents[0].data
+      });
+
+      if (!parsedEvent) {
+        throw new CustomError("Failed to parse ListingCancelled event", 400);
+      }
+
+      // Verify listing ID
+      const cancelledListingId = parsedEvent.args[0].toString();
+
+      // Check if the listing ID matches
+      if (cancelledListingId !== listingId) {
+        throw new CustomError(
+          `Invalid listing ID: expected ${listingId}, got ${cancelledListingId}`,
+          400
+        );
+      }
+
+      // If we made it this far, the cancellation is valid
+      return true;
+    } catch (error) {
+      console.error("Listing cancellation validation error:", error);
+      throw error;
+    }
+  }
 }

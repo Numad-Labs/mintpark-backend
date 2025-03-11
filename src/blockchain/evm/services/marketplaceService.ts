@@ -115,20 +115,20 @@ class MarketplaceService {
     //   givenPriceEther: price,
     //   priceInWei: priceInWei.toString()
     // });
-    const nextListingId = await this.getNextListingId();
-    // console.log("🚀 ~ MarketplaceService ~ nextListingId:", nextListingId);
+    // Get the current counter value
+    const currentCounter = await this.getNextListingId();
 
-    // The current listing ID will be one less than the counter
-    const currentListingId =
-      Number(nextListingId) > 0 ? Number(nextListingId) - 1 : 0;
+    // For an unsigned transaction, the expectedListingId will be currentCounter + 1
+    // because the counter increments in the createListing function
+    const expectedListingId = Number(currentCounter) + 1;
 
     return {
       transaction: await this.prepareUnsignedTransaction(
         unsignedTx,
         sellerAddress
       ),
-      expectedListingId: (await this.getNextListingId()).toString(),
-      currentListingId: currentListingId.toString()
+      expectedListingId: expectedListingId.toString(),
+      currentListingId: currentCounter.toString()
     };
   }
 
