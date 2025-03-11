@@ -13,6 +13,7 @@ import { collectionRepository } from "../repositories/collectionRepository";
 import { db } from "../utils/db";
 import { layerRepository } from "../repositories/layerRepository";
 import { userLayerRepository } from "../repositories/userLayerRepository";
+import logger from "../config/winston";
 
 export const listServices = {
   checkAndPrepareRegistration: async (
@@ -503,6 +504,15 @@ export const listServices = {
             500
           );
         }
+
+        logger.info(`Listing sold`, {
+          txid,
+          buyerAddress: buyer.address,
+          sellerAddress: list.address, // listing seller address
+          contractAddress,
+          tokenId,
+          listingPrice: list.price.toString()
+        });
         const confirmedList = await listRepository.update(trx, list.id, {
           status: "SOLD",
           soldAt: new Date().toISOString()

@@ -8,7 +8,7 @@ import { PinResponse, S3FileResponse } from "../../../../types";
 
 // BaseNFTService.ts - Common functionality shared between services
 export class BaseNFTService {
-  protected provider: ethers.JsonRpcProvider;
+  public provider: ethers.JsonRpcProvider;
   protected storage: PinataSDK;
 
   constructor(providerUrl: string) {
