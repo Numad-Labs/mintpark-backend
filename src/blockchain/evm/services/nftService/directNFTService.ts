@@ -301,7 +301,7 @@ export class DirectMintNFTService extends BaseNFTService {
         symbol,
         royaltyFee,
         platformFee,
-        config.VAULT_ADDRESS,
+        config.PLATFORM_FEE_RECIPIENT,
         config.VAULT_ADDRESS
       );
       return this.prepareUnsignedTransaction(unsignedTx, initialOwner);
