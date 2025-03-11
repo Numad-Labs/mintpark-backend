@@ -386,6 +386,28 @@ export const launchController = {
     } catch (e) {
       next(e);
     }
+  },
+  reconcileLaunchItemState: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user?.id)
+        throw new CustomError("Could not parse the id from the token.", 400);
+
+      const { launchId, offset, limit } = req.body;
+
+      const result = await launchServices.reconcileLaunchItemState(
+        launchId,
+        offset,
+        limit
+      );
+
+      return res.status(200).json({ success: true, data: result });
+    } catch (e) {
+      next(e);
+    }
   }
   // stateFunctionTest: async (
   //   req: Request,

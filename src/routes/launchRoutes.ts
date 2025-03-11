@@ -68,6 +68,13 @@ launchRouter.post(
   launchController.addWhitelistAddress
 );
 
+launchRouter.post(
+  "/reconcile",
+  authenticateToken,
+  authorize("SUPER_ADMIN"),
+  launchController.reconcileLaunchItemState
+);
+
 // launchRouter.post(
 //   "/create-order-for-reserved-items",
 //   authenticateToken,

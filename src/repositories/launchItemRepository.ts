@@ -268,5 +268,32 @@ export const launchItemRepository = {
       .execute();
 
     return nftIds;
+  },
+  getActiveLaunchItemsWithExpiredHoldByLaunchId: async (
+    launchId: string,
+    offset: number,
+    limit: number
+  ) => {
+    const currentDate = new Date().toISOString();
+
+    return await db
+      .selectFrom("LaunchItem")
+      .innerJoin("Collectible", "Collectible.id", "LaunchItem.collectibleId")
+      .select([
+        "LaunchItem.id",
+        "LaunchItem.collectibleId",
+        "LaunchItem.status",
+        "nftId"
+      ])
+      .where("LaunchItem.launchId", "=", launchId)
+      .where("LaunchItem.status", "=", "ACTIVE")
+      .where("LaunchItem.onHoldUntil", "is not", null)
+      .where((eb) =>
+        sql`${eb.ref("onHoldUntil")} < ${currentDate}`.$castTo<boolean>()
+      )
+      .orderBy("LaunchItem.onHoldUntil asc")
+      .offset(offset)
+      .limit(limit)
+      .execute();
   }
 };

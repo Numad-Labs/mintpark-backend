@@ -120,8 +120,9 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
     if (!txid) throw new CustomError("txid not found.", 400);
-    const transactionDetail =
-      await confirmationService.getTransactionDetails(txid);
+    const transactionDetail = await confirmationService.getTransactionDetails(
+      txid
+    );
     if (transactionDetail.status !== 1) {
       throw new CustomError(
         "Transaction not confirmed. Please try again.",
@@ -462,7 +463,6 @@ export const launchServices = {
       collection.contractAddress
     );
     if (!phaseInfo.isActive) throw new CustomError("Phase not found", 400);
-    //todo validate buyer balance here
 
     // Assuming mintPrice is in ETH units (like 0.00054 ETH)
     const mintPriceWei = ethers.parseEther(mintPrice.toString());
@@ -473,7 +473,9 @@ export const launchServices = {
     // Compare both values in wei units using native bigint comparison
     if (balance < mintPriceWei) {
       throw new CustomError(
-        `Account is missing required funds. Required: ${ethers.formatEther(mintPriceWei)} ETH, Available: ${ethers.formatEther(balance)} ETH`,
+        `Account is missing required funds. Required: ${ethers.formatEther(
+          mintPriceWei
+        )} ETH, Available: ${ethers.formatEther(balance)} ETH`,
         400
       );
     }
@@ -1053,6 +1055,95 @@ export const launchServices = {
     const wlAddress = await wlRepository.bulkInsert(whitelistAddresses);
 
     return wlAddress;
+  },
+  reconcileLaunchItemState: async (
+    launchId: string,
+    offset: number,
+    limit: number
+  ) => {
+    limit = Math.min(limit, 30);
+
+    logger.info(
+      `Started reconcile process with offset: ${offset}, limit: ${limit}`
+    );
+
+    const launch = await launchRepository.getById(db, launchId);
+    if (!launch) throw new CustomError("Launch not found.", 400);
+    if (launch.status !== "CONFIRMED")
+      throw new CustomError("Launch not confirmed.", 400);
+
+    const collection = await collectionRepository.getById(
+      db,
+      launch.collectionId
+    );
+    if (!collection) throw new CustomError("Collection not found.", 400);
+    if (!collection.contractAddress || !collection.contractVersion)
+      throw new CustomError("Invalid collection details.", 400);
+
+    const layer = await layerRepository.getById(collection.layerId);
+    if (!layer) throw new CustomError("Layer not found.", 400);
+    if (!layer.chainId || layer.layerType !== "EVM")
+      throw new CustomError(
+        "This operation cannot be done in this layer.",
+        400
+      );
+
+    const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+    const contractVersion =
+      collection.contractVersion || DEFAULT_CONTRACT_VERSION;
+    const directMintService = new DirectMintNFTService(
+      chainConfig.RPC_URL,
+      contractVersion
+    );
+
+    let total = 0,
+      reconciled = 0;
+    const launchItems =
+      await launchItemRepository.getActiveLaunchItemsWithExpiredHoldByLaunchId(
+        launchId,
+        offset,
+        limit
+      );
+
+    if (launchItems.length === 0)
+      return {
+        total,
+        reconciled
+      };
+
+    logger.info(
+      `Found ${launchItems.length} launch items for reconcile process with offset: ${offset}, limit: ${limit}`
+    );
+
+    for (const launchItem of launchItems) {
+      total++;
+      const isMinted = await directMintService.isNFTMinted(
+        collection.contractAddress,
+        launchItem.nftId
+      );
+
+      if (!isMinted) continue;
+
+      logger.info(
+        `Corrected NFT #${launchItem.nftId} in the reconcile process`
+      );
+
+      await db.transaction().execute(async (trx) => {
+        await collectibleRepository.update(trx, launchItem.collectibleId, {
+          status: "CONFIRMED",
+          uniqueIdx: collection.contractAddress + "i" + launchItem.nftId
+        });
+        await launchItemRepository.update(trx, launchItem!.id, {
+          status: "SOLD"
+        });
+      });
+      reconciled++;
+    }
+
+    return {
+      total,
+      reconciled
+    };
   }
 };
 
