@@ -29,11 +29,10 @@ import { purchaseRepository } from "../repositories/purchaseRepository";
 import { hideSensitiveData } from "../libs/hideDataHelper";
 import { orderItemRepository } from "../repositories/orderItemRepository";
 import { wlRepository } from "../repositories/wlRepository";
-import { SQSClientFactory } from "../queue/sqsClient";
 import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
-import { BaseNFTService } from "../blockchain/evm/services/nftService/baseNFTService";
 import { LAUNCH_PHASE } from "types/db/enums";
 import { DEFAULT_CONTRACT_VERSION } from "../blockchain/evm/contract-versions";
+import { ethers } from "ethers";
 
 export const launchServices = {
   create: async (
@@ -463,8 +462,21 @@ export const launchServices = {
       collection.contractAddress
     );
     if (!phaseInfo.isActive) throw new CustomError("Phase not found", 400);
-
     //todo validate buyer balance here
+
+    // Assuming mintPrice is in ETH units (like 0.00054 ETH)
+    const mintPriceWei = ethers.parseEther(mintPrice.toString());
+
+    // Get user balance (already in wei units as bigint)
+    const balance = await directMintService.provider.getBalance(user.address);
+
+    // Compare both values in wei units using native bigint comparison
+    if (balance < mintPriceWei) {
+      throw new CustomError(
+        `Account is missing required funds. Required: ${ethers.formatEther(mintPriceWei)} ETH, Available: ${ethers.formatEther(balance)} ETH`,
+        400
+      );
+    }
 
     const mintedInPhase = await directMintService.getMintedInPhase(
       collection.contractAddress,
