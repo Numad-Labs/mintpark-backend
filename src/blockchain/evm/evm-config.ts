@@ -111,6 +111,17 @@ export const EVM_CONFIG: EVMConfig = {
       useLegacyGas: true,
       gasPriceMultiplier: 1.1
     },
+    "43111": {
+      RPC_URL: `https://43111.rpc.thirdweb.com/${config.THIRDWEB_SECRET_KEY}`,
+      CHAIN_ID: 43111,
+      MARKETPLACE_ADDRESS: "0xd384fa40492c767BD5DfCE66650A276fFb0A07Cd",
+      DEFAULT_PUBLIC_MAX_MINT,
+      DEFAULT_ROYALTY_FEE,
+      DEFAULT_PLATFORM_FEE,
+      MAX_FEE,
+      useLegacyGas: true,
+      gasPriceMultiplier: 1.1
+    },
     "31337": {
       RPC_URL: "http://127.0.0.1:8545",
       CHAIN_ID: 31337,
