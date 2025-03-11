@@ -21,7 +21,7 @@ import { db } from "./utils/db";
 import traitValueRouter from "./routes/traitValueRoutes";
 import { version } from "../package.json";
 // import { SQSConsumer } from "./queue/sqsConsumer";
-import { processMessage } from "./services/messageProcessingService";
+// import { processMessage } from "./services/messageProcessingService";
 // import { SQSProducer } from "./queue/sqsProducer";
 // import { CollectionOwnerCounterService } from "./cron";
 // import { QueueProcessor } from "./queue/IPFS-mint-queue";
