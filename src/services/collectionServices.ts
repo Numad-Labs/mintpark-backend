@@ -129,7 +129,7 @@ export const collectionServices = {
         deployContractTxHex = serializeBigInt(unsignedTx);
       }
     }
-    console.log("🚀 ~ layer:", layer);
+
     if (layer.layerType == "EVM" && deployContractTxHex == null)
       throw new CustomError("Couldn't create deploy contract hex", 400);
 
@@ -341,11 +341,10 @@ export const collectionServices = {
 
     // Initialize NFT service
     const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
-    console.log("🚀 ~ collection.contractVersion:", collection.contractVersion);
 
     const contractVersion =
       collection.contractVersion || DEFAULT_CONTRACT_VERSION;
-    console.log("🚀 ~ contractVersion:", contractVersion);
+
     const directMintService = new DirectMintNFTService(
       chainConfig.RPC_URL,
       contractVersion
