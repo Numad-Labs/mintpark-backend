@@ -182,49 +182,43 @@ export class TransactionConfirmationService {
         }
       }
 
-      const result = {
-        isValid: true
-      };
+      // If we didn't find the token transfer in the logs, it might be a different transaction
+      if (!tokenIdTransferFound) {
+        const result = {
+          isValid: false,
+          error: "Token ID not minted in this transaction"
+        };
+        return result;
+      }
 
-      return result;
+      const currentOwner = receipt.from;
 
-      // // If we didn't find the token transfer in the logs, it might be a different transaction
-      // if (!tokenIdTransferFound) {
-      //   const result = {
-      //     isValid: false,
-      //     error: "Token ID not minted in this transaction"
-      //   };
-      //   return result;
-      // }
+      // Double check by verifying current ownership if the token transfer was found
+      // This provides an extra layer of validation beyond just checking transaction logs
+      try {
+        // Convert addresses to lowercase for comparison
+        const ownerMatches =
+          currentOwner.toLowerCase() === expectedOwner.toLowerCase();
 
-      // const currentOwner = receipt.from;
+        const transferMatches = transferTo === expectedOwner.toLowerCase();
 
-      // // Double check by verifying current ownership if the token transfer was found
-      // // This provides an extra layer of validation beyond just checking transaction logs
-      // try {
-      //   // Convert addresses to lowercase for comparison
-      //   const ownerMatches =
-      //     currentOwner.toLowerCase() === expectedOwner.toLowerCase();
+        const isValid = ownerMatches && transferMatches;
 
-      //   const transferMatches = transferTo === expectedOwner.toLowerCase();
+        const result = {
+          isValid,
+          tokenId: expectedTokenId,
+          owner: currentOwner,
+          error: isValid ? undefined : "Token owner mismatch"
+        };
 
-      //   const isValid = ownerMatches && transferMatches;
-
-      //   const result = {
-      //     isValid,
-      //     tokenId: expectedTokenId,
-      //     owner: currentOwner,
-      //     error: isValid ? undefined : "Token owner mismatch"
-      //   };
-
-      //   return result;
-      // } catch (e) {
-      //   // If ownerOf reverts, the token may not exist
-      //   return {
-      //     isValid: false,
-      //     error: "Token ID does not exist or cannot verify ownership"
-      //   };
-      // }
+        return result;
+      } catch (e) {
+        // If ownerOf reverts, the token may not exist
+        return {
+          isValid: false,
+          error: "Token ID does not exist or cannot verify ownership"
+        };
+      }
     } catch (error) {
       logger.error("Error validating minted token:", error);
       return {
