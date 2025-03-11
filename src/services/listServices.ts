@@ -11,19 +11,8 @@ import { serializeBigInt } from "../blockchain/evm/utils";
 import { collectionRepository } from "../repositories/collectionRepository";
 
 import { db } from "../utils/db";
-import { launchRepository } from "../repositories/launchRepository";
 import { layerRepository } from "../repositories/layerRepository";
 import { userLayerRepository } from "../repositories/userLayerRepository";
-// import { merkleService } from "../blockchain/evm/services/merkleTreeService";
-
-// import MarketplaceService from "./marketplaceService";
-// const marketplaceService = new MarketplaceService(
-//   EVM_CONFIG.MARKETPLACE_ADDRESS
-// );
-
-// const confirmationService = new TransactionConfirmationService(
-//   EVM_CONFIG.RPC_URL
-// );
 
 export const listServices = {
   checkAndPrepareRegistration: async (
@@ -475,6 +464,16 @@ export const listServices = {
     if (list.status !== "ACTIVE")
       throw new CustomError("This list is could not be bought.", 400);
 
+    const collectible = await collectibleRepository.getById(
+      db,
+      list.collectibleId
+    );
+    if (!collectible) throw new CustomError("Collectible not found.", 400);
+    if (!collectible.uniqueIdx)
+      throw new CustomError("Collectible uniqueIdx not found", 400);
+    const contractAddress = collectible.uniqueIdx.split("i")[0];
+    const tokenId = collectible.uniqueIdx.split("i")[1];
+
     // const seller = await userRepository.getByIdAndLayerId(
     //   list.sellerId,
     //   layerId
@@ -490,9 +489,15 @@ export const listServices = {
     return await db.transaction().execute(async (trx) => {
       if (list.layerType === "EVM") {
         if (!txid) throw new CustomError("txid is missing", 400);
-        const transactionDetail =
-          await confirmationService.getTransactionDetails(txid);
-        if (transactionDetail.status !== 1) {
+        const isConfirmed = await confirmationService.validateBuyTransaction(
+          txid,
+          buyer.address,
+          list.address, // listing seller address
+          contractAddress,
+          tokenId,
+          list.price.toString()
+        );
+        if (!isConfirmed) {
           throw new CustomError(
             "Transaction not confirmed. Please try again.",
             500
