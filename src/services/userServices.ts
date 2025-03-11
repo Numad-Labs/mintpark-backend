@@ -15,7 +15,7 @@ export const userServices = {
     const nonce = generateNonce();
     const message = generateMessage(address, nonce);
 
-    await redis.set(`nonce:${address}`, nonce, "EX", 30000);
+    await redis.set(`nonce:${address}`, nonce, "EX", 300);
 
     return message;
   },
