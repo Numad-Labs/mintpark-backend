@@ -36,10 +36,6 @@ export class DirectMintNFTService extends BaseNFTService {
 
     // Set the contract version and retrieve version config
     this.contractVersion = contractVersion;
-    console.log(
-      "🚀 ~ DirectMintNFTService ~ contractVersion:",
-      contractVersion
-    );
 
     if (!CONTRACT_VERSIONS[contractVersion]) {
       throw new CustomError(

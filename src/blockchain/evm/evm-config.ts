@@ -15,7 +15,7 @@ import { config } from "../../config/config";
 const DEFAULT_PUBLIC_MAX_MINT = 255;
 
 const DEFAULT_ROYALTY_FEE = 250; // 2.5%
-const DEFAULT_PLATFORM_FEE = 300; // 3%
+const DEFAULT_PLATFORM_FEE = 150; // 1.5%
 const MAX_FEE = 1000; // 10%
 const DEFAULT_SIGN_DEADLINE = 120;
 
@@ -119,7 +119,7 @@ export const EVM_CONFIG: EVMConfig = {
       DEFAULT_ROYALTY_FEE,
       DEFAULT_PLATFORM_FEE,
       MAX_FEE,
-      useLegacyGas: true,
+      useLegacyGas: false,
       gasPriceMultiplier: 1.1
     },
     "31337": {

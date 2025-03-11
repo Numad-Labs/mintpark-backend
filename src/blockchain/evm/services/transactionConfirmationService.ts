@@ -39,10 +39,6 @@ export class TransactionConfirmationService {
 
       // Get transaction receipt
       const receipt = await this.provider.getTransactionReceipt(txHash);
-      console.log(
-        "🚀 ~ TransactionConfirmationService ~ confirmTransaction ~ receipt:",
-        receipt
-      );
 
       if (!receipt) {
         const status: TransactionStatus = { status: "pending" };
