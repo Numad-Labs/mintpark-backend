@@ -231,6 +231,16 @@ export const listServices = {
       );
     if (!list.chainId) throw new CustomError("chainid not found", 400);
 
+    const collectible = await collectibleRepository.getById(
+      db,
+      list.collectibleId
+    );
+    if (!collectible) throw new CustomError("Collectible not found.", 400);
+    if (!collectible.uniqueIdx)
+      throw new CustomError("Collectible uniqueIdx not found", 400);
+    const contractAddress = collectible.uniqueIdx.split("i")[0];
+    const tokenId = collectible.uniqueIdx.split("i")[1];
+
     const chainConfig = EVM_CONFIG.CHAINS[list.chainId];
     const confirmationService = new TransactionConfirmationService(
       chainConfig.RPC_URL
@@ -239,14 +249,15 @@ export const listServices = {
     return await db.transaction().execute(async (trx) => {
       if (list.layerType === "EVM") {
         if (!txid) throw new CustomError("txid is missing", 400);
-        const transactionDetail =
-          await confirmationService.getTransactionDetails(txid);
-        if (transactionDetail.status !== 1) {
-          throw new CustomError(
-            "Transaction not confirmed. Please try again.",
-            400
-          );
-        }
+        await confirmationService.validateCreateListingTransaction(
+          txid,
+          contractAddress,
+          tokenId,
+          list.address,
+          list.price.toString(),
+          list.privateKey
+        );
+
         const updatedList = await listRepository.update(trx, list.id, {
           status: "ACTIVE",
           vaultTxid: txid,
@@ -586,7 +597,7 @@ export const listServices = {
 
     return txHex;
   },
-  confirmListingCancel: async (issuerId: string, id: string) => {
+  confirmListingCancel: async (issuerId: string, id: string, txid: string) => {
     const list = await listRepository.getById(id);
     if (!list) throw new CustomError("List not found.", 400);
     const collectible = await collectibleRepository.getById(
@@ -613,9 +624,51 @@ export const listServices = {
           400
         );
 
-    const canceledListing = await listRepository.cancelListingsById(db, id);
+    // Transaction validation
+    if (!txid) {
+      throw new CustomError("Transaction ID is required", 400);
+    }
 
-    return canceledListing;
+    if (!collectible.chainId) throw new CustomError("Chain ID not found", 400);
+
+    const chainConfig = EVM_CONFIG.CHAINS[collectible.chainId];
+    const confirmationService = new TransactionConfirmationService(
+      chainConfig.RPC_URL
+    );
+
+    try {
+      // Get basic transaction details first
+      const transactionDetail =
+        await confirmationService.getTransactionDetails(txid);
+      if (transactionDetail.status !== 1) {
+        throw new CustomError(
+          "Transaction not confirmed. Please try again.",
+          400
+        );
+      }
+
+      // Validate the cancellation transaction
+      // We need to verify that the listing ID in the event matches with the one stored
+      // This assumes list.privateKey contains the listing ID from the marketplace
+      await confirmationService.validateListingCancellation(
+        txid,
+        list.privateKey, // Using privateKey field to store the marketplace listing ID
+        seller.address
+      );
+
+      // If validation passes, update listing
+      const canceledListing = await listRepository.cancelListingsById(db, id);
+
+      return canceledListing;
+    } catch (error) {
+      if (error instanceof CustomError) {
+        throw error;
+      }
+      throw new CustomError(
+        `Failed to validate listing cancellation: ${error}`,
+        400
+      );
+    }
   }
   // estimateFee: async (id: string, feeRate: number) => {
   //   const list = await listRepository.getById(id);
