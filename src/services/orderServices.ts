@@ -24,9 +24,6 @@ import {
 // import { producer } from "..";
 import logger from "../config/winston";
 import { config } from "../config/config";
-import { NFTActivityType } from "../blockchain/evm/evm-types";
-import NFTService from "../blockchain/evm/services/nftService";
-import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
 
 export interface nftMetaData {
   nftId: string | null;

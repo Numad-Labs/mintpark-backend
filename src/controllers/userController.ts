@@ -1,15 +1,10 @@
 import { NextFunction, Request, Response } from "express";
 import { userRepository } from "../repositories/userRepository";
-import { Updateable } from "kysely";
-import { User } from "../types/db/types";
 import { verifyRefreshToken } from "../utils/jwt";
 import { userServices } from "../services/userServices";
 import { CustomError } from "../exceptions/CustomError";
 import { AuthenticatedRequest } from "../../custom";
-import { hideSensitiveData } from "../libs/hideDataHelper";
 import { JsonWebTokenError, TokenExpiredError } from "jsonwebtoken";
-import NFTService from "../blockchain/evm/services/nftService";
-import { EVM_CONFIG } from "../blockchain/evm/evm-config";
 
 export const userController = {
   generateMessageToSign: async (

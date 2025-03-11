@@ -230,4 +230,90 @@ export class TransactionConfirmationService {
       };
     }
   }
+
+  async validateBuyTransaction(
+    txid: string,
+    buyerAddress: any,
+    sellerAddress: any,
+    nftContractAddress: string,
+    tokenId: string,
+    expectedPrice: string
+  ): Promise<boolean> {
+    try {
+      // Get transaction receipt
+      const txReceipt = await this.provider.getTransactionReceipt(txid);
+      if (!txReceipt) {
+        throw new CustomError("Transaction not found", 400);
+      }
+
+      // Verify transaction status
+      if (!txReceipt.status) {
+        throw new CustomError("Transaction failed", 400);
+      }
+
+      // Verify NFT transfer
+      const transferEventTopic = ethers.id("Transfer(address,address,uint256)");
+      const transferEvents = txReceipt.logs.filter((log) => {
+        return (
+          log.address.toLowerCase() === nftContractAddress.toLowerCase() &&
+          log.topics[0] === transferEventTopic
+        );
+      });
+
+      if (transferEvents.length === 0) {
+        throw new CustomError("No NFT transfer found", 400);
+      }
+
+      // Parse the transfer event
+      const nftInterface = new ethers.Interface([
+        "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)"
+      ]);
+
+      const parsedTransfer = nftInterface.parseLog({
+        topics: transferEvents[0].topics,
+        data: transferEvents[0].data
+      });
+
+      if (!parsedTransfer) {
+        throw new CustomError("Failed to parse transfer event", 400);
+      }
+
+      // Verify transfer details
+      const transferredFrom = parsedTransfer.args[0].toLowerCase();
+
+      const transferredTo = parsedTransfer.args[1].toLowerCase();
+
+      const transferredTokenId = parsedTransfer.args[2].toString();
+
+      if (transferredFrom !== sellerAddress.toLowerCase()) {
+        throw new CustomError("Invalid seller address", 400);
+      }
+
+      if (transferredTo !== buyerAddress.toLowerCase()) {
+        throw new CustomError("Invalid buyer address", 400);
+      }
+
+      if (transferredTokenId !== tokenId) {
+        throw new CustomError("Invalid token ID", 400);
+      }
+
+      // Verify payment amount
+      const tx = await this.provider.getTransaction(txid);
+      if (!tx) {
+        throw new CustomError("Transaction not found", 400);
+      }
+
+      if (
+        tx.value.toString() !==
+        ethers.parseEther(expectedPrice.toString()).toString()
+      ) {
+        throw new CustomError("Invalid payment amount", 400);
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Buy validation error:", error);
+      throw error;
+    }
+  }
 }

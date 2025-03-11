@@ -464,6 +464,8 @@ export const launchServices = {
     );
     if (!phaseInfo.isActive) throw new CustomError("Phase not found", 400);
 
+    //todo validate buyer balance here
+
     const mintedInPhase = await directMintService.getMintedInPhase(
       collection.contractAddress,
       user.address,
