@@ -470,15 +470,15 @@ export const launchServices = {
     // Get user balance (already in wei units as bigint)
     const balance = await directMintService.provider.getBalance(user.address);
 
-    // Compare both values in wei units using native bigint comparison
-    if (balance < mintPriceWei) {
-      throw new CustomError(
-        `Account is missing required funds. Required: ${ethers.formatEther(
-          mintPriceWei
-        )} ETH, Available: ${ethers.formatEther(balance)} ETH`,
-        400
-      );
-    }
+    // // Compare both values in wei units using native bigint comparison
+    // if (balance < mintPriceWei) {
+    //   throw new CustomError(
+    //     `Account is missing required funds. Required: ${ethers.formatEther(
+    //       mintPriceWei
+    //     )} ETH, Available: ${ethers.formatEther(balance)} ETH`,
+    //     400
+    //   );
+    // }
 
     const mintedInPhase = await directMintService.getMintedInPhase(
       collection.contractAddress,
@@ -1164,11 +1164,11 @@ const validatePhaseAndGetPrice = async (
       user.address,
       "WHITELIST"
     );
-    if (!wlAddress)
-      throw new CustomError(
-        "You are not allowed to participate in this phase.",
-        400
-      );
+    // if (!wlAddress)
+    //   throw new CustomError(
+    //     "You are not allowed to participate in this phase.",
+    //     400
+    //   );
     return Number(launch.wlMintPrice);
   }
 
