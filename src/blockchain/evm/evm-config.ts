@@ -112,7 +112,7 @@ export const EVM_CONFIG: EVMConfig = {
       gasPriceMultiplier: 1.1
     },
     "43111": {
-      RPC_URL: `https://43111.rpc.thirdweb.com/${config.THIRDWEB_SECRET_KEY}`,
+      RPC_URL: `https://rpc.hemi.network/rpc`,
       CHAIN_ID: 43111,
       MARKETPLACE_ADDRESS: "0xd384fa40492c767BD5DfCE66650A276fFb0A07Cd",
       DEFAULT_PUBLIC_MAX_MINT,
