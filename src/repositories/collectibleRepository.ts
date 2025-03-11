@@ -449,6 +449,7 @@ export const collectibleRepository = {
       )
       .selectFrom("Collectible")
       .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
+      .innerJoin("Layer", "Layer.id", "Collection.layerId")
       .leftJoin("List as CurrentList", (join) =>
         join
           .onRef("CurrentList.collectibleId", "=", "Collectible.id")
@@ -493,7 +494,14 @@ export const collectibleRepository = {
           ? sql`(CASE WHEN "CurrentList"."sellerId" = ${userId} THEN true ELSE false END)::boolean`.as(
               "isOwnListing"
             )
-          : sql`false`.as("isOwnListing")
+          : sql`false`.as("isOwnListing"),
+        "Layer.id as layerId",
+        "Layer.name",
+        "Layer.chainId",
+        "Layer.currencyId",
+        "Layer.layer",
+        "Layer.network",
+        "Layer.layerType"
       ])
       .where("Collectible.status", "=", "CONFIRMED")
       .where("Collectible.id", "=", id)
