@@ -25,5 +25,5 @@ export const REDIS_KEYS = {
 
 export const sizeLimitConstants = {
   jsonSizeLimit: 5 * 1024 * 1024, //5MB
-  formDataSizeLimit: "40mb"
+  formDataSizeLimit: "100mb"
 };
