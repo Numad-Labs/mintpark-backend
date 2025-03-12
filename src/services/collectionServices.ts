@@ -62,12 +62,6 @@ export const collectionServices = {
         400
       );
 
-    if (user.layer !== layer.layer || user.network !== layer.network)
-      throw new CustomError(
-        "You cannot create collection for this layerId with the current active account.",
-        400
-      );
-
     // Validate contract version
     try {
       // Check if the provided contract version is supported
@@ -384,7 +378,11 @@ export const collectionServices = {
         throw new CustomError(
           `Phase time overlaps with existing ${otherPhase.phaseTypeName} phase (index ${i}). ` +
             `It runs from ${new Date(otherStart * 1000).toLocaleString()} to ` +
-            `${otherEnd > 0 ? new Date(otherEnd * 1000).toLocaleString() : "no end date"}.`,
+            `${
+              otherEnd > 0
+                ? new Date(otherEnd * 1000).toLocaleString()
+                : "no end date"
+            }.`,
           400
         );
       }
