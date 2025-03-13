@@ -582,6 +582,9 @@ export const launchServices = {
     );
 
     if (isMinted) {
+      logger.info(
+        `confirmed nftId: ${collectible.nftId} in buy method, collectibleId: ${collectible.id}, launchItemId: ${launchItem.id}, requesterId: ${user.id}`
+      );
       // Sync DB state in a transaction.
       await db.transaction().execute(async (trx) => {
         const mintedCollectible = await collectibleRepository.getById(
@@ -861,6 +864,10 @@ export const launchServices = {
         400
       );
     }
+
+    logger.info(
+      `confirmed nftId: ${collectible.nftId} in confirmMint method, collectibleId: ${collectible.id}, launchItemId: ${launchItem.id}, userId: ${user.id}`
+    );
 
     // Execute database operations in transaction
     const result = await db.transaction().execute(async (trx) => {

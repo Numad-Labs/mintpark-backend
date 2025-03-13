@@ -274,7 +274,7 @@ export const launchItemRepository = {
     offset: number,
     limit: number
   ) => {
-    const currentDate = new Date().toISOString();
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
     return await db
       .selectFrom("LaunchItem")
@@ -289,9 +289,9 @@ export const launchItemRepository = {
       .where("LaunchItem.status", "=", "ACTIVE")
       .where("LaunchItem.onHoldUntil", "is not", null)
       .where((eb) =>
-        sql`${eb.ref("onHoldUntil")} < ${currentDate}`.$castTo<boolean>()
+        sql`${eb.ref("onHoldUntil")} < ${fiveMinutesAgo}`.$castTo<boolean>()
       )
-      .orderBy("LaunchItem.onHoldUntil asc")
+      .orderBy("LaunchItem.onHoldUntil desc")
       .offset(offset)
       .limit(limit)
       .execute();
