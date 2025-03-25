@@ -285,7 +285,7 @@ export const collectionRepository = {
                 .as("soldCount")
             ])
             .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
-            .where("List.status", "=", "SOLD")
+            .where("List.status", "in", ["ACTIVE", "SOLD"])
             .where(
               getIntervalCondition(
                 params.interval,
@@ -425,6 +425,7 @@ export const collectionRepository = {
         "Collection.websiteUrl",
         "Collection.iconUrl",
         "Collection.inscriptionIcon",
+        "Collection.contractAddress",
         "Collection.slug",
         "Collection.isBadge",
         "Collection.badgeSupply",
