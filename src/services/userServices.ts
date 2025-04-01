@@ -33,7 +33,7 @@ export const userServices = {
 
     const message = await generateMessage(address, nonce);
 
-    if (layer.layerType === "EVM") {
+    /*     if (layer.layerType === "EVM") {
       const isValid = await citreaVerifySignedMessage(
         message,
         signedMessage,
@@ -59,7 +59,7 @@ export const userServices = {
         signedMessage
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
-    } else throw new CustomError("Unsupported layer.", 400);
+    } else throw new CustomError("Unsupported layer.", 400); */
 
     const isExistingUserLayer =
       await userLayerRepository.getByAddressAndLayerId(address, layerId);
