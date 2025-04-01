@@ -470,7 +470,7 @@ export const launchServices = {
     // Get user balance (already in wei units as bigint)
     const balance = await directMintService.provider.getBalance(user.address);
 
-    /*     // Compare both values in wei units using native bigint comparison
+    // Compare both values in wei units using native bigint comparison
     if (balance < mintPriceWei) {
       throw new CustomError(
         `Account is missing required funds. Required: ${ethers.formatEther(
@@ -478,7 +478,7 @@ export const launchServices = {
         )} ETH, Available: ${ethers.formatEther(balance)} ETH`,
         400
       );
-    } */
+    }
 
     const mintedInPhase = await directMintService.getMintedInPhase(
       collection.contractAddress,
@@ -682,8 +682,7 @@ export const launchServices = {
     const { signature, uniqueId, timestamp } =
       await directMintService.generateMintSignature(
         collection.contractAddress,
-        /* user.address, */
-        "0xAba4D17C285F234bFd722FF36123A4C9c6b73b71",
+        user.address,
         tokenId,
         nftIpfsUrl,
         mintPrice.toString(),
@@ -699,8 +698,7 @@ export const launchServices = {
       uniqueId,
       timestamp,
       signature,
-      /* user.address */
-      "0xAba4D17C285F234bFd722FF36123A4C9c6b73b71"
+      user.address
     );
 
     logger.info(`Mint tx generated`, {

@@ -296,7 +296,7 @@ function mintLaunchItem(token, launchItemId, userLayerId, txid, orderId) {
 // Main test scenario
 export default function () {
   const LAYER_ID = "c05a6818-b350-4f83-b7d8-5070bdea55fa";
-  const COLLECTION_ID = "d4931fdb-20bf-4cb6-9a7a-aec18075e7a9";
+  const COLLECTION_ID = "hemibros";
   const LAUNCH_ID = "8c5b66c1-64cd-427c-a783-67f8d7737949";
 
   // Generate a simulated wallet
