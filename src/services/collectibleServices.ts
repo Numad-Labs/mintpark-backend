@@ -578,7 +578,7 @@ export const collectibleServices = {
       cid: ipfsCid
     });
   },
-  insertTraits: async (data: TraitPayload[]) => {
+  insertTraits: async (collectionId: string, data: TraitPayload[]) => {
     interface TraitTypeCache {
       [key: string]: string;
     }
@@ -595,6 +595,7 @@ export const collectibleServices = {
       const batchTraits: Insertable<CollectibleTrait>[] = [];
 
       const collectible = await collectibleRepository.getCollectibleByFilename(
+        collectionId,
         data[i].image
       );
       if (!collectible) {

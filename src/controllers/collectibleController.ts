@@ -357,9 +357,10 @@ export const collectibleControllers = {
       if (!req.user?.id)
         throw new CustomError("Could not parse the id from the token.", 400);
 
+      const { collectionId } = req.body;
       const data = payloadArraySchema.parse(req.body.items);
 
-      await collectibleServices.insertTraits(data);
+      await collectibleServices.insertTraits(collectionId, data);
 
       return res.status(200).json({ success: true });
     } catch (e) {

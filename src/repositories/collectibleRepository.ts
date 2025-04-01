@@ -635,11 +635,12 @@ export const collectibleRepository = {
 
     return collectibles;
   },
-  getCollectibleByFilename: async (filename: string) => {
+  getCollectibleByFilename: async (collectionId: string, filename: string) => {
     const collectible = await db
       .selectFrom("Collectible")
       .selectAll()
       .where("Collectible.fileName", "=", filename)
+      .where("Collectible.collectionId", "=", collectionId)
       .executeTakeFirst();
 
     return collectible;
