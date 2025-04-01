@@ -295,9 +295,9 @@ function mintLaunchItem(token, launchItemId, userLayerId, txid, orderId) {
 
 // Main test scenario
 export default function () {
-  const LAYER_ID = "d6472dd4-776d-42b5-b8b7-b45fabdc8afa";
-  const COLLECTION_ID = "1ef97fda-1fed-4a11-a356-3a917b373c73";
-  const LAUNCH_ID = "5d8b9d09-b4f5-4af0-a7bf-995d9bf6886a";
+  const LAYER_ID = "c05a6818-b350-4f83-b7d8-5070bdea55fa";
+  const COLLECTION_ID = "d4931fdb-20bf-4cb6-9a7a-aec18075e7a9";
+  const LAUNCH_ID = "8c5b66c1-64cd-427c-a783-67f8d7737949";
 
   // Generate a simulated wallet
   const wallet = generateWalletData();

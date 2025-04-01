@@ -683,7 +683,7 @@ export const launchServices = {
       await directMintService.generateMintSignature(
         collection.contractAddress,
         /* user.address, */
-        "0x71Ab49bA0DaF4D5dA7D1e6060696129b8f55AF69",
+        "0xAba4D17C285F234bFd722FF36123A4C9c6b73b71",
         tokenId,
         nftIpfsUrl,
         mintPrice.toString(),
@@ -700,7 +700,7 @@ export const launchServices = {
       timestamp,
       signature,
       /* user.address */
-      "0x71Ab49bA0DaF4D5dA7D1e6060696129b8f55AF69"
+      "0xAba4D17C285F234bFd722FF36123A4C9c6b73b71"
     );
 
     logger.info(`Mint tx generated`, {
