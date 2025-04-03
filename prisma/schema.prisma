@@ -307,7 +307,10 @@ model List {
   sellerId        String
   buyerId         String?
   address         String
-  privateKey      String
+
+  privateKey      String?
+  onchainListingId String?
+
   vaultTxid       String?
   vaultVout       Int?
   inscribedAmount Int?        @default(546)

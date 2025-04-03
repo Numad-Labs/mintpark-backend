@@ -193,7 +193,7 @@ export const listServices = {
           collectibleId: collectible.id,
           sellerId: issuer.id,
           address: issuer.address,
-          privateKey: expectedListingId,
+          onchainListingId: expectedListingId,
           price: price
 
           // inscribedAmount: price,
@@ -245,13 +245,20 @@ export const listServices = {
     return await db.transaction().execute(async (trx) => {
       if (list.layerType === "EVM") {
         if (!txid) throw new CustomError("txid is missing", 400);
+
+        let onchainListingId = list.privateKey
+          ? list.privateKey
+          : list.onchainListingId;
+        if (!onchainListingId)
+          throw new Error("Listing with no onchainListingId.");
+
         await confirmationService.validateCreateListingTransaction(
           txid,
           contractAddress,
           tokenId,
           list.address,
           list.price.toString(),
-          list.privateKey
+          onchainListingId
         );
 
         const updatedList = await listRepository.update(trx, list.id, {
@@ -381,12 +388,18 @@ export const listServices = {
         chainConfig.RPC_URL
       );
 
+      let onchainListingId = list.privateKey
+        ? list.privateKey
+        : list.onchainListingId;
+      if (!onchainListingId)
+        throw new Error("Listing with no onchainListingId.");
+
       // FCFS or Public phase - no merkle proof needed
       return serializeBigInt(
         await marketplaceService.buyListingTransaction(
           collection.contractAddress,
           collectible.nftId,
-          parseInt(list.privateKey),
+          parseInt(onchainListingId),
           // [],
           list.price.toString(),
           buyer.address
@@ -631,8 +644,9 @@ export const listServices = {
 
     try {
       // Get basic transaction details first
-      const transactionDetail =
-        await confirmationService.getTransactionDetails(txid);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",
@@ -640,12 +654,17 @@ export const listServices = {
         );
       }
 
+      let onchainListingId = list.privateKey
+        ? list.privateKey
+        : list.onchainListingId;
+      if (!onchainListingId)
+        throw new Error("Listing with no onchainListingId.");
+
       // Validate the cancellation transaction
       // We need to verify that the listing ID in the event matches with the one stored
-      // This assumes list.privateKey contains the listing ID from the marketplace
       await confirmationService.validateListingCancellation(
         txid,
-        list.privateKey, // Using privateKey field to store the marketplace listing ID
+        onchainListingId,
         seller.address
       );
 

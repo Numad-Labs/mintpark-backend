@@ -140,7 +140,8 @@ export type List = {
   sellerId: string;
   buyerId: string | null;
   address: string;
-  privateKey: string;
+  privateKey: string | null;
+  onchainListingId: string | null;
   vaultTxid: string | null;
   vaultVout: number | null;
   inscribedAmount: Generated<number | null>;

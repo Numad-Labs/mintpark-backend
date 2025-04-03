@@ -62,6 +62,7 @@ export const listRepository = {
         "List.listedAt",
         "List.price",
         "List.privateKey",
+        "List.onchainListingId",
         "List.soldAt",
         "List.soldTxid",
         "List.vaultTxid",
