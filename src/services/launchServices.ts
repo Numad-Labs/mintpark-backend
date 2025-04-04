@@ -436,7 +436,7 @@ export const launchServices = {
       user,
       currentUnixTimeStamp
     );
-    await validatePurchaseLimits(db, launch, user, currentUnixTimeStamp);
+    // await validatePurchaseLimits(db, launch, user, currentUnixTimeStamp);
 
     const shortHoldCount =
       await launchItemRepository.getShortHoldCountByLaunchIdAndUserId(
