@@ -295,5 +295,27 @@ export const launchItemRepository = {
       .offset(offset)
       .limit(limit)
       .execute();
+  },
+  getRandomItemWithLockedCollectibleStatusByCollectionId: async (
+    collectionId: string
+  ) => {
+    const currentDate = new Date().toISOString();
+
+    return await db
+      .selectFrom("LaunchItem")
+      .innerJoin("Collectible", "Collectible.id", "LaunchItem.collectibleId")
+      .select(["LaunchItem.id", "LaunchItem.collectibleId"])
+      .where("Collectible.collectionId", "=", collectionId)
+      .where("Collectible.status", "=", "LOCKED")
+      .where("LaunchItem.status", "=", "ACTIVE")
+      .where((eb) =>
+        eb.or([
+          eb("LaunchItem.onHoldUntil", "is", null),
+          sql`${eb.ref("onHoldUntil")} < ${currentDate}`.$castTo<boolean>()
+        ])
+      )
+      .orderBy(sql`RANDOM()`)
+      .limit(1)
+      .executeTakeFirst();
   }
 };
