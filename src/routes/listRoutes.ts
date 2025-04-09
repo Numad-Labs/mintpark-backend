@@ -42,6 +42,55 @@ listRouter.post(
   listController.confirmCancelListingTx
 );
 
+/**
+ * @route   GET /api/marketplace/activity
+ * @desc    Get all marketplace activities (LISTED, SOLD, CANCELED)
+ * @access  Public
+ * @query   {
+ *            chainId: number,
+ *            limit: number,
+ *            offset: number,
+ *            sortBy: string,
+ *            sortDirection: 'asc' | 'desc'
+ *          }
+ */
+listRouter.get("/activity", listController.getMarketplaceActivity);
+/**
+ * @route   GET /api/marketplace/listing/:listingId
+ * @desc    Get listing information by ID
+ * @access  Public
+ * @params  listingId
+ * @query   {
+ *            chainId: number
+ *          }
+ */
+listRouter.get("/:listingId", listController.getListingById);
+
+/**
+ * @route   GET /api/marketplace/token/:nftContract/:tokenId/activity
+ * @desc    Get activities for a specific NFT token
+ * @access  Public
+ * @params  nftContract, tokenId
+ * @query   {
+ *            chainId: number,
+ *            limit: number,
+ *            offset: number,
+ *            sortBy: string,
+ *            sortDirection: 'asc' | 'desc'
+ *          }
+ */
+listRouter.get(
+  "/token/:nftContract/:tokenId/activity",
+  listController.getTokenActivity
+);
+
+/**
+ * @route   POST /api/marketplace/sync
+ * @desc    Manually trigger marketplace data sync
+ * @access  Admin (should be protected)
+ */
+listRouter.post("/sync", listController.syncMarketplace);
+
 // listRouter.get(
 //   "/:id/estimate-fee",
 //   authenticateToken,

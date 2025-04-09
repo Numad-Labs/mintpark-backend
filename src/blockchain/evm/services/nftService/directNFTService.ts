@@ -11,7 +11,6 @@ import {
   CONTRACT_VERSIONS,
   CONTRACT_VERSIONS_ENUM
 } from "../../contract-versions";
-import { serializeBigInt } from "blockchain/evm/utils";
 
 export class DirectMintNFTService extends BaseNFTService {
   private readonly DOMAIN_NAME = "UnifiedNFT";
@@ -45,15 +44,6 @@ export class DirectMintNFTService extends BaseNFTService {
     }
 
     this.versionConfig = CONTRACT_VERSIONS[contractVersion];
-  }
-
-  // Cached method to get network information
-  async getNetwork(): Promise<{ chainId: bigint }> {
-    if (!this.networkCache) {
-      const network = await this.provider.getNetwork();
-      this.networkCache = network;
-    }
-    return this.networkCache;
   }
 
   async validateUpdatePhaseParams(
@@ -553,84 +543,6 @@ export class DirectMintNFTService extends BaseNFTService {
     }
   }
 
-  // DG Todo Update the caching layer seperate
-  async getActivePhase(collectionAddress: string) {
-    try {
-      const contract = new ethers.Contract(
-        collectionAddress,
-        this.versionConfig.directMintNftAbi,
-        this.provider
-      );
-
-      const now = BigInt(Math.floor(Date.now() / 1000));
-
-      const cachedPhase = await redis.get(`phase:${collectionAddress}`);
-      if (cachedPhase) {
-        const [phaseIndexStr, cachePhase] = JSON.parse(cachedPhase);
-        const phaseIndex = BigInt(phaseIndexStr);
-        const phase = {
-          phaseType: BigInt(cachePhase.phaseType),
-          price: BigInt(cachePhase.price),
-          startTime: BigInt(cachePhase.startTime),
-          endTime: BigInt(cachePhase.endTime),
-          maxSupply: BigInt(cachePhase.maxSupply),
-          maxPerWallet: BigInt(cachePhase.maxPerWallet),
-          mintedInPhase: BigInt(cachePhase.mintedInPhase)
-        };
-
-        if (now < phase.startTime || now > phase.endTime) {
-          logger.info(`Stale cachedPhase found: ${collectionAddress}`);
-          await redis.del(`phase:${collectionAddress}`);
-        } else {
-          return {
-            isActive: true,
-            phaseIndex,
-            phaseType: phase.phaseType,
-            price: phase.price,
-            startTime: phase.startTime,
-            endTime: phase.endTime,
-            maxSupply: phase.maxSupply,
-            maxPerWallet: phase.maxPerWallet,
-            mintedInPhase: phase.mintedInPhase
-          };
-        }
-      }
-
-      const [phaseIndex, phase] = await contract.getActivePhase();
-
-      const cachePhase = {
-        phaseType: phase.phaseType.toString(),
-        price: phase.price.toString(),
-        startTime: phase.startTime.toString(),
-        endTime: phase.endTime.toString(),
-        maxSupply: phase.maxSupply.toString(),
-        maxPerWallet: phase.maxPerWallet.toString(),
-        mintedInPhase: phase.mintedInPhase.toString()
-      };
-      logger.info(`Cache miss: ${cachePhase}`);
-      await redis.set(
-        `phase:${collectionAddress}`,
-        JSON.stringify([phaseIndex.toString(), cachePhase]),
-        "EX",
-        30
-      );
-
-      return {
-        isActive: true,
-        phaseIndex,
-        phaseType: phase.phaseType,
-        price: phase.price,
-        startTime: phase.startTime,
-        endTime: phase.endTime,
-        maxSupply: phase.maxSupply,
-        maxPerWallet: phase.maxPerWallet,
-        mintedInPhase: phase.mintedInPhase
-      };
-    } catch (error) {
-      throw new CustomError(`Failed to get active phase: ${error}`, 500);
-    }
-  }
-
   // The rest of the phase and fee management methods remain unchanged
   async getUnsignedAddPhaseTransaction(
     collectionAddress: string,
@@ -752,6 +664,84 @@ export class DirectMintNFTService extends BaseNFTService {
     }
   }
 
+  // DG Todo Update the caching layer seperate
+  async getActivePhase(collectionAddress: string) {
+    try {
+      const contract = new ethers.Contract(
+        collectionAddress,
+        this.versionConfig.directMintNftAbi,
+        this.provider
+      );
+
+      const now = BigInt(Math.floor(Date.now() / 1000));
+
+      const cachedPhase = await redis.get(`phase:${collectionAddress}`);
+      if (cachedPhase) {
+        const [phaseIndexStr, cachePhase] = JSON.parse(cachedPhase);
+        const phaseIndex = BigInt(phaseIndexStr);
+        const phase = {
+          phaseType: BigInt(cachePhase.phaseType),
+          price: BigInt(cachePhase.price),
+          startTime: BigInt(cachePhase.startTime),
+          endTime: BigInt(cachePhase.endTime),
+          maxSupply: BigInt(cachePhase.maxSupply),
+          maxPerWallet: BigInt(cachePhase.maxPerWallet),
+          mintedInPhase: BigInt(cachePhase.mintedInPhase)
+        };
+
+        if (now < phase.startTime || now > phase.endTime) {
+          logger.info(`Stale cachedPhase found: ${collectionAddress}`);
+          await redis.del(`phase:${collectionAddress}`);
+        } else {
+          return {
+            isActive: true,
+            phaseIndex,
+            phaseType: phase.phaseType,
+            price: phase.price,
+            startTime: phase.startTime,
+            endTime: phase.endTime,
+            maxSupply: phase.maxSupply,
+            maxPerWallet: phase.maxPerWallet,
+            mintedInPhase: phase.mintedInPhase
+          };
+        }
+      }
+
+      const [phaseIndex, phase] = await contract.getActivePhase();
+
+      const cachePhase = {
+        phaseType: phase.phaseType.toString(),
+        price: phase.price.toString(),
+        startTime: phase.startTime.toString(),
+        endTime: phase.endTime.toString(),
+        maxSupply: phase.maxSupply.toString(),
+        maxPerWallet: phase.maxPerWallet.toString(),
+        mintedInPhase: phase.mintedInPhase.toString()
+      };
+      logger.info(`Cache miss: ${cachePhase}`);
+      await redis.set(
+        `phase:${collectionAddress}`,
+        JSON.stringify([phaseIndex.toString(), cachePhase]),
+        "EX",
+        30
+      );
+
+      return {
+        isActive: true,
+        phaseIndex,
+        phaseType: phase.phaseType,
+        price: phase.price,
+        startTime: phase.startTime,
+        endTime: phase.endTime,
+        maxSupply: phase.maxSupply,
+        maxPerWallet: phase.maxPerWallet,
+        mintedInPhase: phase.mintedInPhase
+      };
+    } catch (error) {
+      throw new CustomError(`Failed to get active phase: ${error}`, 500);
+    }
+  }
+
   async getPhaseCount(collectionAddress: string): Promise<bigint> {
     try {
       const contract = new ethers.Contract(
@@ -783,6 +773,15 @@ export class DirectMintNFTService extends BaseNFTService {
     } catch (error) {
       throw new CustomError(`Failed to get minted in phase: ${error}`, 500);
     }
+  }
+
+  // Cached method to get network information
+  async getNetwork(): Promise<{ chainId: bigint }> {
+    if (!this.networkCache) {
+      const network = await this.provider.getNetwork();
+      this.networkCache = network;
+    }
+    return this.networkCache;
   }
   /**
    * Gets all phases from the NFT contract
@@ -884,35 +883,6 @@ export class DirectMintNFTService extends BaseNFTService {
     }
   }
 
-  /**
-   * Converts numeric phase type to string representation
-   * @param phaseType The numeric phase type from contract
-   * @returns String representation of phase type
-   */
-  private getPhaseTypeName(phaseType: number): string {
-    const phaseTypes = {
-      0: "WHITELIST",
-      1: "FCFS",
-      2: "PUBLIC"
-    };
-
-    return phaseTypes[phaseType as keyof typeof phaseTypes] || "UNKNOWN";
-  }
-
-  /**
-   * Checks if a phase is currently active
-   * @param startTime Phase start time in seconds
-   * @param endTime Phase end time in seconds (0 means no end)
-   * @returns Boolean indicating if phase is active
-   */
-  private isPhaseActive(startTime: number, endTime: number): boolean {
-    const currentTime = Math.floor(Date.now() / 1000);
-    return (
-      currentTime >= startTime && (endTime === 0 || currentTime <= endTime)
-    );
-  }
-
-  // Get the current contract version
   getContractVersion(): string {
     return this.contractVersion;
   }

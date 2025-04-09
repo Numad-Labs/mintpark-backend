@@ -1,6 +1,7 @@
 import { Insertable, Kysely, sql, Transaction, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { DB, List } from "../types/db/types";
+import { LAYER, LIST_STATUS, NETWORK } from "types/db/enums";
 
 export const listRepository = {
   create: async (db: Kysely<DB> | Transaction<DB>, data: Insertable<List>) => {
@@ -107,7 +108,7 @@ export const listRepository = {
         "Layer.network",
         "Collectible.uniqueIdx"
       ])
-      .where("List.id", "=", id)
+      .where("Collectible.id", "=", id)
       .executeTakeFirst();
 
     return list;
@@ -181,5 +182,86 @@ export const listRepository = {
       .execute();
 
     return result;
+  },
+  updateListingStatus: async (
+    db: Kysely<DB> | Transaction<DB>,
+    id: string,
+    status: LIST_STATUS, // Use the enum type instead of string literals
+    updateData: Partial<Updateable<List>> = {}
+  ) => {
+    const updatedListing = await db
+      .updateTable("List")
+      .set({
+        status: status as LIST_STATUS, // Now this should match the expected type
+        ...updateData
+      })
+      .where("List.id", "=", id)
+      .returningAll()
+      .executeTakeFirst();
+
+    return updatedListing;
+  },
+  getListingWithChainInfo: async (
+    db: Kysely<DB> | Transaction<DB>,
+    listingId: string
+  ) => {
+    const listing = await db
+      .selectFrom("List")
+      .innerJoin("Collectible", "Collectible.id", "List.collectibleId")
+      .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
+      .innerJoin("Layer", "Layer.id", "Collection.layerId")
+      .select([
+        "List.id",
+        "List.status as dbStatus",
+        "List.privateKey",
+        "List.vaultTxid",
+        "Layer.layer",
+        "Layer.chainId",
+        "List.collectibleId",
+        "List.sellerId",
+        "List.buyerId",
+        "List.soldAt",
+        "List.soldTxid"
+      ])
+      .where("List.id", "=", listingId)
+      .executeTakeFirst();
+
+    return listing;
+  },
+
+  getActiveListingsByChain: async (
+    db: Kysely<DB> | Transaction<DB>,
+    layer: (typeof LAYER)[keyof typeof LAYER],
+    network: (typeof NETWORK)[keyof typeof NETWORK],
+    chainId: number
+  ) => {
+    const listings = await db
+      .selectFrom("List")
+      .innerJoin("Collectible", "Collectible.id", "List.collectibleId")
+      .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
+      .innerJoin("Layer", "Layer.id", "Collection.layerId")
+      .select([
+        "List.id",
+        "List.status",
+        "List.vaultTxid",
+        "List.privateKey",
+        "List.listedAt",
+        "Collectible.nftId",
+        "Collection.contractAddress",
+        "List.onchainListingId",
+        "List.collectibleId"
+      ])
+      .where("Layer.layer", "=", layer)
+      .where("Layer.network", "=", network)
+      .where("Layer.chainId", "=", String(chainId))
+      .where((eb) =>
+        eb.or([
+          eb("List.status", "=", LIST_STATUS.ACTIVE),
+          eb("List.status", "=", LIST_STATUS.PENDING)
+        ])
+      )
+      .execute();
+
+    return listings;
   }
 };

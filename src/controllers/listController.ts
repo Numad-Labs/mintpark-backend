@@ -10,6 +10,12 @@ import { collectionRepository } from "../repositories/collectionRepository";
 import { db } from "../utils/db";
 import { MAX_SATOSHI_AMOUNT } from "../blockchain/bitcoin/constants";
 import { layerRepository } from "../repositories/layerRepository";
+
+import subgraphService from "blockchain/evm/services/subgraph/subgraphService";
+import { LAYER } from "types/db/enums";
+import logger from "config/winston";
+import { MarketplaceSyncService } from "blockchain/evm/services/subgraph/marketplaceSyncService";
+
 // const tradingService = new TradingService(
 //   EVM_CONFIG.RPC_URL,
 //   EVM_CONFIG.MARKETPLACE_ADDRESS,
@@ -205,7 +211,6 @@ export const listController = {
         req.user.id,
         id
       );
-
       return res.status(200).json({
         success: true,
         data: { result }
@@ -238,7 +243,223 @@ export const listController = {
     } catch (e) {
       next(e);
     }
+  },
+  /**
+   * Get all marketplace activities (LISTED, SOLD, CANCELED)
+   */
+  getMarketplaceActivity: async (req: Request, res: Response) => {
+    try {
+      const {
+        chainId = 43111, // Default chain ID
+        limit = 20,
+        offset = 0,
+        sortBy = "blockTimestamp",
+        sortDirection = "desc"
+      } = req.query;
+
+      const layer = LAYER.HEMI;
+
+      // Validate layer
+      if (![LAYER.HEMI].includes(layer)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid layer. Supported layers: HEMI, CITREA"
+        });
+      }
+
+      // Validate chain ID
+      const numericChainId = parseInt(chainId as string);
+      if (isNaN(numericChainId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid chainId. Must be a number"
+        });
+      }
+
+      // Validate sortDirection
+      if (sortDirection && !["asc", "desc"].includes(sortDirection as string)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid sortDirection. Must be "asc" or "desc"'
+        });
+      }
+
+      const result = await subgraphService.getMarketplaceActivity(
+        layer,
+        numericChainId,
+        {
+          limit: parseInt(limit as string) || 20,
+          offset: parseInt(offset as string) || 0,
+          sortBy: sortBy as string,
+          sortDirection: ((sortDirection as string) || "desc") as "asc" | "desc"
+        }
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      logger.error(`Error in getMarketplaceActivity: ${error}`);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to fetch marketplace activities",
+        error: (error as Error).message
+      });
+    }
+  },
+
+  getListingById: async (req: Request, res: Response) => {
+    try {
+      const { listingId } = req.params;
+      const { chainId = 43111 } = req.query;
+
+      if (!listingId) {
+        return res.status(400).json({
+          success: false,
+          message: "Listing ID is required"
+        });
+      }
+
+      // For now, only HEMI layer is supported
+      const layer = LAYER.HEMI;
+
+      // Validate chain ID
+      const numericChainId = parseInt(chainId as string);
+      if (isNaN(numericChainId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid chainId. Must be a number"
+        });
+      }
+
+      const result = await subgraphService.getListingById(
+        layer,
+        numericChainId,
+        listingId
+      );
+
+      if (!result) {
+        return res.status(404).json({
+          success: false,
+          message: `Listing with ID ${listingId} not found`
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      logger.error(`Error in getListingById: ${error}`);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to fetch listing information",
+        error: (error as Error).message
+      });
+    }
+  },
+
+  /**
+   * Get activities for a specific NFT token
+   */
+  getTokenActivity: async (req: Request, res: Response) => {
+    try {
+      const { nftContract, tokenId } = req.params;
+      const {
+        chainId = 43111,
+        limit = 20,
+        offset = 0,
+        sortBy = "blockTimestamp",
+        sortDirection = "desc"
+      } = req.query;
+
+      if (!nftContract || !tokenId) {
+        return res.status(400).json({
+          success: false,
+          message: "NFT contract address and token ID are required"
+        });
+      }
+
+      // For now, only HEMI layer is supported
+      const layer = LAYER.HEMI;
+
+      // Validate chain ID
+      const numericChainId = parseInt(chainId as string);
+      if (isNaN(numericChainId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid chainId. Must be a number"
+        });
+      }
+
+      // Validate sortDirection
+      if (sortDirection && !["asc", "desc"].includes(sortDirection as string)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid sortDirection. Must be "asc" or "desc"'
+        });
+      }
+
+      const result = await subgraphService.getTokenActivity(
+        layer,
+        numericChainId,
+        nftContract,
+        tokenId,
+        {
+          limit: parseInt(limit as string) || 20,
+          offset: parseInt(offset as string) || 0,
+          sortBy: sortBy as string,
+          sortDirection: ((sortDirection as string) || "desc") as "asc" | "desc"
+        }
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      logger.error(`Error in getTokenActivity: ${error}`);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to fetch token activities",
+        error: (error as Error).message
+      });
+    }
+  },
+
+  /**
+   * Controller for manually triggering marketplace sync operations
+   */
+  syncMarketplace: async (req: Request, res: Response) => {
+    try {
+      const marketplaceSyncService = req.app.locals
+        .marketplaceSyncService as MarketplaceSyncService;
+
+      if (!marketplaceSyncService) {
+        return res.status(500).json({
+          success: false,
+          message: "Marketplace sync service not initialized"
+        });
+      }
+
+      // Start the sync process
+      await marketplaceSyncService.syncAllListings();
+
+      return res.status(200).json({
+        success: true,
+        message: "Marketplace sync initiated successfully"
+      });
+    } catch (error) {
+      logger.error(`Error in syncMarketplace: ${error}`);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to sync marketplace data",
+        error: (error as Error).message
+      });
+    }
   }
+
   // getEstimatedFee: async (
   //   req: AuthenticatedRequest,
   //   res: Response,
