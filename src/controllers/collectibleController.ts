@@ -5,6 +5,11 @@ import { collectibleServices } from "../services/collectibleServices";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import logger from "../config/winston";
 import { z } from "zod";
+import { collectionRepository } from "repositories/collectionRepository";
+import { db } from "utils/db";
+import subgraphService from "blockchain/evm/services/subgraph/subgraphService";
+import { LAYER } from "types/db/enums";
+import { sql } from "kysely";
 
 const DEFAULT_LIMIT = 30,
   MAX_LIMIT = 50;
@@ -178,21 +183,180 @@ export const collectibleControllers = {
       next(e);
     }
   },
+
+  getCollectionActivity: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { collectionId } = req.params;
+      const {
+        chainId = 43111,
+        limit = 20,
+        offset = 0,
+        sortBy = "blockTimestamp",
+        sortDirection = "desc"
+      } = req.query;
+
+      if (!collectionId) {
+        throw new CustomError("Collection ID is required", 400);
+      }
+
+      const layer = LAYER.HEMI;
+
+      // Validate chain ID
+      const numericChainId = parseInt(chainId as string);
+      if (isNaN(numericChainId)) {
+        throw new CustomError("Invalid chainId. Must be a number", 400);
+      }
+
+      // Validate sortDirection
+      if (sortDirection && !["asc", "desc"].includes(sortDirection as string)) {
+        throw new CustomError(
+          'Invalid sortDirection. Must be "asc" or "desc"',
+          400
+        );
+      }
+
+      // Get collection address from repository by collection ID
+      const collection = await collectionRepository.getById(db, collectionId);
+
+      if (!collection) {
+        throw new CustomError("Collection not found", 404);
+      }
+
+      const collectionAddress = collection.contractAddress;
+
+      if (!collectionAddress)
+        throw new CustomError("Collection address not found", 400);
+
+      const result = await subgraphService.getCollectionActivity(
+        layer,
+        numericChainId,
+        collectionAddress,
+        {
+          limit: parseInt(limit as string) || 20,
+          offset: parseInt(offset as string) || 0,
+          sortBy: sortBy as string,
+          sortDirection: ((sortDirection as string) || "desc") as "asc" | "desc"
+        }
+      );
+      // Enhance the activities with collectible names - optimized approach
+      if (result.activities && result.activities.length > 0) {
+        // Extract all unique token IDs for a single batch query
+        const uniqueIdxSet = new Set<string>();
+        result.activities.forEach((activity) => {
+          const { tokenId, contractAddress } = activity.item;
+          const uniqueIdx = `${contractAddress.toLowerCase()}i${tokenId}`;
+          uniqueIdxSet.add(uniqueIdx);
+        });
+
+        const uniqueIdxList = Array.from(uniqueIdxSet);
+
+        // Get all collectibles in a single query
+        const collectibles =
+          await collectibleRepository.getCollectiblesByUniqueIdxinBatch(
+            uniqueIdxList
+          );
+
+        // Create a lookup map for fast access - using lowercase keys for matching
+        const collectibleMap = new Map();
+        collectibles.forEach((collectible) => {
+          // Convert to lowercase for matching
+          if (collectible.uniqueIdx) {
+            const lowerCaseKey = collectible.uniqueIdx.toLowerCase();
+            collectibleMap.set(lowerCaseKey, collectible.name);
+          }
+        });
+
+        // Enhance activities with names from the map
+        const enhancedActivities = result.activities.map((activity) => {
+          const { tokenId, contractAddress } = activity.item;
+          const uniqueIdx = `${contractAddress.toLowerCase()}i${tokenId}`;
+
+          return {
+            ...activity,
+            item: {
+              ...activity.item,
+              name: collectibleMap.get(uniqueIdx) || null
+            }
+          };
+        });
+
+        // Replace the original activities with enhanced ones
+        result.activities = enhancedActivities;
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
   getTokenActivity: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { collectibleId } = req.params;
-      const { fromBlock } = req.query;
+      const {
+        chainId = 43111,
+        limit = 20,
+        offset = 0,
+        sortBy = "blockTimestamp",
+        sortDirection = "desc"
+      } = req.query;
       if (!collectibleId) {
         throw new CustomError("collectibleId is required", 400);
       }
+
+      const layer = LAYER.HEMI;
+
+      // Validate chain ID
+      const numericChainId = parseInt(chainId as string);
+      if (isNaN(numericChainId)) {
+        throw new CustomError("Invalid chainId. Must be a number", 400);
+      }
+
+      // Validate sortDirection
+      if (sortDirection && !["asc", "desc"].includes(sortDirection as string)) {
+        throw new CustomError(
+          'Invalid sortDirection. Must be "asc" or "desc"',
+          400
+        );
+      }
+
+      const collectible = await collectibleRepository.getById(
+        db,
+        collectibleId
+      );
+
+      if (!collectible) throw new CustomError("Collectible not found", 404);
+      if (!collectible.uniqueIdx)
+        throw new CustomError("Unique IDx not found", 400);
+      const contractAddress = collectible.uniqueIdx.split("i")[0];
+      const tokenId = collectible.uniqueIdx.split("i")[1];
+
+      const result = await subgraphService.getTokenActivity(
+        layer,
+        numericChainId,
+        contractAddress,
+        tokenId,
+        {
+          limit: parseInt(limit as string) || 20,
+          offset: parseInt(offset as string) || 0,
+          sortBy: sortBy as string,
+          sortDirection: ((sortDirection as string) || "desc") as "asc" | "desc"
+        }
+      );
 
       // const activities = await collectibleServices.getActivityByCollectibleId(
       //   collectibleId
       // );
 
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
-        data: []
+        data: result
       });
     } catch (error) {
       next(error);
@@ -245,8 +409,8 @@ export const collectibleControllers = {
       const data: recursiveInscriptionParams[] = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data
-        ? [req.body.data]
-        : [];
+          ? [req.body.data]
+          : [];
       if (data.length === 0)
         throw new CustomError("Please provide the data.", 400);
       if (data.length > 10)
@@ -280,8 +444,8 @@ export const collectibleControllers = {
       const data: ipfsData = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data
-        ? [req.body.data]
-        : [];
+          ? [req.body.data]
+          : [];
       // if (data.length === 0)
       //   throw new CustomError("Please provide the data.", 400);
       // if (data.length > 10)

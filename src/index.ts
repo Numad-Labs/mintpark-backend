@@ -68,7 +68,6 @@ app.use("/api/v1/collectibles", collectibleRouter);
 app.use("/api/v1/collectible-traits", collectibleTraitRouter);
 app.use("/api/v1/lists", listRouter);
 app.use("/api/v1/launchpad", launchRouter);
-// app.use("/api/v1/evm", nftRouter);
 
 app.use(notFound);
 app.use(errorHandler);

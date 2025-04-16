@@ -212,6 +212,15 @@ export const collectibleRepository = {
       throw error;
     }
   },
+
+  getCollectiblesByUniqueIdxinBatch: async (uniqueIdxs: string[]) => {
+    const collectibles = await db
+      .selectFrom("Collectible")
+      .select(["uniqueIdx", "name"])
+      .where(sql`lower("uniqueIdx")`, "in", uniqueIdxs)
+      .execute();
+    return collectibles;
+  },
   getListableCollectiblesCountByInscriptionIds: async (
     inscriptionIds: string[],
     params: CollectibleQueryParams,

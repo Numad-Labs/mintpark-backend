@@ -117,7 +117,7 @@ export const EVM_CONFIG: EVMConfig = {
     "43111": {
       RPC_URL: `https://rpc.hemi.network/rpc`,
       SUBGRAPH_URL:
-        "https://api.studio.thegraph.com/query/108155/mint-park-marketplace/v0.0.1",
+        "https://api.studio.thegraph.com/query/108155/mint-park-marketplace/v0.0.2",
       CHAIN_ID: 43111,
       MARKETPLACE_ADDRESS: "0x4e5EF0196ed5C5bc936E31C7c837d315E66059fF",
       DEFAULT_PUBLIC_MAX_MINT,
