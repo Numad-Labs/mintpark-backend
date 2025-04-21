@@ -916,6 +916,10 @@ class SubgraphService {
           })
         ]);
 
+      console.log(
+        "🚀 ~ SubgraphService ~ createdListingsRes.data.listingCreateds.forEach ~ createdListingsRes:",
+        createdListingsRes.data.listingCreateds
+      );
       // Create lookup map for created listings by listingId
       const createdListingsMap = new Map();
       createdListingsRes.data.listingCreateds.forEach((listing: any) => {
@@ -932,7 +936,7 @@ class SubgraphService {
         collectionListingsMap.set(listing.listingId, {
           tokenId: listing.tokenId,
           nftContract: listing.nftContract,
-          seller: listing.seller || "Unknown"
+          seller: listing.from || "Unknown"
         });
       });
 
@@ -945,7 +949,7 @@ class SubgraphService {
           },
           event: "CREATED",
           price: listing.price,
-          from: listing.seller || "Unknown",
+          from: listing.from || "Unknown",
           to: null,
           time: parseInt(listing.blockTimestamp),
           listingId: listing.listingId,
