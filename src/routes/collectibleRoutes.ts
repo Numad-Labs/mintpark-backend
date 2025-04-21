@@ -68,7 +68,7 @@ collectibleRouter.get(
   collectibleControllers.getCollectibleById
 );
 collectibleRouter.get(
-  "/:collectibleId/activity",
+  "/collectible/:collectibleId/activity",
   collectibleControllers.getTokenActivity
 );
 
