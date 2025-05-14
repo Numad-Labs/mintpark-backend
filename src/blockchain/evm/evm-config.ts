@@ -7,7 +7,6 @@ import {
   CONTRACT_VERSIONS,
   DEFAULT_CONTRACT_VERSION
 } from "./contract-versions";
-import { config } from "../../config/config";
 // import { abi as LAUNCH_NFT_V3_ABI } from "@artifacts/LaunchNFTV3.sol/LaunchNFTV3.json";
 // import { abi as PHASE_MANAGER_ABI } from "@artifacts/PhaseManager.sol/PhaseManager.json";
 // import { abi as NFT_FACTORY_ABI } from "@artifacts/NFTFactory.sol/NFTFactory.json";
@@ -29,6 +28,7 @@ const defaultVersion = CONTRACT_VERSIONS[DEFAULT_CONTRACT_VERSION];
 
 export interface EVMChainConfig {
   RPC_URL: string;
+  SUBGRAPH_URL?: string;
   CHAIN_ID: number;
   MARKETPLACE_ADDRESS: string;
   DEFAULT_PUBLIC_MAX_MINT: number;
@@ -101,7 +101,9 @@ export const EVM_CONFIG: EVMConfig = {
       // gasPriceMultiplier: 1.1
     },
     "743111": {
-      RPC_URL: `https://743111.rpc.thirdweb.com/${config.THIRDWEB_SECRET_KEY}`,
+      RPC_URL: `https://testnet.rpc.hemi.network/rpc`,
+      // SUBGRAPH_URL:
+      //   "https://api.studio.thegraph.com/query/107108/mintpark-mkt-hemi-sepolia/y",
       CHAIN_ID: 743111,
       MARKETPLACE_ADDRESS: "0x07057191b12Ea36DF999512a409783a106DB1b7a",
       DEFAULT_PUBLIC_MAX_MINT,
@@ -113,6 +115,8 @@ export const EVM_CONFIG: EVMConfig = {
     },
     "43111": {
       RPC_URL: `https://rpc.hemi.network/rpc`,
+      SUBGRAPH_URL:
+        "https://api.studio.thegraph.com/query/108155/mint-park-marketplace/v0.0.2",
       CHAIN_ID: 43111,
       MARKETPLACE_ADDRESS: "0x4e5EF0196ed5C5bc936E31C7c837d315E66059fF",
       DEFAULT_PUBLIC_MAX_MINT,

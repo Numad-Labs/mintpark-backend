@@ -5,15 +5,33 @@
   "main": "index.js",
   "scripts": {
     "prebuild": "npx hardhat compile",
-    "build": "tsc && copyfiles package.json dist ",
+    "build": "tsc && copyfiles package.json dist",
     "dev": "nodemon --exec ts-node -P tsconfig.json -r tsconfig-paths/register src/index.ts",
-    "start": "node -r tsconfig-paths/register dist/src/index.js",
+    "start": "node dist/src/index.js",
     "start:prod": "npm prune --production && node dist/src/index.js",
     "migrate:development": "npx prisma migrate dev",
     "migrate:staging": "dotenv -e .env.staging -- npx prisma migrate deploy",
     "migrate:production": "dotenv -e .env.production -- npx prisma migrate deploy",
     "test": "npx ts-node src/test.ts",
     "test-evm": "jest blockchain/evm"
+  },
+  "_moduleAliases": {
+    "@root": "dist/src",
+    "@artifacts": "dist/src/blockchain/evm/artifacts/src/blockchain/evm/contracts",
+    "@config": "dist/src/config",
+    "@app-types": "dist/src/types",
+    "@utils": "dist/src/utils",
+    "@controllers": "dist/src/controllers",
+    "@repositories": "dist/src/repositories",
+    "@services": "dist/src/services",
+    "@middlewares": "dist/src/middlewares",
+    "@libs": "dist/src/libs",
+    "@exceptions": "dist/src/exceptions",
+    "@blockchain": "dist/src/blockchain",
+    "@evm": "dist/src/blockchain/evm",
+    "@bitcoin": "dist/src/blockchain/bitcoin",
+    "@queue": "dist/src/queue",
+    "@routes": "dist/src/routes"
   },
   "author": "",
   "license": "ISC",
@@ -34,6 +52,7 @@
     "typescript": "^5.4.4"
   },
   "dependencies": {
+    "@apollo/client": "^3.13.4",
     "@aws-sdk/client-s3": "^3.651.1",
     "@aws-sdk/client-sqs": "^3.709.0",
     "@aws-sdk/lib-storage": "^3.651.1",

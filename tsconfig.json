@@ -110,7 +110,21 @@
     "paths": {
       "@artifacts/*": [
         "blockchain/evm/artifacts/src/blockchain/evm/contracts/*"
-      ]
+      ],
+      "@config/*": ["config/*"],
+      "@app-types/*": ["types/*"],
+      "@utils/*": ["utils/*"],
+      "@controllers/*": ["controllers/*"],
+      "@repositories/*": ["repositories/*"],
+      "@services/*": ["services/*"],
+      "@middlewares/*": ["middlewares/*"],
+      "@libs/*": ["libs/*"],
+      "@exceptions/*": ["exceptions/*"],
+      "@blockchain/*": ["blockchain/*"],
+      "@evm/*": ["blockchain/evm/*"],
+      "@bitcoin/*": ["blockchain/bitcoin/*"],
+      "@queue/*": ["queue/*"],
+      "@routes/*": ["routes/*"]
     }
   }
   // "ts-node": {

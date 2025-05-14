@@ -1,3 +1,5 @@
+import "module-alias/register";
+
 import express, { Request, Response } from "express";
 import { config } from "./config/config";
 import helmet from "helmet";
@@ -26,6 +28,8 @@ import { version } from "../package.json";
 // import { CollectionOwnerCounterService } from "./cron";
 // import { QueueProcessor } from "./queue/IPFS-mint-queue";
 import traitTypeRouter from "./routes/traitTypeRoutes";
+import subgraphService from "@blockchain/evm/services/subgraph/subgraphService";
+import { MarketplaceSyncService } from "@blockchain/evm/services/subgraph/marketplaceSyncService";
 
 export const redis = new Redis(config.REDIS_CONNECTION_STRING);
 
@@ -66,7 +70,6 @@ app.use("/api/v1/collectibles", collectibleRouter);
 app.use("/api/v1/collectible-traits", collectibleTraitRouter);
 app.use("/api/v1/lists", listRouter);
 app.use("/api/v1/launchpad", launchRouter);
-// app.use("/api/v1/evm", nftRouter);
 
 app.use(notFound);
 app.use(errorHandler);
@@ -91,6 +94,10 @@ app.use(errorHandler);
 
 // const collectionOwnerCounterService = new CollectionOwnerCounterService();
 // collectionOwnerCounterService.startScheduler().catch(logger.error);
+
+const marketplaceSyncService = new MarketplaceSyncService(db, subgraphService);
+
+app.locals.marketplaceSyncService = marketplaceSyncService;
 
 app.listen(config.PORT, () => {
   logger.info(`Server has started on port ${config.PORT}`);

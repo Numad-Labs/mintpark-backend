@@ -14,6 +14,8 @@ import { db } from "../utils/db";
 import { layerRepository } from "../repositories/layerRepository";
 import { userLayerRepository } from "../repositories/userLayerRepository";
 import logger from "../config/winston";
+import subgraphService from "@blockchain/evm/services/subgraph/subgraphService";
+import { LIST_STATUS } from "@app-types/db/enums";
 
 export const listServices = {
   checkAndPrepareRegistration: async (
@@ -46,28 +48,113 @@ export const listServices = {
       chainConfig.RPC_URL
     );
 
-    const listings = await marketplaceService.getAllListings();
-    const tokenListings = listings.filter(
-      (listing) =>
-        listing.nftContract.toLowerCase() ===
-          collection.contractAddress?.toLowerCase() &&
-        listing.tokenId === Number(tokenId) &&
-        listing.isActive
-    );
+    // const listings = await marketplaceService.getAllListings();
+    // const tokenListings = listings.filter(
+    //   (listing) =>
+    //     listing.nftContract.toLowerCase() ===
+    //       collection.contractAddress?.toLowerCase() &&
+    //     listing.tokenId === Number(tokenId) &&
+    //     listing.isActive
+    // );
 
-    // If there are active listings for this token, it means it's already listed
-    const isAlreadyListed = tokenListings.length > 0;
+    // // If there are active listings for this token, it means it's already listed
+    // const isAlreadyListed = tokenListings.length > 0;
 
-    if (isAlreadyListed) {
-      const activeListingPrice = ethers.formatEther(tokenListings[0].price);
-      return {
-        isRegistered: true,
-        currentListing: {
-          listingId: tokenListings[0].listingId,
-          price: activeListingPrice,
-          seller: tokenListings[0].seller
+    const uniqueIdx = `${collection.contractAddress}i${tokenId}`;
+
+    const collectible = await collectibleRepository.getByUniqueIdx(uniqueIdx);
+    if (!collectible)
+      throw new CustomError(`Could not find collectible ${tokenId}`, 400);
+    console.log("🚀 ~ collectible.id:", collectible.id);
+    const listing = await listRepository.getByCollectibleId(collectible.id);
+    console.log("🚀 ~ listing:", listing);
+    if (!collection.contractAddress)
+      throw new CustomError(
+        "Contract address not found in the collection",
+        400
+      );
+
+    if (listing) {
+      // For collectibles that have been listed before, check if they
+      // have an active listing on-chain that our DB missed
+
+      // const existingListing = await listRepository.getByCollectibleId(
+      //   listing.id
+      // );
+
+      const tokenActivity = await subgraphService.getTokenActivity(
+        layer.layer,
+        parseInt(layer.chainId),
+        collection.contractAddress,
+        tokenId
+      );
+      // If we don't have an active listing in our DB, check if there's one on-chain
+      // by analyzing the token activities
+      if (
+        tokenActivity &&
+        tokenActivity.activities &&
+        tokenActivity.activities.length > 0
+      ) {
+        // First find all created listings
+        const createdListings = tokenActivity.activities
+          .filter((activity) => activity.type === "CREATED")
+          .sort(
+            (a, b) => parseInt(b.blockTimestamp) - parseInt(a.blockTimestamp)
+          ); // Sort by newest first
+
+        // For each created listing, check if it's been cancelled or sold
+        for (const createdListing of createdListings) {
+          const listingId = createdListing.listingId;
+
+          // Check if this listing has been cancelled
+          const isCancelled = tokenActivity.activities.some(
+            (activity) =>
+              activity.type === "CANCELLED" && activity.listingId === listingId
+          );
+
+          // Check if this listing has been sold
+          const isSold = tokenActivity.activities.some(
+            (activity) =>
+              activity.type === "SOLD" && activity.listingId === listingId
+          );
+
+          // If the listing is neither cancelled nor sold, it's still active
+          if (!isCancelled && !isSold) {
+            // Add the listing to our database if it doesn't exist
+            const existingListing = listing;
+
+            if (!existingListing) {
+              // Create a new listing record in our database
+              await listRepository.create(db, {
+                collectibleId: collectible.id,
+                sellerId: "", // Unknown seller ID - could attempt to resolve
+                address: "", // Unknown address
+                privateKey: listingId,
+                onchainListingId: listingId,
+                price: parseFloat(createdListing.price),
+                status: LIST_STATUS.ACTIVE,
+                listedAt: new Date(
+                  parseInt(createdListing.blockTimestamp) * 1000
+                )
+              });
+            } else if (existingListing.status !== LIST_STATUS.ACTIVE) {
+              // Update the existing listing to be active
+              await listRepository.updateListingStatus(
+                db,
+                existingListing.id,
+                LIST_STATUS.ACTIVE
+              );
+            }
+
+            return {
+              isRegistered: true,
+              listingId: existingListing ? existingListing.id : null,
+              message: "This token is already listed in the marketplace.",
+              onChainListingId: listingId
+            };
+          }
         }
-      };
+      }
     }
 
     return {
@@ -141,6 +228,9 @@ export const listServices = {
             "This token is already listed in the marketplace.",
             400
           );
+
+          // create new listing(listingId, price, sellerId)
+          // or find pending list with the contractAddress && nftId, verify price & seller address -> update status to ACTIVE
         }
 
         if (!layer.chainId)
@@ -358,41 +448,65 @@ export const listServices = {
       if (collection.status !== "CONFIRMED")
         throw new CustomError("Collection is not confirmed", 400);
 
-      // const listingData = await marketplaceContract.getListing(
-      //   collectible.uniqueIdx.split("i")[0],
-      //   collectible.uniqueIdx.split("i")[1]
-      // );
-      // if (!listingData.isActive) {
-      //   throw new CustomError("Listing no longer active", 400);
-      // }
-
-      // const txHex = await marketplaceContract.buyItem.populateTransaction(
-      //   collectible.uniqueIdx.split("i")[0], // NFT contract
-      //   collectible.uniqueIdx.split("i")[1], // token ID
-      //   {
-      //     value: ethers.parseEther(list.price.toString()),
-      //   }
-      // );
-
-      // const unsignedHex = await nftService.prepareUnsignedTransaction(
-      //   txHex,
-      //   buyer.address
-      // );
       const layer = await layerRepository.getById(collection.layerId);
       if (!layer || !layer.chainId)
         throw new CustomError("Layer or chainid not found", 400);
+
+      let onchainListingId = list.privateKey
+        ? list.privateKey
+        : list.onchainListingId;
+
+      if (!onchainListingId)
+        throw new Error("Listing with no onchainListingId.");
+
+      // // Check on-chain status first
+      // const syncService = new MarketplaceSyncService(db, subgraphService);
+      // const listingState =
+      //   await syncService.checkAndSyncListing(onchainListingId);
+
+      // // If listing was already sold
+      // if (listingState.onChainStatus === "SOLD") {
+      //   throw new CustomError("This item has already been sold.", 400);
+      // }
+
+      // // If listing was already cancelled
+      // if (listingState.onChainStatus === "CANCELLED") {
+      //   throw new CustomError(
+      //     "This listing has been cancelled by the seller.",
+      //     400
+      //   );
+      // }
+
+      // // If listing doesn't exist on-chain but our DB says it's active
+      // if (
+      //   listingState.onChainStatus === null &&
+      //   list.status === LIST_STATUS.ACTIVE
+      // ) {
+      //   // Update our database
+      //   await db
+      //     .updateTable("List")
+      //     .set({
+      //       status: LIST_STATUS.CANCELLED
+      //     })
+      //     .where("id", "=", id)
+      //     .execute();
+
+      //   throw new CustomError(
+      //     "This listing is no longer available on the marketplace.",
+      //     400
+      //   );
+      // }
+
+      // // Now continue with the rest of your buying logic
+      // if (list.status !== LIST_STATUS.ACTIVE) {
+      //   throw new CustomError("This listing could not be bought.", 400);
+      // }
 
       const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
       const marketplaceService = new MarketplaceService(
         chainConfig.MARKETPLACE_ADDRESS,
         chainConfig.RPC_URL
       );
-
-      let onchainListingId = list.privateKey
-        ? list.privateKey
-        : list.onchainListingId;
-      if (!onchainListingId)
-        throw new Error("Listing with no onchainListingId.");
 
       // FCFS or Public phase - no merkle proof needed
       return serializeBigInt(
@@ -587,6 +701,52 @@ export const listServices = {
 
     if (!collectible.chainId) throw new CustomError("chainid not found", 400);
 
+    // let onchainListingId = list.privateKey
+    //   ? list.privateKey
+    //   : list.onchainListingId;
+
+    // console.log(
+    //   "🚀 ~ generateListingCancelTx: ~ onchainListingId:",
+    //   onchainListingId
+    // );
+    // if (!onchainListingId) throw new Error("Listing with no onchainListingId.");
+
+    // // Check on-chain status first
+
+    // const syncService = new MarketplaceSyncService(db, subgraphService);
+    // const dbListingId = list.id;
+
+    // const listingState = await syncService.checkAndSyncListing(dbListingId);
+    // console.log("🚀 ~ generateListingCancelTx: ~ listingState:", listingState);
+
+    // // If the listing was already cancelled on-chain
+    // if (listingState.onChainStatus === "CANCELLED") {
+    //   // Just return a message - no need to sign another tx
+    //   throw new CustomError("This listing has already been cancelled.", 400);
+    // }
+
+    // // If the listing was already sold on-chain
+    // if (listingState.onChainStatus === "SOLD") {
+    //   throw new CustomError(
+    //     "This listing has already been sold and cannot be cancelled.",
+    //     400
+    //   );
+    // }
+
+    // // If the listing isn't active on-chain but our DB says it is
+    // if (
+    //   listingState.onChainStatus === null &&
+    //   list.status === LIST_STATUS.ACTIVE
+    // ) {
+    //   // Update our database to match on-chain state
+    //   await listRepository.updateListingStatus(db, id, LIST_STATUS.CANCELLED);
+
+    //   throw new CustomError(
+    //     "This listing could not be found on the blockchain. It has been marked as cancelled in our system.",
+    //     400
+    //   );
+    // }
+
     const chainConfig = EVM_CONFIG.CHAINS[collectible.chainId];
     const marketplaceService = new MarketplaceService(
       chainConfig.MARKETPLACE_ADDRESS,
@@ -644,9 +804,8 @@ export const listServices = {
 
     try {
       // Get basic transaction details first
-      const transactionDetail = await confirmationService.getTransactionDetails(
-        txid
-      );
+      const transactionDetail =
+        await confirmationService.getTransactionDetails(txid);
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",

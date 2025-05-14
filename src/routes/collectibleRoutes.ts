@@ -37,6 +37,24 @@ collectibleRouter.get(
   collectibleControllers.getListableCollectiblesByCollectionId
 );
 
+/**
+ * @route   GET /api/marketplace/collection/:collectionId/activity
+ * @desc    Get activities for a specific NFT collection
+ * @access  Public
+ * @params  collectionId
+ * @query   {
+ *            chainId: number,
+ *            limit: number,
+ *            offset: number,
+ *            sortBy: string,
+ *            sortDirection: 'asc' | 'desc'
+ *          }
+ */
+collectibleRouter.get(
+  "/:collectionId/activity",
+  collectibleControllers.getCollectionActivity
+);
+
 collectibleRouter.get(
   "/:userId/listable",
   // authenticateToken,
@@ -50,7 +68,7 @@ collectibleRouter.get(
   collectibleControllers.getCollectibleById
 );
 collectibleRouter.get(
-  "/:collectibleId/activity",
+  "/collectible/:collectibleId/activity",
   collectibleControllers.getTokenActivity
 );
 

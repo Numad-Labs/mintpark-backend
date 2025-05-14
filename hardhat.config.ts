@@ -3,7 +3,7 @@ import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-verify";
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.27",
+  solidity: "0.8.20",
   typechain: {
     outDir: "./src/blockchain/evm/typechain-types",
     target: "ethers-v6"
