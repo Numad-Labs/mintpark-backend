@@ -5,9 +5,9 @@ import { DB } from "../../../../types/db/types";
 import SubgraphService from "./subgraphService";
 import { LAYER, LIST_STATUS, NETWORK } from "../../../../types/db/enums";
 import logger from "../../../../config/winston";
-import { EVM_CONFIG } from "blockchain/evm/evm-config";
-import { CustomError } from "exceptions/CustomError";
-import { listRepository } from "repositories/listRepository";
+import { EVM_CONFIG } from "@blockchain/evm/evm-config";
+import { CustomError } from "@exceptions/CustomError";
+import { listRepository } from "@repositories/listRepository";
 
 export class MarketplaceSyncService {
   private db: Kysely<DB>;

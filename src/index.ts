@@ -1,3 +1,5 @@
+import "module-alias/register";
+
 import express, { Request, Response } from "express";
 import { config } from "./config/config";
 import helmet from "helmet";
@@ -26,8 +28,8 @@ import { version } from "../package.json";
 // import { CollectionOwnerCounterService } from "./cron";
 // import { QueueProcessor } from "./queue/IPFS-mint-queue";
 import traitTypeRouter from "./routes/traitTypeRoutes";
-import subgraphService from "blockchain/evm/services/subgraph/subgraphService";
-import { MarketplaceSyncService } from "blockchain/evm/services/subgraph/marketplaceSyncService";
+import subgraphService from "@blockchain/evm/services/subgraph/subgraphService";
+import { MarketplaceSyncService } from "@blockchain/evm/services/subgraph/marketplaceSyncService";
 
 export const redis = new Redis(config.REDIS_CONNECTION_STRING);
 

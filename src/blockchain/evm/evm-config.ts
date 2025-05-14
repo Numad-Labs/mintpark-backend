@@ -7,7 +7,6 @@ import {
   CONTRACT_VERSIONS,
   DEFAULT_CONTRACT_VERSION
 } from "./contract-versions";
-import { config } from "../../config/config";
 // import { abi as LAUNCH_NFT_V3_ABI } from "@artifacts/LaunchNFTV3.sol/LaunchNFTV3.json";
 // import { abi as PHASE_MANAGER_ABI } from "@artifacts/PhaseManager.sol/PhaseManager.json";
 // import { abi as NFT_FACTORY_ABI } from "@artifacts/NFTFactory.sol/NFTFactory.json";

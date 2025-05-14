@@ -1,7 +1,7 @@
 import { Insertable, Kysely, Transaction, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { DB, WlAddress } from "../types/db/types";
-import { LAUNCH_PHASE } from "types/db/enums";
+import { LAUNCH_PHASE } from "@app-types/db/enums";
 
 export const wlRepository = {
   getByLaunchIdAndAddressAndPhase: async (

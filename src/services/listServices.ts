@@ -14,9 +14,8 @@ import { db } from "../utils/db";
 import { layerRepository } from "../repositories/layerRepository";
 import { userLayerRepository } from "../repositories/userLayerRepository";
 import logger from "../config/winston";
-import { MarketplaceSyncService } from "blockchain/evm/services/subgraph/marketplaceSyncService";
-import subgraphService from "blockchain/evm/services/subgraph/subgraphService";
-import { LIST_STATUS } from "types/db/enums";
+import subgraphService from "@blockchain/evm/services/subgraph/subgraphService";
+import { LIST_STATUS } from "@app-types/db/enums";
 
 export const listServices = {
   checkAndPrepareRegistration: async (

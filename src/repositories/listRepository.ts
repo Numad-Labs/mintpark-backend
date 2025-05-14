@@ -1,7 +1,8 @@
 import { Insertable, Kysely, sql, Transaction, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { DB, List } from "../types/db/types";
-import { LAYER, LIST_STATUS, NETWORK } from "types/db/enums";
+import layerRouter from "@routes/layerRoutes";
+import { LAYER, LIST_STATUS, NETWORK } from "@app-types/db/enums";
 
 export const listRepository = {
   create: async (db: Kysely<DB> | Transaction<DB>, data: Insertable<List>) => {

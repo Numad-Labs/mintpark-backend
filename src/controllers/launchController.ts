@@ -8,7 +8,7 @@ import { Launch } from "../types/db/types";
 import { launchRepository } from "../repositories/launchRepository";
 import { ipfsData, recursiveInscriptionParams } from "./collectibleController";
 import { db } from "../utils/db";
-import { LAUNCH_PHASE } from "types/db/enums";
+import { LAUNCH_PHASE } from "@app-types/db/enums";
 export interface LaunchOfferType {
   offerType: "public" | "whitelist";
 }
@@ -135,8 +135,8 @@ export const launchController = {
       const data: recursiveInscriptionParams[] = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data
-        ? [req.body.data]
-        : [];
+          ? [req.body.data]
+          : [];
       if (data.length === 0)
         throw new CustomError("Please provide the data.", 400);
       if (data.length > 10)
@@ -200,8 +200,8 @@ export const launchController = {
       const data: ipfsData = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data
-        ? [req.body.data]
-        : [];
+          ? [req.body.data]
+          : [];
       // if (data.length === 0)
       //   throw new CustomError("Please provide the data.", 400);
       // if (data.length > 10)
@@ -283,9 +283,8 @@ export const launchController = {
         interval: interval as "all" | "live" | "past"
       };
 
-      const launches = await launchRepository.getConfirmedLaunchesByLayerId(
-        query
-      );
+      const launches =
+        await launchRepository.getConfirmedLaunchesByLayerId(query);
 
       return res.status(200).json({ success: true, data: launches });
     } catch (e) {
@@ -301,9 +300,8 @@ export const launchController = {
       const { collectionId } = req.params;
 
       try {
-        const launch = await launchRepository.getConfirmedLaunchById(
-          collectionId
-        );
+        const launch =
+          await launchRepository.getConfirmedLaunchById(collectionId);
         if (!launch) throw new CustomError("Collection not found", 404);
 
         return res.status(200).json({ success: true, data: launch });

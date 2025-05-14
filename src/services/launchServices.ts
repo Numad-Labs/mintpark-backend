@@ -30,7 +30,7 @@ import { hideSensitiveData } from "../libs/hideDataHelper";
 import { orderItemRepository } from "../repositories/orderItemRepository";
 import { wlRepository } from "../repositories/wlRepository";
 import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
-import { LAUNCH_PHASE } from "types/db/enums";
+import { LAUNCH_PHASE } from "@app-types/db/enums";
 import { DEFAULT_CONTRACT_VERSION } from "../blockchain/evm/contract-versions";
 import { ethers } from "ethers";
 
@@ -120,9 +120,8 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
     if (!txid) throw new CustomError("txid not found.", 400);
-    const transactionDetail = await confirmationService.getTransactionDetails(
-      txid
-    );
+    const transactionDetail =
+      await confirmationService.getTransactionDetails(txid);
     if (transactionDetail.status !== 1) {
       throw new CustomError(
         "Transaction not confirmed. Please try again.",

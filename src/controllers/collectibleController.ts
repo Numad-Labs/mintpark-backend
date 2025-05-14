@@ -5,10 +5,10 @@ import { collectibleServices } from "../services/collectibleServices";
 import { collectibleRepository } from "../repositories/collectibleRepository";
 import logger from "../config/winston";
 import { z } from "zod";
-import { collectionRepository } from "repositories/collectionRepository";
-import { db } from "utils/db";
-import subgraphService from "blockchain/evm/services/subgraph/subgraphService";
-import { LAYER } from "types/db/enums";
+import { collectionRepository } from "@repositories/collectionRepository";
+import { db } from "@utils/db";
+import subgraphService from "@blockchain/evm/services/subgraph/subgraphService";
+import { LAYER } from "@app-types/db/enums";
 import { sql } from "kysely";
 
 const DEFAULT_LIMIT = 30,

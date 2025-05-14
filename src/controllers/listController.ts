@@ -9,12 +9,11 @@ import { serializeBigInt } from "../blockchain/evm/utils";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { db } from "../utils/db";
 import { MAX_SATOSHI_AMOUNT } from "../blockchain/bitcoin/constants";
-import { layerRepository } from "../repositories/layerRepository";
 
-import subgraphService from "blockchain/evm/services/subgraph/subgraphService";
-import { LAYER } from "types/db/enums";
-import logger from "config/winston";
-import { MarketplaceSyncService } from "blockchain/evm/services/subgraph/marketplaceSyncService";
+import subgraphService from "@blockchain/evm/services/subgraph/subgraphService";
+import { LAYER } from "@app-types/db/enums";
+import logger from "@config/winston";
+import { MarketplaceSyncService } from "@blockchain/evm/services/subgraph/marketplaceSyncService";
 
 // const tradingService = new TradingService(
 //   EVM_CONFIG.RPC_URL,
