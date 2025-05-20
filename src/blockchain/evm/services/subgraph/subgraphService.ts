@@ -782,44 +782,11 @@ class SubgraphService {
     }
 
     try {
-      // Query for listing created events for the collection
-      const createdListingsQuery = gql`
-        query GetCollectionListingCreateds(
-          $collectionAddress: String!
-          $limit: Int!
-          $offset: Int!
-          $orderBy: String!
-          $orderDirection: String!
-        ) {
-          listingCreateds(
-            where: { nftContract: $collectionAddress }
-            first: $limit
-            skip: $offset
-            orderBy: $orderBy
-            orderDirection: $orderDirection
-          ) {
-            id
-            listingId
-            nftContract
-            tokenId
-            price
-            from
-            blockNumber
-            blockTimestamp
-            transactionHash
-          }
-        }
-      `;
+      // First, get all created listings for this collection to get the listingIds
 
-      // Query for listing sold events for the collection
-      const soldListingsQuery = gql`
-        query GetCollectionListingSolds(
-          $collectionAddress: String!
-          $limit: Int!
-          $offset: Int!
-          $orderBy: String!
-          $orderDirection: String!
-        ) {
+      // Get ALL created listings for the collection (to get all listingIds)
+      const allCreatedListingsQuery = gql`
+        query GetAllCollectionListings($collectionAddress: String!) {
           listingCreateds(
             where: { nftContract: $collectionAddress }
             first: 1000
@@ -828,13 +795,58 @@ class SubgraphService {
             tokenId
             nftContract
             from
+            price
+            blockNumber
+            blockTimestamp
+            transactionHash
           }
-          listingSolds(
-            first: $limit
-            skip: $offset
-            orderBy: $orderBy
-            orderDirection: $orderDirection
-          ) {
+        }
+      `;
+
+      // Execute query to get all listings for this collection
+      const allCreatedListingsRes = await client.query({
+        query: allCreatedListingsQuery,
+        variables: {
+          collectionAddress
+        }
+      });
+
+      // Extract all listingIds for this collection
+      const collectionListingIds =
+        allCreatedListingsRes.data.listingCreateds.map(
+          (listing: any) => listing.listingId
+        );
+
+      // If no listings found, return empty result
+      if (collectionListingIds.length === 0) {
+        return {
+          activities: [],
+          total: 0,
+          uniqueTokens: 0,
+          limit,
+          offset,
+          collectionAddress
+        };
+      }
+
+      // Create lookup map for created listings by listingId
+      const createdListingsMap = new Map();
+      allCreatedListingsRes.data.listingCreateds.forEach((listing: any) => {
+        createdListingsMap.set(listing.listingId, {
+          tokenId: listing.tokenId,
+          nftContract: listing.nftContract,
+          seller: listing.from || "Unknown",
+          price: listing.price,
+          blockNumber: listing.blockNumber,
+          blockTimestamp: listing.blockTimestamp,
+          transactionHash: listing.transactionHash
+        });
+      });
+
+      // Query for sold listings that match the collection's listingIds
+      const soldListingsQuery = gql`
+        query GetCollectionListingSolds($listingIds: [String!]) {
+          listingSolds(where: { listingId_in: $listingIds }, first: 1000) {
             id
             listingId
             buyer
@@ -847,30 +859,10 @@ class SubgraphService {
         }
       `;
 
-      // Query for listing cancelled events for the collection
+      // Query for cancelled listings that match the collection's listingIds
       const cancelledListingsQuery = gql`
-        query GetCollectionListingCancelleds(
-          $collectionAddress: String!
-          $limit: Int!
-          $offset: Int!
-          $orderBy: String!
-          $orderDirection: String!
-        ) {
-          listingCreateds(
-            where: { nftContract: $collectionAddress }
-            first: 1000
-          ) {
-            listingId
-            tokenId
-            nftContract
-            from
-          }
-          listingCancelleds(
-            first: $limit
-            skip: $offset
-            orderBy: $orderBy
-            orderDirection: $orderDirection
-          ) {
+        query GetCollectionListingCancelleds($listingIds: [String!]) {
+          listingCancelleds(where: { listingId_in: $listingIds }, first: 1000) {
             id
             listingId
             blockNumber
@@ -881,67 +873,24 @@ class SubgraphService {
         }
       `;
 
-      // Execute all queries in parallel
-      const [createdListingsRes, soldListingsRes, cancelledListingsRes] =
-        await Promise.all([
-          client.query({
-            query: createdListingsQuery,
-            variables: {
-              collectionAddress,
-              limit: 1000, // Fetch more to filter later
-              offset: 0,
-              orderBy: sortBy,
-              orderDirection: sortDirection
-            }
-          }),
-          client.query({
-            query: soldListingsQuery,
-            variables: {
-              collectionAddress,
-              limit: 1000, // Fetch more to filter later
-              offset: 0,
-              orderBy: sortBy,
-              orderDirection: sortDirection
-            }
-          }),
-          client.query({
-            query: cancelledListingsQuery,
-            variables: {
-              collectionAddress,
-              limit: 1000, // Fetch more to filter later
-              offset: 0,
-              orderBy: sortBy,
-              orderDirection: sortDirection
-            }
-          })
-        ]);
-
-      console.log(
-        "🚀 ~ SubgraphService ~ createdListingsRes.data.listingCreateds.forEach ~ createdListingsRes:",
-        createdListingsRes.data.listingCreateds
-      );
-      // Create lookup map for created listings by listingId
-      const createdListingsMap = new Map();
-      createdListingsRes.data.listingCreateds.forEach((listing: any) => {
-        createdListingsMap.set(listing.listingId, {
-          tokenId: listing.tokenId,
-          nftContract: listing.nftContract,
-          seller: listing.from || "Unknown" // In case seller is not available
-        });
-      });
-
-      // Create lookup map for listings in the collection
-      const collectionListingsMap = new Map();
-      soldListingsRes.data.listingCreateds.forEach((listing: any) => {
-        collectionListingsMap.set(listing.listingId, {
-          tokenId: listing.tokenId,
-          nftContract: listing.nftContract,
-          seller: listing.from || "Unknown"
-        });
-      });
+      // Execute queries for sold and cancelled listings
+      const [soldListingsRes, cancelledListingsRes] = await Promise.all([
+        client.query({
+          query: soldListingsQuery,
+          variables: {
+            listingIds: collectionListingIds
+          }
+        }),
+        client.query({
+          query: cancelledListingsQuery,
+          variables: {
+            listingIds: collectionListingIds
+          }
+        })
+      ]);
 
       // Process and format created listings
-      const createdListings = createdListingsRes.data.listingCreateds.map(
+      const createdListings = allCreatedListingsRes.data.listingCreateds.map(
         (listing: any) => ({
           item: {
             tokenId: listing.tokenId,
@@ -957,16 +906,10 @@ class SubgraphService {
         })
       );
 
-      // Process and format sold listings, but only if they belong to the collection
-      const soldListings = soldListingsRes.data.listingSolds
-        .filter((listing: any) => {
-          const createdListing = collectionListingsMap.get(listing.listingId);
-          return (
-            createdListing && createdListing.nftContract === collectionAddress
-          );
-        })
-        .map((listing: any) => {
-          const createdListing = collectionListingsMap.get(listing.listingId);
+      // Process and format sold listings
+      const soldListings = soldListingsRes.data.listingSolds.map(
+        (listing: any) => {
+          const createdListing = createdListingsMap.get(listing.listingId);
           return {
             item: {
               tokenId: createdListing ? createdListing.tokenId : "Unknown",
@@ -974,24 +917,19 @@ class SubgraphService {
             },
             event: "SOLD",
             price: listing.price,
-            from: createdListing ? createdListing.from : "Unknown",
+            from: createdListing ? createdListing.seller : "Unknown",
             to: listing.buyer,
             time: parseInt(listing.blockTimestamp),
             listingId: listing.listingId,
             transactionHash: listing.transactionHash
           };
-        });
+        }
+      );
 
-      // Process and format cancelled listings, but only if they belong to the collection
-      const cancelledListings = cancelledListingsRes.data.listingCancelleds
-        .filter((listing: any) => {
-          const createdListing = collectionListingsMap.get(listing.listingId);
-          return (
-            createdListing && createdListing.nftContract === collectionAddress
-          );
-        })
-        .map((listing: any) => {
-          const createdListing = collectionListingsMap.get(listing.listingId);
+      // Process and format cancelled listings
+      const cancelledListings = cancelledListingsRes.data.listingCancelleds.map(
+        (listing: any) => {
+          const createdListing = createdListingsMap.get(listing.listingId);
           return {
             item: {
               tokenId: createdListing ? createdListing.tokenId : "Unknown",
@@ -999,13 +937,14 @@ class SubgraphService {
             },
             event: "CANCELLED",
             price: null,
-            from: createdListing ? createdListing.from : "Unknown",
+            from: createdListing ? createdListing.seller : "Unknown",
             to: null,
             time: parseInt(listing.blockTimestamp),
             listingId: listing.listingId,
             transactionHash: listing.transactionHash
           };
-        });
+        }
+      );
 
       // Combine all activities
       const allActivities = [

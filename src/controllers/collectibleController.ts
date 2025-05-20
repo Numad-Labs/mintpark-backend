@@ -266,7 +266,10 @@ export const collectibleControllers = {
           // Convert to lowercase for matching
           if (collectible.uniqueIdx) {
             const lowerCaseKey = collectible.uniqueIdx.toLowerCase();
-            collectibleMap.set(lowerCaseKey, collectible.name);
+            collectibleMap.set(lowerCaseKey, {
+              name: collectible.name,
+              fileKey: collectible.fileKey
+            });
           }
         });
 
@@ -274,12 +277,14 @@ export const collectibleControllers = {
         const enhancedActivities = result.activities.map((activity) => {
           const { tokenId, contractAddress } = activity.item;
           const uniqueIdx = `${contractAddress.toLowerCase()}i${tokenId}`;
+          const collectibleData = collectibleMap.get(uniqueIdx);
 
           return {
             ...activity,
             item: {
               ...activity.item,
-              name: collectibleMap.get(uniqueIdx) || null
+              name: collectibleData?.name || null,
+              fileKey: collectibleData?.fileKey || null
             }
           };
         });
