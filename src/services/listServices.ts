@@ -65,9 +65,7 @@ export const listServices = {
     const collectible = await collectibleRepository.getByUniqueIdx(uniqueIdx);
     if (!collectible)
       throw new CustomError(`Could not find collectible ${tokenId}`, 400);
-    console.log("🚀 ~ collectible.id:", collectible.id);
     const listing = await listRepository.getByCollectibleId(collectible.id);
-    console.log("🚀 ~ listing:", listing);
     if (!collection.contractAddress)
       throw new CustomError(
         "Contract address not found in the collection",

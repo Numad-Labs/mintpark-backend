@@ -6,7 +6,7 @@
   "scripts": {
     "prebuild": "npx hardhat compile",
     "build": "tsc && copyfiles package.json dist",
-    "dev": "nodemon --exec ts-node -P tsconfig.json -r tsconfig-paths/register src/index.ts",
+    "dev": "nodemon --exec ts-node -P tsconfig.json  src/index.ts",
     "start": "node dist/src/index.js",
     "start:prod": "npm prune --production && node dist/src/index.js",
     "migrate:development": "npx prisma migrate dev",
