@@ -653,5 +653,19 @@ export const collectibleRepository = {
       .executeTakeFirst();
 
     return collectible;
+  },
+  
+  /**
+   * Get a collectible by ID regardless of its status (including UNCONFIRMED)
+   * This method is primarily used for interservice communication
+   */
+  getCollectibleByIdForService: async (id: string) => {
+    const collectible = await db
+      .selectFrom("Collectible")
+      .selectAll()
+      .where("Collectible.id", "=", id)
+      .executeTakeFirst();
+
+    return collectible;
   }
 };

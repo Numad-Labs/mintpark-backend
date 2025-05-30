@@ -29,7 +29,9 @@ const envSchema = z.object({
   PINATA_GATEWAY_URL: z.string(),
   VAULT_ADDRESS: z.string(),
   VAULT_PRIVATE_KEY: z.string(),
-  PLATFORM_FEE_RECIPIENT: z.string()
+  PLATFORM_FEE_RECIPIENT: z.string(),
+  QUEUE_PROCESSOR_URL: z.string(),
+  QUEUE_PROCESSOR_API_KEY: z.string()
 });
 
 let env = envSchema.safeParse(process.env);
