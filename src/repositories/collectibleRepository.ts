@@ -5,9 +5,8 @@ import {
   CollectibleQueryParams,
   traitFilter
 } from "../controllers/collectibleController";
-import logger from "../config/winston";
-import { log } from "console";
 import { to_tsquery, to_tsvector } from "../libs/queryHelper";
+import logger from "@config/winston";
 
 export const collectibleRepository = {
   create: async (
@@ -654,7 +653,7 @@ export const collectibleRepository = {
 
     return collectible;
   },
-  
+
   /**
    * Get a collectible by ID regardless of its status (including UNCONFIRMED)
    * This method is primarily used for interservice communication
@@ -667,5 +666,28 @@ export const collectibleRepository = {
       .executeTakeFirst();
 
     return collectible;
+  },
+  getCollectiblesByIdsAndCollectionId: async (
+    db: Kysely<DB> | Transaction<DB>,
+    collectibleIds: string[],
+    collectionId: string
+  ) => {
+    if (!collectibleIds.length) {
+      return [];
+    }
+
+    const collectibles = await db
+      .selectFrom("Collectible")
+      .select([
+        "Collectible.id",
+        "Collectible.name",
+        "Collectible.uniqueIdx",
+        "Collectible.collectionId"
+      ])
+      .where("Collectible.collectionId", "=", collectionId)
+      .where("Collectible.id", "in", collectibleIds)
+      .execute();
+
+    return collectibles;
   }
 };

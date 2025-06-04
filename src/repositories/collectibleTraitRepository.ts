@@ -21,6 +21,15 @@ export const collectibleTraitRepository = {
       .where("CollectibleTrait.collectibleId", "=", collectibleId)
       .execute();
     return traits;
+  },
+  getByCollectibleIdAndTraitValueId: async (collectibleId: string, traitValueId: string) => {
+    const trait = await db
+      .selectFrom("CollectibleTrait")
+      .select(["id"])
+      .where("collectibleId", "=", collectibleId)
+      .where("traitValueId", "=", traitValueId)
+      .executeTakeFirst();
+    return trait;
   }
   // getByCollectionId: async (collectionId: string) => {
   //   const traits = await db

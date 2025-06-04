@@ -26,24 +26,6 @@ collectibleRouter.post(
 );
 
 collectibleRouter.post(
-  "/update-ipfs",
-  apiKeyAuth,
-  collectibleControllers.updateIpfs
-);
-
-/**
- * @route   GET /api/v1/collectibles/service/:collectibleId
- * @desc    Get a collectible by ID for interservice communication (includes UNCONFIRMED status)
- * @access  Private (API Key auth)
- * @params  collectibleId
- */
-collectibleRouter.get(
-  "/service/:collectibleId",
-  apiKeyAuth,
-  collectibleControllers.getCollectibleByIdForService
-);
-
-collectibleRouter.post(
   "/traits-insertion",
   authenticateToken,
   authorize("SUPER_ADMIN"),
@@ -130,10 +112,17 @@ collectibleRouter.post(
   collectibleControllers.createIpfsNftInBatch
 );
 
-// collectibleRouter.post(
-//   "/inscribe",
-//   parseFiles("file", true),
-//   collectibleControllers.inscribe
-// );
+// Inter-Service Communication APIs
+collectibleRouter.post(
+  "/update-ipfs",
+  apiKeyAuth,
+  collectibleControllers.updateIpfs
+);
+
+collectibleRouter.get(
+  "/service/:collectibleId",
+  apiKeyAuth,
+  collectibleControllers.getCollectibleByIdForService
+);
 
 export = collectibleRouter;
