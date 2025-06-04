@@ -13,7 +13,6 @@ collectionRouter.get("/:id", collectionController.getById);
 collectionRouter.post(
   "/",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
   parseFiles("logo", true),
   collectionController.create
 );
@@ -21,27 +20,23 @@ collectionRouter.post(
 collectionRouter.post(
   "/phase",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
   collectionController.addPhase
 );
 
 collectionRouter.put(
   "/phase",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
   collectionController.updatePhase
 );
 
 collectionRouter.put(
   "/phase/confirm",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
   collectionController.confirmUpdatePhase
 );
 collectionRouter.get(
   "/phase",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
   collectionController.getPhasesByContractAddress
 );
 

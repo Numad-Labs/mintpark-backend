@@ -22,7 +22,7 @@ export const collectibleTraitServices = {
   createBatchTraits: async (
     collectionId: string,
     batchData: BatchTraitData[],
-    requesterId?: string
+    issuerId?: string
   ) => {
     if (batchData.length > 10) {
       throw new CustomError("Maximum batch size is 10 collectibles", 400);
@@ -33,25 +33,22 @@ export const collectibleTraitServices = {
     if (!collection) {
       throw new CustomError("Collection not found", 404);
     }
-
     if (!collection.creatorId) {
       throw new CustomError("Collection has no creator", 403);
     }
 
-    if (!requesterId) {
+    // Check if user is admin/super_admin or the creator of the collection
+    if (!issuerId) {
       throw new CustomError("Requester ID is required", 400);
     }
-    const user = await userRepository.getByIdAndLayerId(
-      requesterId,
-      collection.layerId
-    );
+    const user = await userRepository.getById(issuerId);
     if (!user) {
       throw new CustomError("User not found", 404);
     }
-
-    if (collection.creatorId !== requesterId && user.role !== "SUPER_ADMIN") {
+    // Only allow non-users or collection
+    if (collection.creatorId !== user.id && user.role === "USER") {
       throw new CustomError(
-        "You are not allowed to create batch traits for this collection",
+        "You don't have permission to update this collection",
         403
       );
     }

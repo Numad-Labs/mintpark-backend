@@ -144,19 +144,22 @@ export const collectionController = {
         throw new CustomError("Invalid supply or wallet limit values", 400);
       }
 
-      const unsignedTx = await collectionServices.addPhase({
-        collectionId,
-        phaseType,
-        price,
-        startTime,
-        endTime,
-        maxSupply,
-        maxPerWallet,
-        merkleRoot,
-        layerId,
-        userId,
-        userLayerId
-      });
+      const unsignedTx = await collectionServices.addPhase(
+        {
+          collectionId,
+          phaseType,
+          price,
+          startTime,
+          endTime,
+          maxSupply,
+          maxPerWallet,
+          merkleRoot,
+          layerId,
+          userId,
+          userLayerId
+        },
+        userId
+      );
 
       return res.status(200).json({
         success: true,
@@ -188,7 +191,8 @@ export const collectionController = {
         endTime,
         maxSupply,
         maxPerWallet,
-        merkleRoot
+        merkleRoot,
+        userLayerId
       } = req.body;
 
       // Validate required fields
@@ -216,18 +220,21 @@ export const collectionController = {
         throw new CustomError("Invalid numeric values", 400);
       }
 
-      const result = await collectionServices.updatePhase({
-        launchId,
-        phaseIndex,
-        phaseType,
-        price,
-        startTime,
-        endTime,
-        maxSupply,
-        maxPerWallet,
-        merkleRoot,
+      const result = await collectionServices.updatePhase(
+        {
+          launchId,
+          phaseIndex,
+          phaseType,
+          price,
+          startTime,
+          endTime,
+          maxSupply,
+          maxPerWallet,
+          merkleRoot,
+          userLayerId
+        },
         userId
-      });
+      );
 
       return res.status(200).json({
         success: true,
@@ -250,17 +257,20 @@ export const collectionController = {
 
       if (!userId) throw new CustomError("Cannot parse user from token", 401);
 
-      const { updateId, txid } = req.body;
+      const { updateId, txid, userLayerId } = req.body;
 
       // Validate required fields
       if (!updateId) throw new CustomError("Update ID is required", 400);
       if (!txid) throw new CustomError("Transaction ID is required", 400);
 
-      const result = await collectionServices.confirmUpdatePhase({
-        updateId,
-        txid,
+      const result = await collectionServices.confirmUpdatePhase(
+        {
+          updateId,
+          txid,
+          userLayerId
+        },
         userId
-      });
+      );
 
       return res.status(200).json({
         success: true,
@@ -283,17 +293,22 @@ export const collectionController = {
     }
   },
   getPhasesByContractAddress: async (
-    req: Request,
+    req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {
     try {
-      const { collectionId } = req.query;
+      const userId = req.user?.id;
+      const { collectionId, userLayerId } = req.query;
 
       if (!collectionId) throw new CustomError("Missing collectionId", 400);
+      if (!userLayerId) throw new CustomError("Missing userLayerId", 400);
+      if (!userId) throw new CustomError("Missing userId", 400);
 
       const phases = await collectionServices.getPhasesByContractAddress(
-        collectionId.toString()
+        collectionId.toString(),
+        userLayerId.toString(),
+        userId
       );
       if (!phases) throw new CustomError("Phase not found", 404);
 

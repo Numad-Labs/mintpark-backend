@@ -120,8 +120,9 @@ export const launchServices = {
       chainConfig.RPC_URL
     );
     if (!txid) throw new CustomError("txid not found.", 400);
-    const transactionDetail =
-      await confirmationService.getTransactionDetails(txid);
+    const transactionDetail = await confirmationService.getTransactionDetails(
+      txid
+    );
     if (transactionDetail.status !== 1) {
       throw new CustomError(
         "Transaction not confirmed. Please try again.",
@@ -582,7 +583,7 @@ export const launchServices = {
 
     if (isMinted) {
       logger.info(
-        `confirmed nftId: ${collectible.nftId} in buy method, collectibleId: ${collectible.id}, launchItemId: ${launchItem.id}, requesterId: ${user.id}`
+        `confirmed nftId: ${collectible.nftId} in buy method, collectibleId: ${collectible.id}, launchItemId: ${launchItem.id}, issuerId: ${user.id}`
       );
       // Sync DB state in a transaction.
       await db.transaction().execute(async (trx) => {
