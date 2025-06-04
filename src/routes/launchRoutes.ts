@@ -39,6 +39,18 @@ launchRouter.post(
   parseFiles("files", false),
   launchController.createInscriptionAndLaunchItemsInBatch
 );
+launchRouter.post(
+  "/ipfs-file",
+  authenticateToken,
+  parseFiles("files", false),
+  launchController.createIpfsFileAndLaunchItemsInBatch
+);
+// list of CIDs
+launchRouter.post(
+  "/ipfs",
+  authenticateToken,
+  launchController.createIpfsNftAndLaunchItemsInBatch
+);
 // launchRouter.post(
 //   "/recursive-inscription",
 //   authenticateToken,
@@ -46,21 +58,6 @@ launchRouter.post(
 //   launchController.createRecursiveInscriptionAndLaunchItemsInBatch
 // );
 
-launchRouter.post(
-  "/ipfs-file",
-  authenticateToken,
-  authorize("SUPER_ADMIN"),
-  parseFiles("files", false),
-  launchController.createIpfsFileAndLaunchItemsInBatch
-);
-
-// list of CIDs or Badge File
-launchRouter.post(
-  "/ipfs",
-  authenticateToken,
-  authorize("SUPER_ADMIN"),
-  launchController.createIpfsNftAndLaunchItemsInBatch
-);
 launchRouter.post(
   "/whitelist-addresses",
   authenticateToken,
