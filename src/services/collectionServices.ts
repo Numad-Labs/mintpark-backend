@@ -13,6 +13,8 @@ import { layerRepository } from "../repositories/layerRepository";
 import { CustomError } from "../exceptions/CustomError";
 import { EVM_CONFIG } from "../blockchain/evm/evm-config";
 import { db } from "../utils/db";
+import { redis } from "..";
+import { v4 as uuidv4 } from "uuid";
 import { Insertable, Updateable } from "kysely";
 import { Collection } from "../types/db/types";
 import { layerServices } from "./layerServices";
@@ -23,6 +25,7 @@ import { DirectMintNFTService } from "../blockchain/evm/services/nftService/dire
 import { ethers } from "ethers";
 import { launchRepository } from "../repositories/launchRepository";
 import { DEFAULT_CONTRACT_VERSION } from "../blockchain/evm/contract-versions";
+import { TransactionConfirmationService } from "../blockchain/evm/services/transactionConfirmationService";
 
 export const collectionServices = {
   create: async (
@@ -41,11 +44,7 @@ export const collectionServices = {
       );
 
     if (data.isBadge) data.type = "IPFS_CID";
-
     if (!data.layerId) throw new CustomError("Please provide a layerId.", 400);
-    const layer = await layerServices.checkIfSupportedLayerOrThrow(
-      data.layerId
-    );
 
     const user = await userRepository.getByUserLayerId(userLayerId);
     if (!user) throw new CustomError("User not found.", 400);
@@ -56,7 +55,7 @@ export const collectionServices = {
       );
     if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
-    if (user.layer !== layer.layer || user.network !== layer.network)
+    if (user.layerId !== data.layerId)
       throw new CustomError(
         "You cannot create collection for this layerId with the current active account.",
         400
@@ -81,6 +80,9 @@ export const collectionServices = {
       ordinalCollection = null,
       l2Collection = null;
 
+    const layer = await layerServices.checkIfSupportedLayerOrThrow(
+      data.layerId
+    );
     // Check if this is an EVM chain
     if (layer.chainId && EVM_CONFIG.CHAINS[layer.chainId]) {
       const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
@@ -170,31 +172,34 @@ export const collectionServices = {
 
     return { ordinalCollection, l2Collection, deployContractTxHex };
   },
-  addPhase: async ({
-    collectionId,
-    phaseType,
-    price,
-    startTime,
-    endTime,
-    maxSupply,
-    maxPerWallet,
-    merkleRoot,
-    layerId,
-    userId,
-    userLayerId
-  }: {
-    collectionId: string;
-    phaseType: number;
-    price: string;
-    startTime: number;
-    endTime: number;
-    maxSupply: number;
-    maxPerWallet: number;
-    merkleRoot: string;
-    layerId: string;
-    userId: string;
-    userLayerId: string;
-  }) => {
+  addPhase: async (
+    {
+      collectionId,
+      phaseType,
+      price,
+      startTime,
+      endTime,
+      maxSupply,
+      maxPerWallet,
+      merkleRoot,
+      layerId,
+      userId,
+      userLayerId
+    }: {
+      collectionId: string;
+      phaseType: number;
+      price: string;
+      startTime: number;
+      endTime: number;
+      maxSupply: number;
+      maxPerWallet: number;
+      merkleRoot: string;
+      layerId: string;
+      userId: string;
+      userLayerId: string;
+    },
+    issuerId: string
+  ) => {
     // Get collection and verify ownership
     const collection = await collectionRepository.getById(db, collectionId);
     if (!collection) {
@@ -207,7 +212,9 @@ export const collectionServices = {
         403
       );
     }
-
+    if (!collection.contractAddress) {
+      throw new CustomError("Collection contract address not found", 400);
+    }
     // Verify collection status
     if (collection.status !== "UNCONFIRMED") {
       throw new CustomError(
@@ -216,29 +223,44 @@ export const collectionServices = {
       );
     }
 
-    // Get layer and validate
-    const layer = await layerServices.checkIfSupportedLayerOrThrow(layerId);
-    if (!layer.chainId) {
-      throw new CustomError("Invalid layer for phase setup", 400);
-    }
-
     // Get user and validate
     const user = await userRepository.getByUserLayerId(userLayerId);
     if (!user) {
       throw new CustomError("User not found", 404);
     }
+    if (user.id !== issuerId)
+      throw new CustomError("You are not allowed to do this action", 400);
     if (!user.isActive) {
       throw new CustomError("This account is deactivated", 400);
     }
-    if (user.layer !== layer.layer || user.network !== layer.network) {
+    if (user.layerId !== collection.layerId) {
       throw new CustomError(
         "You cannot modify collection for this layerId with the current active account",
         400
       );
     }
+    if (user.id !== collection.creatorId)
+      throw new CustomError("You are not allowed to do this action", 400);
 
-    if (!collection.contractAddress) {
-      throw new CustomError("Collection contract address not found", 400);
+    // if (!collection.creatorUserLayerId)
+    //   throw new CustomError("Collection with no creator user layer id", 400);
+    // const collectionOwner = await userRepository.getByUserLayerId(
+    //   collection.creatorUserLayerId
+    // );
+    // if (!collectionOwner)
+    //   throw new CustomError("Collection owner not found", 400);
+    // if (!collectionOwner.isActive && collectionOwner.address !== user.address)
+    //   throw new CustomError("You are not allowed to do this action", 400);
+    // if (
+    //   collectionOwner.isActive &&
+    //   collection.creatorUserLayerId !== userLayerId
+    // )
+    //   throw new CustomError("You are not allowed to do this action", 400);
+
+    // Get layer and validate
+    const layer = await layerServices.checkIfSupportedLayerOrThrow(layerId);
+    if (!layer.chainId) {
+      throw new CustomError("Invalid layer for phase setup", 400);
     }
 
     // Initialize NFT service
@@ -266,50 +288,51 @@ export const collectionServices = {
     return serializeBigInt(unsignedTx);
   },
 
-  updatePhase: async ({
-    collectionId,
-    launchId,
-    phaseIndex,
-    phaseType,
-    price,
-    startTime,
-    endTime,
-    maxSupply,
-    maxPerWallet,
-    merkleRoot,
-    layerId,
-    userId,
-    userLayerId
-  }: {
-    collectionId: string;
-    launchId: string;
-    phaseIndex: number;
-    phaseType: number;
-    price: string;
-    startTime: number;
-    endTime: number;
-    maxSupply: number;
-    maxPerWallet: number;
-    merkleRoot: string;
-    layerId: string;
-    userId: string;
-    userLayerId: string;
-  }) => {
+  updatePhase: async (
+    {
+      launchId,
+      phaseIndex,
+      phaseType,
+      price,
+      startTime,
+      endTime,
+      maxSupply,
+      maxPerWallet,
+      merkleRoot,
+      userLayerId
+    }: {
+      launchId: string;
+      phaseIndex: number;
+      phaseType: number;
+      price: string;
+      startTime: number;
+      endTime: number;
+      maxSupply: number;
+      maxPerWallet: number;
+      merkleRoot: string;
+      userLayerId: string;
+    },
+    issuerId: string
+  ) => {
+    const launch = await launchRepository.getById(db, launchId);
+    if (!launch) {
+      throw new CustomError("Launch not found", 404);
+    }
+    const collectionId = launch.collectionId;
+
     // Get collection and verify ownership
     const collection = await collectionRepository.getById(db, collectionId);
     if (!collection) {
       throw new CustomError("Collection not found", 404);
     }
-
-    if (collection.creatorId !== userId) {
-      throw new CustomError(
-        "You are not authorized to modify this collection",
-        403
-      );
+    if (!collection.contractAddress) {
+      throw new CustomError("Collection contract address not found", 400);
     }
 
     // Get layer and validate
-    const layer = await layerServices.checkIfSupportedLayerOrThrow(layerId);
+    const layer = await layerServices.checkIfSupportedLayerOrThrow(
+      collection.layerId
+    );
     if (!layer.chainId) {
       throw new CustomError("Invalid layer for phase setup", 400);
     }
@@ -319,19 +342,34 @@ export const collectionServices = {
     if (!user) {
       throw new CustomError("User not found", 404);
     }
+    if (user.id !== issuerId)
+      throw new CustomError("You are not allowed to do this action", 400);
     if (!user.isActive) {
       throw new CustomError("This account is deactivated", 400);
     }
-    if (user.layer !== layer.layer || user.network !== layer.network) {
+    if (user.layerId !== collection.layerId) {
       throw new CustomError(
         "You cannot modify collection for this layerId with the current active account",
         400
       );
     }
+    if (user.id !== collection.creatorId)
+      throw new CustomError("You are not allowed to do this action", 400);
 
-    if (!collection.contractAddress) {
-      throw new CustomError("Collection contract address not found", 400);
-    }
+    // if (!collection.creatorUserLayerId)
+    //   throw new CustomError("Collection with no creator user layer id", 400);
+    // const collectionOwner = await userRepository.getByUserLayerId(
+    //   collection.creatorUserLayerId
+    // );
+    // if (!collectionOwner)
+    //   throw new CustomError("Collection owner not found", 400);
+    // if (!collectionOwner.isActive && collectionOwner.address !== user.address)
+    //   throw new CustomError("You are not allowed to do this action", 400);
+    // if (
+    //   collectionOwner.isActive &&
+    //   collection.creatorUserLayerId !== userLayerId
+    // )
+    //   throw new CustomError("You are not allowed to do this action", 400);
 
     // Initialize NFT service
     const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
@@ -403,9 +441,117 @@ export const collectionServices = {
         user.address
       );
 
+    // Store phase update data in Redis for later confirmation
+    const phaseUpdateData = {
+      collectionId,
+      launchId,
+      phaseIndex,
+      phaseType,
+      price,
+      startTime,
+      endTime,
+      maxSupply,
+      maxPerWallet,
+      merkleRoot,
+      userId: issuerId,
+      contractAddress: collection.contractAddress,
+      createdAt: new Date().toISOString()
+    };
+
+    // Generate a unique key for this update request
+    const updateId = uuidv4();
+    await redis.setex(
+      `phase_update:${updateId}`,
+      86400, // 24 hours expiration
+      JSON.stringify(phaseUpdateData)
+    );
+
+    // Only update the collection's updatedAt timestamp, but don't update phase data yet
     await collectionRepository.update(db, collectionId, {
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     });
+
+    // Return the unsigned transaction and the updateId for confirmation
+    return {
+      unsignedTx: serializeBigInt(unsignedTx),
+      updateId
+    };
+  },
+
+  confirmUpdatePhase: async (
+    {
+      updateId,
+      txid,
+      userLayerId
+    }: {
+      updateId: string;
+      txid: string;
+      userLayerId: string;
+    },
+    issuerId: string
+  ) => {
+    // Retrieve the stored phase update data
+    const storedDataJson = await redis.get(`phase_update:${updateId}`);
+    if (!storedDataJson) {
+      throw new CustomError("Phase update request not found or expired", 404);
+    }
+
+    const phaseData = JSON.parse(storedDataJson);
+
+    // Verify that the user who is confirming is the same who initiated the update
+    if (phaseData.userId !== issuerId) {
+      throw new CustomError(
+        "You are not authorized to confirm this update",
+        403
+      );
+    }
+
+    // Get collection to verify contract address
+    const collection = await collectionRepository.getById(
+      db,
+      phaseData.collectionId
+    );
+    if (!collection) {
+      throw new CustomError("Collection not found", 404);
+    }
+    if (collection.contractAddress !== phaseData.contractAddress) {
+      throw new CustomError("Contract address mismatch", 400);
+    }
+
+    // Get the layer for the collection
+    const layer = await layerRepository.getById(collection.layerId);
+    if (!layer || !layer.chainId) {
+      throw new CustomError("Layer not found", 400);
+    }
+
+    // Initialize transaction confirmation service
+    const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+    const confirmationService = new TransactionConfirmationService(
+      chainConfig.RPC_URL
+    );
+
+    // Verify the transaction
+    const txStatus = await confirmationService.confirmTransaction(txid);
+    if (txStatus.status !== "confirmed") {
+      throw new CustomError(
+        `Transaction is not confirmed: ${txStatus.status}`,
+        400
+      );
+    }
+
+    // Get transaction details to verify it's the correct transaction
+    const txDetails = await confirmationService.getTransactionDetails(txid);
+
+    // Verify this is a transaction to the correct contract
+    if (
+      txDetails.to?.toLowerCase() !== collection.contractAddress?.toLowerCase()
+    ) {
+      throw new CustomError("Transaction is not for the correct contract", 400);
+    }
+
+    // Now update the database with the phase data
+    const { phaseType, startTime, endTime, price, maxPerWallet, launchId } =
+      phaseData;
 
     if (phaseType == 0) {
       await launchRepository.update(launchId, {
@@ -413,7 +559,7 @@ export const collectionServices = {
         wlStartsAt: startTime.toString(),
         wlMintPrice: parseFloat(price),
         wlMaxMintPerWallet: maxPerWallet,
-        updatedAt: new Date()
+        updatedAt: new Date().toISOString()
       });
     } else if (phaseType == 1) {
       await launchRepository.update(launchId, {
@@ -421,7 +567,7 @@ export const collectionServices = {
         fcfsStartsAt: startTime.toString(),
         fcfsMintPrice: parseFloat(price),
         fcfsMaxMintPerWallet: maxPerWallet,
-        updatedAt: new Date()
+        updatedAt: new Date().toISOString()
       });
     } else if (phaseType == 2) {
       await launchRepository.update(launchId, {
@@ -429,35 +575,79 @@ export const collectionServices = {
         poStartsAt: startTime.toString(),
         poMintPrice: parseFloat(price),
         poMaxMintPerWallet: maxPerWallet,
-        updatedAt: new Date()
+        updatedAt: new Date().toISOString()
       });
     } else {
       throw new CustomError("Invalid phase type", 400);
     }
-    return serializeBigInt(unsignedTx);
+
+    // Remove the stored data from Redis
+    await redis.del(`phase_update:${updateId}`);
+
+    return {
+      transactionHash: txid
+    };
   },
 
-  getPhasesByContractAddress: async ({
-    collectionId,
-    layerId
-  }: {
-    collectionId: string;
-    layerId: string;
-  }) => {
+  getPhasesByContractAddress: async (
+    collectionId: string,
+    userLayerId: string,
+    issuerId: string
+  ) => {
     // Get collection
     const collection = await collectionRepository.getById(db, collectionId);
     if (!collection) {
       throw new CustomError("Collection not found", 404);
     }
-
-    // Get layer and validate
-    const layer = await layerServices.checkIfSupportedLayerOrThrow(layerId);
-    if (!layer.chainId) {
-      throw new CustomError("Invalid layer for phase setup", 400);
-    }
-
     if (!collection.contractAddress) {
       throw new CustomError("Collection contract address not found", 400);
+    }
+
+    // Get user and validate
+    const user = await userRepository.getByUserLayerId(userLayerId);
+    if (!user) {
+      throw new CustomError("User not found", 404);
+    }
+    if (user.id !== issuerId)
+      throw new CustomError("You are not allowed to do this action", 400);
+    if (!user.isActive) {
+      throw new CustomError("This account is deactivated", 400);
+    }
+    if (user.layerId !== collection.layerId) {
+      throw new CustomError(
+        "You cannot modify collection for this layerId with the current active account",
+        400
+      );
+    }
+    // Only allow non-users or collection creator to update
+    if (user.id !== collection.creatorId && user.role === "USER") {
+      throw new CustomError(
+        "You don't have permission to update this collection",
+        403
+      );
+    }
+
+    // if (!collection.creatorUserLayerId)
+    //   throw new CustomError("Collection with no creator user layer id", 400);
+    // const collectionOwner = await userRepository.getByUserLayerId(
+    //   collection.creatorUserLayerId
+    // );
+    // if (!collectionOwner)
+    //   throw new CustomError("Collection owner not found", 400);
+    // if (!collectionOwner.isActive && collectionOwner.address !== user.address)
+    //   throw new CustomError("You are not allowed to do this action", 400);
+    // if (
+    //   collectionOwner.isActive &&
+    //   collection.creatorUserLayerId !== userLayerId
+    // )
+    //   throw new CustomError("You are not allowed to do this action", 400);
+
+    // Get layer and validate
+    const layer = await layerServices.checkIfSupportedLayerOrThrow(
+      collection.layerId
+    );
+    if (!layer.chainId) {
+      throw new CustomError("Invalid layer for phase setup", 400);
     }
 
     const contractVersion =
@@ -535,7 +725,68 @@ export const collectionServices = {
     // return collectionsWithOwners;
 
     return collections;
+  },
+  updateDetails: async (
+    id: string,
+    data: {
+      description?: string;
+      discordUrl?: string;
+      twitterUrl?: string;
+      websiteUrl?: string;
+    },
+    userId: string
+  ) => {
+    // Get collection to check if exists and if user has permission
+    const collection = await collectionRepository.getById(db, id);
+    if (!collection) {
+      throw new CustomError("Collection not found", 404);
+    }
+
+    // Check if user is super admin or the creator of the collection
+    const user = await userRepository.getById(userId);
+    if (!user) {
+      throw new CustomError("User not found", 404);
+    }
+
+    // Only allow non-users or collection creator to update
+    if (collection.creatorId !== userId && user.role === "USER") {
+      throw new CustomError(
+        "You don't have permission to update this collection",
+        403
+      );
+    }
+
+    // Prepare data for update
+    const updateData: Updateable<Collection> = {};
+
+    if (data.description !== undefined) {
+      updateData.description = data.description;
+    }
+
+    if (data.discordUrl !== undefined) {
+      updateData.discordUrl = data.discordUrl;
+    }
+
+    if (data.twitterUrl !== undefined) {
+      updateData.twitterUrl = data.twitterUrl;
+    }
+
+    if (data.websiteUrl !== undefined) {
+      updateData.websiteUrl = data.websiteUrl;
+    }
+
+    // Record the update time
+    updateData.updatedAt = new Date().toISOString();
+
+    // Update the collection
+    const updatedCollection = await collectionRepository.update(
+      db,
+      id,
+      updateData
+    );
+    return updatedCollection;
   }
+
   // update: async (
   //   id: string,
   //   data: updateCollection,

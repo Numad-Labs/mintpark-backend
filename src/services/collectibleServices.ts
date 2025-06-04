@@ -282,6 +282,44 @@ export const collectibleServices = {
       collectiblesData
     );
 
+    // Enqueue the created collectibles for processing by the queue processor service
+    try {
+      const { queueProcessorClient } = await import(
+        "../utils/queueProcessorClient"
+      );
+      const { QueueType } = await import("../types/queueTypes");
+
+      // Prepare queue items from the collectibles, filtering out any with null fileKeys
+      const queueItems = collectibles
+        .filter(
+          (
+            collectible
+          ): collectible is typeof collectible & { fileKey: string } =>
+            collectible.fileKey !== null
+        )
+        .map((collectible) => ({
+          collectibleId: collectible.id,
+          collectionId: collectible.collectionId
+        }));
+
+      // Enqueue items for IPFS upload processing
+      const queueResponse = await queueProcessorClient.enqueueItems(
+        queueItems,
+        QueueType.IPFS_UPLOAD
+      );
+
+      logger.info(
+        `Enqueued ${queueResponse.queuedItems} collectibles for IPFS processing`,
+        {
+          jobIds: queueResponse.jobIds,
+          queueType: queueResponse.queueType
+        }
+      );
+    } catch (error) {
+      // Log the error but don't fail the operation - the collectibles were created successfully
+      logger.error("Failed to enqueue collectibles for processing:", error);
+    }
+
     return collectibles;
   },
   createInscriptionAndOrderItemInBatch: async (
@@ -578,7 +616,49 @@ export const collectibleServices = {
       cid: ipfsCid
     });
   },
-  insertTraits: async (collectionId: string, data: TraitPayload[]) => {
+
+  updateCollectibleIpfs: async (collectibleId: string, ipfsUri: string) => {
+    // Validate the collectible exists
+    const collectible = await collectibleRepository.getById(db, collectibleId);
+    if (!collectible) throw new CustomError("Invalid collectible id.", 400);
+
+    // If the collectible already has the same CID, return it without updating
+    // This makes the function idempotent
+    if (collectible.cid === ipfsUri) {
+      logger.info(
+        `Collectible ${collectibleId} already has CID ${ipfsUri}, no update needed`
+      );
+      return collectible;
+    }
+
+    // Update the collectible with the new CID
+    const updatedCollectible = await collectibleRepository.update(
+      db,
+      collectible.id,
+      {
+        cid: ipfsUri
+      }
+    );
+
+    logger.info(
+      `Updated collectible ${collectibleId} with IPFS hash ${ipfsUri}`
+    );
+
+    return updatedCollectible;
+  },
+  insertTraits: async (
+    collectionId: string,
+    data: TraitPayload[],
+    userId: string
+  ) => {
+    const collection = await collectionRepository.getById(db, collectionId);
+    if (!collection) throw new CustomError("Invalid collection id.", 400);
+    if (collection.creatorId !== userId)
+      throw new CustomError(
+        "You are not allowed to insert traits for this collection.",
+        400
+      );
+
     interface TraitTypeCache {
       [key: string]: string;
     }

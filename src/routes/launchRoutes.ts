@@ -4,11 +4,8 @@ import { launchController } from "../controllers/launchController";
 import { authorize } from "../middlewares/authorize";
 import { parseFiles } from "../middlewares/fileParser";
 import { launchRatelimiter } from "../middlewares/rateLimiter";
-// import { launchRatelimiter } from "../middlewares/rateLimiter";
 
 const launchRouter = Router();
-
-// launchRouter.get("/state-function-test", launchController.stateFunctionTest);
 
 launchRouter.get("/", launchController.getAllLaunchesByLayerId);
 launchRouter.get(
@@ -16,39 +13,6 @@ launchRouter.get(
   launchController.getLaunchByCollectionId
 );
 
-launchRouter.post(
-  "/",
-  authenticateToken,
-  authorize("SUPER_ADMIN"),
-  parseFiles("badge", true),
-  launchController.create
-);
-launchRouter.post(
-  "/inscription",
-  authenticateToken,
-  authorize("SUPER_ADMIN"),
-  parseFiles("files", false),
-  launchController.createInscriptionAndLaunchItemsInBatch
-);
-launchRouter.post(
-  "/recursive-inscription",
-  authenticateToken,
-  authorize("SUPER_ADMIN"),
-  launchController.createRecursiveInscriptionAndLaunchItemsInBatch
-);
-launchRouter.post(
-  "/ipfs",
-  authenticateToken,
-  authorize("SUPER_ADMIN"),
-  launchController.createIpfsNftAndLaunchItemsInBatch
-);
-launchRouter.post(
-  "/ipfs-file",
-  authenticateToken,
-  authorize("SUPER_ADMIN"),
-  parseFiles("files", false),
-  launchController.createIpfsFileAndLaunchItemsInBatch
-);
 launchRouter.post(
   "/:id/buy",
   authenticateToken,
@@ -61,6 +25,42 @@ launchRouter.post(
   launchRatelimiter,
   launchController.mint
 );
+
+// Creator APIs
+launchRouter.post(
+  "/",
+  authenticateToken,
+  parseFiles("badge", true),
+  launchController.create
+);
+launchRouter.post(
+  "/inscription",
+  authenticateToken,
+  parseFiles("files", false),
+  launchController.createInscriptionAndLaunchItemsInBatch
+);
+// launchRouter.post(
+//   "/recursive-inscription",
+//   authenticateToken,
+//   authorize("SUPER_ADMIN"),
+//   launchController.createRecursiveInscriptionAndLaunchItemsInBatch
+// );
+
+launchRouter.post(
+  "/ipfs-file",
+  authenticateToken,
+  authorize("SUPER_ADMIN"),
+  parseFiles("files", false),
+  launchController.createIpfsFileAndLaunchItemsInBatch
+);
+
+// list of CIDs or Badge File
+launchRouter.post(
+  "/ipfs",
+  authenticateToken,
+  authorize("SUPER_ADMIN"),
+  launchController.createIpfsNftAndLaunchItemsInBatch
+);
 launchRouter.post(
   "/whitelist-addresses",
   authenticateToken,
@@ -68,6 +68,7 @@ launchRouter.post(
   launchController.addWhitelistAddress
 );
 
+// Admin Priviledge APIs
 launchRouter.post(
   "/reconcile",
   authenticateToken,

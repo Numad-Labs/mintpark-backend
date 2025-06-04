@@ -6,10 +6,13 @@ import { authorize } from "../middlewares/authorize";
 
 const collectionRouter = Router();
 
+collectionRouter.get("/listed", collectionController.getListedCollections);
+collectionRouter.get("/:id", collectionController.getById);
+
+// Creator/Admin Priviledge APIs
 collectionRouter.post(
   "/",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
   parseFiles("logo", true),
   collectionController.create
 );
@@ -17,39 +20,30 @@ collectionRouter.post(
 collectionRouter.post(
   "/phase",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
   collectionController.addPhase
 );
 
 collectionRouter.put(
   "/phase",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
   collectionController.updatePhase
+);
+
+collectionRouter.put(
+  "/phase/confirm",
+  authenticateToken,
+  collectionController.confirmUpdatePhase
 );
 collectionRouter.get(
   "/phase",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
   collectionController.getPhasesByContractAddress
 );
 
-// collectionRouter.post(
-//   "/list-evm",
-//   authenticateToken,
-//   authorize("SUPER_ADMIN"),
-//   collectionController.listForEvm
-// );
-
-collectionRouter.get("/listed", collectionController.getListedCollections);
-
-collectionRouter.get("/:id", collectionController.getById);
-
-// collectionRouter.put(
-//   "/:id",
-//   authenticateToken,
-//   parseFiles("logo", true),
-//   collectionController.update
-// );
+collectionRouter.put(
+  "/:id/details",
+  authenticateToken,
+  collectionController.updateDetails
+);
 
 export = collectionRouter;

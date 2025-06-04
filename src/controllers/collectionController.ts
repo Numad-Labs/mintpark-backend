@@ -22,7 +22,7 @@ export interface updateCollection {
   description?: string;
   discordUrl?: string;
   twitterUrl?: string;
-  webUrl?: string;
+  websiteUrl?: string;
   slug?: string;
   logoKey?: string;
 }
@@ -144,19 +144,22 @@ export const collectionController = {
         throw new CustomError("Invalid supply or wallet limit values", 400);
       }
 
-      const unsignedTx = await collectionServices.addPhase({
-        collectionId,
-        phaseType,
-        price,
-        startTime,
-        endTime,
-        maxSupply,
-        maxPerWallet,
-        merkleRoot,
-        layerId,
-        userId,
-        userLayerId
-      });
+      const unsignedTx = await collectionServices.addPhase(
+        {
+          collectionId,
+          phaseType,
+          price,
+          startTime,
+          endTime,
+          maxSupply,
+          maxPerWallet,
+          merkleRoot,
+          layerId,
+          userId,
+          userLayerId
+        },
+        userId
+      );
 
       return res.status(200).json({
         success: true,
@@ -180,7 +183,6 @@ export const collectionController = {
       if (!userId) throw new CustomError("Cannot parse user from token", 401);
 
       const {
-        collectionId,
         launchId,
         phaseIndex,
         phaseType,
@@ -190,13 +192,10 @@ export const collectionController = {
         maxSupply,
         maxPerWallet,
         merkleRoot,
-        layerId,
         userLayerId
       } = req.body;
 
       // Validate required fields
-      if (!collectionId)
-        throw new CustomError("Collection ID is required", 400);
       if (!launchId) throw new CustomError("Launch ID is required", 400);
       if (phaseIndex === undefined)
         throw new CustomError("Phase index is required", 400);
@@ -204,7 +203,6 @@ export const collectionController = {
         throw new CustomError("Phase type is required", 400);
       if (!startTime || !endTime)
         throw new CustomError("Start and end times are required", 400);
-      if (!layerId) throw new CustomError("Layer ID is required", 400);
 
       // Validate time range
       if (startTime >= endTime) {
@@ -222,33 +220,66 @@ export const collectionController = {
         throw new CustomError("Invalid numeric values", 400);
       }
 
-      const unsignedTx = await collectionServices.updatePhase({
-        collectionId,
-        launchId,
-        phaseIndex,
-        phaseType,
-        price,
-        startTime,
-        endTime,
-        maxSupply,
-        maxPerWallet,
-        merkleRoot,
-        layerId,
-        userId,
-        userLayerId
-      });
+      const result = await collectionServices.updatePhase(
+        {
+          launchId,
+          phaseIndex,
+          phaseType,
+          price,
+          startTime,
+          endTime,
+          maxSupply,
+          maxPerWallet,
+          merkleRoot,
+          userLayerId
+        },
+        userId
+      );
 
       return res.status(200).json({
         success: true,
         data: {
-          unsignedTx
+          unsignedTx: result.unsignedTx,
+          updateId: result.updateId
         }
       });
     } catch (error) {
       next(error);
     }
   },
+  confirmUpdatePhase: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const userId = req.user?.id;
 
+      if (!userId) throw new CustomError("Cannot parse user from token", 401);
+
+      const { updateId, txid, userLayerId } = req.body;
+
+      // Validate required fields
+      if (!updateId) throw new CustomError("Update ID is required", 400);
+      if (!txid) throw new CustomError("Transaction ID is required", 400);
+
+      const result = await collectionServices.confirmUpdatePhase(
+        {
+          updateId,
+          txid,
+          userLayerId
+        },
+        userId
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
   getById: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
@@ -262,21 +293,24 @@ export const collectionController = {
     }
   },
   getPhasesByContractAddress: async (
-    req: Request,
+    req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {
     try {
-      const { collectionId, layerId } = req.body;
+      const userId = req.user?.id;
+      const { collectionId, userLayerId } = req.query;
 
-      if (!collectionId || !layerId)
-        throw new CustomError("Missing collectionId or layerId", 400);
+      if (!collectionId) throw new CustomError("Missing collectionId", 400);
+      if (!userLayerId) throw new CustomError("Missing userLayerId", 400);
+      if (!userId) throw new CustomError("Missing userId", 400);
 
-      const phases = await collectionServices.getPhasesByContractAddress({
-        collectionId,
-        layerId
-      });
-      if (!phases) throw new CustomError("phase not found", 404);
+      const phases = await collectionServices.getPhasesByContractAddress(
+        collectionId.toString(),
+        userLayerId.toString(),
+        userId
+      );
+      if (!phases) throw new CustomError("Phase not found", 404);
 
       return res.status(200).json({ success: true, data: phases });
     } catch (e) {
@@ -307,7 +341,48 @@ export const collectionController = {
     } catch (e) {
       next(e);
     }
+  },
+  updateDetails: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const userId = req.user?.id;
+      const { id } = req.params;
+      const { description, discordUrl, twitterUrl, websiteUrl } = req.body;
+
+      if (!userId) throw new CustomError("Cannot parse user from token", 401);
+      if (!id) throw new CustomError("Collection ID is required", 400);
+
+      // Check if at least one field to update is provided
+      if (!description && !discordUrl && !twitterUrl && !websiteUrl) {
+        throw new CustomError(
+          "At least one field to update must be provided",
+          400
+        );
+      }
+
+      const updatedCollection = await collectionServices.updateDetails(
+        id,
+        {
+          description,
+          discordUrl,
+          twitterUrl,
+          websiteUrl
+        },
+        userId
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: updatedCollection
+      });
+    } catch (error) {
+      next(error);
+    }
   }
+
   // update: async (
   //   req: AuthenticatedRequest,
   //   res: Response,
