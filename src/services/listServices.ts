@@ -15,7 +15,7 @@ import { layerRepository } from "../repositories/layerRepository";
 import { userLayerRepository } from "../repositories/userLayerRepository";
 import logger from "../config/winston";
 import subgraphService from "@blockchain/evm/services/subgraph/subgraphService";
-import { LIST_STATUS } from "@app-types/db/enums";
+import { LAYER, LIST_STATUS } from "@app-types/db/enums";
 
 export const listServices = {
   checkAndPrepareRegistration: async (
@@ -412,146 +412,108 @@ export const listServices = {
   ) => {
     const list = await listRepository.getById(id);
     if (!list) throw new CustomError("No list found.", 400);
-    if (list.status !== "ACTIVE")
-      throw new CustomError("This list is could not be bought.", 400);
-
-    // const seller = await userRepository.getByUserLayerId(list.sellerId);
-    // if (!seller) throw new CustomError("Seller not found.", 400);
 
     const buyer = await userRepository.getByUserLayerId(userLayerId);
     if (!buyer) throw new CustomError("User not found.", 400);
     if (!buyer.isActive)
       throw new CustomError("This account is deactivated.", 400);
-    // if (buyer.address === seller.address)
-    //   throw new CustomError("You cannot buy your own listing.", 400);
 
-    if (list.layerType === "EVM") {
-      const collectible = await collectibleRepository.getById(
-        db,
-        list.collectibleId
-      );
-      if (!collectible) throw new CustomError("Collectible not found", 400);
-      if (!collectible.uniqueIdx)
-        throw new CustomError(
-          "Collectible with no unique index cannot be listed.",
-          400
+    if (list.layerType !== "EVM") {
+      throw new CustomError("Unsupported layer.", 400);
+    }
+
+    const collectible = await collectibleRepository.getById(
+      db,
+      list.collectibleId
+    );
+    if (!collectible) throw new CustomError("Collectible not found", 400);
+    if (!collectible.uniqueIdx)
+      throw new CustomError("Collectible must have uniqueIdx.", 400);
+
+    const collection = await collectionRepository.getById(
+      db,
+      collectible.collectionId
+    );
+    if (!collection || !collection.contractAddress)
+      throw new CustomError("Collection not found", 400);
+    if (collection.status !== "CONFIRMED")
+      throw new CustomError("Collection is not confirmed", 400);
+
+    const layer = await layerRepository.getById(collection.layerId);
+    if (!layer || !layer.chainId)
+      throw new CustomError("Layer or chainId not found", 400);
+
+    const onchainListingId = list.privateKey ?? list.onchainListingId;
+    if (!onchainListingId)
+      throw new CustomError("Listing with no onchainListingId.", 400);
+
+    const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+    const marketplaceService = new MarketplaceService(
+      chainConfig.MARKETPLACE_ADDRESS,
+      chainConfig.RPC_URL
+    );
+
+    let listingStatus;
+
+    if (chainConfig.SUBGRAPH_URL) {
+      try {
+        const subgraphListing = await subgraphService.getListingById(
+          layer.layer as (typeof LAYER)[keyof typeof LAYER],
+          parseInt(layer.chainId),
+          onchainListingId.toString()
         );
 
-      const collection = await collectionRepository.getById(
-        db,
-        collectible.collectionId
-      );
-      if (!collection || !collection.contractAddress)
-        throw new CustomError("Collection not found", 400);
-      if (collection.status !== "CONFIRMED")
-        throw new CustomError("Collection is not confirmed", 400);
-
-      const layer = await layerRepository.getById(collection.layerId);
-      if (!layer || !layer.chainId)
-        throw new CustomError("Layer or chainid not found", 400);
-
-      let onchainListingId = list.privateKey
-        ? list.privateKey
-        : list.onchainListingId;
-
-      if (!onchainListingId)
-        throw new Error("Listing with no onchainListingId.");
-
-      // // Check on-chain status first
-      // const syncService = new MarketplaceSyncService(db, subgraphService);
-      // const listingState =
-      //   await syncService.checkAndSyncListing(onchainListingId);
-
-      // // If listing was already sold
-      // if (listingState.onChainStatus === "SOLD") {
-      //   throw new CustomError("This item has already been sold.", 400);
-      // }
-
-      // // If listing was already cancelled
-      // if (listingState.onChainStatus === "CANCELLED") {
-      //   throw new CustomError(
-      //     "This listing has been cancelled by the seller.",
-      //     400
-      //   );
-      // }
-
-      // // If listing doesn't exist on-chain but our DB says it's active
-      // if (
-      //   listingState.onChainStatus === null &&
-      //   list.status === LIST_STATUS.ACTIVE
-      // ) {
-      //   // Update our database
-      //   await db
-      //     .updateTable("List")
-      //     .set({
-      //       status: LIST_STATUS.CANCELLED
-      //     })
-      //     .where("id", "=", id)
-      //     .execute();
-
-      //   throw new CustomError(
-      //     "This listing is no longer available on the marketplace.",
-      //     400
-      //   );
-      // }
-
-      // // Now continue with the rest of your buying logic
-      // if (list.status !== LIST_STATUS.ACTIVE) {
-      //   throw new CustomError("This listing could not be bought.", 400);
-      // }
-
-      const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
-      const marketplaceService = new MarketplaceService(
-        chainConfig.MARKETPLACE_ADDRESS,
-        chainConfig.RPC_URL
-      );
-
-      // FCFS or Public phase - no merkle proof needed
-      return serializeBigInt(
-        await marketplaceService.buyListingTransaction(
-          collection.contractAddress,
-          collectible.nftId,
-          parseInt(onchainListingId),
-          // [],
-          list.price.toString(),
-          buyer.address
-        )
-      );
-
-      // return serializeBigInt(unsignedHex);
+        if (!subgraphListing) {
+          listingStatus = "CANCELLED";
+        } else {
+          listingStatus = subgraphListing.status;
+        }
+      } catch (err) {
+        console.warn(`Subgraph error for chain ${layer.chainId}:`, err);
+        listingStatus = null; // fallback to onchain
+      }
     }
-    // else if (list.layer === "FRACTAL") {
-    //   if (!list.inscribedAmount)
-    //     throw new CustomError("Invalid inscribed amount.", 400);
 
-    //   if (!buyer.pubkey || !list.vaultTxid || list.vaultVout === null)
-    //     throw new CustomError("Invalid fields.", 400);
+    if (!listingStatus) {
+      // Fallback to on-chain validation
+      try {
+        const onchainListing = await marketplaceService.getListing(
+          parseInt(onchainListingId)
+        );
 
-    //   const serviceFee = Math.min(
-    //     list.price * LISTING_SERVICE_FEE_PERCENTAGE,
-    //     MINIMUM_LISTING_SERVICE_FEE
-    //   );
+        if (!onchainListing || !onchainListing.isActive) {
+          listingStatus = "CANCELLED";
+        } else {
+          listingStatus = "ACTIVE";
+        }
+      } catch (err) {
+        console.error("Failed to check on-chain listing:", err);
+        throw new CustomError("Unable to validate listing state.", 500);
+      }
+    }
 
-    //   const txHex = await generateBuyPsbtHex(
-    //     {
-    //       buyerAddress: buyer.address,
-    //       buyerPubKey: buyer.pubkey,
-    //       sellerAddress: seller.address,
-    //       vaultAddress: list.address,
-    //       vaultTxid: list.vaultTxid,
-    //       vaultVout: list.vaultVout,
-    //       vaultPrivateKey: list.privateKey,
-    //       inscribedAmount: list.inscribedAmount,
-    //       listedPrice: list.price,
-    //       serviceFee: serviceFee,
-    //     },
-    //     feeRate,
-    //     true
-    //   );
+    console.log("listing status", listingStatus);
 
-    //   return txHex;
-    // }
-    else throw new CustomError("Unsupported layer.", 400);
+    // ✋ Decision branching based on resolved status
+    if (listingStatus === "SOLD") {
+      await listRepository.updateListingStatus(db, id, LIST_STATUS.SOLD);
+      throw new CustomError("This item has already been sold.", 400);
+    }
+
+    if (listingStatus === "CANCELLED") {
+      await listRepository.updateListingStatus(db, id, LIST_STATUS.CANCELLED);
+      throw new CustomError("This listing has been cancelled.", 400);
+    }
+
+    return serializeBigInt(
+      await marketplaceService.buyListingTransaction(
+        collection.contractAddress,
+        collectible.nftId,
+        parseInt(onchainListingId),
+        list.price.toString(),
+        buyer.address
+      )
+    );
   },
   // updateListedCollectible: async (id: string, issuerId: string) => {
   //   const list = await listRepository.getById(id);

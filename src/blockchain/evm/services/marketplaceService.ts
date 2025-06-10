@@ -56,9 +56,9 @@ class MarketplaceService {
     );
   }
 
-  async getListing(nftContract: string, tokenId: string) {
+  async getListing(listingId: number) {
     const contract = await this.getEthersMarketplaceContract();
-    return contract.getListing(nftContract, tokenId);
+    return contract.getListing(listingId);
   }
   async getUnsignedApprovalTransaction(from: string, contractAddress: string) {
     // const { chainId } = await this.provider.getNetwork();
