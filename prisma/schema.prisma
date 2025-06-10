@@ -420,6 +420,7 @@ enum LAYER {
   HEMI
   SEPOLIA
   POLYGON_ZK
+  EDUCHAIN
 }
 
 enum LAYER_TYPE {

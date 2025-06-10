@@ -75,7 +75,8 @@ export const LAYER = {
   CITREA: "CITREA",
   HEMI: "HEMI",
   SEPOLIA: "SEPOLIA",
-  POLYGON_ZK: "POLYGON_ZK"
+  POLYGON_ZK: "POLYGON_ZK",
+  EDUCHAIN: "EDUCHAIN"
 } as const;
 export type LAYER = (typeof LAYER)[keyof typeof LAYER];
 export const LAYER_TYPE = {
