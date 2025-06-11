@@ -144,8 +144,6 @@ export const collectionServices = {
         creatorId: user.id,
         layerId: bitcoinLayer.id,
         ownerCount: 0
-
-        // creatorUserLayerId: userLayerId,
       });
 
       l2Collection = await collectionRepository.create({

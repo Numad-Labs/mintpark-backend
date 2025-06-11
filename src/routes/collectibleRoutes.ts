@@ -36,26 +36,26 @@ collectibleRouter.get(
   collectibleControllers.getTokenActivity
 );
 
-// Admin Priviledge APIs, will later be allowed
-collectibleRouter.post(
-  "/inscription",
-  authenticateToken,
-  parseFiles("files", false),
-  authorize("SUPER_ADMIN"),
-  collectibleControllers.createInscriptionInBatch
-);
-collectibleRouter.post(
-  "/recursive-inscription",
-  authenticateToken,
-  authorize("SUPER_ADMIN"),
-  collectibleControllers.createRecursiveInscriptionInBatch
-);
-collectibleRouter.post(
-  "/ipfs",
-  authenticateToken,
-  authorize("SUPER_ADMIN"),
-  collectibleControllers.createIpfsNftInBatch
-);
+// // Admin Priviledge APIs, will later be allowed
+// collectibleRouter.post(
+//   "/inscription",
+//   authenticateToken,
+//   parseFiles("files", false),
+//   authorize("SUPER_ADMIN"),
+//   collectibleControllers.createInscriptionInBatch
+// );
+// collectibleRouter.post(
+//   "/recursive-inscription",
+//   authenticateToken,
+//   authorize("SUPER_ADMIN"),
+//   collectibleControllers.createRecursiveInscriptionInBatch
+// );
+// collectibleRouter.post(
+//   "/ipfs",
+//   authenticateToken,
+//   authorize("SUPER_ADMIN"),
+//   collectibleControllers.createIpfsNftInBatch
+// );
 
 // Admin Queue Priviledge APIs
 collectibleRouter.get(

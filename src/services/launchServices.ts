@@ -21,7 +21,6 @@ import { TransactionConfirmationService } from "../blockchain/evm/services/trans
 import { BADGE_BATCH_SIZE } from "../libs/constants";
 import { db } from "../utils/db";
 import logger from "../config/winston";
-import { recursiveInscriptionParams } from "../controllers/collectibleController";
 import { collectibleServices } from "./collectibleServices";
 import { serializeBigInt } from "../blockchain/evm/utils";
 import { createFundingAddress } from "../blockchain/bitcoin/createFundingAddress";
@@ -48,7 +47,6 @@ export const launchServices = {
     );
     if (!collection) throw new CustomError("Invalid collectionId.", 400);
     if (
-      collection.type === "SYNTHETIC" ||
       collection.parentCollectionId ||
       collection.type === "INSCRIPTION" ||
       collection.type === "RECURSIVE_INSCRIPTION"
@@ -144,61 +142,61 @@ export const launchServices = {
 
     return { launch };
   },
-  createInscriptionAndLaunchItemInBatch: async (
-    userId: string,
-    collectionId: string,
-    files: Express.Multer.File[],
-    isLastBatch: boolean
-  ) => {
-    const collection = await collectionRepository.getById(db, collectionId);
-    if (!collection) throw new CustomError("Invalid collectionId.", 400);
-    if (collection?.type !== "INSCRIPTION")
-      throw new CustomError("Invalid collection type.", 400);
-    if (collection.creatorId !== userId)
-      throw new CustomError("You are not the creator of this collection.", 400);
+  // createInscriptionAndLaunchItemInBatch: async (
+  //   userId: string,
+  //   collectionId: string,
+  //   files: Express.Multer.File[],
+  //   isLastBatch: boolean
+  // ) => {
+  //   const collection = await collectionRepository.getById(db, collectionId);
+  //   if (!collection) throw new CustomError("Invalid collectionId.", 400);
+  //   if (collection?.type !== "INSCRIPTION")
+  //     throw new CustomError("Invalid collection type.", 400);
+  //   if (collection.creatorId !== userId)
+  //     throw new CustomError("You are not the creator of this collection.", 400);
 
-    const launch = await launchRepository.getByCollectionId(collectionId);
-    if (!launch) throw new CustomError("Launch not found.", 400);
-    if (launch.status === "CONFIRMED")
-      throw new CustomError("This launch has already been confirmed.", 400);
+  //   const launch = await launchRepository.getByCollectionId(collectionId);
+  //   if (!launch) throw new CustomError("Launch not found.", 400);
+  //   if (launch.status === "CONFIRMED")
+  //     throw new CustomError("This launch has already been confirmed.", 400);
 
-    const existingLaunchItemCount =
-      await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
-    const collectibles = await collectibleServices.createCollectiblesByFiles(
-      { id: collection.id, name: collection.name },
-      Number(existingLaunchItemCount),
-      files
-    );
+  //   const existingLaunchItemCount =
+  //     await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
+  //   const collectibles = await collectibleServices.createCollectiblesByFiles(
+  //     { id: collection.id, name: collection.name },
+  //     Number(existingLaunchItemCount),
+  //     files
+  //   );
 
-    const launchItemsData: Insertable<LaunchItem>[] = [];
-    for (let i = 0; i < collectibles.length; i++)
-      launchItemsData.push({
-        collectibleId: collectibles[i].id,
-        launchId: launch.id
-      });
-    const launchItems = await launchItemRepository.bulkInsert(
-      db,
-      launchItemsData
-    );
+  //   const launchItemsData: Insertable<LaunchItem>[] = [];
+  //   for (let i = 0; i < collectibles.length; i++)
+  //     launchItemsData.push({
+  //       collectibleId: collectibles[i].id,
+  //       launchId: launch.id
+  //     });
+  //   const launchItems = await launchItemRepository.bulkInsert(
+  //     db,
+  //     launchItemsData
+  //   );
 
-    if (isLastBatch) {
-      if (Number(existingLaunchItemCount) + launchItems.length <= 0)
-        throw new CustomError("Launch with no launch items.", 400);
+  //   if (isLastBatch) {
+  //     if (Number(existingLaunchItemCount) + launchItems.length <= 0)
+  //       throw new CustomError("Launch with no launch items.", 400);
 
-      await launchRepository.update(launch.id, { status: "CONFIRMED" });
-    }
+  //     await launchRepository.update(launch.id, { status: "CONFIRMED" });
+  //   }
 
-    return { collectibles, launchItems };
-  },
+  //   return { collectibles, launchItems };
+  // },
   createRecursiveInscriptionAndLaunchItemInBatch: async (
     userId: string,
     collectionId: string,
-    data: recursiveInscriptionParams[],
+    data: { traitValueId: string }[][],
     isLastBatch: boolean
   ) => {
     const collection = await collectionRepository.getById(db, collectionId);
     if (!collection) throw new CustomError("Invalid collectionId.", 400);
-    if (collection?.type !== "RECURSIVE_INSCRIPTION")
+    if (collection?.type !== "SYNTHETIC")
       throw new CustomError("Invalid collection type.", 400);
     if (collection.creatorId !== userId)
       throw new CustomError("You are not the creator of this collection.", 400);
