@@ -30,5 +30,14 @@ export const traitTypeRepository = {
       .execute();
 
     return traitType;
+  },
+  getById: async (id: string) => {
+    const traitType = await db
+      .selectFrom("TraitType")
+      .selectAll()
+      .where("TraitType.id", "=", id)
+      .executeTakeFirst();
+
+    return traitType;
   }
 };

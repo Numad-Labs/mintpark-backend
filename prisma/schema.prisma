@@ -208,6 +208,8 @@ model TraitValue {
   CollectibleTrait  CollectibleTrait[]
   OrderItem         OrderItem[]
   traitType         TraitType          @relation(fields: [traitTypeId], references: [id])
+
+  @@unique([value, traitTypeId])
 }
 
 model CollectibleTrait {
