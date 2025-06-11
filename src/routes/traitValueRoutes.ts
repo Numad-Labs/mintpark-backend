@@ -6,13 +6,13 @@ import { authorize } from "../middlewares/authorize";
 
 const traitValueRouter = Router();
 
-traitValueRouter.post(
-  "/",
-  authenticateToken,
-  authorize("SUPER_ADMIN"),
-  parseFiles("files", false),
-  traitValueController.create
-);
+// traitValueRouter.post(
+//   "/",
+//   authenticateToken,
+//   authorize("SUPER_ADMIN"),
+//   parseFiles("files", false),
+//   traitValueController.create
+// );
 traitValueRouter.get(
   "/:traitTypeId/trait-type",
   traitValueController.getTraitValuesByTraitTypeId

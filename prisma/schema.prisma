@@ -191,6 +191,8 @@ model TraitType {
   collectionId String
   collection   Collection   @relation(fields: [collectionId], references: [id])
   TraitValue   TraitValue[]
+
+  @@unique([name, collectionId])
 }
 
 model TraitValue {
