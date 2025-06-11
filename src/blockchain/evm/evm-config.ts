@@ -136,6 +136,28 @@ export const EVM_CONFIG: EVMConfig = {
       MAX_FEE,
       useLegacyGas: false
       // gasPriceMultiplier: 1.1
+    },
+    "656476": {
+      RPC_URL: "https://open-campus-codex-sepolia.drpc.org",
+      CHAIN_ID: 31337,
+      MARKETPLACE_ADDRESS: "",
+      DEFAULT_PUBLIC_MAX_MINT,
+      DEFAULT_ROYALTY_FEE,
+      DEFAULT_PLATFORM_FEE,
+      MAX_FEE,
+      useLegacyGas: false
+      // gasPriceMultiplier: 1.1
+    },
+    "41923": {
+      RPC_URL: "https://rpc.edu-chain.raas.gelato.cloud",
+      CHAIN_ID: 31337,
+      MARKETPLACE_ADDRESS: "",
+      DEFAULT_PUBLIC_MAX_MINT,
+      DEFAULT_ROYALTY_FEE,
+      DEFAULT_PLATFORM_FEE,
+      MAX_FEE,
+      useLegacyGas: false
+      // gasPriceMultiplier: 1.1
     }
   }
 };
