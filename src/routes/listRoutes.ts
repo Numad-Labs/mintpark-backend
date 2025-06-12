@@ -1,5 +1,8 @@
 import { Router } from "express";
-import { authenticateToken } from "../middlewares/authenticateToken";
+import {
+  authenticateToken,
+  verifyMarketplaceSyncSecret
+} from "../middlewares/authenticateToken";
 import { listController } from "../controllers/listController";
 import { authorize } from "../middlewares/authorize";
 const listRouter = Router();
@@ -87,9 +90,12 @@ listRouter.get(
 /**
  * @route   POST /api/marketplace/sync
  * @desc    Manually trigger marketplace data sync
- * @access  Admin (should be protected)
  */
-listRouter.post("/sync", listController.syncMarketplace);
+listRouter.post(
+  "/sync",
+  verifyMarketplaceSyncSecret,
+  listController.syncMarketplace
+);
 
 // listRouter.get(
 //   "/:id/estimate-fee",

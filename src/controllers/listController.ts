@@ -442,18 +442,26 @@ export const listController = {
         });
       }
 
-      // Start the sync process
-      await marketplaceSyncService.syncAllListings();
+      // Do not await — run in background
+      marketplaceSyncService
+        .syncAllListings()
+        .then(() => {
+          logger.info("Marketplace sync completed.");
+        })
+        .catch((err) => {
+          logger.error(`Marketplace sync failed: ${err}`);
+        });
 
-      return res.status(200).json({
+      // Return immediately
+      return res.status(202).json({
         success: true,
-        message: "Marketplace sync initiated successfully"
+        message: "Marketplace sync started"
       });
     } catch (error) {
       logger.error(`Error in syncMarketplace: ${error}`);
       return res.status(500).json({
         success: false,
-        message: "Failed to sync marketplace data",
+        message: "Failed to initiate sync",
         error: (error as Error).message
       });
     }
