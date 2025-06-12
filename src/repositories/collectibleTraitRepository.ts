@@ -22,7 +22,10 @@ export const collectibleTraitRepository = {
       .execute();
     return traits;
   },
-  getByCollectibleIdAndTraitValueId: async (collectibleId: string, traitValueId: string) => {
+  getByCollectibleIdAndTraitValueId: async (
+    collectibleId: string,
+    traitValueId: string
+  ) => {
     const trait = await db
       .selectFrom("CollectibleTrait")
       .select(["id"])
@@ -30,6 +33,38 @@ export const collectibleTraitRepository = {
       .where("traitValueId", "=", traitValueId)
       .executeTakeFirst();
     return trait;
+  },
+  getCollectibleTraitsWithDetails: async (collectibleId: string) => {
+    const traits = await db
+      .selectFrom("CollectibleTrait")
+      .innerJoin("TraitValue", "TraitValue.id", "CollectibleTrait.traitValueId")
+      .innerJoin("TraitType", "TraitType.id", "TraitValue.traitTypeId")
+      .select([
+        "CollectibleTrait.id",
+        "TraitValue.id as traitValueId",
+        "TraitValue.fileKey",
+        "TraitValue.value",
+        "TraitType.id as traitTypeId",
+        "TraitType.name as traitTypeName",
+        "TraitType.zIndex"
+      ])
+      .where("CollectibleTrait.collectibleId", "=", collectibleId)
+      .orderBy("TraitType.zIndex", "asc")
+      .execute();
+
+    return traits.map((trait) => ({
+      id: trait.id,
+      traitValue: {
+        id: trait.traitValueId,
+        fileKey: trait.fileKey,
+        value: trait.value,
+        traitType: {
+          id: trait.traitTypeId,
+          name: trait.traitTypeName,
+          zIndex: trait.zIndex
+        }
+      }
+    }));
   }
   // getByCollectionId: async (collectionId: string) => {
   //   const traits = await db

@@ -689,5 +689,58 @@ export const collectibleRepository = {
       .execute();
 
     return collectibles;
+  },
+  getByIdWithTraits: async (collectibleId: string) => {
+    const collectible = await db
+      .selectFrom("Collectible")
+      .leftJoin(
+        "CollectibleTrait",
+        "CollectibleTrait.collectibleId",
+        "Collectible.id"
+      )
+      .leftJoin("TraitValue", "TraitValue.id", "CollectibleTrait.traitValueId")
+      .leftJoin("TraitType", "TraitType.id", "TraitValue.traitTypeId")
+      .select([
+        "Collectible.id",
+        "Collectible.name",
+        "Collectible.fileKey",
+        "CollectibleTrait.id as traitId",
+        "TraitValue.id as traitValueId",
+        "TraitValue.fileKey as traitFileKey",
+        "TraitValue.value as traitValue",
+        "TraitType.id as traitTypeId",
+        "TraitType.name as traitTypeName",
+        "TraitType.zIndex"
+      ])
+      .where("Collectible.id", "=", collectibleId)
+      .execute();
+
+    if (!collectible.length) {
+      return null;
+    }
+
+    // Transform the flat result into a nested structure
+    const baseCollectible = {
+      id: collectible[0].id,
+      name: collectible[0].name,
+      fileKey: collectible[0].fileKey,
+      CollectibleTrait: collectible
+        .filter((row) => row.traitId) // Filter out rows where no traits exist
+        .map((row) => ({
+          id: row.traitId,
+          traitValue: {
+            id: row.traitValueId,
+            fileKey: row.traitFileKey,
+            value: row.traitValue,
+            traitType: {
+              id: row.traitTypeId,
+              name: row.traitTypeName,
+              zIndex: row.zIndex
+            }
+          }
+        }))
+    };
+
+    return baseCollectible;
   }
 };

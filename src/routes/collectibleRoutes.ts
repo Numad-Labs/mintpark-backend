@@ -36,6 +36,13 @@ collectibleRouter.get(
   collectibleControllers.getTokenActivity
 );
 
+// Creator APIs
+collectibleRouter.get(
+  "/:collectibleId/build-image",
+  authenticateToken,
+  collectibleControllers.buildNftImageFromTraits
+);
+
 // // Admin Priviledge APIs, will later be allowed
 // collectibleRouter.post(
 //   "/inscription",

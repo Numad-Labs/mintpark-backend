@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from "../../custom";
 import { CustomError } from "../exceptions/CustomError";
 import { collectibleServices } from "../services/collectibleServices";
 import { collectibleRepository } from "../repositories/collectibleRepository";
+import { collectibleTraitRepository } from "../repositories/collectibleTraitRepository";
 import logger from "../config/winston";
 import { z } from "zod";
 import { collectionRepository } from "@repositories/collectionRepository";
@@ -12,6 +13,8 @@ import { LAYER } from "@app-types/db/enums";
 import { sql } from "kysely";
 import axios from "axios";
 import { config } from "@config/config";
+import { getObjectFromS3, uploadToS3 } from "@utils/aws";
+import sharp from "sharp";
 
 const DEFAULT_LIMIT = 30,
   MAX_LIMIT = 50;
@@ -787,6 +790,142 @@ export const collectibleControllers = {
           message: `Found ${collectibles.length} collectibles with missing CID, successfully enqueued ${successCount}`
         }
       });
+    } catch (e) {
+      next(e);
+    }
+  },
+  buildNftImageFromTraits: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const user = req.user;
+      if (!user) throw new CustomError("User not found", 400);
+
+      const { collectibleId } = req.params;
+      if (!collectibleId) {
+        throw new CustomError("Collectible ID is required", 400);
+      }
+
+      const collectible = await collectibleRepository.getById(
+        db,
+        collectibleId
+      );
+      if (!collectible) throw new CustomError("Collectible not found", 400);
+
+      const collection = await collectionRepository.getById(
+        db,
+        collectible.collectionId
+      );
+      if (!collection) throw new CustomError("Collection not found", 400);
+      if (collection.creatorId !== user.id && user.role === "SUPER_ADMIN")
+        throw new CustomError("You are not authorized", 400);
+
+      // 1. Fetch traits (must be sorted by zIndex in ascending order)
+      const traits =
+        await collectibleTraitRepository.getCollectibleTraitsWithDetails(
+          collectibleId
+        );
+
+      if (!traits.length) {
+        throw new CustomError("No traits found for this collectible", 404);
+      }
+
+      const normalizedTraitImages: Buffer[] = [];
+
+      // 2. Load base image and extract canvas size
+      const baseTrait = traits[0];
+      if (!baseTrait.traitValue.fileKey) {
+        throw new CustomError("Base trait image missing fileKey", 400);
+      }
+
+      const baseImageData = await getObjectFromS3(baseTrait.traitValue.fileKey);
+      const baseBuffer = Buffer.from(baseImageData.content as string, "base64");
+
+      const baseMeta = await sharp(baseBuffer).metadata();
+      const CANVAS_SIZE = {
+        width: baseMeta.width ?? 600,
+        height: baseMeta.height ?? 600
+      };
+
+      // Normalize base image to canvas
+      const baseNormalized = await sharp({
+        create: {
+          width: CANVAS_SIZE.width,
+          height: CANVAS_SIZE.height,
+          channels: 4,
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
+        }
+      })
+        .composite([{ input: baseBuffer, top: 0, left: 0 }])
+        .png()
+        .toBuffer();
+
+      normalizedTraitImages.push(baseNormalized);
+
+      // 3. Process and normalize the rest of the traits
+      for (let i = 1; i < traits.length; i++) {
+        const trait = traits[i];
+        if (!trait.traitValue.fileKey) {
+          logger.warn(`No fileKey found for trait ${trait.id}`);
+          continue;
+        }
+
+        try {
+          const imageData = await getObjectFromS3(trait.traitValue.fileKey);
+          const buffer = Buffer.from(imageData.content as string, "base64");
+
+          const normalized = await sharp({
+            create: {
+              width: CANVAS_SIZE.width,
+              height: CANVAS_SIZE.height,
+              channels: 4,
+              background: { r: 0, g: 0, b: 0, alpha: 0 }
+            }
+          })
+            .composite([{ input: buffer, top: 0, left: 0 }])
+            .png()
+            .toBuffer();
+
+          normalizedTraitImages.push(normalized);
+        } catch (err) {
+          logger.error(
+            `Failed to process trait image ${trait.traitValue.fileKey}:`,
+            err
+          );
+        }
+      }
+
+      if (normalizedTraitImages.length === 0) {
+        throw new CustomError("No valid trait images found", 404);
+      }
+
+      // 4. Composite all layers into a final image
+      let finalImage = sharp({
+        create: {
+          width: CANVAS_SIZE.width,
+          height: CANVAS_SIZE.height,
+          channels: 4,
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
+        }
+      });
+
+      finalImage = finalImage.composite(
+        normalizedTraitImages.map((buffer) => ({
+          input: buffer,
+          blend: "over"
+        }))
+      );
+
+      const finalBuffer = await finalImage.png().toBuffer();
+
+      // Set response headers for image display
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader("Content-Length", finalBuffer.length);
+
+      // Return both the image and the fileKey
+      return res.send(finalBuffer);
     } catch (e) {
       next(e);
     }
