@@ -139,7 +139,7 @@ export const EVM_CONFIG: EVMConfig = {
     },
     "656476": {
       RPC_URL: "https://open-campus-codex-sepolia.drpc.org",
-      CHAIN_ID: 31337,
+      CHAIN_ID: 656476,
       MARKETPLACE_ADDRESS: "",
       DEFAULT_PUBLIC_MAX_MINT,
       DEFAULT_ROYALTY_FEE,
@@ -150,7 +150,7 @@ export const EVM_CONFIG: EVMConfig = {
     },
     "41923": {
       RPC_URL: "https://rpc.edu-chain.raas.gelato.cloud",
-      CHAIN_ID: 31337,
+      CHAIN_ID: 41923,
       MARKETPLACE_ADDRESS: "",
       DEFAULT_PUBLIC_MAX_MINT,
       DEFAULT_ROYALTY_FEE,
