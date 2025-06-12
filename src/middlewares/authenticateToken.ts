@@ -56,6 +56,24 @@ export async function authenticateToken(
       .json({ success: false, data: null, error: "Authentication failed." });
   }
 }
+export function verifyMarketplaceSyncSecret(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) {
+  const providedSecret = req.header("x-marketplace-sync-secret");
+
+  if (
+    !providedSecret ||
+    providedSecret !== process.env.MARKETPLACE_SYNC_SECRET
+  ) {
+    return res
+      .status(403)
+      .json({ success: false, message: "Unauthorized sync attempt" });
+  }
+
+  next();
+}
 
 export function optionalAuth() {
   return async (
@@ -75,13 +93,11 @@ export function optionalAuth() {
       if (token) {
         const user = await verifyAccessToken(token, jwtAuthSecret);
         if (!user)
-          return res
-            .status(401)
-            .json({
-              success: false,
-              data: null,
-              error: "Invalid access token."
-            });
+          return res.status(401).json({
+            success: false,
+            data: null,
+            error: "Invalid access token."
+          });
 
         req.user = user;
       }

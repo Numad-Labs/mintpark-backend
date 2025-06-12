@@ -31,7 +31,8 @@ const envSchema = z.object({
   VAULT_PRIVATE_KEY: z.string(),
   PLATFORM_FEE_RECIPIENT: z.string(),
   QUEUE_PROCESSOR_URL: z.string(),
-  QUEUE_PROCESSOR_API_KEY: z.string()
+  QUEUE_PROCESSOR_API_KEY: z.string(),
+  MARKETPLACE_SYNC_SECRET: z.string()
 });
 
 let env = envSchema.safeParse(process.env);
