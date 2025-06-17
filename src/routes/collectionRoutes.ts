@@ -13,6 +13,7 @@ collectionRouter.get("/:id", collectionController.getById);
 collectionRouter.post(
   "/",
   authenticateToken,
+  authorize("SUPER_ADMIN"),
   parseFiles("logo", true),
   collectionController.create
 );

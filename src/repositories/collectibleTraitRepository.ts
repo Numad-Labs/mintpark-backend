@@ -40,6 +40,11 @@ export const collectibleTraitRepository = {
       .innerJoin("TraitValue", "TraitValue.id", "CollectibleTrait.traitValueId")
       .innerJoin("TraitType", "TraitType.id", "TraitValue.traitTypeId")
       .innerJoin("Collection", "Collection.id", "TraitType.collectionId")
+      .innerJoin(
+        "Collectible",
+        "Collectible.id",
+        "CollectibleTrait.collectibleId"
+      )
       .select([
         "CollectibleTrait.id",
         "TraitValue.id as traitValueId",
@@ -49,7 +54,8 @@ export const collectibleTraitRepository = {
         "TraitType.name as traitTypeName",
         "TraitType.zIndex",
         "Collection.recursiveHeight",
-        "Collection.recursiveWidth"
+        "Collection.recursiveWidth",
+        "Collectible.isOOOEdition"
       ])
       .where("CollectibleTrait.collectibleId", "=", collectibleId)
       .orderBy("TraitType.zIndex", "asc")

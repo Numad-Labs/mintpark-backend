@@ -240,6 +240,11 @@ export const collectionServices = {
     if (user.id !== collection.creatorId)
       throw new CustomError("You are not allowed to do this action", 400);
 
+    const launch = await launchRepository.getByCollectionId(collection.id);
+    if (!launch) throw new CustomError("Launch not found", 400);
+    if (user.role !== "SUPER_ADMIN" && launch.status === "CONFIRMED")
+      throw new CustomError("Launch has already started", 400);
+
     // if (!collection.creatorUserLayerId)
     //   throw new CustomError("Collection with no creator user layer id", 400);
     // const collectionOwner = await userRepository.getByUserLayerId(
@@ -353,6 +358,8 @@ export const collectionServices = {
     }
     if (user.id !== collection.creatorId)
       throw new CustomError("You are not allowed to do this action", 400);
+    if (user.role !== "SUPER_ADMIN" && launch.status === "CONFIRMED")
+      throw new CustomError("Launch has already started", 400);
 
     // if (!collection.creatorUserLayerId)
     //   throw new CustomError("Collection with no creator user layer id", 400);
