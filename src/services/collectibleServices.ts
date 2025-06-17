@@ -1,7 +1,6 @@
 import {
   CollectibleQueryParams,
   ipfsData,
-  recursiveInscriptionParams,
   traitFilter,
   TraitPayload
 } from "../controllers/collectibleController";
@@ -322,53 +321,53 @@ export const collectibleServices = {
 
     return collectibles;
   },
-  createInscriptionAndOrderItemInBatch: async (
-    userId: string,
-    collectionId: string,
-    files: Express.Multer.File[]
-  ) => {
-    const collection = await collectionRepository.getById(db, collectionId);
-    if (!collection) throw new CustomError("Invalid collectionId.", 400);
-    if (collection?.type !== "INSCRIPTION")
-      throw new CustomError("Invalid collection type.", 400);
+  // createInscriptionAndOrderItemInBatch: async (
+  //   userId: string,
+  //   collectionId: string,
+  //   files: Express.Multer.File[]
+  // ) => {
+  //   const collection = await collectionRepository.getById(db, collectionId);
+  //   if (!collection) throw new CustomError("Invalid collectionId.", 400);
+  //   if (collection?.type !== "INSCRIPTION")
+  //     throw new CustomError("Invalid collection type.", 400);
 
-    const order = await orderRepository.getByCollectionId(collectionId);
-    if (!order) throw new CustomError("Order not found.", 400);
-    if (order?.userId !== userId)
-      throw new CustomError(
-        "You are not allowed to create trait value for this collection.",
-        400
-      );
-    if (!order.fundingAddress)
-      throw new CustomError("Invalid order with undefined address.", 400);
+  //   const order = await orderRepository.getByCollectionId(collectionId);
+  //   if (!order) throw new CustomError("Order not found.", 400);
+  //   if (order?.userId !== userId)
+  //     throw new CustomError(
+  //       "You are not allowed to create trait value for this collection.",
+  //       400
+  //     );
+  //   if (!order.fundingAddress)
+  //     throw new CustomError("Invalid order with undefined address.", 400);
 
-    const balance = await getBalance(order.fundingAddress);
-    if (balance < order.fundingAmount)
-      throw new CustomError("Fee has not been transferred yet.", 400);
+  //   const balance = await getBalance(order.fundingAddress);
+  //   if (balance < order.fundingAmount)
+  //     throw new CustomError("Fee has not been transferred yet.", 400);
 
-    const existingCollectibleCount =
-      await orderItemRepository.getOrderItemCountByCollectionId(collection.id);
-    const collectibles = await collectibleServices.createCollectiblesByFiles(
-      { id: collection.id, name: collection.name },
-      Number(existingCollectibleCount),
-      files
-    );
+  //   const existingCollectibleCount =
+  //     await orderItemRepository.getOrderItemCountByCollectionId(collection.id);
+  //   const collectibles = await collectibleServices.createCollectiblesByFiles(
+  //     { id: collection.id, name: collection.name },
+  //     Number(existingCollectibleCount),
+  //     files
+  //   );
 
-    const orderItemsData: Insertable<OrderItem>[] = [];
-    for (let i = 0; i < collectibles.length; i++)
-      orderItemsData.push({
-        collectibleId: collectibles[i].id,
-        orderId: order.id,
-        type: "COLLECTIBLE"
-      });
-    const orderItems = await orderItemRepository.bulkInsert(orderItemsData);
+  //   const orderItemsData: Insertable<OrderItem>[] = [];
+  //   for (let i = 0; i < collectibles.length; i++)
+  //     orderItemsData.push({
+  //       collectibleId: collectibles[i].id,
+  //       orderId: order.id,
+  //       type: "COLLECTIBLE"
+  //     });
+  //   const orderItems = await orderItemRepository.bulkInsert(orderItemsData);
 
-    return { collectibles, orderItems };
-  },
+  //   return { collectibles, orderItems };
+  // },
   createRecursiveInscriptions: async (
     collection: { id: string; name: string },
     startIndex: number,
-    data: recursiveInscriptionParams[]
+    data: { traitValueId: string }[][]
   ) => {
     startIndex++;
     const collectiblesData: Insertable<Collectible>[] = [];
@@ -382,20 +381,18 @@ export const collectibleServices = {
         nftId: (startIndex + i).toString()
       });
 
-      for (const trait of data[i].traits) {
+      const traits = data[i];
+      for (const trait of traits) {
         const traitValue =
-          await traitValueRepository.getByNameValueAndCollectionId(
-            trait.type,
-            trait.value,
-            collection.id
+          await traitValueRepository.getTraitValueWithCollectionIdById(
+            trait.traitValueId
           );
-
-        if (!traitValue)
+        if (!traitValue || traitValue.collectionId !== collection.id)
           throw new CustomError("Unregistered trait value.", 400);
 
         collectibleTraitData.push({
           collectibleId,
-          traitValueId: traitValue.id
+          traitValueId: trait.traitValueId
         });
       }
     }
@@ -409,53 +406,55 @@ export const collectibleServices = {
 
     return { collectibles, collectibleTraits };
   },
-  createRecursiveInscriptionAndOrderItemInBatch: async (
-    userId: string,
-    collectionId: string,
-    data: recursiveInscriptionParams[]
-  ) => {
-    const collection = await collectionRepository.getById(db, collectionId);
-    if (!collection) throw new CustomError("Invalid collectionId.", 400);
-    if (collection?.type !== "RECURSIVE_INSCRIPTION")
-      throw new CustomError("Invalid collection type.", 400);
+  // createRecursiveInscriptionAndOrderItemInBatch: async (
+  //   userId: string,
+  //   collectionId: string,
+  //   data: recursiveInscriptionParams[]
+  // ) => {
+  //   const collection = await collectionRepository.getById(db, collectionId);
+  //   if (!collection) throw new CustomError("Invalid collectionId.", 400);
+  //   if (collection?.type !== "RECURSIVE_INSCRIPTION")
+  //     throw new CustomError("Invalid collection type.", 400);
 
-    const order = await orderRepository.getByCollectionId(collectionId);
-    if (!order) throw new CustomError("Order not found.", 400);
-    if (order?.userId !== userId)
-      throw new CustomError(
-        "You are not allowed to create trait value for this collection.",
-        400
-      );
-    if (!order.fundingAddress)
-      throw new CustomError("Invalid order with undefined address.", 400);
+  //   const order = await orderRepository.getByCollectionId(collectionId);
+  //   if (!order) throw new CustomError("Order not found.", 400);
+  //   if (order?.userId !== userId)
+  //     throw new CustomError(
+  //       "You are not allowed to create trait value for this collection.",
+  //       400
+  //     );
+  //   if (!order.fundingAddress)
+  //     throw new CustomError("Invalid order with undefined address.", 400);
 
-    const balance = await getBalance(order.fundingAddress);
-    if (balance < order.fundingAmount)
-      throw new CustomError("Fee has not been transferred yet.", 400);
+  //   const balance = await getBalance(order.fundingAddress);
+  //   if (balance < order.fundingAmount)
+  //     throw new CustomError("Fee has not been transferred yet.", 400);
 
-    const existingCollectibleCount =
-      await orderItemRepository.getOrderItemCountByCollectionId(collection.id);
-    const result = await collectibleServices.createRecursiveInscriptions(
-      { id: collection.id, name: collection.name },
-      Number(existingCollectibleCount),
-      data
-    );
+  //   const existingCollectibleCount =
+  //     await orderItemRepository.getOrderItemCountByCollectionId(collection.id);
+  //   const result = await collectibleServices.createRecursiveInscriptions(
+  //     { id: collection.id, name: collection.name },
+  //     Number(existingCollectibleCount),
+  //     //TODO: MUST FIX LATER
+  //     //@ts-ignore
+  //     data
+  //   );
 
-    const orderItemsData: Insertable<OrderItem>[] = [];
-    for (let i = 0; i < result.collectibles.length; i++)
-      orderItemsData.push({
-        collectibleId: result.collectibles[i].id,
-        orderId: order.id,
-        type: "COLLECTIBLE"
-      });
-    const orderItems = await orderItemRepository.bulkInsert(orderItemsData);
+  //   const orderItemsData: Insertable<OrderItem>[] = [];
+  //   for (let i = 0; i < result.collectibles.length; i++)
+  //     orderItemsData.push({
+  //       collectibleId: result.collectibles[i].id,
+  //       orderId: order.id,
+  //       type: "COLLECTIBLE"
+  //     });
+  //   const orderItems = await orderItemRepository.bulkInsert(orderItemsData);
 
-    return {
-      collectibles: result.collectibles,
-      collectibleTraits: result.collectibleTraits,
-      orderItems
-    };
-  },
+  //   return {
+  //     collectibles: result.collectibles,
+  //     collectibleTraits: result.collectibleTraits,
+  //     orderItems
+  //   };
+  // },
   createIpfsNftCollectibles: async (
     collection: { id: string; name: string; contractAddress: string | null },
     startIndex: number,
@@ -490,72 +489,72 @@ export const collectibleServices = {
 
     return collectibles;
   },
-  //TODO: add optional parameter for one file for when minting COLLECTIBLE(IPFS FILE), if existingCollectibleCount === 0 && file.count === 1
-  createIpfsNftAndOrderItemInBatch: async (
-    userId: string,
-    collectionId: string,
-    data: ipfsData
-  ) => {
-    const collection = await collectionRepository.getById(db, collectionId);
-    if (!collection) throw new CustomError("Invalid collectionId.", 400);
-    if (collection.type !== "IPFS_CID" && collection.type !== "IPFS_FILE")
-      throw new CustomError("Invalid collection type.", 400);
+  // //TODO: add optional parameter for one file for when minting COLLECTIBLE(IPFS FILE), if existingCollectibleCount === 0 && file.count === 1
+  // createIpfsNftAndOrderItemInBatch: async (
+  //   userId: string,
+  //   collectionId: string,
+  //   data: ipfsData
+  // ) => {
+  //   const collection = await collectionRepository.getById(db, collectionId);
+  //   if (!collection) throw new CustomError("Invalid collectionId.", 400);
+  //   if (collection.type !== "IPFS_CID" && collection.type !== "IPFS_FILE")
+  //     throw new CustomError("Invalid collection type.", 400);
 
-    const order = await orderRepository.getByCollectionId(collectionId);
-    if (!order) throw new CustomError("Order not found.", 400);
-    if (order?.userId !== userId)
-      throw new CustomError(
-        "You are not allowed to create trait value for this collection.",
-        400
-      );
-    if (!order.fundingAddress)
-      throw new CustomError("Invalid order with undefined address.", 400);
+  //   const order = await orderRepository.getByCollectionId(collectionId);
+  //   if (!order) throw new CustomError("Order not found.", 400);
+  //   if (order?.userId !== userId)
+  //     throw new CustomError(
+  //       "You are not allowed to create trait value for this collection.",
+  //       400
+  //     );
+  //   if (!order.fundingAddress)
+  //     throw new CustomError("Invalid order with undefined address.", 400);
 
-    //DG TODO: IPFS BALANCE CHECK. CID ashiglaj bga gazar duudah heregtei bh. Shalgah ni good idea jhn hoishluulad hiiy
-    // const balance = 0;
-    // if (balance < order.fundingAmount)
-    //   throw new CustomError("Fee has not been transferred yet.", 400);
+  //   //DG TODO: IPFS BALANCE CHECK. CID ashiglaj bga gazar duudah heregtei bh. Shalgah ni good idea jhn hoishluulad hiiy
+  //   // const balance = 0;
+  //   // if (balance < order.fundingAmount)
+  //   //   throw new CustomError("Fee has not been transferred yet.", 400);
 
-    const existingCollectibleCount =
-      await orderItemRepository.getOrderItemCountByCollectionId(collection.id);
+  //   const existingCollectibleCount =
+  //     await orderItemRepository.getOrderItemCountByCollectionId(collection.id);
 
-    let collectibles: Insertable<Collectible>[] = [];
-    if (collection.isBadge) {
-      if (!collection.badgeCid || !collection.badgeSupply)
-        throw new CustomError("Invalid badge details.", 400);
+  //   let collectibles: Insertable<Collectible>[] = [];
+  //   if (collection.isBadge) {
+  //     if (!collection.badgeCid || !collection.badgeSupply)
+  //       throw new CustomError("Invalid badge details.", 400);
 
-      collectibles = await collectibleServices.createIpfsBadgeCollectibles(
-        {
-          id: collection.id,
-          name: collection.name,
-          badgeSupply: collection.badgeSupply
-        },
-        Number(existingCollectibleCount),
-        collection.badgeCid,
-        collection.logoKey
-      );
-    } else {
-      if (!data.CIDs)
-        throw new CustomError("Invalid ipfs collectible data.", 400);
+  //     collectibles = await collectibleServices.createIpfsBadgeCollectibles(
+  //       {
+  //         id: collection.id,
+  //         name: collection.name,
+  //         badgeSupply: collection.badgeSupply
+  //       },
+  //       Number(existingCollectibleCount),
+  //       collection.badgeCid,
+  //       collection.logoKey
+  //     );
+  //   } else {
+  //     if (!data.CIDs)
+  //       throw new CustomError("Invalid ipfs collectible data.", 400);
 
-      collectibles = await collectibleServices.createIpfsNftCollectibles(
-        collection,
-        Number(existingCollectibleCount),
-        data.CIDs
-      );
-    }
+  //     collectibles = await collectibleServices.createIpfsNftCollectibles(
+  //       collection,
+  //       Number(existingCollectibleCount),
+  //       data.CIDs
+  //     );
+  //   }
 
-    const orderItemsData: Insertable<OrderItem>[] = [];
-    for (let i = 0; i < collectibles.length; i++)
-      orderItemsData.push({
-        collectibleId: collectibles[i].id,
-        orderId: order.id,
-        type: "COLLECTIBLE"
-      });
-    const orderItems = await orderItemRepository.bulkInsert(orderItemsData);
+  //   const orderItemsData: Insertable<OrderItem>[] = [];
+  //   for (let i = 0; i < collectibles.length; i++)
+  //     orderItemsData.push({
+  //       collectibleId: collectibles[i].id,
+  //       orderId: order.id,
+  //       type: "COLLECTIBLE"
+  //     });
+  //   const orderItems = await orderItemRepository.bulkInsert(orderItemsData);
 
-    return { collectibles, orderItems };
-  },
+  //   return { collectibles, orderItems };
+  // },
   createIpfsBadgeCollectibles: async (
     collection: {
       id: string;

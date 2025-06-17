@@ -33,12 +33,12 @@ launchRouter.post(
   parseFiles("badge", true),
   launchController.create
 );
-launchRouter.post(
-  "/inscription",
-  authenticateToken,
-  parseFiles("files", false),
-  launchController.createInscriptionAndLaunchItemsInBatch
-);
+// launchRouter.post(
+//   "/inscription",
+//   authenticateToken,
+//   parseFiles("files", false),
+//   launchController.createInscriptionAndLaunchItemsInBatch
+// );
 launchRouter.post(
   "/ipfs-file",
   authenticateToken,
@@ -51,12 +51,11 @@ launchRouter.post(
   authenticateToken,
   launchController.createIpfsNftAndLaunchItemsInBatch
 );
-// launchRouter.post(
-//   "/recursive-inscription",
-//   authenticateToken,
-//   authorize("SUPER_ADMIN"),
-//   launchController.createRecursiveInscriptionAndLaunchItemsInBatch
-// );
+launchRouter.post(
+  "/recursive-inscription",
+  authenticateToken,
+  launchController.createRecursiveInscriptionAndLaunchItemsInBatch
+);
 
 launchRouter.post(
   "/whitelist-addresses",

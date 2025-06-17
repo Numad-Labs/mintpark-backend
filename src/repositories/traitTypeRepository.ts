@@ -4,13 +4,13 @@ import { db } from "../utils/db";
 
 export const traitTypeRepository = {
   bulkInsert: async (data: Insertable<TraitType>[]) => {
-    const traitType = await db
+    const traitTypes = await db
       .insertInto("TraitType")
       .values(data)
       .returningAll()
       .execute();
 
-    return traitType;
+    return traitTypes;
   },
   getByNameAndCollectionId: async (name: string, collectionId: string) => {
     const traitType = await db
@@ -28,6 +28,15 @@ export const traitTypeRepository = {
       .selectAll()
       .where("TraitType.collectionId", "=", collectionId)
       .execute();
+
+    return traitType;
+  },
+  getById: async (id: string) => {
+    const traitType = await db
+      .selectFrom("TraitType")
+      .selectAll()
+      .where("TraitType.id", "=", id)
+      .executeTakeFirst();
 
     return traitType;
   }

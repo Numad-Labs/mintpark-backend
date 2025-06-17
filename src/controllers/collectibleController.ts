@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from "../../custom";
 import { CustomError } from "../exceptions/CustomError";
 import { collectibleServices } from "../services/collectibleServices";
 import { collectibleRepository } from "../repositories/collectibleRepository";
+import { collectibleTraitRepository } from "../repositories/collectibleTraitRepository";
 import logger from "../config/winston";
 import { z } from "zod";
 import { collectionRepository } from "@repositories/collectionRepository";
@@ -12,6 +13,8 @@ import { LAYER } from "@app-types/db/enums";
 import { sql } from "kysely";
 import axios from "axios";
 import { config } from "@config/config";
+import { getObjectFromS3, uploadToS3 } from "@utils/aws";
+import sharp from "sharp";
 
 const DEFAULT_LIMIT = 30,
   MAX_LIMIT = 50;
@@ -43,10 +46,9 @@ export interface CollectibleQueryParams {
   query?: string;
 }
 
-export interface recursiveInscriptionParams {
-  name: string;
-  traits: { type: string; value: string }[];
-}
+// export interface recursiveInscriptionParams {
+//   traits: { traitTypeId: string; traitValueId: string }[];
+// }
 
 const attributeSchema = z.object({
   trait_type: z.string(),
@@ -374,104 +376,104 @@ export const collectibleControllers = {
   //   res: Response,
   //   next: NextFunction
   // ) => {},
-  createInscriptionInBatch: async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      if (!req.user?.id)
-        throw new CustomError("Could not parse the id from the token.", 400);
+  // createInscriptionInBatch: async (
+  //   req: AuthenticatedRequest,
+  //   res: Response,
+  //   next: NextFunction
+  // ) => {
+  //   try {
+  //     if (!req.user?.id)
+  //       throw new CustomError("Could not parse the id from the token.", 400);
 
-      const { collectionId } = req.body;
-      const files: Express.Multer.File[] = req.files as Express.Multer.File[];
+  //     const { collectionId } = req.body;
+  //     const files: Express.Multer.File[] = req.files as Express.Multer.File[];
 
-      if (files.length === 0)
-        throw new CustomError("Please provide the files.", 400);
-      if (files.length > 10)
-        throw new CustomError("You cannot provide more than 10 files.", 400);
+  //     if (files.length === 0)
+  //       throw new CustomError("Please provide the files.", 400);
+  //     if (files.length > 10)
+  //       throw new CustomError("You cannot provide more than 10 files.", 400);
 
-      const result =
-        await collectibleServices.createInscriptionAndOrderItemInBatch(
-          req.user.id,
-          collectionId,
-          files
-        );
+  //     const result =
+  //       await collectibleServices.createInscriptionAndOrderItemInBatch(
+  //         req.user.id,
+  //         collectionId,
+  //         files
+  //       );
 
-      return res.status(200).json({ success: true, data: result });
-    } catch (e) {
-      next(e);
-    }
-  },
-  createRecursiveInscriptionInBatch: async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      if (!req.user?.id)
-        throw new CustomError("Could not parse the id from the token.", 400);
+  //     return res.status(200).json({ success: true, data: result });
+  //   } catch (e) {
+  //     next(e);
+  //   }
+  // },
+  // createRecursiveInscriptionInBatch: async (
+  //   req: AuthenticatedRequest,
+  //   res: Response,
+  //   next: NextFunction
+  // ) => {
+  //   try {
+  //     if (!req.user?.id)
+  //       throw new CustomError("Could not parse the id from the token.", 400);
 
-      const { collectionId } = req.body;
-      const data: recursiveInscriptionParams[] = Array.isArray(req.body.data)
-        ? req.body.data
-        : req.body.data
-        ? [req.body.data]
-        : [];
-      if (data.length === 0)
-        throw new CustomError("Please provide the data.", 400);
-      if (data.length > 10)
-        throw new CustomError(
-          "You cannot provide more than 10 elements of data.",
-          400
-        );
+  //     const { collectionId } = req.body;
+  //     const data: recursiveInscriptionParams[] = Array.isArray(req.body.data)
+  //       ? req.body.data
+  //       : req.body.data
+  //       ? [req.body.data]
+  //       : [];
+  //     if (data.length === 0)
+  //       throw new CustomError("Please provide the data.", 400);
+  //     if (data.length > 10)
+  //       throw new CustomError(
+  //         "You cannot provide more than 10 elements of data.",
+  //         400
+  //       );
 
-      const result =
-        await collectibleServices.createRecursiveInscriptionAndOrderItemInBatch(
-          req.user.id,
-          collectionId,
-          data
-        );
+  //     const result =
+  //       await collectibleServices.createRecursiveInscriptionAndOrderItemInBatch(
+  //         req.user.id,
+  //         collectionId,
+  //         data
+  //       );
 
-      return res.status(200).json({ success: true, data: result });
-    } catch (e) {
-      next(e);
-    }
-  },
-  createIpfsNftInBatch: async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      if (!req.user?.id)
-        throw new CustomError("Could not parse the id from the token.", 400);
+  //     return res.status(200).json({ success: true, data: result });
+  //   } catch (e) {
+  //     next(e);
+  //   }
+  // },
+  // createIpfsNftInBatch: async (
+  //   req: AuthenticatedRequest,
+  //   res: Response,
+  //   next: NextFunction
+  // ) => {
+  //   try {
+  //     if (!req.user?.id)
+  //       throw new CustomError("Could not parse the id from the token.", 400);
 
-      const { collectionId } = req.body;
-      const data: ipfsData = Array.isArray(req.body.data)
-        ? req.body.data
-        : req.body.data
-        ? [req.body.data]
-        : [];
-      // if (data.length === 0)
-      //   throw new CustomError("Please provide the data.", 400);
-      // if (data.length > 10)
-      //   throw new CustomError(
-      //     "You cannot provide more than 10 elements of data.",
-      //     400
-      //   );
+  //     const { collectionId } = req.body;
+  //     const data: ipfsData = Array.isArray(req.body.data)
+  //       ? req.body.data
+  //       : req.body.data
+  //       ? [req.body.data]
+  //       : [];
+  //     // if (data.length === 0)
+  //     //   throw new CustomError("Please provide the data.", 400);
+  //     // if (data.length > 10)
+  //     //   throw new CustomError(
+  //     //     "You cannot provide more than 10 elements of data.",
+  //     //     400
+  //     //   );
 
-      const result = await collectibleServices.createIpfsNftAndOrderItemInBatch(
-        req.user.id,
-        collectionId,
-        data
-      );
+  //     const result = await collectibleServices.createIpfsNftAndOrderItemInBatch(
+  //       req.user.id,
+  //       collectionId,
+  //       data
+  //     );
 
-      return res.status(200).json({ success: true, data: result });
-    } catch (e) {
-      next(e);
-    }
-  },
+  //     return res.status(200).json({ success: true, data: result });
+  //   } catch (e) {
+  //     next(e);
+  //   }
+  // },
   getCollectiblesForIpfsUpload: async (
     req: AuthenticatedRequest,
     res: Response,
@@ -587,7 +589,7 @@ export const collectibleControllers = {
       next(e);
     }
   },
-  
+
   /**
    * Get a collectible by ID for interservice communication
    * This endpoint returns a collectible regardless of its status (including UNCONFIRMED)
@@ -601,18 +603,19 @@ export const collectibleControllers = {
     try {
       // The apiKeyAuth middleware already validated the API key
       const { collectibleId } = req.params;
-      
+
       if (!collectibleId) {
-        throw new CustomError('Collectible ID is required', 400);
+        throw new CustomError("Collectible ID is required", 400);
       }
-      
+
       // Get the collectible regardless of status
-      const collectible = await collectibleRepository.getCollectibleByIdForService(collectibleId);
-      
+      const collectible =
+        await collectibleRepository.getCollectibleByIdForService(collectibleId);
+
       if (!collectible) {
-        throw new CustomError('Collectible not found', 404);
+        throw new CustomError("Collectible not found", 404);
       }
-      
+
       return res.status(200).json({
         success: true,
         data: collectible
@@ -643,15 +646,15 @@ export const collectibleControllers = {
         MAX_BATCH_SIZE
       );
       const offset = Number(req.query.offset) || 0;
-      
+
       if (!collectionId) {
-        throw new CustomError('Collection ID is required', 400);
+        throw new CustomError("Collection ID is required", 400);
       }
 
       // Check if the user has permission to access this collection
       const collection = await collectionRepository.getById(db, collectionId);
       if (!collection) {
-        throw new CustomError('Collection not found', 404);
+        throw new CustomError("Collection not found", 404);
       }
 
       // // Check if the authenticated user owns this collection
@@ -661,11 +664,12 @@ export const collectibleControllers = {
       // }
 
       // Get collectibles with no CID for the collection
-      const collectibles = await collectibleRepository.getCollectiblesWithNoCidByCollectionId(
-        collectionId,
-        offset,
-        limit
-      );
+      const collectibles =
+        await collectibleRepository.getCollectiblesWithNoCidByCollectionId(
+          collectionId,
+          offset,
+          limit
+        );
 
       // If no collectibles found, return empty array
       if (!collectibles.length) {
@@ -674,19 +678,22 @@ export const collectibleControllers = {
           data: {
             collectibles: [],
             total: 0,
-            message: 'No collectibles with missing CID found'
+            message: "No collectibles with missing CID found"
           }
         });
       }
 
       // Check if queue processor service URL is configured
       if (!config.QUEUE_PROCESSOR_URL || !config.QUEUE_PROCESSOR_API_KEY) {
-        logger.error('Queue processor service configuration is missing');
-        throw new CustomError('Queue processor service configuration is missing', 500);
+        logger.error("Queue processor service configuration is missing");
+        throw new CustomError(
+          "Queue processor service configuration is missing",
+          500
+        );
       }
 
       // Filter out collectibles with no fileKey
-      const validCollectibles = collectibles.filter(collectible => {
+      const validCollectibles = collectibles.filter((collectible) => {
         if (!collectible.fileKey) {
           logger.warn(`Collectible ${collectible.id} has no fileKey, skipping`);
           return false;
@@ -699,7 +706,7 @@ export const collectibleControllers = {
       for (let i = 0; i < validCollectibles.length; i += QUEUE_BATCH_SIZE) {
         batches.push(validCollectibles.slice(i, i + QUEUE_BATCH_SIZE));
       }
-      
+
       // Process each batch
       const batchResults: Array<{
         collectibleId: string;
@@ -709,7 +716,7 @@ export const collectibleControllers = {
       }> = [];
       for (const batch of batches) {
         try {
-          const batchItems = batch.map(collectible => ({
+          const batchItems = batch.map((collectible) => ({
             collectibleId: collectible.id,
             fileKey: collectible.fileKey,
             collectionId: collectible.collectionId
@@ -720,54 +727,58 @@ export const collectibleControllers = {
             `${config.QUEUE_PROCESSOR_URL}/api/queue`,
             {
               items: batchItems,
-              queueType: 'ipfs_upload'
+              queueType: "ipfs_upload"
             },
             {
               headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${config.QUEUE_PROCESSOR_API_KEY}`
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${config.QUEUE_PROCESSOR_API_KEY}`
               }
             }
           );
-          
+
           // Record success for each collectible in the batch
           const jobIds = response.data.jobIds || [];
           batch.forEach((collectible, index) => {
             batchResults.push({
               collectibleId: collectible.id,
               success: true,
-              message: 'Enqueued successfully',
+              message: "Enqueued successfully",
               jobId: jobIds[index] || null
             });
           });
-          
-          logger.info(`Successfully enqueued batch of ${batch.length} collectibles`);
+
+          logger.info(
+            `Successfully enqueued batch of ${batch.length} collectibles`
+          );
         } catch (error: any) {
           logger.error(`Error enqueueing batch:`, error);
           // Record failure for each collectible in the batch
-          batch.forEach(collectible => {
+          batch.forEach((collectible) => {
             batchResults.push({
               collectibleId: collectible.id,
               success: false,
-              message: error?.message || 'Failed to enqueue batch'
+              message: error?.message || "Failed to enqueue batch"
             });
           });
         }
       }
-      
+
       // Add results for collectibles with no fileKey
       const invalidResults = collectibles
-        .filter(collectible => !collectible.fileKey)
-        .map(collectible => ({
+        .filter((collectible) => !collectible.fileKey)
+        .map((collectible) => ({
           collectibleId: collectible.id,
           success: false,
-          message: 'No fileKey available'
+          message: "No fileKey available"
         }));
-      
+
       const enqueueResults = [...batchResults, ...invalidResults];
-      
+
       // Count successful enqueues
-      const successCount = enqueueResults.filter(result => result.success).length;
+      const successCount = enqueueResults.filter(
+        (result) => result.success
+      ).length;
 
       return res.status(200).json({
         success: true,
@@ -779,6 +790,141 @@ export const collectibleControllers = {
           message: `Found ${collectibles.length} collectibles with missing CID, successfully enqueued ${successCount}`
         }
       });
+    } catch (e) {
+      next(e);
+    }
+  },
+  buildNftImageFromTraits: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const user = req.user;
+      if (!user) throw new CustomError("User not found", 400);
+
+      const { collectibleId } = req.params;
+      if (!collectibleId) {
+        throw new CustomError("Collectible ID is required", 400);
+      }
+
+      const collectible = await collectibleRepository.getById(
+        db,
+        collectibleId
+      );
+      if (!collectible) throw new CustomError("Collectible not found", 400);
+
+      const collection = await collectionRepository.getById(
+        db,
+        collectible.collectionId
+      );
+      if (!collection) throw new CustomError("Collection not found", 400);
+      if (collection.creatorId !== user.id && user.role === "SUPER_ADMIN")
+        throw new CustomError("You are not authorized", 400);
+
+      // 1. Fetch traits (must be sorted by zIndex in ascending order)
+      const traits =
+        await collectibleTraitRepository.getCollectibleTraitsWithDetails(
+          collectibleId
+        );
+
+      if (!traits.length) {
+        throw new CustomError("No traits found for this collectible", 404);
+      }
+
+      const normalizedTraitImages: Buffer[] = [];
+
+      // 2. Load base image and extract canvas size
+      const baseTrait = traits[0];
+      if (!baseTrait.traitValue.fileKey) {
+        throw new CustomError("Base trait image missing fileKey", 400);
+      }
+
+      const baseImageData = await getObjectFromS3(baseTrait.traitValue.fileKey);
+      const baseBuffer = Buffer.from(baseImageData.content as string, "base64");
+
+      const CANVAS_SIZE = {
+        width: collection.recursiveWidth ?? 600,
+        height: collection.recursiveHeight ?? 600
+      };
+
+      // Normalize base image to canvas
+      const baseNormalized = await sharp({
+        create: {
+          width: CANVAS_SIZE.width,
+          height: CANVAS_SIZE.height,
+          channels: 4,
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
+        }
+      })
+        .composite([{ input: baseBuffer, top: 0, left: 0 }])
+        .png()
+        .toBuffer();
+
+      normalizedTraitImages.push(baseNormalized);
+
+      // 3. Process and normalize the rest of the traits
+      for (let i = 1; i < traits.length; i++) {
+        const trait = traits[i];
+        if (!trait.traitValue.fileKey) {
+          logger.warn(`No fileKey found for trait ${trait.id}`);
+          continue;
+        }
+
+        try {
+          const imageData = await getObjectFromS3(trait.traitValue.fileKey);
+          const buffer = Buffer.from(imageData.content as string, "base64");
+
+          const normalized = await sharp({
+            create: {
+              width: CANVAS_SIZE.width,
+              height: CANVAS_SIZE.height,
+              channels: 4,
+              background: { r: 0, g: 0, b: 0, alpha: 0 }
+            }
+          })
+            .composite([{ input: buffer, top: 0, left: 0 }])
+            .png()
+            .toBuffer();
+
+          normalizedTraitImages.push(normalized);
+        } catch (err) {
+          logger.error(
+            `Failed to process trait image ${trait.traitValue.fileKey}:`,
+            err
+          );
+        }
+      }
+
+      if (normalizedTraitImages.length === 0) {
+        throw new CustomError("No valid trait images found", 404);
+      }
+
+      // 4. Composite all layers into a final image
+      let finalImage = sharp({
+        create: {
+          width: CANVAS_SIZE.width,
+          height: CANVAS_SIZE.height,
+          channels: 4,
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
+        }
+      });
+
+      finalImage = finalImage.composite(
+        normalizedTraitImages.map((buffer) => ({
+          input: buffer,
+          blend: "over"
+        }))
+      );
+
+      const finalBuffer = await finalImage.png().toBuffer();
+
+      // Set response headers for image display
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader("Content-Length", finalBuffer.length);
+
+      // Return both the image and the fileKey
+      return res.send(finalBuffer);
     } catch (e) {
       next(e);
     }

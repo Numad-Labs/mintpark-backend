@@ -9,9 +9,8 @@ const traitValueRouter = Router();
 traitValueRouter.post(
   "/",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
   parseFiles("files", false),
-  traitValueController.create
+  traitValueController.createTraitValue
 );
 traitValueRouter.get(
   "/:traitTypeId/trait-type",
