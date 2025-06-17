@@ -30,6 +30,7 @@ export type Airdrop = {
 export type Collectible = {
   id: Generated<string>;
   name: string;
+  isOOOEdition: Generated<boolean>;
   fileKey: string | null;
   highResolutionImageUrl: string | null;
   cid: string | null;
@@ -73,12 +74,15 @@ export type Collection = {
   creatorId: string | null;
   creatorUserLayerId: string | null;
   parentCollectionId: string | null;
+  isVerified: Generated<boolean>;
   badgeCid: string | null;
   badgeSupply: number | null;
   isBadge: Generated<boolean>;
   updatedAt: Timestamp | null;
   badgeCurrentNftId: number | null;
   contractVersion: string | null;
+  recursiveHeight: number | null;
+  recursiveWidth: number | null;
 };
 export type Currency = {
   id: Generated<string>;

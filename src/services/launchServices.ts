@@ -191,8 +191,7 @@ export const launchServices = {
   createRecursiveInscriptionAndLaunchItemInBatch: async (
     userId: string,
     collectionId: string,
-    data: { traitValueId: string }[][],
-    isLastBatch: boolean
+    data: { traitValueId: string }[][]
   ) => {
     const collection = await collectionRepository.getById(db, collectionId);
     if (!collection) throw new CustomError("Invalid collectionId.", 400);
@@ -230,14 +229,6 @@ export const launchServices = {
       launchItemsData
     );
 
-    if (isLastBatch) {
-      if (Number(existingLaunchItemCount) + launchItems.length <= 0)
-        throw new CustomError("Launch with no launch items.", 400);
-
-      //TODO: INVOKE THE RECURSIVE TRAIT MINTING, GET ORDERID BY THE LAUNCH.COLLECTIONID
-      // CONFIRM THE LAUNCH AFTER MINTING THE LAST TRAIT OF THE COLLECTION
-    }
-
     return {
       collectibles: result.collectibles,
       collectibleTraits: result.collectibleTraits,
@@ -247,8 +238,7 @@ export const launchServices = {
   createIpfsFileAndLaunchItemInBatch: async (
     userId: string,
     collectionId: string,
-    files: Express.Multer.File[],
-    isLastBatch: boolean
+    files: Express.Multer.File[]
   ) => {
     const collection = await collectionRepository.getById(db, collectionId);
     if (!collection) throw new CustomError("Invalid collectionId.", 400);

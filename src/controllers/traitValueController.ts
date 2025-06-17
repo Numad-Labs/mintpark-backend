@@ -9,6 +9,7 @@ import { db } from "../utils/db";
 import { v4 as uuidv4 } from "uuid";
 import { uploadToS3 } from "../utils/aws";
 import { randomUUID } from "crypto";
+import sharp from "sharp";
 
 export interface traitValueParams {
   type: string;
@@ -55,6 +56,7 @@ export const traitValueController = {
           400
         );
       }
+
       // Fetch trait type to get collectionId
       const traitType = await traitTypeRepository.getById(traitTypeId);
       if (!traitType) throw new CustomError("Trait type not found", 404);
@@ -68,6 +70,14 @@ export const traitValueController = {
           "Forbidden: Not collection creator or super admin",
           403
         );
+      }
+      if (!collection.recursiveHeight || !collection.recursiveWidth) {
+        const metadata = await sharp(files[0].buffer).metadata();
+
+        await collectionRepository.update(db, collection.id, {
+          recursiveHeight: metadata.height,
+          recursiveWidth: metadata.width
+        });
       }
       // Upload files to S3 in batch
       const fileKeys = await Promise.all(

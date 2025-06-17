@@ -131,7 +131,7 @@ export const launchController = {
       if (!req.user?.id)
         throw new CustomError("Could not parse the id from the token.", 400);
 
-      const { collectionId, isLastBatch } = req.body;
+      const { collectionId } = req.body;
       const data: { traitValueId: string }[][] = Array.isArray(req.body.data)
         ? req.body.data
         : req.body.data
@@ -149,8 +149,7 @@ export const launchController = {
         await launchServices.createRecursiveInscriptionAndLaunchItemInBatch(
           req.user.id,
           collectionId,
-          data,
-          isLastBatch
+          data
         );
 
       return res.status(200).json({ success: true, data: result });
@@ -167,7 +166,7 @@ export const launchController = {
       if (!req.user?.id)
         throw new CustomError("Could not parse the id from the token.", 400);
 
-      const { collectionId, isLastBatch } = req.body;
+      const { collectionId } = req.body;
       const files: Express.Multer.File[] = req.files as Express.Multer.File[];
 
       if (files.length === 0)
@@ -178,8 +177,7 @@ export const launchController = {
       const result = await launchServices.createIpfsFileAndLaunchItemInBatch(
         req.user.id,
         collectionId,
-        files,
-        isLastBatch === "true"
+        files
       );
 
       return res.status(200).json({ success: true, data: result });

@@ -660,9 +660,17 @@ export const collectibleRepository = {
    */
   getCollectibleByIdForService: async (id: string) => {
     const collectible = await db
-      .selectFrom("Collectible")
-      .selectAll()
-      .where("Collectible.id", "=", id)
+      .selectFrom("Collectible as c")
+      .innerJoin("Collection", "Collection.id", "c.collectionId")
+      .select([
+        "c.id",
+        "c.name",
+        "c.cid",
+        "c.status",
+        "c.fileKey",
+        "Collection.type"
+      ])
+      .where("c.id", "=", id)
       .executeTakeFirst();
 
     return collectible;

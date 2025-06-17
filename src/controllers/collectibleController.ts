@@ -843,10 +843,9 @@ export const collectibleControllers = {
       const baseImageData = await getObjectFromS3(baseTrait.traitValue.fileKey);
       const baseBuffer = Buffer.from(baseImageData.content as string, "base64");
 
-      const baseMeta = await sharp(baseBuffer).metadata();
       const CANVAS_SIZE = {
-        width: baseMeta.width ?? 600,
-        height: baseMeta.height ?? 600
+        width: collection.recursiveWidth ?? 600,
+        height: collection.recursiveHeight ?? 600
       };
 
       // Normalize base image to canvas
