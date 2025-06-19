@@ -15,6 +15,7 @@ import axios from "axios";
 import { config } from "@config/config";
 import { getObjectFromS3, uploadToS3 } from "@utils/aws";
 import sharp from "sharp";
+import SubgraphService from "@blockchain/evm/services/subgraph/subgraphService";
 
 const DEFAULT_LIMIT = 30,
   MAX_LIMIT = 50;
@@ -235,6 +236,7 @@ export const collectibleControllers = {
       if (!collectionAddress)
         throw new CustomError("Collection address not found", 400);
 
+      const subgraphService = new SubgraphService();
       const result = await subgraphService.getCollectionActivity(
         layer,
         numericChainId,
@@ -345,6 +347,7 @@ export const collectibleControllers = {
         throw new CustomError("Unique IDx not found", 400);
       const contractAddress = collectible.uniqueIdx.split("i")[0];
       const tokenId = collectible.uniqueIdx.split("i")[1];
+      const subgraphService = new SubgraphService();
 
       const result = await subgraphService.getTokenActivity(
         layer,

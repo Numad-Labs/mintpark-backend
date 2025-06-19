@@ -1,5 +1,3 @@
-// src/blockchain/subgraph/services/subgraphService.ts
-
 import {
   ApolloClient,
   InMemoryCache,
@@ -207,6 +205,7 @@ class SubgraphService {
    * @param offset - Number of activities to skip (default: 0)
    * @param sortBy - Field to sort by (default: blockTimestamp)
    * @param sortDirection - Sort direction (default: desc)
+   * @param activityTypes - Filter for activity type
    * @returns Object containing marketplace activities
    */
   async getMarketplaceActivity(
@@ -216,12 +215,14 @@ class SubgraphService {
       limit = 20,
       offset = 0,
       sortBy = "blockTimestamp",
-      sortDirection = "desc"
+      sortDirection = "desc",
+      activityTypes = ["CREATED", "SOLD", "CANCELLED"]
     }: {
       limit?: number;
       offset?: number;
       sortBy?: string;
       sortDirection?: "asc" | "desc";
+      activityTypes?: string[];
     } = {}
   ) {
     const clientKey = `${layer}-${chainId}`;
@@ -233,7 +234,7 @@ class SubgraphService {
     }
 
     try {
-      // Get created listings
+      // Define GraphQL queries
       const createdListingsQuery = gql`
         query GetCreatedListings(
           $limit: Int!
@@ -259,7 +260,6 @@ class SubgraphService {
         }
       `;
 
-      // Get sold listings
       const soldListingsQuery = gql`
         query GetSoldListings(
           $limit: Int!
@@ -284,7 +284,6 @@ class SubgraphService {
         }
       `;
 
-      // Get cancelled listings
       const cancelledListingsQuery = gql`
         query GetCancelledListings(
           $limit: Int!
@@ -307,10 +306,13 @@ class SubgraphService {
         }
       `;
 
-      // Execute all queries in parallel
-      const [createdListingsRes, soldListingsRes, cancelledListingsRes] =
-        await Promise.all([
-          client.query({
+      // Build query promises
+      const queryPromises: { type: string; promise: Promise<any> }[] = [];
+
+      if (activityTypes.includes("CREATED")) {
+        queryPromises.push({
+          type: "CREATED",
+          promise: client.query({
             query: createdListingsQuery,
             variables: {
               limit,
@@ -318,8 +320,14 @@ class SubgraphService {
               orderBy: sortBy,
               orderDirection: sortDirection
             }
-          }),
-          client.query({
+          })
+        });
+      }
+
+      if (activityTypes.includes("SOLD")) {
+        queryPromises.push({
+          type: "SOLD",
+          promise: client.query({
             query: soldListingsQuery,
             variables: {
               limit,
@@ -327,8 +335,14 @@ class SubgraphService {
               orderBy: sortBy,
               orderDirection: sortDirection
             }
-          }),
-          client.query({
+          })
+        });
+      }
+
+      if (activityTypes.includes("CANCELLED")) {
+        queryPromises.push({
+          type: "CANCELLED",
+          promise: client.query({
             query: cancelledListingsQuery,
             variables: {
               limit,
@@ -337,49 +351,54 @@ class SubgraphService {
               orderDirection: sortDirection
             }
           })
-        ]);
+        });
+      }
 
-      // Process and format results
-      const createdListings = createdListingsRes.data.listingCreateds.map(
-        (listing: any) => ({
-          ...listing,
-          type: "CREATED",
-          timestamp: parseInt(listing.blockTimestamp)
-        })
-      );
+      // Run all queries in parallel
+      const responses = await Promise.all(queryPromises.map((q) => q.promise));
 
-      const soldListings = soldListingsRes.data.listingSolds.map(
-        (listing: any) => ({
-          ...listing,
-          type: "SOLD",
-          timestamp: parseInt(listing.blockTimestamp)
-        })
-      );
+      // Process results
+      const allActivities: any[] = [];
 
-      const cancelledListings = cancelledListingsRes.data.listingCancelleds.map(
-        (listing: any) => ({
-          ...listing,
-          type: "CANCELLED",
-          timestamp: parseInt(listing.blockTimestamp)
-        })
-      );
+      queryPromises.forEach(({ type }, index) => {
+        const data = responses[index].data;
 
-      // Combine all activities
-      const allActivities = [
-        ...createdListings,
-        ...soldListings,
-        ...cancelledListings
-      ];
-
-      // Sort by timestamp
-      const sortedActivities = allActivities.sort((a, b) => {
-        if (sortDirection === "desc") {
-          return b.timestamp - a.timestamp;
+        if (type === "CREATED") {
+          const listings = data.listingCreateds.map((item: any) => ({
+            ...item,
+            type: "CREATED",
+            timestamp: parseInt(item.blockTimestamp)
+          }));
+          allActivities.push(...listings);
         }
-        return a.timestamp - b.timestamp;
+
+        if (type === "SOLD") {
+          const listings = data.listingSolds.map((item: any) => ({
+            ...item,
+            type: "SOLD",
+            timestamp: parseInt(item.blockTimestamp)
+          }));
+          allActivities.push(...listings);
+        }
+
+        if (type === "CANCELLED") {
+          const listings = data.listingCancelleds.map((item: any) => ({
+            ...item,
+            type: "CANCELLED",
+            timestamp: parseInt(item.blockTimestamp)
+          }));
+          allActivities.push(...listings);
+        }
       });
 
-      // Paginate results
+      // Sort all activities by timestamp
+      const sortedActivities = allActivities.sort((a, b) =>
+        sortDirection === "desc"
+          ? b.timestamp - a.timestamp
+          : a.timestamp - b.timestamp
+      );
+
+      // Paginate the merged list
       const paginatedActivities = sortedActivities.slice(0, limit);
 
       return {
@@ -985,5 +1004,4 @@ class SubgraphService {
     }
   }
 }
-
-export default new SubgraphService();
+export default SubgraphService;

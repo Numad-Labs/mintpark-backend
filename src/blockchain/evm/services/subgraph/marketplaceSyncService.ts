@@ -11,11 +11,11 @@ import { listRepository } from "@repositories/listRepository";
 
 export class MarketplaceSyncService {
   private db: Kysely<DB>;
-  private subgraphService: typeof SubgraphService;
+  private subgraphService: SubgraphService;
 
-  constructor(db: Kysely<DB>, subgraphService: typeof SubgraphService) {
+  constructor(db: Kysely<DB>, SubgraphService: SubgraphService) {
     this.db = db;
-    this.subgraphService = subgraphService;
+    this.subgraphService = SubgraphService;
   }
 
   /**
