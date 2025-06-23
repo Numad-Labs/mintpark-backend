@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from "uuid";
 import { uploadToS3 } from "../utils/aws";
 import { randomUUID } from "crypto";
 import sharp from "sharp";
+import logger from "@config/winston";
 
 export interface traitValueParams {
   type: string;
@@ -99,8 +100,16 @@ export const traitValueController = {
           traitTypeId
         };
       });
+
       // Save to DB
       const result = await traitValueRepository.bulkInsert(traitValuesToInsert);
+
+      result.map((traitValue) =>
+        logger.info(
+          `Enqueued trait value: ${traitValue.id} to Inscription Processor Queue`
+        )
+      );
+
       return res
         .status(200)
         .json({ success: true, data: { traitValues: result } });

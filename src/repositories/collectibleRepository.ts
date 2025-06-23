@@ -661,14 +661,13 @@ export const collectibleRepository = {
   getCollectibleByIdForService: async (id: string) => {
     const collectible = await db
       .selectFrom("Collectible as c")
-      .innerJoin("Collection", "Collection.id", "c.collectionId")
       .select([
         "c.id",
         "c.name",
         "c.cid",
         "c.status",
         "c.fileKey",
-        "Collection.type"
+        'c.isOOOEdition',
       ])
       .where("c.id", "=", id)
       .executeTakeFirst();

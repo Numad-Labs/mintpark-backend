@@ -228,6 +228,8 @@ model CollectibleTrait {
   traitValue    TraitValue  @relation(fields: [traitValueId], references: [id])
 
   @@index([collectibleId, traitValueId])
+
+  @@unique([collectibleId, traitValueId])
 }
 
 model Launch {

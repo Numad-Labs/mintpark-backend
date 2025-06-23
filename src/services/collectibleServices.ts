@@ -254,7 +254,8 @@ export const collectibleServices = {
   createCollectiblesByFiles: async (
     collection: { id: string; name: string },
     startIndex: number,
-    files: Express.Multer.File[]
+    files: Express.Multer.File[],
+    isOOOEdition?: boolean
   ) => {
     //TODO: FIX THIS LATER
     startIndex++;
@@ -275,7 +276,8 @@ export const collectibleServices = {
         fileKey: fileKeys[i].key,
         collectionId: collection.id,
         nftId: (startIndex + i).toString(),
-        fileName: fileKeys[i].fileName
+        fileName: fileKeys[i].fileName,
+        isOOOEdition
       });
     const collectibles = await collectibleRepository.bulkInsert(
       collectiblesData

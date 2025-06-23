@@ -47,7 +47,7 @@ export const launchServices = {
     );
     if (!collection) throw new CustomError("Invalid collectionId.", 400);
     if (
-      collection.parentCollectionId ||
+      !collection.parentCollectionId ||
       collection.type === "INSCRIPTION" ||
       collection.type === "RECURSIVE_INSCRIPTION"
     )
@@ -195,7 +195,7 @@ export const launchServices = {
   ) => {
     const collection = await collectionRepository.getById(db, collectionId);
     if (!collection) throw new CustomError("Invalid collectionId.", 400);
-    if (collection?.type !== "SYNTHETIC")
+    if (collection.type !== "SYNTHETIC")
       throw new CustomError("Invalid collection type.", 400);
     if (collection.creatorId !== userId)
       throw new CustomError("You are not the creator of this collection.", 400);
@@ -218,6 +218,16 @@ export const launchServices = {
       data
     );
 
+    result.collectibles.map((collectible) => {
+      logger.info(
+        `Enqueued recursive collectible: ${collectible.id} to IPFS Processor Queue`
+      );
+
+      logger.info(
+        `Enqueued recursive collectible: ${collectible.id} to Inscription Processor Queue`
+      );
+    });
+
     const launchItemsData: Insertable<LaunchItem>[] = [];
     for (let i = 0; i < result.collectibles.length; i++)
       launchItemsData.push({
@@ -235,6 +245,71 @@ export const launchServices = {
       launchItems
     };
   },
+  createOOOEditionCollectiblesAndLaunchItemInBatch: async (
+    userId: string,
+    collectionId: string,
+    files: Express.Multer.File[]
+  ) => {
+    const collection = await collectionRepository.getById(db, collectionId);
+    if (!collection) throw new CustomError("Invalid collectionId.", 400);
+    if (collection.type !== "SYNTHETIC")
+      throw new CustomError("Invalid collection type.", 400);
+    if (!collection.parentCollectionId)
+      throw new CustomError("Invalid parentCollectionId", 400);
+    if (collection.creatorId !== userId)
+      throw new CustomError("You are not the creator of this collection.", 400);
+
+    const parentCollection = await collectionRepository.getById(
+      db,
+      collection.parentCollectionId
+    );
+    if (!parentCollection)
+      throw new CustomError("Invalid parent collection", 400);
+
+    const launch = await launchRepository.getByCollectionId(collectionId);
+    if (!launch) throw new CustomError("Launch not found.", 400);
+    if (launch.status === "CONFIRMED")
+      throw new CustomError("This launch has already been confirmed.", 400);
+
+    const existingLaunchItemCount =
+      await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
+    const collectibles = await collectibleServices.createCollectiblesByFiles(
+      { id: collection.id, name: collection.name },
+      Number(existingLaunchItemCount),
+      files,
+      true
+    );
+
+    collectibles.map((collectible) => {
+      logger.info(
+        `Enqueued 1-of-1 edition collectible: ${collectible.id} to IPFS Processor Queue`
+      );
+
+      logger.info(
+        `Enqueued 1-of-1 edition collectible: ${collectible.id} to Inscription Processor Queue`
+      );
+    });
+
+    const launchItemsData: Insertable<LaunchItem>[] = [];
+    for (let i = 0; i < collectibles.length; i++)
+      launchItemsData.push({
+        collectibleId: collectibles[i].id,
+        launchId: launch.id
+      });
+    const launchItems = await launchItemRepository.bulkInsert(
+      db,
+      launchItemsData
+    );
+
+    // if (isLastBatch) {
+    //   if (Number(existingLaunchItemCount) + launchItems.length <= 0)
+    //     throw new CustomError("Launch with no launch items.", 400);
+
+    //   await launchRepository.update(launch.id, { status: "CONFIRMED" });
+    // }
+
+    return { collectibles, launchItems };
+  },
   createIpfsFileAndLaunchItemInBatch: async (
     userId: string,
     collectionId: string,
@@ -242,7 +317,7 @@ export const launchServices = {
   ) => {
     const collection = await collectionRepository.getById(db, collectionId);
     if (!collection) throw new CustomError("Invalid collectionId.", 400);
-    if (collection?.type !== "IPFS_FILE")
+    if (collection.type !== "IPFS_FILE")
       throw new CustomError("Invalid collection type.", 400);
     if (collection.creatorId !== userId)
       throw new CustomError("You are not the creator of this collection.", 400);

@@ -11,18 +11,8 @@ export const orderController = {
     next: NextFunction
   ) => {
     try {
-      const {
-        collectionId,
-        feeRate,
-        txid,
-        userLayerId,
-        totalFileSize,
-        totalTraitCount,
-        totalCollectibleCount
-      } = req.body;
-
-      const file = req.file as Express.Multer.File;
-      const { badgeSupply } = req.body;
+      const { collectionId, estimatedFeeInSats, feeRate, txid, userLayerId } =
+        req.body;
 
       if (!req.user?.id)
         throw new CustomError("Cannot parse user from token", 401);
@@ -39,23 +29,19 @@ export const orderController = {
           400
         );
 
-      const { order, txHex } = await orderServices.createMintOrder(
-        req.user.id,
-        userLayerId,
-        totalFileSize,
-        totalTraitCount,
-        totalCollectibleCount,
+      const { order, walletQrString } = await orderServices.createMintOrder(
+        estimatedFeeInSats,
         Number(feeRate),
         collectionId,
-        txid,
-        file,
-        badgeSupply
+        req.user.id,
+        userLayerId,
+        txid
       );
       const sanitazedOrder = hideSensitiveData(order, ["privateKey"]);
 
       return res.status(200).json({
         success: true,
-        data: { order: sanitazedOrder, txHex }
+        data: { order: sanitazedOrder, walletQrString }
       });
     } catch (e) {
       next(e);

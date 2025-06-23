@@ -56,6 +56,12 @@ launchRouter.post(
   authenticateToken,
   launchController.createRecursiveInscriptionAndLaunchItemsInBatch
 );
+launchRouter.post(
+  "/1-of-1-edition",
+  authenticateToken,
+  parseFiles("files", false),
+  launchController.createOOOEditionCollectiblesAndLaunchItemInBatch
+);
 
 launchRouter.post(
   "/whitelist-addresses",

@@ -173,38 +173,51 @@ export const orderServices = {
   //   } else throw new Error("This layer is unsupported ATM.");
   // },
   createMintOrder: async (
-    userId: string,
-    userLayerId: string,
-    totalFileSize: number,
-    totalTraitCount: number,
-    totalCollectibleCount: number,
+    estimatedFeeInSats: number,
     feeRate: number,
     collectionId: string,
-    txid: string | null,
-    badge: Express.Multer.File | null,
-    badgeSupply: number | null
+    userId: string,
+    userLayerId: string,
+    txid?: string
   ) => {
     if (!collectionId) throw new CustomError("Collection id is required.", 400);
     const collection = await collectionServices.getById(collectionId);
     if (!collection) throw new CustomError("Collection not found.", 400);
-    if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
-      throw new CustomError(
-        "You cannot create mint order for synthetic collection.",
-        400
-      );
+    if (collection.type !== "SYNTHETIC")
+      throw new CustomError("Invalid collection type", 400);
     if (collection.creatorId !== userId)
+      // if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
+      //   throw new CustomError(
+      //     "You cannot create mint order for synthetic collection.",
+      //     400
+      //   );
       throw new CustomError("You are not the creator of this collection.", 400);
+    if (!collection.parentCollectionId)
+      throw new CustomError("Parent collection not found", 400);
 
-    let childCollection;
-    if (collection.type !== "IPFS_CID" && collection.type !== "IPFS_FILE") {
-      childCollection =
-        await collectionRepository.getChildCollectionByParentCollectionId(
-          db,
-          collection.id
-        );
-      if (!childCollection)
-        throw new CustomError("Child collection not found.", 400);
-    }
+    const parentCollection = await collectionRepository.getById(
+      db,
+      collection.parentCollectionId
+    );
+    if (!parentCollection)
+      throw new CustomError("Parent collection not found", 400);
+
+    const parentCollectionLayer = await layerRepository.getById(
+      collection.layerId
+    );
+    if (!parentCollectionLayer)
+      throw new CustomError("Parent collection's layer not found", 400);
+
+    // let childCollection;
+    // if (collection.type !== "IPFS_CID" && collection.type !== "IPFS_FILE") {
+    //   childCollection =
+    //     await collectionRepository.getChildCollectionByParentCollectionId(
+    //       db,
+    //       collection.id
+    //     );
+    //   if (!childCollection)
+    //     throw new CustomError("Child collection not found.", 400);
+    // }
 
     const hasExistingOrder = await orderRepository.getByCollectionId(
       collection.id
@@ -222,119 +235,120 @@ export const orderServices = {
       throw new CustomError("This account is deactivated.", 400);
     await layerServices.checkIfSupportedLayerOrThrow(user.layerId);
 
-    if (user.layer === "CITREA" && user.network === "TESTNET") {
-      if (!txid) throw new CustomError("txid not found.", 400);
-      const layer = await layerRepository.getById(collection.layerId);
-      if (!layer || !layer.chainId)
-        throw new CustomError("Layer or chainid not found", 400);
+    // if (user.layer === "CITREA" && user.network === "TESTNET") {
+    //   if (!txid) throw new CustomError("txid not found.", 400);
+    //   const layer = await layerRepository.getById(collection.layerId);
+    //   if (!layer || !layer.chainId)
+    //     throw new CustomError("Layer or chainid not found", 400);
 
-      const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
-      const confirmationService = new TransactionConfirmationService(
-        chainConfig.RPC_URL
-      );
-      const transactionDetail =
-        await confirmationService.getTransactionDetails(txid);
+    //   const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
+    //   const confirmationService = new TransactionConfirmationService(
+    //     chainConfig.RPC_URL
+    //   );
+    //   const transactionDetail = await confirmationService.getTransactionDetails(
+    //     txid
+    //   );
 
-      if (transactionDetail.status !== 1) {
-        throw new CustomError(
-          "Transaction not confirmed. Please try again.",
-          500
-        );
-      }
+    //   if (transactionDetail.status !== 1) {
+    //     throw new CustomError(
+    //       "Transaction not confirmed. Please try again.",
+    //       500
+    //     );
+    //   }
 
-      if (!transactionDetail.deployedContractAddress) {
-        throw new CustomError(
-          "Transaction does not contain deployed contract address.",
-          500
-        );
-      }
+    //   if (!transactionDetail.deployedContractAddress) {
+    //     throw new CustomError(
+    //       "Transaction does not contain deployed contract address.",
+    //       500
+    //     );
+    //   }
 
-      if (collection.type === "IPFS_CID" || collection.type === "IPFS_FILE") {
-        if (collection.isBadge) {
-          if (!badge)
-            throw new CustomError("Badge file must be provided.", 400);
-          if (!badgeSupply)
-            throw new CustomError("Badge supply must be provided.", 400);
-          if (Number(badgeSupply) < 1)
-            throw new CustomError("Invalid badge supply.", 400);
+    //   if (collection.type === "IPFS_CID" || collection.type === "IPFS_FILE") {
+    //     if (collection.isBadge) {
+    //       if (!badge)
+    //         throw new CustomError("Badge file must be provided.", 400);
+    //       if (!badgeSupply)
+    //         throw new CustomError("Badge supply must be provided.", 400);
+    //       if (Number(badgeSupply) < 1)
+    //         throw new CustomError("Invalid badge supply.", 400);
 
-          const key = randomUUID();
-          await uploadToS3(key, badge);
+    //       const key = randomUUID();
+    //       await uploadToS3(key, badge);
 
-          //DG TODO done: upload the file to IPFS & parse the CID
-          // const badgeCid = await nftService.uploadImage(badge);
+    //       //DG TODO done: upload the file to IPFS & parse the CID
+    //       // const badgeCid = await nftService.uploadImage(badge);
 
-          await collectionRepository.update(db, collection.id, {
-            logoKey: key,
-            badgeSupply: badgeSupply,
-            // badgeCid: badgeCid.IpfsHash,
-            badgeCid: ""
-          });
-        }
+    //       await collectionRepository.update(db, collection.id, {
+    //         logoKey: key,
+    //         badgeSupply: badgeSupply,
+    //         // badgeCid: badgeCid.IpfsHash,
+    //         badgeCid: ""
+    //       });
+    //     }
 
-        await collectionRepository.update(db, collection.id, {
-          contractAddress: transactionDetail.deployedContractAddress
-        });
-      } else {
-        if (!childCollection)
-          throw new CustomError(
-            "Child collection must be recorded for this operation.",
-            400
-          );
+    //     await collectionRepository.update(db, collection.id, {
+    //       contractAddress: transactionDetail.deployedContractAddress
+    //     });
+    //   } else {
+    //     if (!childCollection)
+    //       throw new CustomError(
+    //         "Child collection must be recorded for this operation.",
+    //         400
+    //       );
 
-        await collectionRepository.update(db, childCollection.id, {
-          contractAddress: transactionDetail.deployedContractAddress
-        });
-      }
-    }
+    //     await collectionRepository.update(db, childCollection.id, {
+    //       contractAddress: transactionDetail.deployedContractAddress
+    //     });
+    //   }
+    // }
 
-    let networkFee = 0,
-      mintFee = 0,
-      serviceFee = 0;
-    let funder = createFundingAddress("TESTNET");
+    // let networkFee = 0,
+    //   mintFee = 0,
+    //   serviceFee = 0;
+    // let funder = createFundingAddress("TESTNET");
 
-    let txHex;
-    //TODO: optimize fee calculation for both L1 & L2
-    if (collection.type === "INSCRIPTION") {
-      if (!totalFileSize || !totalCollectibleCount)
-        throw new CustomError(
-          "Please provide totalFileSize and totalCollectibleCount",
-          400
-        );
+    // let txHex;
+    // //TODO: optimize fee calculation for both L1 & L2
+    // if (collection.type === "INSCRIPTION") {
+    //   if (!totalFileSize || !totalCollectibleCount)
+    //     throw new CustomError(
+    //       "Please provide totalFileSize and totalCollectibleCount",
+    //       400
+    //     );
 
-      networkFee =
-        getEstimatedFee([10], [totalFileSize], 0, feeRate, 0).estimatedFee
-          .totalAmount +
-        (COMMIT_TX_SIZE + REVEAL_TX_SIZE) * totalCollectibleCount;
-      mintFee = 0;
-    } else if (collection.type === "RECURSIVE_INSCRIPTION") {
-      if (!totalTraitCount || !totalFileSize)
-        throw new CustomError(
-          "Please provide an totalFileSize or totalTraitCount",
-          400
-        );
+    //   networkFee =
+    //     getEstimatedFee([10], [totalFileSize], 0, feeRate, 0).estimatedFee
+    //       .totalAmount +
+    //     (COMMIT_TX_SIZE + REVEAL_TX_SIZE) * totalCollectibleCount;
+    //   mintFee = 0;
+    // } else if (collection.type === "RECURSIVE_INSCRIPTION") {
+    //   if (!totalTraitCount || !totalFileSize)
+    //     throw new CustomError(
+    //       "Please provide an totalFileSize or totalTraitCount",
+    //       400
+    //     );
 
-      networkFee =
-        (totalTraitCount * BITCOIN_TXID_BYTE_SIZE + totalFileSize) * feeRate;
-    } else if (
-      collection.type === "IPFS_CID" ||
-      collection.type === "IPFS_FILE"
-    ) {
-      //DG TODO: PUT THE VAULT ADDRESS FOR RECEIVING THE FEE
-      funder = { address: config.VAULT_ADDRESS, privateKey: "", publicKey: "" };
+    //   networkFee =
+    //     (totalTraitCount * BITCOIN_TXID_BYTE_SIZE + totalFileSize) * feeRate;
+    // } else if (
+    //   collection.type === "IPFS_CID" ||
+    //   collection.type === "IPFS_FILE"
+    // ) {
+    //   //DG TODO: PUT THE VAULT ADDRESS FOR RECEIVING THE FEE
+    //   funder = { address: config.VAULT_ADDRESS, privateKey: "", publicKey: "" };
 
-      //DG TODO: CALCULATE THE MINT FEE TO RECEIVE BASED ON THE totalFileSize or totalCollectibleCount(if so should be added in the request body on the client side)
-      networkFee = 0;
-      mintFee = Math.min(totalFileSize * feeRate, 0.00001);
+    //   //DG TODO: CALCULATE THE MINT FEE TO RECEIVE BASED ON THE totalFileSize or totalCollectibleCount(if so should be added in the request body on the client side)
+    //   networkFee = 0;
+    //   mintFee = Math.min(totalFileSize * feeRate, 0.00001);
 
-      if (!collection.contractAddress) {
-        throw new CustomError("Collection contractAddress not found.", 400);
-      }
-      const layer = await layerRepository.getById(collection.layerId);
-      if (!layer || !layer.chainId)
-        throw new CustomError("Layer or chainid not found", 400);
-    }
-    let totalAmount = networkFee * 1.5 + mintFee + serviceFee;
+    //   if (!collection.contractAddress) {
+    //     throw new CustomError("Collection contractAddress not found.", 400);
+    //   }
+    //   const layer = await layerRepository.getById(collection.layerId);
+    //   if (!layer || !layer.chainId)
+    //     throw new CustomError("Layer or chainid not found", 400);
+    // }
+    // let totalAmount = networkFee * 1.5 + mintFee + serviceFee;
 
     let order = await orderRepository.getByCollectionId(collection.id);
     if (order)
@@ -343,16 +357,26 @@ export const orderServices = {
         400
       );
 
+    let funder = createFundingAddress(
+      parentCollectionLayer.network === "MAINNET" ? "MAINNET" : "TESTNET"
+    );
+    if (estimatedFeeInSats < 546)
+      throw new CustomError("Invalid fee amount", 400);
+
     order = await orderRepository.create(db, {
       userId: userId,
-      fundingAmount: totalAmount,
+      fundingAmount: estimatedFeeInSats,
       fundingAddress: funder.address,
       privateKey: funder.privateKey,
-      orderType: "MINT_COLLECTIBLE",
+      orderType: "MINT_RECURSIVE_COLLECTIBLE",
       collectionId: collection.id,
       feeRate: feeRate,
       userLayerId
     });
+
+    const walletQrString = `bitcoin:${funder.address}?amount=${
+      estimatedFeeInSats / 10 ** 8
+    }`;
 
     // let orderItems, insertableOrderItems, nftUrls: any;
 
@@ -385,7 +409,7 @@ export const orderServices = {
 
     // const isComplete = await updateProgress(collectionId);
 
-    return { order, txHex };
+    return { order, walletQrString /*, txHex */ };
   },
   invokeOrderForMinting: async (userId: string, id: string) => {
     const order = await orderRepository.getById(db, id);
