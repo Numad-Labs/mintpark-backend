@@ -667,7 +667,7 @@ export const collectibleRepository = {
         "c.cid",
         "c.status",
         "c.fileKey",
-        'c.isOOOEdition',
+        "c.isOOOEdition"
       ])
       .where("c.id", "=", id)
       .executeTakeFirst();

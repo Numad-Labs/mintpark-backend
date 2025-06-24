@@ -7,7 +7,7 @@ import {
   TX_INPUT_P2TR,
   WITNESS_SCALE_FACTOR,
   TX_OUTPUT_P2TR,
-  TX_EMPTY_SIZE,
+  TX_EMPTY_SIZE
 } from "./constants";
 
 export async function getBalance(address: string) {
@@ -15,8 +15,8 @@ export async function getBalance(address: string) {
     `https://mempool.space/testnet4/api/address/${address}`,
     {
       headers: {
-        accept: "application/json",
-      },
+        accept: "application/json"
+      }
     }
   );
 
@@ -28,13 +28,26 @@ export async function getBalance(address: string) {
   return confirmedBalance + unconfirmedBalance;
 }
 
+export async function getBlockHeight() {
+  const response = await axios.get(
+    `https://mempool.space/testnet4/api/block/:hash`,
+    {
+      headers: {
+        accept: "application/json"
+      }
+    }
+  );
+
+  return response.data.height;
+}
+
 export async function getUtxos(address: string) {
   const response = await axios.get(
     `https://mempool.space/testnet4/api/address/${address}/utxo`,
     {
       headers: {
-        accept: "application/json",
-      },
+        accept: "application/json"
+      }
     }
   );
 
@@ -141,8 +154,8 @@ export function getEstimatedFee(
       serviceFee: totalServiceFee,
       commitFee: totalCommitFee,
       revealFee: totalRevealFee,
-      totalAmount: totalAmount,
-    },
+      totalAmount: totalAmount
+    }
   };
 }
 

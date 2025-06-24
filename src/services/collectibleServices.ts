@@ -34,6 +34,7 @@ import { launchRepository } from "repositories/launchRepository";
 import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
 import { traitTypeRepository } from "../repositories/traitTypeRepository";
 import { capitalizeWords } from "../libs/capitalizeWords";
+import { queueService } from "./queueService";
 // import * as isIPFS from "is-ipfs";
 
 const validateCid = (cid: string): boolean => {
@@ -282,45 +283,6 @@ export const collectibleServices = {
     const collectibles = await collectibleRepository.bulkInsert(
       collectiblesData
     );
-
-    // Enqueue the created collectibles for processing by the queue processor service
-    try {
-      const { queueProcessorClient } = await import(
-        "../utils/queueProcessorClient"
-      );
-      const { QueueType } = await import("../types/queueTypes");
-
-      // Prepare queue items from the collectibles, filtering out any with null fileKeys
-      const queueItems = collectibles
-        .filter(
-          (
-            collectible
-          ): collectible is typeof collectible & { fileKey: string } =>
-            collectible.fileKey !== null
-        )
-        .map((collectible) => ({
-          collectibleId: collectible.id,
-          collectionId: collectible.collectionId
-        }));
-
-      // Enqueue items for IPFS upload processing
-      const queueResponse = await queueProcessorClient.enqueueItems(
-        queueItems,
-        QueueType.IPFS_UPLOAD
-      );
-
-      logger.info(
-        `Enqueued ${queueResponse.queuedItems} collectibles for IPFS processing`,
-        {
-          jobIds: queueResponse.jobIds,
-          queueType: queueResponse.queueType
-        }
-      );
-    } catch (error) {
-      // Log the error but don't fail the operation - the collectibles were created successfully
-      logger.error("Failed to enqueue collectibles for processing:", error);
-    }
-
     return collectibles;
   },
   // createInscriptionAndOrderItemInBatch: async (

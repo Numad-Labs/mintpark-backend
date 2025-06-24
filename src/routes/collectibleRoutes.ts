@@ -85,6 +85,12 @@ collectibleRouter.get(
   collectibleControllers.getCollectibleByIdForService
 );
 
+collectibleRouter.get(
+  "/service/:collectibleId/build-from-traits",
+  apiKeyAuth,
+  collectibleControllers.buildNftImageFromTraits
+);
+
 // Script APIs
 collectibleRouter.get(
   "/collectibles-for-ipfs-upload",

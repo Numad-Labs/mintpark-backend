@@ -11,6 +11,7 @@ import { uploadToS3 } from "../utils/aws";
 import { randomUUID } from "crypto";
 import sharp from "sharp";
 import logger from "@config/winston";
+import { queueService } from "../services/queueService";
 
 export interface traitValueParams {
   type: string;
@@ -104,10 +105,35 @@ export const traitValueController = {
       // Save to DB
       const result = await traitValueRepository.bulkInsert(traitValuesToInsert);
 
-      result.map((traitValue) =>
-        logger.info(
-          `Enqueued trait value: ${traitValue.id} to Inscription Processor Queue`
-        )
+      // Enqueue each trait value for IPFS processing
+      await Promise.all(
+        result.map(async (traitValue) => {
+          try {
+            await queueService.enqueueIpfsUpload(
+              traitValue.id,
+              collectionId,
+              traitValue.fileKey
+            );
+            logger.info(
+              `Enqueued trait value: ${traitValue.id} to IPFS Processor Queue`
+            );
+            
+            // Also enqueue for inscription processing
+            await queueService.enqueueInscription(
+              traitValue.id,
+              collectionId,
+              'trait'
+            );
+            logger.info(
+              `Enqueued trait value: ${traitValue.id} to Inscription Processor Queue`
+            );
+          } catch (error) {
+            logger.error(
+              `Failed to enqueue trait value ${traitValue.id}:`,
+              error
+            );
+          }
+        })
       );
 
       return res
