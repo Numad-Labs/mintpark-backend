@@ -215,7 +215,7 @@ export const collectibleRepository = {
   getCollectiblesByUniqueIdxinBatch: async (uniqueIdxs: string[]) => {
     const collectibles = await db
       .selectFrom("Collectible")
-      .select(["uniqueIdx", "name", "Collectible.fileKey"])
+      .select(["uniqueIdx", "name", "Collectible.fileKey", "id"])
       .where(sql`lower("uniqueIdx")`, "in", uniqueIdxs)
       .execute();
     return collectibles;

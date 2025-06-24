@@ -201,7 +201,8 @@ export const collectibleControllers = {
         limit = 20,
         offset = 0,
         sortBy = "blockTimestamp",
-        sortDirection = "desc"
+        sortDirection = "desc",
+        activityType
       } = req.query;
 
       if (!collectionId) {
@@ -222,6 +223,25 @@ export const collectibleControllers = {
           'Invalid sortDirection. Must be "asc" or "desc"',
           400
         );
+      }
+
+      const allowedActivityTypes = ["CREATED", "SOLD", "CANCELLED"];
+      let activityTypes: string[] = allowedActivityTypes;
+
+      if (activityType) {
+        const requestedTypes = (activityType as string)
+          .split(",")
+          .map((t) => t.trim().toUpperCase());
+        const invalidTypes = requestedTypes.filter(
+          (t) => !allowedActivityTypes.includes(t)
+        );
+        if (invalidTypes.length > 0) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid activityType(s): ${invalidTypes.join(", ")}`
+          });
+        }
+        activityTypes = requestedTypes;
       }
 
       // Get collection address from repository by collection ID
@@ -245,7 +265,10 @@ export const collectibleControllers = {
           limit: parseInt(limit as string) || 20,
           offset: parseInt(offset as string) || 0,
           sortBy: sortBy as string,
-          sortDirection: ((sortDirection as string) || "desc") as "asc" | "desc"
+          sortDirection: ((sortDirection as string) || "desc") as
+            | "asc"
+            | "desc",
+          activityTypes
         }
       );
       // Enhance the activities with collectible names - optimized approach
@@ -274,7 +297,8 @@ export const collectibleControllers = {
             const lowerCaseKey = collectible.uniqueIdx.toLowerCase();
             collectibleMap.set(lowerCaseKey, {
               name: collectible.name,
-              fileKey: collectible.fileKey
+              fileKey: collectible.fileKey,
+              collectibleId: collectible.id
             });
           }
         });
@@ -290,7 +314,8 @@ export const collectibleControllers = {
             item: {
               ...activity.item,
               name: collectibleData?.name || null,
-              fileKey: collectibleData?.fileKey || null
+              fileKey: collectibleData?.fileKey || null,
+              collectibleId: collectibleData.collectibleId || null
             }
           };
         });
@@ -543,7 +568,7 @@ export const collectibleControllers = {
 
       // Check if we need to update the fileKey (for non-OOO editions)
       const shouldUpdateFileKey = fileKey && !existingCollectible.fileKey;
-      
+
       // If the collectible already has CID and we don't need to update the fileKey,
       // return success without updating. This makes the endpoint idempotent.
       if (existingCollectible.cid && !shouldUpdateFileKey) {
@@ -564,7 +589,7 @@ export const collectibleControllers = {
       // Update the collectible with the new CID and optionally fileKey
       const updateData = {
         cid: ipfsUri.replace("ipfs://", ""),
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
 
       // Only update fileKey if it's provided and the collectible doesn't have one
@@ -573,26 +598,21 @@ export const collectibleControllers = {
           `Updating collectible ${collectibleId} with new fileKey: ${fileKey}`
         );
         // Update with fileKey
-        await collectibleRepository.update(
-          db,
-          collectibleId,
-          {
-            ...updateData,
-            fileKey
-          }
-        );
+        await collectibleRepository.update(db, collectibleId, {
+          ...updateData,
+          fileKey
+        });
       } else {
         // Update without fileKey
-        await collectibleRepository.update(
-          db,
-          collectibleId,
-          updateData
-        );
+        await collectibleRepository.update(db, collectibleId, updateData);
       }
 
       // Fetch the updated collectible
-      const updatedCollectible = await collectibleRepository.getById(db, collectibleId);
-      
+      const updatedCollectible = await collectibleRepository.getById(
+        db,
+        collectibleId
+      );
+
       if (!updatedCollectible) {
         throw new CustomError("Failed to update collectible", 500);
       }

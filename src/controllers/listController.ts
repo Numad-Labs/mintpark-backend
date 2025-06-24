@@ -304,8 +304,6 @@ export const listController = {
         activityTypes = requestedTypes;
       }
 
-      console.log("Parsed activityTypes from query?>:", activityTypes);
-      console.log("✅ Using subgraphService from:", __filename);
       const subgraphService = new SubgraphService();
 
       const result = await subgraphService.getMarketplaceActivity(
