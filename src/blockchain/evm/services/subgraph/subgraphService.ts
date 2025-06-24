@@ -1,5 +1,3 @@
-// src/blockchain/subgraph/services/subgraphService.ts
-
 import {
   ApolloClient,
   InMemoryCache,
@@ -207,6 +205,7 @@ class SubgraphService {
    * @param offset - Number of activities to skip (default: 0)
    * @param sortBy - Field to sort by (default: blockTimestamp)
    * @param sortDirection - Sort direction (default: desc)
+   * @param activityTypes - Filter for activity type
    * @returns Object containing marketplace activities
    */
   async getMarketplaceActivity(
@@ -216,12 +215,14 @@ class SubgraphService {
       limit = 20,
       offset = 0,
       sortBy = "blockTimestamp",
-      sortDirection = "desc"
+      sortDirection = "desc",
+      activityTypes = ["CREATED", "SOLD", "CANCELLED"]
     }: {
       limit?: number;
       offset?: number;
       sortBy?: string;
       sortDirection?: "asc" | "desc";
+      activityTypes?: string[];
     } = {}
   ) {
     const clientKey = `${layer}-${chainId}`;
@@ -233,7 +234,7 @@ class SubgraphService {
     }
 
     try {
-      // Get created listings
+      // Define GraphQL queries
       const createdListingsQuery = gql`
         query GetCreatedListings(
           $limit: Int!
@@ -259,7 +260,6 @@ class SubgraphService {
         }
       `;
 
-      // Get sold listings
       const soldListingsQuery = gql`
         query GetSoldListings(
           $limit: Int!
@@ -284,7 +284,6 @@ class SubgraphService {
         }
       `;
 
-      // Get cancelled listings
       const cancelledListingsQuery = gql`
         query GetCancelledListings(
           $limit: Int!
@@ -307,10 +306,13 @@ class SubgraphService {
         }
       `;
 
-      // Execute all queries in parallel
-      const [createdListingsRes, soldListingsRes, cancelledListingsRes] =
-        await Promise.all([
-          client.query({
+      // Build query promises
+      const queryPromises: { type: string; promise: Promise<any> }[] = [];
+
+      if (activityTypes.includes("CREATED")) {
+        queryPromises.push({
+          type: "CREATED",
+          promise: client.query({
             query: createdListingsQuery,
             variables: {
               limit,
@@ -318,8 +320,14 @@ class SubgraphService {
               orderBy: sortBy,
               orderDirection: sortDirection
             }
-          }),
-          client.query({
+          })
+        });
+      }
+
+      if (activityTypes.includes("SOLD")) {
+        queryPromises.push({
+          type: "SOLD",
+          promise: client.query({
             query: soldListingsQuery,
             variables: {
               limit,
@@ -327,8 +335,14 @@ class SubgraphService {
               orderBy: sortBy,
               orderDirection: sortDirection
             }
-          }),
-          client.query({
+          })
+        });
+      }
+
+      if (activityTypes.includes("CANCELLED")) {
+        queryPromises.push({
+          type: "CANCELLED",
+          promise: client.query({
             query: cancelledListingsQuery,
             variables: {
               limit,
@@ -337,49 +351,54 @@ class SubgraphService {
               orderDirection: sortDirection
             }
           })
-        ]);
+        });
+      }
 
-      // Process and format results
-      const createdListings = createdListingsRes.data.listingCreateds.map(
-        (listing: any) => ({
-          ...listing,
-          type: "CREATED",
-          timestamp: parseInt(listing.blockTimestamp)
-        })
-      );
+      // Run all queries in parallel
+      const responses = await Promise.all(queryPromises.map((q) => q.promise));
 
-      const soldListings = soldListingsRes.data.listingSolds.map(
-        (listing: any) => ({
-          ...listing,
-          type: "SOLD",
-          timestamp: parseInt(listing.blockTimestamp)
-        })
-      );
+      // Process results
+      const allActivities: any[] = [];
 
-      const cancelledListings = cancelledListingsRes.data.listingCancelleds.map(
-        (listing: any) => ({
-          ...listing,
-          type: "CANCELLED",
-          timestamp: parseInt(listing.blockTimestamp)
-        })
-      );
+      queryPromises.forEach(({ type }, index) => {
+        const data = responses[index].data;
 
-      // Combine all activities
-      const allActivities = [
-        ...createdListings,
-        ...soldListings,
-        ...cancelledListings
-      ];
-
-      // Sort by timestamp
-      const sortedActivities = allActivities.sort((a, b) => {
-        if (sortDirection === "desc") {
-          return b.timestamp - a.timestamp;
+        if (type === "CREATED") {
+          const listings = data.listingCreateds.map((item: any) => ({
+            ...item,
+            type: "CREATED",
+            timestamp: parseInt(item.blockTimestamp)
+          }));
+          allActivities.push(...listings);
         }
-        return a.timestamp - b.timestamp;
+
+        if (type === "SOLD") {
+          const listings = data.listingSolds.map((item: any) => ({
+            ...item,
+            type: "SOLD",
+            timestamp: parseInt(item.blockTimestamp)
+          }));
+          allActivities.push(...listings);
+        }
+
+        if (type === "CANCELLED") {
+          const listings = data.listingCancelleds.map((item: any) => ({
+            ...item,
+            type: "CANCELLED",
+            timestamp: parseInt(item.blockTimestamp)
+          }));
+          allActivities.push(...listings);
+        }
       });
 
-      // Paginate results
+      // Sort all activities by timestamp
+      const sortedActivities = allActivities.sort((a, b) =>
+        sortDirection === "desc"
+          ? b.timestamp - a.timestamp
+          : a.timestamp - b.timestamp
+      );
+
+      // Paginate the merged list
       const paginatedActivities = sortedActivities.slice(0, limit);
 
       return {
@@ -765,12 +784,14 @@ class SubgraphService {
       limit = 20,
       offset = 0,
       sortBy = "blockTimestamp",
-      sortDirection = "desc"
+      sortDirection = "desc",
+      activityTypes = ["CREATED", "SOLD", "CANCELLED"]
     }: {
       limit?: number;
       offset?: number;
       sortBy?: string;
       sortDirection?: "asc" | "desc";
+      activityTypes?: string[];
     } = {}
   ) {
     const clientKey = `${layer}-${chainId}`;
@@ -782,9 +803,7 @@ class SubgraphService {
     }
 
     try {
-      // First, get all created listings for this collection to get the listingIds
-
-      // Get ALL created listings for the collection (to get all listingIds)
+      // Get all listingCreateds for the collection
       const allCreatedListingsQuery = gql`
         query GetAllCollectionListings($collectionAddress: String!) {
           listingCreateds(
@@ -803,7 +822,6 @@ class SubgraphService {
         }
       `;
 
-      // Execute query to get all listings for this collection
       const allCreatedListingsRes = await client.query({
         query: allCreatedListingsQuery,
         variables: {
@@ -811,13 +829,11 @@ class SubgraphService {
         }
       });
 
-      // Extract all listingIds for this collection
       const collectionListingIds =
         allCreatedListingsRes.data.listingCreateds.map(
           (listing: any) => listing.listingId
         );
 
-      // If no listings found, return empty result
       if (collectionListingIds.length === 0) {
         return {
           activities: [],
@@ -829,7 +845,6 @@ class SubgraphService {
         };
       }
 
-      // Create lookup map for created listings by listingId
       const createdListingsMap = new Map();
       allCreatedListingsRes.data.listingCreateds.forEach((listing: any) => {
         createdListingsMap.set(listing.listingId, {
@@ -843,136 +858,141 @@ class SubgraphService {
         });
       });
 
-      // Query for sold listings that match the collection's listingIds
-      const soldListingsQuery = gql`
-        query GetCollectionListingSolds($listingIds: [String!]) {
-          listingSolds(where: { listingId_in: $listingIds }, first: 1000) {
-            id
-            listingId
-            buyer
-            price
-            blockNumber
-            blockTimestamp
-            transactionHash
-            from
-          }
-        }
-      `;
+      // Parallel fetches for SOLD and CANCELLED
+      const queryPromises: Promise<any>[] = [];
 
-      // Query for cancelled listings that match the collection's listingIds
-      const cancelledListingsQuery = gql`
-        query GetCollectionListingCancelleds($listingIds: [String!]) {
-          listingCancelleds(where: { listingId_in: $listingIds }, first: 1000) {
-            id
-            listingId
-            blockNumber
-            blockTimestamp
-            transactionHash
-            from
+      if (activityTypes.includes("SOLD")) {
+        const soldListingsQuery = gql`
+          query GetCollectionListingSolds($listingIds: [String!]) {
+            listingSolds(where: { listingId_in: $listingIds }, first: 1000) {
+              id
+              listingId
+              buyer
+              price
+              blockNumber
+              blockTimestamp
+              transactionHash
+            }
           }
-        }
-      `;
+        `;
+        queryPromises.push(
+          client.query({
+            query: soldListingsQuery,
+            variables: {
+              listingIds: collectionListingIds
+            }
+          })
+        );
+      } else {
+        queryPromises.push(Promise.resolve({ data: { listingSolds: [] } }));
+      }
 
-      // Execute queries for sold and cancelled listings
-      const [soldListingsRes, cancelledListingsRes] = await Promise.all([
-        client.query({
-          query: soldListingsQuery,
-          variables: {
-            listingIds: collectionListingIds
+      if (activityTypes.includes("CANCELLED")) {
+        const cancelledListingsQuery = gql`
+          query GetCollectionListingCancelleds($listingIds: [String!]) {
+            listingCancelleds(
+              where: { listingId_in: $listingIds }
+              first: 1000
+            ) {
+              id
+              listingId
+              blockNumber
+              blockTimestamp
+              transactionHash
+            }
           }
-        }),
-        client.query({
-          query: cancelledListingsQuery,
-          variables: {
-            listingIds: collectionListingIds
-          }
-        })
-      ]);
+        `;
+        queryPromises.push(
+          client.query({
+            query: cancelledListingsQuery,
+            variables: {
+              listingIds: collectionListingIds
+            }
+          })
+        );
+      } else {
+        queryPromises.push(
+          Promise.resolve({ data: { listingCancelleds: [] } })
+        );
+      }
 
-      // Process and format created listings
-      const createdListings = allCreatedListingsRes.data.listingCreateds.map(
-        (listing: any) => ({
-          item: {
-            tokenId: listing.tokenId,
-            contractAddress: listing.nftContract
-          },
-          event: "CREATED",
-          price: listing.price,
-          from: listing.from || "Unknown",
-          to: null,
-          time: parseInt(listing.blockTimestamp),
-          listingId: listing.listingId,
-          transactionHash: listing.transactionHash
-        })
-      );
+      const [soldListingsRes, cancelledListingsRes] =
+        await Promise.all(queryPromises);
 
-      // Process and format sold listings
-      const soldListings = soldListingsRes.data.listingSolds.map(
-        (listing: any) => {
-          const createdListing = createdListingsMap.get(listing.listingId);
-          return {
+      const activities: any[] = [];
+
+      if (activityTypes.includes("CREATED")) {
+        const createdListings = allCreatedListingsRes.data.listingCreateds.map(
+          (listing: any) => ({
             item: {
-              tokenId: createdListing ? createdListing.tokenId : "Unknown",
-              contractAddress: collectionAddress
+              tokenId: listing.tokenId,
+              contractAddress: listing.nftContract
             },
-            event: "SOLD",
+            event: "CREATED",
             price: listing.price,
-            from: createdListing ? createdListing.seller : "Unknown",
-            to: listing.buyer,
-            time: parseInt(listing.blockTimestamp),
-            listingId: listing.listingId,
-            transactionHash: listing.transactionHash
-          };
-        }
-      );
-
-      // Process and format cancelled listings
-      const cancelledListings = cancelledListingsRes.data.listingCancelleds.map(
-        (listing: any) => {
-          const createdListing = createdListingsMap.get(listing.listingId);
-          return {
-            item: {
-              tokenId: createdListing ? createdListing.tokenId : "Unknown",
-              contractAddress: collectionAddress
-            },
-            event: "CANCELLED",
-            price: null,
-            from: createdListing ? createdListing.seller : "Unknown",
+            from: listing.from || "Unknown",
             to: null,
             time: parseInt(listing.blockTimestamp),
             listingId: listing.listingId,
             transactionHash: listing.transactionHash
-          };
-        }
+          })
+        );
+        activities.push(...createdListings);
+      }
+
+      if (activityTypes.includes("SOLD")) {
+        const soldListings = soldListingsRes.data.listingSolds.map(
+          (listing: any) => {
+            const created = createdListingsMap.get(listing.listingId);
+            return {
+              item: {
+                tokenId: created?.tokenId || "Unknown",
+                contractAddress: collectionAddress
+              },
+              event: "SOLD",
+              price: listing.price,
+              from: created?.seller || "Unknown",
+              to: listing.buyer,
+              time: parseInt(listing.blockTimestamp),
+              listingId: listing.listingId,
+              transactionHash: listing.transactionHash
+            };
+          }
+        );
+        activities.push(...soldListings);
+      }
+
+      if (activityTypes.includes("CANCELLED")) {
+        const cancelledListings =
+          cancelledListingsRes.data.listingCancelleds.map((listing: any) => {
+            const created = createdListingsMap.get(listing.listingId);
+            return {
+              item: {
+                tokenId: created?.tokenId || "Unknown",
+                contractAddress: collectionAddress
+              },
+              event: "CANCELLED",
+              price: null,
+              from: created?.seller || "Unknown",
+              to: null,
+              time: parseInt(listing.blockTimestamp),
+              listingId: listing.listingId,
+              transactionHash: listing.transactionHash
+            };
+          });
+        activities.push(...cancelledListings);
+      }
+
+      const sorted = activities.sort((a, b) =>
+        sortDirection === "desc" ? b.time - a.time : a.time - b.time
       );
 
-      // Combine all activities
-      const allActivities = [
-        ...createdListings,
-        ...soldListings,
-        ...cancelledListings
-      ];
-
-      // Sort by timestamp
-      const sortedActivities = allActivities.sort((a, b) => {
-        if (sortDirection === "desc") {
-          return b.time - a.time;
-        }
-        return a.time - b.time;
-      });
-
-      // Apply pagination
-      const paginatedActivities = sortedActivities.slice(
-        offset,
-        offset + limit
-      );
+      const paginated = sorted.slice(offset, offset + limit);
 
       return {
-        activities: paginatedActivities,
-        total: allActivities.length,
-        uniqueTokens: new Set(
-          allActivities.map((activity: any) => activity.item.tokenId)
-        ).size,
+        activities: paginated,
+        total: activities.length,
+        uniqueTokens: new Set(activities.map((a: any) => a.item.tokenId)).size,
         limit,
         offset,
         collectionAddress
@@ -985,5 +1005,4 @@ class SubgraphService {
     }
   }
 }
-
-export default new SubgraphService();
+export default SubgraphService;

@@ -55,6 +55,7 @@ listRouter.post(
  *            offset: number,
  *            sortBy: string,
  *            sortDirection: 'asc' | 'desc'
+ *            activityType: "CREATED", "SOLD", "CANCELLED"
  *          }
  */
 listRouter.get("/activity", listController.getMarketplaceActivity);

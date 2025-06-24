@@ -14,6 +14,7 @@ import subgraphService from "@blockchain/evm/services/subgraph/subgraphService";
 import { LAYER } from "@app-types/db/enums";
 import logger from "@config/winston";
 import { MarketplaceSyncService } from "@blockchain/evm/services/subgraph/marketplaceSyncService";
+import SubgraphService from "@blockchain/evm/services/subgraph/subgraphService";
 
 // const tradingService = new TradingService(
 //   EVM_CONFIG.RPC_URL,
@@ -253,7 +254,8 @@ export const listController = {
         limit = 20,
         offset = 0,
         sortBy = "blockTimestamp",
-        sortDirection = "desc"
+        sortDirection = "desc",
+        activityType
       } = req.query;
 
       const layer = LAYER.HEMI;
@@ -283,6 +285,27 @@ export const listController = {
         });
       }
 
+      const allowedActivityTypes = ["CREATED", "SOLD", "CANCELLED"];
+      let activityTypes: string[] = allowedActivityTypes;
+
+      if (activityType) {
+        const requestedTypes = (activityType as string)
+          .split(",")
+          .map((t) => t.trim().toUpperCase());
+        const invalidTypes = requestedTypes.filter(
+          (t) => !allowedActivityTypes.includes(t)
+        );
+        if (invalidTypes.length > 0) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid activityType(s): ${invalidTypes.join(", ")}`
+          });
+        }
+        activityTypes = requestedTypes;
+      }
+
+      const subgraphService = new SubgraphService();
+
       const result = await subgraphService.getMarketplaceActivity(
         layer,
         numericChainId,
@@ -290,7 +313,10 @@ export const listController = {
           limit: parseInt(limit as string) || 20,
           offset: parseInt(offset as string) || 0,
           sortBy: sortBy as string,
-          sortDirection: ((sortDirection as string) || "desc") as "asc" | "desc"
+          sortDirection: ((sortDirection as string) || "desc") as
+            | "asc"
+            | "desc",
+          activityTypes
         }
       );
 
@@ -332,6 +358,7 @@ export const listController = {
         });
       }
 
+      const subgraphService = new SubgraphService();
       const result = await subgraphService.getListingById(
         layer,
         numericChainId,
@@ -400,6 +427,7 @@ export const listController = {
         });
       }
 
+      const subgraphService = new SubgraphService();
       const result = await subgraphService.getTokenActivity(
         layer,
         numericChainId,

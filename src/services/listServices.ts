@@ -16,6 +16,7 @@ import { userLayerRepository } from "../repositories/userLayerRepository";
 import logger from "../config/winston";
 import subgraphService from "@blockchain/evm/services/subgraph/subgraphService";
 import { LAYER, LIST_STATUS } from "@app-types/db/enums";
+import SubgraphService from "@blockchain/evm/services/subgraph/subgraphService";
 
 export const listServices = {
   checkAndPrepareRegistration: async (
@@ -79,6 +80,7 @@ export const listServices = {
       // const existingListing = await listRepository.getByCollectibleId(
       //   listing.id
       // );
+      const subgraphService = new SubgraphService();
 
       const tokenActivity = await subgraphService.getTokenActivity(
         layer.layer,
@@ -457,6 +459,7 @@ export const listServices = {
 
     if (chainConfig.SUBGRAPH_URL) {
       try {
+        const subgraphService = new SubgraphService();
         const subgraphListing = await subgraphService.getListingById(
           layer.layer as (typeof LAYER)[keyof typeof LAYER],
           parseInt(layer.chainId),
