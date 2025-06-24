@@ -504,7 +504,7 @@ export const collectibleRepository = {
             )
           : sql`false`.as("isOwnListing"),
         "Layer.id as layerId",
-        "Layer.name",
+        "Layer.name as layerName",
         "Layer.chainId",
         "Layer.currencyId",
         "Layer.layer",
