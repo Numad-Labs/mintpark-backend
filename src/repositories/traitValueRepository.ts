@@ -103,6 +103,21 @@ export const traitValueRepository = {
 
     return traitValues;
   },
+  /**
+   * Get count of trait values for a collection that do NOT have an inscriptionId (i.e. inscription still pending)
+   */
+  getNotDoneCountByCollectionId: async (collectionId: string) => {
+    const result = await db
+      .selectFrom("TraitValue")
+      .innerJoin("TraitType", "TraitType.id", "TraitValue.traitTypeId")
+      .select((eb) => eb.fn.count("TraitValue.id").as("count"))
+      .where("TraitType.collectionId", "=", collectionId)
+      .where("TraitValue.inscriptionId", "is", null)
+      .executeTakeFirst();
+
+    return Number(result?.count ?? 0);
+  },
+
   getByTraitTypeIdAndValue: async (traitTypeId: string, value: string) => {
     const collectible = await db
       .selectFrom("TraitValue")

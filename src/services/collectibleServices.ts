@@ -709,5 +709,60 @@ export const collectibleServices = {
 
       await collectibleTraitRepository.bulkInsert(batchTraits);
     }
+  },
+  // In collectibleServices.ts, add this to the collectibleServices object:
+
+  createRecursiveCollectible: async (
+    collectibleId: string,
+    inscriptionId: string,
+    lockingAddress: string,
+    lockingPrivateKey: string
+  ) => {
+    return await db.transaction().execute(async (trx) => {
+      // 1. Get the original collectible
+      const originalCollectible = await collectibleRepository.getById(
+        trx,
+        collectibleId
+      );
+      if (!originalCollectible) {
+        throw new CustomError(`Collectible ${collectibleId} not found`, 404);
+      }
+
+      // 2. Get the collection to find parent collection
+      const collection = await collectionRepository.getById(
+        trx,
+        originalCollectible.collectionId
+      );
+      if (!collection?.parentCollectionId) {
+        throw new CustomError(
+          `No parent collection found for collection ${originalCollectible.collectionId}`,
+          400
+        );
+      }
+
+      // 3. Create new collectible in parent collection
+      const newCollectible = await collectibleRepository.create(trx, {
+        name: originalCollectible.name,
+        fileKey: originalCollectible.fileKey,
+        collectionId: collection.parentCollectionId,
+        status: "CONFIRMED",
+        uniqueIdx: inscriptionId,
+        nftId: originalCollectible.nftId,
+        createdAt: new Date().toISOString(),
+        lockingAddress,
+        lockingPrivateKey,
+        mintingTxId: inscriptionId.slice(0, -2)
+      });
+
+      // 4. Update original collectible with parent reference
+      await collectibleRepository.update(trx, originalCollectible.id, {
+        parentCollectibleId: newCollectible.id
+      });
+
+      return {
+        originalCollectibleId: originalCollectible.id,
+        parentCollectibleId: newCollectible.id
+      };
+    });
   }
 };

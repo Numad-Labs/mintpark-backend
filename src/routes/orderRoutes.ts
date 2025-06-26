@@ -3,6 +3,7 @@ import { authenticateToken } from "../middlewares/authenticateToken";
 import { orderController } from "../controllers/orderController";
 import { parseFiles } from "../middlewares/fileParser";
 import { authorize } from "../middlewares/authorize";
+import { apiKeyAuth } from "@middlewares/apiKeyAuth";
 
 const orderRouter = Router();
 
@@ -55,5 +56,12 @@ orderRouter.get(
   authenticateToken,
   orderController.checkOrderIsPaid
 ); */
+
+// Service-to-service APIs (internal)
+orderRouter.get(
+  "/:collectionId/details",
+  apiKeyAuth,
+  orderController.getByCollectionIdWithDetailForService
+);
 
 export = orderRouter;

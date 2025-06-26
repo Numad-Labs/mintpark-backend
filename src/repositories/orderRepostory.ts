@@ -82,7 +82,8 @@ export const orderRepository = {
       .selectFrom("Order")
       .selectAll()
       .where("Order.collectionId", "=", collectionId)
-      .orderBy("createdAt desc")
+      .where("Order.orderType", "=", "MINT_RECURSIVE_COLLECTIBLE")
+      .orderBy("createdAt asc")
       .executeTakeFirst();
 
     return order;

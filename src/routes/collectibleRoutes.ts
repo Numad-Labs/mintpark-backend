@@ -43,7 +43,7 @@ collectibleRouter.get(
   collectibleControllers.buildNftImageFromTraits
 );
 
-// // Admin Priviledge APIs, will later be allowed
+// Admin Priviledge APIs, will later be allowed
 // collectibleRouter.post(
 //   "/inscription",
 //   authenticateToken,
@@ -72,11 +72,17 @@ collectibleRouter.get(
   collectibleControllers.getCollectiblesWithNoCidAndEnqueue
 );
 
-// Inter-Service Communication APIs
+// Service-to-service APIs (internal)
 collectibleRouter.post(
   "/update-ipfs",
   apiKeyAuth,
   collectibleControllers.updateIpfs
+);
+
+collectibleRouter.get(
+  "/count-without-parent-and-not-ooo/for-service",
+  apiKeyAuth,
+  collectibleControllers.countWithoutParentAndNotOoo
 );
 
 collectibleRouter.get(
@@ -89,6 +95,12 @@ collectibleRouter.get(
   "/service/:collectibleId/build-from-traits",
   apiKeyAuth,
   collectibleControllers.buildNftImageFromTraits
+);
+
+collectibleRouter.post(
+  "/:collectibleId/recursive",
+  apiKeyAuth,
+  collectibleControllers.createRecursiveCollectible
 );
 
 // Script APIs

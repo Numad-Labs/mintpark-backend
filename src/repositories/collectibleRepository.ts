@@ -667,7 +667,8 @@ export const collectibleRepository = {
         "c.cid",
         "c.status",
         "c.fileKey",
-        "c.isOOOEdition"
+        "c.isOOOEdition",
+        "c.uniqueIdx"
       ])
       .where("c.id", "=", id)
       .executeTakeFirst();
@@ -749,5 +750,18 @@ export const collectibleRepository = {
     };
 
     return baseCollectible;
+  },
+  countWithoutParentAndNotOoo: async (collectionId: string) => {
+    const count = await db
+      .selectFrom("Collectible")
+      .select((eb) => [
+        eb.fn.count<number>("Collectible.id").$castTo<number>().as("count")
+      ])
+      .where("Collectible.collectionId", "=", collectionId)
+      .where("Collectible.parentCollectibleId", "is", null)
+      .where("Collectible.isOOOEdition", "=", false)
+      .executeTakeFirstOrThrow();
+      
+    return count.count;
   }
 };

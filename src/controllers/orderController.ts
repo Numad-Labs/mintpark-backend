@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from "../../custom";
 import { orderServices } from "../services/orderServices";
 import { CustomError } from "../exceptions/CustomError";
 import { hideSensitiveData } from "../libs/hideDataHelper";
+import { orderRepository } from "@repositories/orderRepostory";
 
 export const orderController = {
   createMintOrder: async (
@@ -96,12 +97,30 @@ export const orderController = {
   ) => {
     try {
       const { orderId } = req.params;
+
       const order = await orderServices.getById(orderId);
       if (req.user?.id !== order?.userId)
         throw new CustomError("You are not allowed to access this info", 400);
       if (!order) throw new CustomError("Order not found", 404);
       const sanitazedOrder = hideSensitiveData(order, ["privateKey"]);
+
       return res.status(200).json({ success: true, data: sanitazedOrder });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getByCollectionIdWithDetailForService: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { collectionId } = req.params;
+
+      const order = await orderRepository.getByCollectionId(collectionId);
+      if (!order) throw new CustomError("Order not found", 404);
+
+      return res.status(200).json({ success: true, data: order });
     } catch (e) {
       next(e);
     }

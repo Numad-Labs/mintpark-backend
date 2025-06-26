@@ -588,33 +588,31 @@ export const collectibleControllers = {
 
       // Update the collectible with the new CID and optionally fileKey
       const updateData = {
-        cid: ipfsUri.replace("ipfs://", ""),
-        updatedAt: new Date().toISOString()
+        cid: ipfsUri.replace("ipfs://", "")
       };
 
+      let updatedCollectible: any;
       // Only update fileKey if it's provided and the collectible doesn't have one
       if (shouldUpdateFileKey) {
         logger.info(
           `Updating collectible ${collectibleId} with new fileKey: ${fileKey}`
         );
         // Update with fileKey
-        await collectibleRepository.update(db, collectibleId, {
-          ...updateData,
-          fileKey
-        });
+        updatedCollectible = await collectibleRepository.update(
+          db,
+          collectibleId,
+          {
+            ...updateData,
+            fileKey
+          }
+        );
       } else {
         // Update without fileKey
-        await collectibleRepository.update(db, collectibleId, updateData);
-      }
-
-      // Fetch the updated collectible
-      const updatedCollectible = await collectibleRepository.getById(
-        db,
-        collectibleId
-      );
-
-      if (!updatedCollectible) {
-        throw new CustomError("Failed to update collectible", 500);
+        updatedCollectible = await collectibleRepository.update(
+          db,
+          collectibleId,
+          updateData
+        );
       }
 
       return res.status(200).json({
@@ -853,6 +851,52 @@ export const collectibleControllers = {
       next(e);
     }
   },
+  createRecursiveCollectible: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { collectibleId } = req.params;
+      const { inscriptionId, lockingAddress, lockingPrivateKey } = req.body;
+
+      if (!inscriptionId) {
+        throw new CustomError(
+          "inscriptionId is required in the request body",
+          400
+        );
+      }
+
+      if (!lockingAddress) {
+        throw new CustomError(
+          "lockingAddress is required in the request body",
+          400
+        );
+      }
+
+      if (!lockingPrivateKey) {
+        throw new CustomError(
+          "lockingPrivateKey is required in the request body",
+          400
+        );
+      }
+
+      const result = await collectibleServices.createRecursiveCollectible(
+        collectibleId,
+        inscriptionId,
+        lockingAddress,
+        lockingPrivateKey
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
+
   buildNftImageFromTraits: async (
     req: Request,
     res: Response,
@@ -863,6 +907,10 @@ export const collectibleControllers = {
       if (!collectibleId) {
         throw new CustomError("Collectible ID is required", 400);
       }
+
+      console.log(
+        `started building collectible ${collectibleId} at ${new Date().toISOString()}`
+      );
 
       const collectible = await collectibleRepository.getById(
         db,
@@ -975,12 +1023,35 @@ export const collectibleControllers = {
 
       const finalBuffer = await finalImage.png().toBuffer();
 
+      console.log(
+        `finished building collectible ${collectibleId} at ${new Date().toISOString()}`
+      );
+
       // Set response headers for image display
       res.setHeader("Content-Type", "image/png");
       res.setHeader("Content-Length", finalBuffer.length);
 
       // Return both the image and the fileKey
       return res.send(finalBuffer);
+    } catch (e) {
+      next(e);
+    }
+  },
+  countWithoutParentAndNotOoo: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { collectionId } = req.query;
+      if (!collectionId) throw new CustomError("collectionId not found", 400);
+
+      const count = await collectibleRepository.countWithoutParentAndNotOoo(
+        collectionId as string
+      );
+
+      console.log(count);
+      return res.status(200).json({ success: true, data: { count } });
     } catch (e) {
       next(e);
     }

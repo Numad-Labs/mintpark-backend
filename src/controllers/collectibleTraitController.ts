@@ -17,6 +17,21 @@ const createBatchTraitsSchema = z.object({
 });
 
 export const collectibleTraitController = {
+  getByCollectibleIdWithInscription: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { collectibleId } = req.params;
+      const traits = await collectibleTraitRepository.getByCollectibleIdWithInscription(
+        collectibleId
+      );
+      return res.status(200).json({ success: true, data: { traits } });
+    } catch (e) {
+      next(e);
+    }
+  },
   getByCollectibleId: async (
     req: Request,
     res: Response,

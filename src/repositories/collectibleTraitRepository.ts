@@ -3,6 +3,24 @@ import { db } from "../utils/db";
 import { CollectibleTrait } from "../types/db/types";
 
 export const collectibleTraitRepository = {
+  getByCollectibleIdWithInscription: async (collectibleId: string) => {
+    const traits = await db
+      .selectFrom('CollectibleTrait')
+      .innerJoin('TraitValue', 'TraitValue.id', 'CollectibleTrait.traitValueId')
+      .innerJoin('TraitType', 'TraitType.id', 'TraitValue.traitTypeId')
+      .select([
+        'TraitType.name as traitType',
+        'TraitValue.value as traitValue',
+        'TraitType.zIndex',
+        'TraitValue.inscriptionId'
+      ])
+      .where('CollectibleTrait.collectibleId', '=', collectibleId)
+      .where('TraitValue.inscriptionId', 'is not', null)
+      .orderBy('TraitType.zIndex', 'asc')
+      .execute();
+
+    return traits;
+  },
   bulkInsert: async (data: Insertable<CollectibleTrait>[]) => {
     const collectibleTraits = await db
       .insertInto("CollectibleTrait")

@@ -11,7 +11,13 @@ import { uploadToS3 } from "../utils/aws";
 import { randomUUID } from "crypto";
 import sharp from "sharp";
 import logger from "@config/winston";
-import { queueService } from "../services/queueService";
+import {
+  InscriptionPhase,
+  QueueItem,
+  queueService,
+  QueueType
+} from "../services/queueService";
+import { AxiosError } from "axios";
 
 export interface traitValueParams {
   type: string;
@@ -22,6 +28,78 @@ export interface traitValueParams {
 }
 
 export const traitValueController = {
+  /**
+   * Inter-service endpoint: Get trait value details by id regardless of status/soft deletion
+   */
+  getTraitValueByIdForService: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { traitValueId } = req.params;
+      const traitValue =
+        await traitValueRepository.getTraitValueWithCollectionIdById(
+          traitValueId
+        );
+      if (!traitValue) throw new CustomError("Trait value not found", 404);
+      return res.status(200).json({ success: true, data: traitValue });
+    } catch (e) {
+      next(e);
+    }
+  },
+  /**
+   * Inter-service endpoint: Update trait value inscriptionId
+   */
+  updateTraitValueInscription: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { traitValueId, inscriptionId, lockingAddress, lockingPrivateKey } =
+        req.body;
+      if (
+        !traitValueId ||
+        !inscriptionId ||
+        !lockingAddress ||
+        !lockingPrivateKey
+      ) {
+        throw new CustomError(
+          "traitValueId, inscriptionId, lockingAddress and lockingPrivateKey are required",
+          400
+        );
+      }
+
+      const updated = await traitValueRepository.updateById(traitValueId, {
+        inscriptionId,
+        lockingAddress,
+        lockingPrivateKey
+      });
+
+      return res.status(200).json({ success: true, data: updated });
+    } catch (e) {
+      next(e);
+    }
+  },
+  /**
+   * Inter-service endpoint: Get count of not-done trait values (no inscriptionId) for a collection
+   */
+  getNotDoneTraitValueCountByCollectionId: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { collectionId } = req.params;
+      const count = await traitValueRepository.getNotDoneCountByCollectionId(
+        collectionId
+      );
+      return res.status(200).json({ success: true, data: { count } });
+    } catch (e) {
+      next(e);
+    }
+  },
   getTraitValuesByTraitTypeId: async (
     req: Request,
     res: Response,
@@ -105,36 +183,26 @@ export const traitValueController = {
       // Save to DB
       const result = await traitValueRepository.bulkInsert(traitValuesToInsert);
 
-      // Enqueue each trait value for IPFS processing
-      await Promise.all(
-        result.map(async (traitValue) => {
-          try {
-            await queueService.enqueueIpfsUpload(
-              traitValue.id,
-              collectionId,
-              traitValue.fileKey
-            );
-            logger.info(
-              `Enqueued trait value: ${traitValue.id} to IPFS Processor Queue`
-            );
-            
-            // Also enqueue for inscription processing
-            await queueService.enqueueInscription(
-              traitValue.id,
-              collectionId,
-              'trait'
-            );
-            logger.info(
-              `Enqueued trait value: ${traitValue.id} to Inscription Processor Queue`
-            );
-          } catch (error) {
-            logger.error(
-              `Failed to enqueue trait value ${traitValue.id}:`,
-              error
-            );
-          }
-        })
-      );
+      try {
+        const traitQueueItems: QueueItem[] = result.map((traitValue) => {
+          return {
+            traitValueId: traitValue.id,
+            collectionId: collection.id,
+            phase: InscriptionPhase.TRAIT
+          };
+        });
+        await queueService.enqueueBatch(
+          traitQueueItems,
+          QueueType.TRAIT_INSCRIPTION
+        );
+        logger.info(
+          `Enqueued ${
+            traitQueueItems.length
+          } trait values at ${new Date().toISOString()} to Inscription Processor Queue`
+        );
+      } catch (e) {
+        console.log(e);
+      }
 
       return res
         .status(200)
