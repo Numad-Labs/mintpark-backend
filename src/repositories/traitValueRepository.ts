@@ -53,7 +53,12 @@ export const traitValueRepository = {
     const traitValue = await db
       .selectFrom("TraitValue")
       .innerJoin("TraitType", "TraitType.id", "TraitValue.traitTypeId")
-      .select(["TraitValue.id", "TraitType.collectionId"])
+      .select([
+        "TraitValue.id",
+        "TraitType.collectionId",
+        "TraitValue.fileKey",
+        "TraitValue.inscriptionId"
+      ])
       .where("TraitValue.id", "=", id)
       .executeTakeFirst();
 

@@ -224,39 +224,43 @@ export const launchServices = {
       data
     );
 
-    const ipfsQueueItems: QueueItem[] = result.collectibles.map(
-      (collectible) => {
-        return {
-          collectibleId: collectible.id,
-          collectionId: collection.id
-        };
-      }
-    );
-    await queueService.enqueueBatch(ipfsQueueItems, QueueType.IPFS_UPLOAD);
-    logger.info(
-      `Enqueued ${
-        ipfsQueueItems.length
-      } recursive collectibles at ${new Date().toISOString()} to IPFS Processor Queue`
-    );
+    try {
+      const ipfsQueueItems: QueueItem[] = result.collectibles.map(
+        (collectible) => {
+          return {
+            collectibleId: collectible.id,
+            collectionId: collection.id
+          };
+        }
+      );
+      await queueService.enqueueBatch(ipfsQueueItems, QueueType.IPFS_UPLOAD);
+      logger.info(
+        `Enqueued ${
+          ipfsQueueItems.length
+        } recursive collectibles at ${new Date().toISOString()} to IPFS Processor Queue`
+      );
 
-    const recursiveQueueItems: QueueItem[] = result.collectibles.map(
-      (collectible) => {
-        return {
-          collectibleId: collectible.id,
-          collectionId: collection.id,
-          phase: InscriptionPhase.RECURSIVE
-        };
-      }
-    );
-    await queueService.enqueueBatch(
-      recursiveQueueItems,
-      QueueType.RECURSIVE_INSCRIPTION
-    );
-    logger.info(
-      `Enqueued ${
-        ipfsQueueItems.length
-      } recursive collectibles at ${new Date().toISOString()} to Inscription Processor Queue`
-    );
+      const recursiveQueueItems: QueueItem[] = result.collectibles.map(
+        (collectible) => {
+          return {
+            collectibleId: collectible.id,
+            collectionId: collection.id,
+            phase: InscriptionPhase.RECURSIVE
+          };
+        }
+      );
+      await queueService.enqueueBatch(
+        recursiveQueueItems,
+        QueueType.RECURSIVE_INSCRIPTION
+      );
+      logger.info(
+        `Enqueued ${
+          ipfsQueueItems.length
+        } recursive collectibles at ${new Date().toISOString()} to Inscription Processor Queue`
+      );
+    } catch (e) {
+      console.log(`Recursive Enqueue failed: ${e}`);
+    }
 
     const launchItemsData: Insertable<LaunchItem>[] = [];
     for (let i = 0; i < result.collectibles.length; i++)
@@ -310,37 +314,41 @@ export const launchServices = {
       true
     );
 
-    const ipfsQueueItems: QueueItem[] = collectibles.map((collectible) => {
-      return {
-        collectibleId: collectible.id,
-        collectionId: collection.id
-      };
-    });
-    await queueService.enqueueBatch(ipfsQueueItems, QueueType.IPFS_UPLOAD);
-    logger.info(
-      `Enqueued ${
-        ipfsQueueItems.length
-      } 1-of-1 edition collectibles at ${new Date().toISOString()} to IPFS Processor Queue`
-    );
-
-    const OOOEditionQueueItems: QueueItem[] = collectibles.map(
-      (collectible) => {
+    try {
+      const ipfsQueueItems: QueueItem[] = collectibles.map((collectible) => {
         return {
           collectibleId: collectible.id,
-          collectionId: collection.id,
-          phase: InscriptionPhase.ONE_OF_ONE
+          collectionId: collection.id
         };
-      }
-    );
-    await queueService.enqueueBatch(
-      OOOEditionQueueItems,
-      QueueType.ONE_OF_ONE_INSCRIPTION
-    );
-    logger.info(
-      `Enqueued ${
-        ipfsQueueItems.length
-      } recursive collectibles at ${new Date().toISOString()} to Inscription Processor Queue`
-    );
+      });
+      await queueService.enqueueBatch(ipfsQueueItems, QueueType.IPFS_UPLOAD);
+      logger.info(
+        `Enqueued ${
+          ipfsQueueItems.length
+        } 1-of-1 edition collectibles at ${new Date().toISOString()} to IPFS Processor Queue`
+      );
+
+      const OOOEditionQueueItems: QueueItem[] = collectibles.map(
+        (collectible) => {
+          return {
+            collectibleId: collectible.id,
+            collectionId: collection.id,
+            phase: InscriptionPhase.ONE_OF_ONE
+          };
+        }
+      );
+      await queueService.enqueueBatch(
+        OOOEditionQueueItems,
+        QueueType.ONE_OF_ONE_INSCRIPTION
+      );
+      logger.info(
+        `Enqueued ${
+          ipfsQueueItems.length
+        } recursive collectibles at ${new Date().toISOString()} to Inscription Processor Queue`
+      );
+    } catch (e) {
+      console.log(`1-of-1 Enqueue failed: ${e}`);
+    }
 
     const launchItemsData: Insertable<LaunchItem>[] = [];
     for (let i = 0; i < collectibles.length; i++)

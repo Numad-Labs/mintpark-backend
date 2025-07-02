@@ -58,6 +58,7 @@ export const collectibleRepository = {
         "Collectible.mintingTxId",
         "Collectible.nftId",
         "Collectible.highResolutionImageUrl",
+        "Collectible.isOOOEdition",
         "Layer.id as layerId",
         "Layer.layer",
         "Layer.network",
@@ -761,7 +762,7 @@ export const collectibleRepository = {
       .where("Collectible.parentCollectibleId", "is", null)
       .where("Collectible.isOOOEdition", "=", false)
       .executeTakeFirstOrThrow();
-      
+
     return count.count;
   }
 };

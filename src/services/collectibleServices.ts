@@ -751,7 +751,8 @@ export const collectibleServices = {
         createdAt: new Date().toISOString(),
         lockingAddress,
         lockingPrivateKey,
-        mintingTxId: inscriptionId.slice(0, -2)
+        mintingTxId: inscriptionId.slice(0, -2),
+        isOOOEdition: originalCollectible.isOOOEdition
       });
 
       // 4. Update original collectible with parent reference

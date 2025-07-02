@@ -1,4 +1,4 @@
-import { inscriptionData, mempoolUtxo, unisatUtxo } from "../../../custom";
+import { inscriptionData, mempoolUtxo } from "../../../custom";
 import { Taptree } from "bitcoinjs-lib/src/cjs/types";
 import * as bitcoin from "bitcoinjs-lib";
 import * as ecc from "tiny-secp256k1";
@@ -22,7 +22,7 @@ export async function inscribe(
   // devFee: number,
   feeRate: number,
   toAddress?: string,
-  price: number = 0,
+  price: number = 0
 ) {
   const address = fundingAddress;
 
@@ -30,7 +30,7 @@ export async function inscribe(
   if (!isTestNet) network = bitcoin.networks.bitcoin;
 
   const keyPair = ECPair.fromPrivateKey(Buffer.from(fundingPrivateKey, "hex"), {
-    network,
+    network
   });
 
   const privateKey = keyPair.privateKey!;
@@ -47,7 +47,7 @@ export async function inscribe(
   const inscriptionData = parseDataUrl(opreturnData);
 
   let leafScriptAsm = `${internalPubKey.toString(
-    "hex",
+    "hex"
   )} OP_CHECKSIG OP_FALSE OP_IF `;
   leafScriptAsm += `6f7264 `;
   leafScriptAsm += `01 `;
@@ -76,17 +76,17 @@ export async function inscribe(
   }
 
   const scriptTree: Taptree = {
-    output: leafScript,
+    output: leafScript
   };
 
   const redeem = {
-    output: leafScript,
+    output: leafScript
   };
   const revealP2tr = bitcoin.payments.p2tr({
     internalPubkey: internalPubKey,
     scriptTree,
     redeem,
-    network,
+    network
   });
 
   if (!revealP2tr.address) {
@@ -99,7 +99,7 @@ export async function inscribe(
     [inscriptionData.contentType.length],
     0,
     feeRate,
-    price,
+    price
   );
   const commitFee = fees.estimatedFee.commitFee;
   const revealFee = fees.estimatedFee.revealFee;
@@ -122,17 +122,17 @@ export async function inscribe(
     const utxo = selectedUtxos[i];
     const commitP2tr = bitcoin.payments.p2tr({
       internalPubkey: internalPubKey,
-      network: network,
+      network: network
     });
     commitPsbt.addInput({
       hash: utxo.txid,
       index: utxo.vout,
       witnessUtxo: {
         script: commitP2tr.output!,
-        value: BigInt(utxo.value),
+        value: BigInt(utxo.value)
       },
       tapInternalKey: internalPubKey,
-      sequence: 0xfffffffd,
+      sequence: 0xfffffffd
     });
     totalAmount += utxo.value;
   }
@@ -140,13 +140,13 @@ export async function inscribe(
   const revealAmount = requiredAmount - price - commitFee; //
   commitPsbt.addOutput({
     address: revealP2tr.address,
-    value: BigInt(revealAmount),
+    value: BigInt(revealAmount)
   });
 
   if (toAddress)
     commitPsbt.addOutput({
       address: toAddress,
-      value: BigInt(price),
+      value: BigInt(price)
     });
 
   //Change output
@@ -154,12 +154,12 @@ export async function inscribe(
   if (changeAmount > DUST_THRESHOLD) {
     commitPsbt.addOutput({
       address: address,
-      value: BigInt(changeAmount),
+      value: BigInt(changeAmount)
     });
   }
 
   const tweakedSigner = node.tweak(
-    Buffer.from(bitcoin.crypto.taggedHash("TapTweak", toXOnly(node.publicKey))),
+    Buffer.from(bitcoin.crypto.taggedHash("TapTweak", toXOnly(node.publicKey)))
   );
 
   for (let i = 0; i < commitPsbt.data.inputs.length; i++) {
@@ -178,20 +178,20 @@ export async function inscribe(
     index: 0,
     witnessUtxo: {
       value: BigInt(revealAmount),
-      script: revealP2tr.output!,
+      script: revealP2tr.output!
     },
     tapLeafScript: [
       {
         leafVersion: LEAF_VERSION_TAPSCRIPT,
         script: redeem.output,
-        controlBlock: revealP2tr.witness![revealP2tr.witness!.length - 1],
-      },
-    ],
+        controlBlock: revealP2tr.witness![revealP2tr.witness!.length - 1]
+      }
+    ]
   });
 
   revealPsbt.addOutput({
     address: data.address,
-    value: BigInt(DUST_THRESHOLD),
+    value: BigInt(DUST_THRESHOLD)
   });
 
   revealPsbt.signAllInputs(node);
@@ -202,8 +202,8 @@ export async function inscribe(
     calculated_fees: {
       commitFee,
       revealFee,
-      requiredAmount,
-    },
+      requiredAmount
+    }
   });
 
   logger.info({
@@ -215,13 +215,13 @@ export async function inscribe(
         revealTx.virtualSize() * feeRate +
         DUST_THRESHOLD +
         0 +
-        price,
-    },
+        price
+    }
   });
 
   return {
     commitTxHex,
-    revealTxHex,
+    revealTxHex
   };
 }
 
