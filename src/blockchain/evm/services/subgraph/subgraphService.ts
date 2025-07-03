@@ -21,9 +21,6 @@ class SubgraphService {
     // Initialize Apollo clients for each chain that has a SUBGRAPH_URL defined
     Object.entries(EVM_CONFIG.CHAINS).forEach(([chainIdStr, chainConfig]) => {
       if (!chainConfig.SUBGRAPH_URL) {
-        logger.warn(
-          `No subgraph URL defined for chainId ${chainIdStr}. Skipping initialization.`
-        );
         return;
       }
 
@@ -31,9 +28,6 @@ class SubgraphService {
       const layer = this.getLayerByChainId(parseInt(chainIdStr));
 
       if (!layer) {
-        logger.warn(
-          `No layer mapping found for chainId ${chainIdStr}. Skipping initialization.`
-        );
         return;
       }
 
