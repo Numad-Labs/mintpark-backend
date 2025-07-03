@@ -159,57 +159,10 @@ class MarketplaceService {
   ) {
     // console.log("🚀 ~ MarketplaceService ~ price:", price);
     const contract = await this.getEthersMarketplaceContract();
-
-    // console.log("🚀 ~ MarketplaceService ~ listingId:", listingId);
-
-    // Get all listings
-    const allListings = await this.getAllListings();
-    // console.log("🚀 ~ MarketplaceService ~ allListings:", allListings);
-
-    // Find active listing with matching contract and token ID
-    // Sort by listingId in descending order to get the most recent listing
-    const matchingListings = allListings
-      .filter(
-        (listing) =>
-          listing.nftContract.toLowerCase() === nftContract.toLowerCase() &&
-          listing.tokenId === parseInt(tokenId) &&
-          listing.isActive === true
-      )
-      .sort((a, b) => b.listingId - a.listingId);
-
-    if (matchingListings.length === 0) {
-      throw new Error("No active listing found for this NFT");
-    }
-
-    // Get the most recent active listing
-    const targetListing = matchingListings[0];
-    if (!targetListing.isActive) {
-      throw new Error("Listing is not active");
-    }
     const priceInWei = ethers.parseEther(price);
 
-    // Compare prices in Wei format
-    if (targetListing.price.toString() !== priceInWei.toString()) {
-      throw new Error(
-        `Price mismatch. Expected: ${ethers.formatEther(
-          targetListing.price
-        )}, Got: ${price}`
-      );
-    }
-
-    // console.log("Found listing:", {
-    //   listingId: targetListing.listingId,
-    //   price: priceInWei,
-    //   tokenId: targetListing.tokenId,
-    //   nftContract: targetListing.nftContract
-    // });
-
-    // console.log(
-    //   "🚀 ~ MarketplaceService ~ targetListing.price:",
-    //   targetListing.price
-    // );
     const unsignedTx = await contract.purchaseListing.populateTransaction(
-      targetListing.listingId,
+      listingId,
       // merkleProof,
       { value: priceInWei }
     );
