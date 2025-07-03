@@ -53,9 +53,9 @@ export const launchServices = {
     );
     if (!collection) throw new CustomError("Invalid collectionId.", 400);
     if (
-      !collection.parentCollectionId ||
-      collection.type === "INSCRIPTION" ||
-      collection.type === "RECURSIVE_INSCRIPTION"
+      !collection.parentCollectionId &&
+      (collection.type === "INSCRIPTION" ||
+        collection.type === "RECURSIVE_INSCRIPTION")
     )
       throw new CustomError("Invalid collection type.", 400);
     if (collection.creatorId !== userId)
