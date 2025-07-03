@@ -172,37 +172,13 @@ class MarketplaceService {
   async cancelListingTransaction(
     contractAddress: string,
     tokenId: string,
+    listingId: number,
     sellerAddress: string
   ) {
     const contract = await this.getEthersMarketplaceContract();
 
-    // Get all listings
-    const allListings = await this.getAllListings();
-    // console.log("🚀 ~ MarketplaceService ~ allListings:", allListings);
-
-    // Find active listing with matching contract and token ID
-    // Sort by listingId in descending order to get the most recent listing
-    const matchingListings = allListings
-      .filter(
-        (listing) =>
-          listing.nftContract.toLowerCase() === contractAddress.toLowerCase() &&
-          listing.tokenId === parseInt(tokenId) &&
-          listing.isActive === true
-      )
-      .sort((a, b) => b.listingId - a.listingId);
-
-    if (matchingListings.length === 0) {
-      throw new Error("No active listing found for this NFT");
-    }
-
-    // Get the most recent active listing
-    const targetListing = matchingListings[0];
-    if (!targetListing.isActive) {
-      throw new Error("Listing is not active");
-    }
-    const unsignedTx = await contract.cancelListing.populateTransaction(
-      targetListing.listingId
-    );
+    const unsignedTx =
+      await contract.cancelListing.populateTransaction(listingId);
 
     return this.prepareUnsignedTransaction(unsignedTx, sellerAddress);
   }
