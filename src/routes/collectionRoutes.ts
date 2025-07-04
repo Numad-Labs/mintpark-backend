@@ -3,11 +3,9 @@ import { authenticateToken } from "../middlewares/authenticateToken";
 import { collectionController } from "../controllers/collectionController";
 import { parseFiles } from "../middlewares/fileParser";
 import { authorize } from "../middlewares/authorize";
+import { collectionRepository } from "@repositories/collectionRepository";
 
 const collectionRouter = Router();
-
-collectionRouter.get("/listed", collectionController.getListedCollections);
-collectionRouter.get("/:id", collectionController.getById);
 
 // Creator/Admin Priviledge APIs
 collectionRouter.post(
@@ -46,5 +44,12 @@ collectionRouter.put(
   authenticateToken,
   collectionController.updateDetails
 );
+
+// Service-to-service APIs (internal)
+collectionRouter.get("/:id/service", collectionController.getByIdForService);
+
+// Public
+collectionRouter.get("/listed", collectionController.getListedCollections);
+collectionRouter.get("/:id", collectionController.getById);
 
 export = collectionRouter;

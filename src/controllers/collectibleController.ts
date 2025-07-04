@@ -586,40 +586,55 @@ export const collectibleControllers = {
         });
       }
 
-      // Update the collectible with the new CID and optionally fileKey
-      const updateData = {
-        cid: ipfsUri.replace("ipfs://", "")
-      };
+      const result = await db.transaction().execute(async (trx) => {
+        if (existingCollectible.parentCollectibleId && fileKey) {
+          const parentCollectible = await collectibleRepository.getById(
+            trx,
+            existingCollectible.parentCollectibleId
+          );
+          if (parentCollectible && !parentCollectible.fileKey)
+            await collectibleRepository.update(trx, parentCollectible.id, {
+              fileKey
+            });
+        }
 
-      let updatedCollectible: any;
-      // Only update fileKey if it's provided and the collectible doesn't have one
-      if (shouldUpdateFileKey) {
-        logger.info(
-          `Updating collectible ${collectibleId} with new fileKey: ${fileKey}`
-        );
-        // Update with fileKey
-        updatedCollectible = await collectibleRepository.update(
-          db,
-          collectibleId,
-          {
-            ...updateData,
-            fileKey
-          }
-        );
-      } else {
-        // Update without fileKey
-        updatedCollectible = await collectibleRepository.update(
-          db,
-          collectibleId,
-          updateData
-        );
-      }
+        // Update the collectible with the new CID and optionally fileKey
+        const updateData = {
+          cid: ipfsUri.replace("ipfs://", "")
+        };
+
+        let updatedCollectible: any;
+        // Only update fileKey if it's provided and the collectible doesn't have one
+        if (shouldUpdateFileKey) {
+          logger.info(
+            `Updating collectible ${collectibleId} with new fileKey: ${fileKey}`
+          );
+          // Update with fileKey
+          updatedCollectible = await collectibleRepository.update(
+            trx,
+            collectibleId,
+            {
+              ...updateData,
+              fileKey
+            }
+          );
+        } else {
+          // Update without fileKey
+          updatedCollectible = await collectibleRepository.update(
+            trx,
+            collectibleId,
+            updateData
+          );
+        }
+
+        return updatedCollectible;
+      });
 
       return res.status(200).json({
         success: true,
         data: {
-          id: updatedCollectible.id,
-          cid: updatedCollectible.cid,
+          id: result.id,
+          cid: result.cid,
           alreadyHadCid: false
         }
       });
@@ -1050,7 +1065,6 @@ export const collectibleControllers = {
         collectionId as string
       );
 
-      console.log(count);
       return res.status(200).json({ success: true, data: { count } });
     } catch (e) {
       next(e);

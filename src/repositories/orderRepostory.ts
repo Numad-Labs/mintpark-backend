@@ -87,5 +87,18 @@ export const orderRepository = {
       .executeTakeFirst();
 
     return order;
+  },
+  getOrderByCollectionIdAndMintRecursiveCollectibleType: async (
+    collectionId: string
+  ) => {
+    const order = await db
+      .selectFrom("Order")
+      .selectAll()
+      .where("Order.collectionId", "=", collectionId)
+      .where("Order.orderType", "=", "MINT_RECURSIVE_COLLECTIBLE")
+      .orderBy("createdAt asc")
+      .executeTakeFirst();
+
+    return order;
   }
 };

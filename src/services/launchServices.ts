@@ -38,6 +38,7 @@ import { DirectMintNFTService } from "../blockchain/evm/services/nftService/dire
 import { LAUNCH_PHASE } from "@app-types/db/enums";
 import { DEFAULT_CONTRACT_VERSION } from "../blockchain/evm/contract-versions";
 import { ethers } from "ethers";
+import { getBalance } from "@blockchain/bitcoin/libs";
 
 export const launchServices = {
   create: async (
@@ -211,10 +212,16 @@ export const launchServices = {
     if (launch.status === "CONFIRMED")
       throw new CustomError("This launch has already been confirmed.", 400);
 
-    //TODO: Add validation to check if order.fundingAddress was funded(>=order.fundingAmount) or not
-    const isPaid = true;
-    if (!isPaid)
-      throw new CustomError("Fee has not been transferred yet.", 400);
+    const order =
+      await orderRepository.getOrderByCollectionIdAndMintRecursiveCollectibleType(
+        collectionId
+      );
+    if (!order) throw new CustomError("Order not found", 400);
+    if (!order.fundingAddress)
+      throw new CustomError("Order does not have funding address", 400);
+    const balance = await getBalance(order.fundingAddress);
+    if (balance < order.fundingAmount)
+      throw new CustomError("Please fund the order first", 400);
 
     const existingLaunchItemCount =
       await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
@@ -304,6 +311,17 @@ export const launchServices = {
     if (!launch) throw new CustomError("Launch not found.", 400);
     if (launch.status === "CONFIRMED")
       throw new CustomError("This launch has already been confirmed.", 400);
+
+    const order =
+      await orderRepository.getOrderByCollectionIdAndMintRecursiveCollectibleType(
+        collectionId
+      );
+    if (!order) throw new CustomError("Order not found", 400);
+    if (!order.fundingAddress)
+      throw new CustomError("Order does not have funding address", 400);
+    const balance = await getBalance(order.fundingAddress);
+    if (balance < order.fundingAmount)
+      throw new CustomError("Please fund the order first", 400);
 
     const existingLaunchItemCount =
       await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
@@ -486,7 +504,7 @@ export const launchServices = {
       if (Number(existingLaunchItemCount) + launchItems.length <= 0)
         throw new CustomError("Launch with no launch items.", 400);
 
-      await launchRepository.update(launch.id, { status: "CONFIRMED" });
+      // await launchRepository.update(launch.id, { status: "CONFIRMED" });
       await collectionRepository.update(db, launch.collectionId, {
         badgeCurrentNftId:
           Number(existingLaunchItemCount) + Number(launchItems.length)
@@ -531,18 +549,9 @@ export const launchServices = {
       db,
       launch?.collectionId
     );
-
     if (!collection) throw new CustomError("Collection not found.", 400);
-    if (collection.type === "SYNTHETIC" || collection.parentCollectionId)
+    if (collection.type === "SYNTHETIC" && !collection.parentCollectionId)
       throw new CustomError("You cannot buy the item of this collection.", 400);
-    if (
-      collection.type === "INSCRIPTION" ||
-      collection.type === "RECURSIVE_INSCRIPTION"
-    )
-      throw new CustomError(
-        "Wrapped NFTs are not supported at the moment.",
-        400
-      );
     if (!collection.contractAddress)
       throw new CustomError("No contract address.", 400);
     if (collection.isBadge && !collection.badgeCid)
@@ -911,16 +920,8 @@ export const launchServices = {
         "Please connect to the appropriate L2 for this launch.",
         400
       );
-    if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
+    if (collection.type === "SYNTHETIC" && !collection.parentCollectionId)
       throw new CustomError("You cannot buy the item of this collection.", 400);
-    if (
-      collection.type === "INSCRIPTION" ||
-      collection.type === "RECURSIVE_INSCRIPTION"
-    )
-      throw new CustomError(
-        "Wrapped NFTs are not supported at the moment.",
-        400
-      );
     if (collection.isBadge && !collection.badgeCid)
       throw new CustomError("No badge cid.", 400);
 

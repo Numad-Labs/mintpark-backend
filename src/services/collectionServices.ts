@@ -88,42 +88,59 @@ export const collectionServices = {
       const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
       const symbol = generateSymbol(name);
 
-      // Use appropriate NFT service based on collection type
-      if (
-        data.type === "INSCRIPTION" ||
-        data.type === "RECURSIVE_INSCRIPTION"
-      ) {
-        // For inscriptions, use VaultMintNFTService since minting will be controlled by vault
-        const vaultMintService = new VaultMintNFTService(chainConfig.RPC_URL);
-        const unsignedTx =
-          await vaultMintService.getUnsignedDeploymentTransaction(
-            user.address,
-            config.VAULT_ADDRESS,
-            name,
-            symbol,
-            chainConfig.DEFAULT_ROYALTY_FEE,
-            chainConfig.DEFAULT_PLATFORM_FEE,
-            config.PLATFORM_FEE_RECIPIENT
-          );
-        deployContractTxHex = serializeBigInt(unsignedTx);
-      } else if (data.type === "IPFS_CID" || data.type === "IPFS_FILE") {
-        // For IPFS collections, use DirectMintNFTService since users will mint directly
-        const directMintService = new DirectMintNFTService(
-          chainConfig.RPC_URL,
-          contractVersion
+      // // Use appropriate NFT service based on collection type
+      // if (
+      //   data.type === "INSCRIPTION" ||
+      //   data.type === "RECURSIVE_INSCRIPTION"
+      // ) {
+      //   // For inscriptions, use VaultMintNFTService since minting will be controlled by vault
+      //   const vaultMintService = new VaultMintNFTService(chainConfig.RPC_URL);
+      //   const unsignedTx =
+      //     await vaultMintService.getUnsignedDeploymentTransaction(
+      //       user.address,
+      //       config.VAULT_ADDRESS,
+      //       name,
+      //       symbol,
+      //       chainConfig.DEFAULT_ROYALTY_FEE,
+      //       chainConfig.DEFAULT_PLATFORM_FEE,
+      //       config.PLATFORM_FEE_RECIPIENT
+      //     );
+      //   deployContractTxHex = serializeBigInt(unsignedTx);
+      // } else if (data.type === "IPFS_CID" || data.type === "IPFS_FILE") {
+      //   // For IPFS collections, use DirectMintNFTService since users will mint directly
+      //   const directMintService = new DirectMintNFTService(
+      //     chainConfig.RPC_URL,
+      //     contractVersion
+      //   );
+
+      //   const unsignedTx =
+      //     await directMintService.getUnsignedDeploymentTransaction(
+      //       user.address, // contract owner
+      //       name,
+      //       symbol,
+      //       chainConfig.DEFAULT_ROYALTY_FEE,
+      //       chainConfig.DEFAULT_PLATFORM_FEE
+      //     );
+
+      //   deployContractTxHex = serializeBigInt(unsignedTx);
+      // }
+
+      // Temporarily using DirectMintNFTService for both Wrapped NFTs and L2-Only NFTs
+      const directMintService = new DirectMintNFTService(
+        chainConfig.RPC_URL,
+        contractVersion
+      );
+
+      const unsignedTx =
+        await directMintService.getUnsignedDeploymentTransaction(
+          user.address, // contract owner
+          name,
+          symbol,
+          chainConfig.DEFAULT_ROYALTY_FEE,
+          chainConfig.DEFAULT_PLATFORM_FEE
         );
 
-        const unsignedTx =
-          await directMintService.getUnsignedDeploymentTransaction(
-            user.address, // contract owner
-            name,
-            symbol,
-            chainConfig.DEFAULT_ROYALTY_FEE,
-            chainConfig.DEFAULT_PLATFORM_FEE
-          );
-
-        deployContractTxHex = serializeBigInt(unsignedTx);
-      }
+      deployContractTxHex = serializeBigInt(unsignedTx);
     }
 
     if (layer.layerType == "EVM" && deployContractTxHex == null)

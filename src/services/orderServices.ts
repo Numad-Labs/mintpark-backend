@@ -24,6 +24,7 @@ import {
 // import { producer } from "..";
 import logger from "../config/winston";
 import { config } from "../config/config";
+import { getFeeRates } from "@blockchain/bitcoin/getFeeRates";
 
 export interface nftMetaData {
   nftId: string | null;
@@ -357,11 +358,18 @@ export const orderServices = {
         400
       );
 
+    if (estimatedFeeInSats < 546)
+      throw new CustomError("Invalid fee amount", 400);
+    const feeRates = await getFeeRates();
+    if (feeRate < feeRates.FAST)
+      throw new CustomError(
+        "Invalid fee rate: it must be greater than the FAST rate in Mempool.API",
+        400
+      );
+
     let funder = createFundingAddress(
       parentCollectionLayer.network === "MAINNET" ? "MAINNET" : "TESTNET"
     );
-    if (estimatedFeeInSats < 546)
-      throw new CustomError("Invalid fee amount", 400);
 
     order = await orderRepository.create(db, {
       userId: userId,

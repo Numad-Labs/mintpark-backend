@@ -18,6 +18,8 @@ import {
   QueueType
 } from "../services/queueService";
 import { AxiosError } from "axios";
+import { orderRepository } from "@repositories/orderRepostory";
+import { getBalance } from "@blockchain/bitcoin/libs";
 
 export interface traitValueParams {
   type: string;
@@ -70,6 +72,15 @@ export const traitValueController = {
           400
         );
       }
+
+      const traitValue = await traitValueRepository.getById(traitValueId);
+      if (!traitValue) throw new CustomError("Invalid trait value id", 400);
+      if (
+        traitValue.inscriptionId ||
+        traitValue.lockingAddress ||
+        traitValue.lockingPrivateKey
+      )
+        throw new CustomError("Trait value has already been processed", 400);
 
       const updated = await traitValueRepository.updateById(traitValueId, {
         inscriptionId,
@@ -151,6 +162,18 @@ export const traitValueController = {
           403
         );
       }
+
+      const order =
+        await orderRepository.getOrderByCollectionIdAndMintRecursiveCollectibleType(
+          collectionId
+        );
+      if (!order) throw new CustomError("Order not found", 400);
+      if (!order.fundingAddress)
+        throw new CustomError("Order does not have funding address", 400);
+      const balance = await getBalance(order.fundingAddress);
+      if (balance < order.fundingAmount)
+        throw new CustomError("Please fund the order first", 400);
+
       if (!collection.recursiveHeight || !collection.recursiveWidth) {
         const metadata = await sharp(files[0].buffer).metadata();
 

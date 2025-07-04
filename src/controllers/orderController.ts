@@ -4,6 +4,8 @@ import { orderServices } from "../services/orderServices";
 import { CustomError } from "../exceptions/CustomError";
 import { hideSensitiveData } from "../libs/hideDataHelper";
 import { orderRepository } from "@repositories/orderRepostory";
+import { db } from "@utils/db";
+import { getBalance } from "@blockchain/bitcoin/libs";
 
 export const orderController = {
   createMintOrder: async (
@@ -72,6 +74,29 @@ export const orderController = {
       next(e);
     }
   },
+  checkOrderIsPaid: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user?.id)
+        throw new CustomError("Cannot parse user from token", 401);
+      const { id } = req.params;
+
+      const order = await orderRepository.getById(db, id);
+      if (!order) throw new CustomError("Order not found", 400);
+      if (!order.fundingAddress)
+        throw new CustomError("Order does not have funding address", 400);
+      const balance = await getBalance(order.fundingAddress);
+      if (balance < order.fundingAmount)
+        throw new CustomError("Please fund the order first", 400);
+
+      return res.status(200).json({ success: true, data: { isPaid: true } });
+    } catch (e) {
+      next(e);
+    }
+  },
   getByUserId: async (
     req: AuthenticatedRequest,
     res: Response,
@@ -117,7 +142,10 @@ export const orderController = {
     try {
       const { collectionId } = req.params;
 
-      const order = await orderRepository.getByCollectionId(collectionId);
+      const order =
+        await orderRepository.getOrderByCollectionIdAndMintRecursiveCollectibleType(
+          collectionId
+        );
       if (!order) throw new CustomError("Order not found", 404);
 
       return res.status(200).json({ success: true, data: order });

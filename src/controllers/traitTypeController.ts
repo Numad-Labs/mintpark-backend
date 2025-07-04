@@ -5,6 +5,8 @@ import { traitTypeRepository } from "../repositories/traitTypeRepository";
 import { db } from "../utils/db";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { v4 as uuidv4 } from "uuid";
+import { orderRepository } from "@repositories/orderRepostory";
+import { getBalance } from "@blockchain/bitcoin/libs";
 
 export const traitTypeController = {
   getTraitTypesByCollectionId: async (
@@ -44,6 +46,18 @@ export const traitTypeController = {
       if (data.length > 10) {
         throw new CustomError("Too many trait types", 400);
       }
+
+      const order =
+        await orderRepository.getOrderByCollectionIdAndMintRecursiveCollectibleType(
+          collectionId
+        );
+      if (!order) throw new CustomError("Order not found", 400);
+      if (!order.fundingAddress)
+        throw new CustomError("Order does not have funding address", 400);
+      const balance = await getBalance(order.fundingAddress);
+      if (balance < order.fundingAmount)
+        throw new CustomError("Please fund the order first", 400);
+
       // Fetch collection
       const collection = await collectionRepository.getById(db, collectionId);
       if (!collection) throw new CustomError("Collection not found", 404);

@@ -6,6 +6,7 @@ import { launchServices } from "../services/launchServices";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { Insertable } from "kysely";
 import { Collection } from "../types/db/types";
+import { db } from "@utils/db";
 
 export interface CollectionQueryParams {
   layerId: string;
@@ -285,6 +286,22 @@ export const collectionController = {
       const { id } = req.params;
 
       const collection = await collectionRepository.getByIdWithDetails(id);
+      if (!collection) throw new CustomError("Collection not found", 404);
+
+      return res.status(200).json({ success: true, data: collection });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getByIdForService: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { id } = req.params;
+
+      const collection = await collectionRepository.getByIdForService(db, id);
       if (!collection) throw new CustomError("Collection not found", 404);
 
       return res.status(200).json({ success: true, data: collection });

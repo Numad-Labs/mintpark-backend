@@ -20,7 +20,11 @@ orderRouter.post(
   authorize("SUPER_ADMIN"),
   orderController.invokeOrderForMinting
 );
-
+orderRouter.get(
+  "/:id/check-paid",
+  authenticateToken,
+  orderController.checkOrderIsPaid
+);
 orderRouter.get(
   "/user/:userId",
   authenticateToken,
