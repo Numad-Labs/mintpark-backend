@@ -13,6 +13,15 @@ export const orderRepository = {
 
     return order;
   },
+  bulkInsert: async (db: Kysely<DB> | Transaction<DB>, data: Insertable<Order>[]) => {
+    const order = await db
+      .insertInto("Order")
+      .values(data)
+      .returningAll()
+      .executeTakeFirstOrThrow(() => new Error("Couldnt create the order."));
+
+    return order;
+  },
   update: async (
     db: Kysely<DB> | Transaction<DB>,
     id: string,
@@ -87,5 +96,55 @@ export const orderRepository = {
       .executeTakeFirst();
 
     return order;
+  },
+  getOrderByCollectionIdAndMintRecursiveCollectibleType: async (
+    collectionId: string
+  ) => {
+    const order = await db
+      .selectFrom("Order")
+      .selectAll()
+      .where("Order.collectionId", "=", collectionId)
+      .where("Order.orderType", "=", "MINT_RECURSIVE_COLLECTIBLE")
+      .orderBy("createdAt asc")
+      .executeTakeFirst();
+
+    return order;
+  },
+  getOrdersByCollectionIdAndMintRecursiveCollectibleType: async (
+    collectionId: string
+  ) => {
+    const orders = await db
+      .selectFrom("Order")
+      .selectAll()
+      .where("Order.collectionId", "=", collectionId)
+      .where("Order.orderType", "=", "MINT_RECURSIVE_COLLECTIBLE")
+      .orderBy("createdAt asc")
+      .execute();
+
+    return orders;
+  },
+  getOrderByIdAndMintRecursiveCollectibleType: async (
+    id: string
+  ) => {
+    const order = await db
+      .selectFrom("Order")
+      .selectAll()
+      .where("Order.id", "=", id)
+      .where("Order.orderType", "=", "MINT_RECURSIVE_COLLECTIBLE")
+      .orderBy("createdAt asc")
+      .executeTakeFirst();
+
+    return order;
+  },
+  checkIfOrderHasBeenSplitByCollectionId: async (collectionId: string) => {
+    const orders = await db
+      .selectFrom("Order")
+      .selectAll()
+      .where("Order.collectionId", "=", collectionId)
+      .where("Order.orderType", "=", "MINT_RECURSIVE_COLLECTIBLE")
+      .orderBy("createdAt asc")
+      .execute();
+
+    return orders
   }
-};
+}

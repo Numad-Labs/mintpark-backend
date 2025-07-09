@@ -24,12 +24,7 @@ import logger from "../config/winston";
 import { collectibleServices } from "./collectibleServices";
 import { serializeBigInt } from "../blockchain/evm/utils";
 import { createFundingAddress } from "../blockchain/bitcoin/createFundingAddress";
-import {
-  InscriptionPhase,
-  QueueItem,
-  queueService,
-  QueueType
-} from "./queueService";
+import { IpfsQueueItem, queueService, QueueType } from "../queue/queueService";
 import { purchaseRepository } from "../repositories/purchaseRepository";
 import { hideSensitiveData } from "../libs/hideDataHelper";
 import { orderItemRepository } from "../repositories/orderItemRepository";
@@ -38,6 +33,7 @@ import { DirectMintNFTService } from "../blockchain/evm/services/nftService/dire
 import { LAUNCH_PHASE } from "@app-types/db/enums";
 import { DEFAULT_CONTRACT_VERSION } from "../blockchain/evm/contract-versions";
 import { ethers } from "ethers";
+import { getBalance } from "@blockchain/bitcoin/libs";
 
 export const launchServices = {
   create: async (
@@ -211,10 +207,16 @@ export const launchServices = {
     if (launch.status === "CONFIRMED")
       throw new CustomError("This launch has already been confirmed.", 400);
 
-    //TODO: Add validation to check if order.fundingAddress was funded(>=order.fundingAmount) or not
-    const isPaid = true;
-    if (!isPaid)
-      throw new CustomError("Fee has not been transferred yet.", 400);
+    const order =
+      await orderRepository.getOrderByCollectionIdAndMintRecursiveCollectibleType(
+        collectionId
+      );
+    if (!order) throw new CustomError("Order not found", 400);
+    if (!order.fundingAddress)
+      throw new CustomError("Order does not have funding address", 400);
+    const balance = await getBalance(order.fundingAddress);
+    if (balance < order.fundingAmount)
+      throw new CustomError("Please fund the order first", 400);
 
     const existingLaunchItemCount =
       await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
@@ -225,7 +227,7 @@ export const launchServices = {
     );
 
     try {
-      const ipfsQueueItems: QueueItem[] = result.collectibles.map(
+      const ipfsQueueItems: IpfsQueueItem[] = result.collectibles.map(
         (collectible) => {
           return {
             collectibleId: collectible.id,
@@ -235,28 +237,8 @@ export const launchServices = {
       );
       await queueService.enqueueBatch(ipfsQueueItems, QueueType.IPFS_UPLOAD);
       logger.info(
-        `Enqueued ${
-          ipfsQueueItems.length
+        `Enqueued ${ipfsQueueItems.length
         } recursive collectibles at ${new Date().toISOString()} to IPFS Processor Queue`
-      );
-
-      const recursiveQueueItems: QueueItem[] = result.collectibles.map(
-        (collectible) => {
-          return {
-            collectibleId: collectible.id,
-            collectionId: collection.id,
-            phase: InscriptionPhase.RECURSIVE
-          };
-        }
-      );
-      await queueService.enqueueBatch(
-        recursiveQueueItems,
-        QueueType.RECURSIVE_INSCRIPTION
-      );
-      logger.info(
-        `Enqueued ${
-          ipfsQueueItems.length
-        } recursive collectibles at ${new Date().toISOString()} to Inscription Processor Queue`
       );
     } catch (e) {
       console.log(`Recursive Enqueue failed: ${e}`);
@@ -305,6 +287,17 @@ export const launchServices = {
     if (launch.status === "CONFIRMED")
       throw new CustomError("This launch has already been confirmed.", 400);
 
+    const order =
+      await orderRepository.getOrderByCollectionIdAndMintRecursiveCollectibleType(
+        collectionId
+      );
+    if (!order) throw new CustomError("Order not found", 400);
+    if (!order.fundingAddress)
+      throw new CustomError("Order does not have funding address", 400);
+    const balance = await getBalance(order.fundingAddress);
+    if (balance < order.fundingAmount)
+      throw new CustomError("Please fund the order first", 400);
+
     const existingLaunchItemCount =
       await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
     const collectibles = await collectibleServices.createCollectiblesByFiles(
@@ -315,36 +308,18 @@ export const launchServices = {
     );
 
     try {
-      const ipfsQueueItems: QueueItem[] = collectibles.map((collectible) => {
-        return {
-          collectibleId: collectible.id,
-          collectionId: collection.id
-        };
-      });
-      await queueService.enqueueBatch(ipfsQueueItems, QueueType.IPFS_UPLOAD);
-      logger.info(
-        `Enqueued ${
-          ipfsQueueItems.length
-        } 1-of-1 edition collectibles at ${new Date().toISOString()} to IPFS Processor Queue`
-      );
-
-      const OOOEditionQueueItems: QueueItem[] = collectibles.map(
+      const ipfsQueueItems: IpfsQueueItem[] = collectibles.map(
         (collectible) => {
           return {
             collectibleId: collectible.id,
-            collectionId: collection.id,
-            phase: InscriptionPhase.ONE_OF_ONE
+            collectionId: collection.id
           };
         }
       );
-      await queueService.enqueueBatch(
-        OOOEditionQueueItems,
-        QueueType.ONE_OF_ONE_INSCRIPTION
-      );
+      await queueService.enqueueBatch(ipfsQueueItems, QueueType.IPFS_UPLOAD);
       logger.info(
-        `Enqueued ${
-          ipfsQueueItems.length
-        } recursive collectibles at ${new Date().toISOString()} to Inscription Processor Queue`
+        `Enqueued ${ipfsQueueItems.length
+        } 1-of-1 edition collectibles at ${new Date().toISOString()} to IPFS Processor Queue`
       );
     } catch (e) {
       console.log(`1-of-1 Enqueue failed: ${e}`);
@@ -486,7 +461,7 @@ export const launchServices = {
       if (Number(existingLaunchItemCount) + launchItems.length <= 0)
         throw new CustomError("Launch with no launch items.", 400);
 
-      await launchRepository.update(launch.id, { status: "CONFIRMED" });
+      // await launchRepository.update(launch.id, { status: "CONFIRMED" });
       await collectionRepository.update(db, launch.collectionId, {
         badgeCurrentNftId:
           Number(existingLaunchItemCount) + Number(launchItems.length)
@@ -531,18 +506,9 @@ export const launchServices = {
       db,
       launch?.collectionId
     );
-
     if (!collection) throw new CustomError("Collection not found.", 400);
-    if (collection.type === "SYNTHETIC" || collection.parentCollectionId)
+    if (collection.type === "SYNTHETIC" && !collection.parentCollectionId)
       throw new CustomError("You cannot buy the item of this collection.", 400);
-    if (
-      collection.type === "INSCRIPTION" ||
-      collection.type === "RECURSIVE_INSCRIPTION"
-    )
-      throw new CustomError(
-        "Wrapped NFTs are not supported at the moment.",
-        400
-      );
     if (!collection.contractAddress)
       throw new CustomError("No contract address.", 400);
     if (collection.isBadge && !collection.badgeCid)
@@ -911,16 +877,8 @@ export const launchServices = {
         "Please connect to the appropriate L2 for this launch.",
         400
       );
-    if (collection?.type === "SYNTHETIC" || collection.parentCollectionId)
+    if (collection.type === "SYNTHETIC" && !collection.parentCollectionId)
       throw new CustomError("You cannot buy the item of this collection.", 400);
-    if (
-      collection.type === "INSCRIPTION" ||
-      collection.type === "RECURSIVE_INSCRIPTION"
-    )
-      throw new CustomError(
-        "Wrapped NFTs are not supported at the moment.",
-        400
-      );
     if (collection.isBadge && !collection.badgeCid)
       throw new CustomError("No badge cid.", 400);
 
@@ -981,8 +939,7 @@ export const launchServices = {
 
     if (!tokenIdValidation.isValid) {
       throw new CustomError(
-        `Token validation failed: ${
-          tokenIdValidation.error || "Invalid token or owner"
+        `Token validation failed: ${tokenIdValidation.error || "Invalid token or owner"
         }`,
         400
       );

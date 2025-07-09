@@ -82,6 +82,19 @@ export const collectionRepository = {
 
     return collection;
   },
+  getByIdForService: async (db: Kysely<DB> | Transaction<DB>, id: string) => {
+    const collection = await db
+      .selectFrom("Collection")
+      .select([
+        "Collection.id",
+        "Collection.recursiveHeight",
+        "Collection.recursiveWidth"
+      ])
+      .where("Collection.id", "=", id)
+      .executeTakeFirst();
+
+    return collection;
+  },
   // getUnconfirmedCollections: async () => {
   //   const collections = await db
   //     .selectFrom("Collection")

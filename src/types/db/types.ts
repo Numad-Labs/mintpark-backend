@@ -39,6 +39,7 @@ export type Collectible = {
   metadata: unknown | null;
   status: Generated<COLLECTIBLE_STATUS>;
   createdAt: Generated<Timestamp>;
+  onHoldUntil: Timestamp | null;
   mintingTxId: string | null;
   lockingAddress: string | null;
   lockingPrivateKey: string | null;
@@ -164,6 +165,7 @@ export type Order = {
   privateKey: string | null;
   createdAt: Generated<Timestamp>;
   mintedAt: Timestamp | null;
+  orderSplitCount: Generated<number>;
   orderType: Generated<ORDER_TYPE>;
   orderStatus: Generated<ORDER_STATUS>;
   userId: string;
@@ -203,6 +205,7 @@ export type TraitValue = {
   fileKey: string;
   createdAt: Generated<Timestamp>;
   mintedAt: Timestamp | null;
+  onHoldUntil: Timestamp | null;
   lockingAddress: string | null;
   lockingPrivateKey: string | null;
   traitTypeId: string;

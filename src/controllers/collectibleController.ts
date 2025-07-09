@@ -586,40 +586,55 @@ export const collectibleControllers = {
         });
       }
 
-      // Update the collectible with the new CID and optionally fileKey
-      const updateData = {
-        cid: ipfsUri.replace("ipfs://", "")
-      };
+      const result = await db.transaction().execute(async (trx) => {
+        if (existingCollectible.parentCollectibleId && fileKey) {
+          const parentCollectible = await collectibleRepository.getById(
+            trx,
+            existingCollectible.parentCollectibleId
+          );
+          if (parentCollectible && !parentCollectible.fileKey)
+            await collectibleRepository.update(trx, parentCollectible.id, {
+              fileKey
+            });
+        }
 
-      let updatedCollectible: any;
-      // Only update fileKey if it's provided and the collectible doesn't have one
-      if (shouldUpdateFileKey) {
-        logger.info(
-          `Updating collectible ${collectibleId} with new fileKey: ${fileKey}`
-        );
-        // Update with fileKey
-        updatedCollectible = await collectibleRepository.update(
-          db,
-          collectibleId,
-          {
-            ...updateData,
-            fileKey
-          }
-        );
-      } else {
-        // Update without fileKey
-        updatedCollectible = await collectibleRepository.update(
-          db,
-          collectibleId,
-          updateData
-        );
-      }
+        // Update the collectible with the new CID and optionally fileKey
+        const updateData = {
+          cid: ipfsUri.replace("ipfs://", "")
+        };
+
+        let updatedCollectible: any;
+        // Only update fileKey if it's provided and the collectible doesn't have one
+        if (shouldUpdateFileKey) {
+          logger.info(
+            `Updating collectible ${collectibleId} with new fileKey: ${fileKey}`
+          );
+          // Update with fileKey
+          updatedCollectible = await collectibleRepository.update(
+            trx,
+            collectibleId,
+            {
+              ...updateData,
+              fileKey
+            }
+          );
+        } else {
+          // Update without fileKey
+          updatedCollectible = await collectibleRepository.update(
+            trx,
+            collectibleId,
+            updateData
+          );
+        }
+
+        return updatedCollectible;
+      });
 
       return res.status(200).json({
         success: true,
         data: {
-          id: updatedCollectible.id,
-          cid: updatedCollectible.cid,
+          id: result.id,
+          cid: result.cid,
           alreadyHadCid: false
         }
       });
@@ -648,10 +663,10 @@ export const collectibleControllers = {
   },
 
   /**
-   * Get a collectible by ID for interservice communication
-   * This endpoint returns a collectible regardless of its status (including UNCONFIRMED)
-   * It requires API key authentication instead of user authentication
-   */
+ * Get a collectible by ID for interservice communication
+ * This endpoint returns a collectible regardless of its status (including UNCONFIRMED)
+ * It requires API key authentication instead of user authentication
+ */
   getCollectibleByIdForService: async (
     req: Request,
     res: Response,
@@ -676,6 +691,88 @@ export const collectibleControllers = {
       return res.status(200).json({
         success: true,
         data: collectible
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
+
+  /**
+   * Get a random 1-of-1 edition collectible by Collection ID for interservice communication
+   * This endpoint returns a collectible regardless of its status (including UNCONFIRMED)
+   * It requires API key authentication instead of user authentication
+   */
+  getRandomOOOEditionCollectibleByCollectionIdForService: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      // The apiKeyAuth middleware already validated the API key
+      const { collectionId } = req.params;
+      const { trait } = req.query;
+      if (!collectionId) {
+        throw new CustomError("Collectible ID is required", 400);
+      }
+
+      // Get the collectible regardless of status
+      const selectedCollectible =
+        await collectibleRepository.getRandomOOOEditionItemByCollectionId(
+          collectionId
+        );
+      if (!selectedCollectible)
+        return res.status(200).json({ success: true, data: null });
+
+      const collectible = await collectibleRepository.setShortHoldById(
+        selectedCollectible.id
+      );
+      if (!collectible)
+        return res.status(200).json({ success: true, data: null });
+
+      return res.status(200).json({
+        success: true,
+        data: selectedCollectible
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
+
+  /**
+   * Get a random recursive collectible by Collection ID for interservice communication
+   * This endpoint returns a collectible regardless of its status (including UNCONFIRMED)
+   * It requires API key authentication instead of user authentication
+   */
+  getRandomRecursiveCollectibleByCollectionIdForService: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      // The apiKeyAuth middleware already validated the API key
+      const { collectionId } = req.params;
+      const { trait } = req.query;
+      if (!collectionId) {
+        throw new CustomError("Collectible ID is required", 400);
+      }
+
+      // Get the collectible regardless of status
+      const selectedCollectible =
+        await collectibleRepository.getRandomRecursiveItemByCollectionId(
+          collectionId
+        );
+      if (!selectedCollectible)
+        return res.status(200).json({ success: true, data: null });
+
+      const collectible = await collectibleRepository.setShortHoldById(
+        selectedCollectible.id
+      );
+      if (!collectible)
+        return res.status(200).json({ success: true, data: null });
+
+      return res.status(200).json({
+        success: true,
+        data: selectedCollectible
       });
     } catch (e) {
       next(e);
@@ -1050,7 +1147,24 @@ export const collectibleControllers = {
         collectionId as string
       );
 
-      console.log(count);
+      return res.status(200).json({ success: true, data: { count } });
+    } catch (e) {
+      next(e);
+    }
+  },
+  countWithoutParent: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { collectionId } = req.query;
+      if (!collectionId) throw new CustomError("collectionId not found", 400);
+
+      const count = await collectibleRepository.countWithoutParent(
+        collectionId as string
+      );
+
       return res.status(200).json({ success: true, data: { count } });
     } catch (e) {
       next(e);

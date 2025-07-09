@@ -17,10 +17,13 @@ orderRouter.post(
 orderRouter.post(
   "/:id/invoke-mint",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
   orderController.invokeOrderForMinting
 );
-
+orderRouter.get(
+  "/:id/check-paid",
+  authenticateToken,
+  orderController.checkOrderIsPaid
+);
 orderRouter.get(
   "/user/:userId",
   authenticateToken,
@@ -58,10 +61,16 @@ orderRouter.get(
 ); */
 
 // Service-to-service APIs (internal)
+// orderRouter.get(
+//   "/:collectionId/details",
+//   apiKeyAuth,
+//   orderController.getByCollectionIdWithDetailForService
+// );
+
 orderRouter.get(
-  "/:collectionId/details",
+  "/:id/details",
   apiKeyAuth,
-  orderController.getByCollectionIdWithDetailForService
+  orderController.getByIdWithDetailForService
 );
 
 export = orderRouter;

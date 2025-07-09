@@ -132,5 +132,55 @@ export const traitValueRepository = {
       .executeTakeFirst();
 
     return collectible;
+  },
+  getRandomItemByCollectionId: async (collectionId: string) => {
+    const currentDate = new Date().toISOString();
+
+    return await db
+      .selectFrom("TraitValue")
+      .innerJoin("TraitType", "TraitType.id", "TraitValue.traitTypeId")
+      .select([
+        "TraitValue.id",
+        "TraitType.collectionId",
+        "TraitValue.fileKey",
+        "TraitValue.inscriptionId"
+      ])
+      .where("TraitType.collectionId", "=", collectionId)
+      .where("TraitValue.inscriptionId", "is", null)
+      .where((eb) =>
+        eb.or([
+          eb("TraitValue.onHoldUntil", "is", null),
+          sql`${eb.ref("onHoldUntil")} < ${currentDate}`.$castTo<boolean>()
+        ])
+      )
+      .orderBy(sql`RANDOM()`)
+      .limit(1)
+      .executeTakeFirst();
+  },
+  setShortHoldById: async (id: string) => {
+    const twoMinutesFromNow = new Date(
+      Date.now() + 2 * 60 * 1000
+    ).toISOString();
+    const currentDate = new Date().toISOString();
+
+    const traitValue = await db
+      .updateTable("TraitValue")
+      .set({
+        onHoldUntil: twoMinutesFromNow
+      })
+      .returningAll()
+      .where("TraitValue.id", "=", id)
+      .where("TraitValue.inscriptionId", "is", null)
+      .where((eb) =>
+        eb.or([
+          eb("TraitValue.onHoldUntil", "is", null),
+          sql`${eb.ref(
+            "TraitValue.onHoldUntil"
+          )} < ${currentDate}`.$castTo<boolean>()
+        ])
+      )
+      .executeTakeFirst();
+
+    return traitValue;
   }
 };

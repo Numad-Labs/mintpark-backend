@@ -30,6 +30,7 @@ import { version } from "../package.json";
 import traitTypeRouter from "./routes/traitTypeRoutes";
 import SubgraphService from "@blockchain/evm/services/subgraph/subgraphService";
 import { MarketplaceSyncService } from "@blockchain/evm/services/subgraph/marketplaceSyncService";
+import { SQSProducer } from "@queue/sqsProducer";
 
 export const redis = new Redis(config.REDIS_CONNECTION_STRING);
 
@@ -86,11 +87,6 @@ app.use(errorHandler);
 // );
 // logger.info("Starting SQS consumer...");
 // consumer.start(processMessage);
-
-// export const producer = new SQSProducer(
-//   "eu-central-1",
-//   `https://sqs.eu-central-1.amazonaws.com/992382532523/${config.AWS_SQS_NAME}`
-// );
 
 // const collectionOwnerCounterService = new CollectionOwnerCounterService();
 // collectionOwnerCounterService.startScheduler().catch(logger.error);

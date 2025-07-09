@@ -26,6 +26,8 @@ import { ethers } from "ethers";
 import { launchRepository } from "../repositories/launchRepository";
 import { DEFAULT_CONTRACT_VERSION } from "../blockchain/evm/contract-versions";
 import { TransactionConfirmationService } from "../blockchain/evm/services/transactionConfirmationService";
+import { isCollectionDone, isCollectionMarkedForRemoval, setCollectionForRemoval } from "@queue/queueProcessServiceAPIs";
+import { orderRepository } from "@repositories/orderRepostory";
 
 export const collectionServices = {
   create: async (
@@ -88,42 +90,59 @@ export const collectionServices = {
       const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
       const symbol = generateSymbol(name);
 
-      // Use appropriate NFT service based on collection type
-      if (
-        data.type === "INSCRIPTION" ||
-        data.type === "RECURSIVE_INSCRIPTION"
-      ) {
-        // For inscriptions, use VaultMintNFTService since minting will be controlled by vault
-        const vaultMintService = new VaultMintNFTService(chainConfig.RPC_URL);
-        const unsignedTx =
-          await vaultMintService.getUnsignedDeploymentTransaction(
-            user.address,
-            config.VAULT_ADDRESS,
-            name,
-            symbol,
-            chainConfig.DEFAULT_ROYALTY_FEE,
-            chainConfig.DEFAULT_PLATFORM_FEE,
-            config.PLATFORM_FEE_RECIPIENT
-          );
-        deployContractTxHex = serializeBigInt(unsignedTx);
-      } else if (data.type === "IPFS_CID" || data.type === "IPFS_FILE") {
-        // For IPFS collections, use DirectMintNFTService since users will mint directly
-        const directMintService = new DirectMintNFTService(
-          chainConfig.RPC_URL,
-          contractVersion
+      // // Use appropriate NFT service based on collection type
+      // if (
+      //   data.type === "INSCRIPTION" ||
+      //   data.type === "RECURSIVE_INSCRIPTION"
+      // ) {
+      //   // For inscriptions, use VaultMintNFTService since minting will be controlled by vault
+      //   const vaultMintService = new VaultMintNFTService(chainConfig.RPC_URL);
+      //   const unsignedTx =
+      //     await vaultMintService.getUnsignedDeploymentTransaction(
+      //       user.address,
+      //       config.VAULT_ADDRESS,
+      //       name,
+      //       symbol,
+      //       chainConfig.DEFAULT_ROYALTY_FEE,
+      //       chainConfig.DEFAULT_PLATFORM_FEE,
+      //       config.PLATFORM_FEE_RECIPIENT
+      //     );
+      //   deployContractTxHex = serializeBigInt(unsignedTx);
+      // } else if (data.type === "IPFS_CID" || data.type === "IPFS_FILE") {
+      //   // For IPFS collections, use DirectMintNFTService since users will mint directly
+      //   const directMintService = new DirectMintNFTService(
+      //     chainConfig.RPC_URL,
+      //     contractVersion
+      //   );
+
+      //   const unsignedTx =
+      //     await directMintService.getUnsignedDeploymentTransaction(
+      //       user.address, // contract owner
+      //       name,
+      //       symbol,
+      //       chainConfig.DEFAULT_ROYALTY_FEE,
+      //       chainConfig.DEFAULT_PLATFORM_FEE
+      //     );
+
+      //   deployContractTxHex = serializeBigInt(unsignedTx);
+      // }
+
+      // Temporarily using DirectMintNFTService for both Wrapped NFTs and L2-Only NFTs
+      const directMintService = new DirectMintNFTService(
+        chainConfig.RPC_URL,
+        contractVersion
+      );
+
+      const unsignedTx =
+        await directMintService.getUnsignedDeploymentTransaction(
+          user.address, // contract owner
+          name,
+          symbol,
+          chainConfig.DEFAULT_ROYALTY_FEE,
+          chainConfig.DEFAULT_PLATFORM_FEE
         );
 
-        const unsignedTx =
-          await directMintService.getUnsignedDeploymentTransaction(
-            user.address, // contract owner
-            name,
-            symbol,
-            chainConfig.DEFAULT_ROYALTY_FEE,
-            chainConfig.DEFAULT_PLATFORM_FEE
-          );
-
-        deployContractTxHex = serializeBigInt(unsignedTx);
-      }
+      deployContractTxHex = serializeBigInt(unsignedTx);
     }
 
     if (layer.layerType == "EVM" && deployContractTxHex == null)
@@ -136,7 +155,7 @@ export const collectionServices = {
     }
 
     if (data.type === "INSCRIPTION" || data.type === "RECURSIVE_INSCRIPTION") {
-      const bitcoinLayer = await layerRepository.getBitcoin("TESTNET");
+      const bitcoinLayer = await layerRepository.getBitcoin(layer.network);
 
       ordinalCollection = await collectionRepository.create({
         ...data,
@@ -420,12 +439,11 @@ export const collectionServices = {
       if (hasOverlap) {
         throw new CustomError(
           `Phase time overlaps with existing ${otherPhase.phaseTypeName} phase (index ${i}). ` +
-            `It runs from ${new Date(otherStart * 1000).toLocaleString()} to ` +
-            `${
-              otherEnd > 0
-                ? new Date(otherEnd * 1000).toLocaleString()
-                : "no end date"
-            }.`,
+          `It runs from ${new Date(otherStart * 1000).toLocaleString()} to ` +
+          `${otherEnd > 0
+            ? new Date(otherEnd * 1000).toLocaleString()
+            : "no end date"
+          }.`,
           400
         );
       }
@@ -790,6 +808,43 @@ export const collectionServices = {
       updateData
     );
     return updatedCollection;
+  },
+  stopAndWithdraw: async (id: string, userId: string) => {
+    const collection = await collectionRepository.getById(db, id);
+    if (!collection) {
+      throw new CustomError("Collection not found", 404);
+    }
+    if (collection.creatorId !== userId) throw new CustomError("You are not allowed to do this action", 400);
+
+    const orders = await orderRepository.getOrdersByCollectionIdAndMintRecursiveCollectibleType(id);
+    if (orders.length === 0) throw new CustomError("No corresponding orders found", 400);
+
+    const isAlreadyMarkedForRemoval = await isCollectionMarkedForRemoval(id);
+    console.log(isAlreadyMarkedForRemoval)
+    if (isAlreadyMarkedForRemoval) {
+      return { orders }
+    }
+
+    await setCollectionForRemoval(id);
+
+    return { orders }
+  },
+  withdraw: async (id: string, userId: string) => {
+    const collection = await collectionRepository.getById(db, id);
+    if (!collection) {
+      throw new CustomError("Collection not found", 404);
+    }
+    if (collection.creatorId !== userId) throw new CustomError("You are not allowed to do this action", 400);
+
+    const isDone = await isCollectionDone(id);
+    if (!isDone) throw new CustomError("Collection is not done", 400);
+
+    console.log(id)
+
+    const orders = await orderRepository.getOrdersByCollectionIdAndMintRecursiveCollectibleType(id);
+    if (orders.length === 0) throw new CustomError("No corresponding orders found", 400);
+
+    return { orders }
   }
 
   // update: async (

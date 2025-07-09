@@ -34,7 +34,7 @@ import { launchRepository } from "repositories/launchRepository";
 import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
 import { traitTypeRepository } from "../repositories/traitTypeRepository";
 import { capitalizeWords } from "../libs/capitalizeWords";
-import { queueService } from "./queueService";
+import { queueService } from "../queue/queueService";
 // import * as isIPFS from "is-ipfs";
 
 const validateCid = (cid: string): boolean => {
@@ -727,6 +727,9 @@ export const collectibleServices = {
       if (!originalCollectible) {
         throw new CustomError(`Collectible ${collectibleId} not found`, 404);
       }
+      if (originalCollectible.parentCollectibleId) {
+        throw new CustomError("Already has parent collectible", 400);
+      }
 
       // 2. Get the collection to find parent collection
       const collection = await collectionRepository.getById(
@@ -740,11 +743,19 @@ export const collectibleServices = {
         );
       }
 
+      const parentCollection = await collectionRepository.getById(
+        trx,
+        collection.parentCollectionId
+      );
+      if (!parentCollection) {
+        throw new CustomError(`Parent collection not found`, 400);
+      }
+
       // 3. Create new collectible in parent collection
       const newCollectible = await collectibleRepository.create(trx, {
         name: originalCollectible.name,
         fileKey: originalCollectible.fileKey,
-        collectionId: collection.parentCollectionId,
+        collectionId: parentCollection.id,
         status: "CONFIRMED",
         uniqueIdx: inscriptionId,
         nftId: originalCollectible.nftId,
@@ -759,6 +770,11 @@ export const collectibleServices = {
       await collectibleRepository.update(trx, originalCollectible.id, {
         parentCollectibleId: newCollectible.id
       });
+
+      if (parentCollection.status === "UNCONFIRMED")
+        await collectionRepository.update(trx, parentCollection.id, {
+          status: "CONFIRMED"
+        });
 
       return {
         originalCollectibleId: originalCollectible.id,

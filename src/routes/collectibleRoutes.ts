@@ -73,16 +73,12 @@ collectibleRouter.get(
 );
 
 // Service-to-service APIs (internal)
+
+// IPFS Queue
 collectibleRouter.post(
   "/update-ipfs",
   apiKeyAuth,
   collectibleControllers.updateIpfs
-);
-
-collectibleRouter.get(
-  "/count-without-parent-and-not-ooo/for-service",
-  apiKeyAuth,
-  collectibleControllers.countWithoutParentAndNotOoo
 );
 
 collectibleRouter.get(
@@ -95,6 +91,30 @@ collectibleRouter.get(
   "/service/:collectibleId/build-from-traits",
   apiKeyAuth,
   collectibleControllers.buildNftImageFromTraits
+);
+
+// Inscription Queue
+collectibleRouter.get(
+  "/count-without-parent-and-not-ooo/for-service",
+  apiKeyAuth,
+  collectibleControllers.countWithoutParentAndNotOoo
+);
+
+collectibleRouter.get(
+  "/count-without-parent/for-service",
+  apiKeyAuth,
+  collectibleControllers.countWithoutParent
+);
+
+collectibleRouter.get(
+  "/service/:collectionId/1-of-1",
+  apiKeyAuth,
+  collectibleControllers.getRandomOOOEditionCollectibleByCollectionIdForService
+);
+collectibleRouter.get(
+  "/service/:collectionId/recursive",
+  apiKeyAuth,
+  collectibleControllers.getRandomRecursiveCollectibleByCollectionIdForService
 );
 
 collectibleRouter.post(
