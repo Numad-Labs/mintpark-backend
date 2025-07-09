@@ -663,10 +663,10 @@ export const collectibleControllers = {
   },
 
   /**
-   * Get a collectible by ID for interservice communication
-   * This endpoint returns a collectible regardless of its status (including UNCONFIRMED)
-   * It requires API key authentication instead of user authentication
-   */
+ * Get a collectible by ID for interservice communication
+ * This endpoint returns a collectible regardless of its status (including UNCONFIRMED)
+ * It requires API key authentication instead of user authentication
+ */
   getCollectibleByIdForService: async (
     req: Request,
     res: Response,
@@ -691,6 +691,88 @@ export const collectibleControllers = {
       return res.status(200).json({
         success: true,
         data: collectible
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
+
+  /**
+   * Get a random 1-of-1 edition collectible by Collection ID for interservice communication
+   * This endpoint returns a collectible regardless of its status (including UNCONFIRMED)
+   * It requires API key authentication instead of user authentication
+   */
+  getRandomOOOEditionCollectibleByCollectionIdForService: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      // The apiKeyAuth middleware already validated the API key
+      const { collectionId } = req.params;
+      const { trait } = req.query;
+      if (!collectionId) {
+        throw new CustomError("Collectible ID is required", 400);
+      }
+
+      // Get the collectible regardless of status
+      const selectedCollectible =
+        await collectibleRepository.getRandomOOOEditionItemByCollectionId(
+          collectionId
+        );
+      if (!selectedCollectible)
+        return res.status(200).json({ success: true, data: null });
+
+      const collectible = await collectibleRepository.setShortHoldById(
+        selectedCollectible.id
+      );
+      if (!collectible)
+        return res.status(200).json({ success: true, data: null });
+
+      return res.status(200).json({
+        success: true,
+        data: selectedCollectible
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
+
+  /**
+   * Get a random recursive collectible by Collection ID for interservice communication
+   * This endpoint returns a collectible regardless of its status (including UNCONFIRMED)
+   * It requires API key authentication instead of user authentication
+   */
+  getRandomRecursiveCollectibleByCollectionIdForService: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      // The apiKeyAuth middleware already validated the API key
+      const { collectionId } = req.params;
+      const { trait } = req.query;
+      if (!collectionId) {
+        throw new CustomError("Collectible ID is required", 400);
+      }
+
+      // Get the collectible regardless of status
+      const selectedCollectible =
+        await collectibleRepository.getRandomRecursiveItemByCollectionId(
+          collectionId
+        );
+      if (!selectedCollectible)
+        return res.status(200).json({ success: true, data: null });
+
+      const collectible = await collectibleRepository.setShortHoldById(
+        selectedCollectible.id
+      );
+      if (!collectible)
+        return res.status(200).json({ success: true, data: null });
+
+      return res.status(200).json({
+        success: true,
+        data: selectedCollectible
       });
     } catch (e) {
       next(e);
@@ -1062,6 +1144,24 @@ export const collectibleControllers = {
       if (!collectionId) throw new CustomError("collectionId not found", 400);
 
       const count = await collectibleRepository.countWithoutParentAndNotOoo(
+        collectionId as string
+      );
+
+      return res.status(200).json({ success: true, data: { count } });
+    } catch (e) {
+      next(e);
+    }
+  },
+  countWithoutParent: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { collectionId } = req.query;
+      if (!collectionId) throw new CustomError("collectionId not found", 400);
+
+      const count = await collectibleRepository.countWithoutParent(
         collectionId as string
       );
 

@@ -168,6 +168,7 @@ model Collectible {
   metadata               Json?
   status                 COLLECTIBLE_STATUS @default(UNCONFIRMED)
   createdAt              DateTime           @default(now())
+  onHoldUntil            DateTime?
   mintingTxId            String?
   lockingAddress         String?
   lockingPrivateKey      String?
@@ -209,6 +210,7 @@ model TraitValue {
   fileKey           String
   createdAt         DateTime           @default(now())
   mintedAt          DateTime?
+  onHoldUntil       DateTime?
   lockingAddress    String?
   lockingPrivateKey String?
   traitTypeId       String
@@ -227,9 +229,8 @@ model CollectibleTrait {
   collectible   Collectible @relation(fields: [collectibleId], references: [id])
   traitValue    TraitValue  @relation(fields: [traitValueId], references: [id])
 
-  @@index([collectibleId, traitValueId])
-
   @@unique([collectibleId, traitValueId])
+  @@index([collectibleId, traitValueId])
 }
 
 model Launch {

@@ -11,15 +11,11 @@ import { uploadToS3 } from "../utils/aws";
 import { randomUUID } from "crypto";
 import sharp from "sharp";
 import logger from "@config/winston";
-import {
-  InscriptionPhase,
-  QueueItem,
-  queueService,
-  QueueType
-} from "../services/queueService";
+import { queueService, QueueType } from "../services/queueService";
 import { AxiosError } from "axios";
 import { orderRepository } from "@repositories/orderRepostory";
 import { getBalance } from "@blockchain/bitcoin/libs";
+import { InscriptionQueueItem } from "@queue/sqsProducer";
 
 export interface traitValueParams {
   type: string;
@@ -33,19 +29,25 @@ export const traitValueController = {
   /**
    * Inter-service endpoint: Get trait value details by id regardless of status/soft deletion
    */
-  getTraitValueByIdForService: async (
+  getRandomTraitValueByCollectionIdForService: async (
     req: Request,
     res: Response,
     next: NextFunction
   ) => {
     try {
-      const { traitValueId } = req.params;
-      const traitValue =
-        await traitValueRepository.getTraitValueWithCollectionIdById(
-          traitValueId
-        );
-      if (!traitValue) throw new CustomError("Trait value not found", 404);
-      return res.status(200).json({ success: true, data: traitValue });
+      const { collectionId } = req.params;
+
+      const selectedTraitValue =
+        await traitValueRepository.getRandomItemByCollectionId(collectionId);
+      if (!selectedTraitValue)
+        return res.status(200).json({ success: true, data: null });
+      const traitValue = await traitValueRepository.setShortHoldById(
+        selectedTraitValue.id
+      );
+      if (!traitValue)
+        return res.status(200).json({ success: true, data: null });
+
+      return res.status(200).json({ success: true, data: selectedTraitValue });
     } catch (e) {
       next(e);
     }
@@ -205,27 +207,6 @@ export const traitValueController = {
 
       // Save to DB
       const result = await traitValueRepository.bulkInsert(traitValuesToInsert);
-
-      try {
-        const traitQueueItems: QueueItem[] = result.map((traitValue) => {
-          return {
-            traitValueId: traitValue.id,
-            collectionId: collection.id,
-            phase: InscriptionPhase.TRAIT
-          };
-        });
-        await queueService.enqueueBatch(
-          traitQueueItems,
-          QueueType.TRAIT_INSCRIPTION
-        );
-        logger.info(
-          `Enqueued ${
-            traitQueueItems.length
-          } trait values at ${new Date().toISOString()} to Inscription Processor Queue`
-        );
-      } catch (e) {
-        console.log(e);
-      }
 
       return res
         .status(200)

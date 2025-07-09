@@ -25,6 +25,10 @@ import {
 import logger from "../config/winston";
 import { config } from "../config/config";
 import { getFeeRates } from "@blockchain/bitcoin/getFeeRates";
+import { InscriptionPhase, InscriptionQueueItem } from "@queue/sqsProducer";
+import { SQSProducer } from "@queue/sqsProducer";
+
+export const producer = new SQSProducer("eu-central-1", config.AWS_SQS_URL);
 
 export interface nftMetaData {
   nftId: string | null;
@@ -382,9 +386,8 @@ export const orderServices = {
       userLayerId
     });
 
-    const walletQrString = `bitcoin:${funder.address}?amount=${
-      estimatedFeeInSats / 10 ** 8
-    }`;
+    const walletQrString = `bitcoin:${funder.address}?amount=${estimatedFeeInSats / 10 ** 8
+      }`;
 
     // let orderItems, insertableOrderItems, nftUrls: any;
 
@@ -420,7 +423,10 @@ export const orderServices = {
     return { order, walletQrString /*, txHex */ };
   },
   invokeOrderForMinting: async (userId: string, id: string) => {
-    const order = await orderRepository.getById(db, id);
+    const order =
+      await orderRepository.getOrderByIdAndMintRecursiveCollectibleType(
+        id
+      );
     if (!order) throw new CustomError("Order not found.", 400);
     if (!order?.collectionId)
       throw new CustomError("Order does not have collectionId.", 400);
@@ -429,55 +435,78 @@ export const orderServices = {
         "You are not allowed to create trait value for this collection.",
         400
       );
-
-    const collection = await collectionRepository.getById(
-      db,
-      order.collectionId
-    );
-    if (!collection) throw new CustomError("No collection found.", 400);
     if (!order.fundingAddress)
-      throw new CustomError("Invalid order with undefined address.", 400);
+      throw new CustomError("Order does not have funding address", 400);
 
-    if (
-      collection.type === "INSCRIPTION" ||
-      collection.type === "RECURSIVE_INSCRIPTION"
-    ) {
-      const balance = await getBalance(order.fundingAddress);
-      if (balance < order.fundingAmount)
-        throw new CustomError("Fee has not been transferred yet.", 400);
-    } else if (
-      collection.type === "IPFS_CID" ||
-      collection.type === "IPFS_FILE"
-    ) {
-      //DG TODO: VALIDATE IF VAULT HAS BEEN FUNDED BY order.fundingAmount
-    }
+    const balance = await getBalance(order.fundingAddress);
+    if (balance < order.fundingAmount)
+      throw new CustomError("Please fund the order first", 400);
 
-    await orderItemRepository.updateByOrderId(order.id, { status: "IN_QUEUE" });
-    const updatedOrder = await orderRepository.update(db, order.id, {
-      orderStatus: "IN_QUEUE"
-    });
-
-    const orderItems: Insertable<OrderItem>[] = [];
-    if (collection.type === "RECURSIVE_INSCRIPTION") {
-      const traitValues = await traitValueRepository.getByCollectionId(
-        collection.id
+    // Enqueue orderId to Inscription SQS: {orderId, phase: 'trait'}
+    try {
+      const traitQueueItem: InscriptionQueueItem = {
+        orderId: order.id,
+        collectionId: order.collectionId,
+        phase: InscriptionPhase.TRAIT
+      };
+      await producer.sendMessage(traitQueueItem);
+      logger.info(
+        `Enqueued inscription queue item: ${JSON.stringify(
+          traitQueueItem
+        )} at ${new Date().toISOString()} to Inscription Processor Queue`
       );
-
-      for (let i = 0; i < traitValues.length; i++)
-        orderItems.push({
-          orderId: order.id,
-          traitValueId: traitValues[i].id,
-          type: "TRAIT"
-        });
-
-      await orderItemRepository.bulkInsert(orderItems);
+    } catch (e) {
+      console.log(e);
     }
 
-    // producer.sendMessage(order.id, 5);
-    logger.info(`Enqueued ${order.id} to the SQS`);
-    // if collection.type === 'RECURSIVE_INSCRIPTION', then invoke the trait minting first
+    return { order };
 
-    return { order: updatedOrder };
+    // const collection = await collectionRepository.getById(
+    //   db,
+    //   order.collectionId
+    // );
+    // if (!collection) throw new CustomError("No collection found.", 400);
+    // if (!order.fundingAddress)
+    //   throw new CustomError("Invalid order with undefined address.", 400);
+
+    // if (
+    //   collection.type === "INSCRIPTION" ||
+    //   collection.type === "RECURSIVE_INSCRIPTION"
+    // ) {
+    //   const balance = await getBalance(order.fundingAddress);
+    //   if (balance < order.fundingAmount)
+    //     throw new CustomError("Fee has not been transferred yet.", 400);
+    // } else if (
+    //   collection.type === "IPFS_CID" ||
+    //   collection.type === "IPFS_FILE"
+    // ) {
+    //   //DG TODO: VALIDATE IF VAULT HAS BEEN FUNDED BY order.fundingAmount
+    // }
+
+    // await orderItemRepository.updateByOrderId(order.id, { status: "IN_QUEUE" });
+    // const updatedOrder = await orderRepository.update(db, order.id, {
+    //   orderStatus: "IN_QUEUE"
+    // });
+
+    // const orderItems: Insertable<OrderItem>[] = [];
+    // if (collection.type === "RECURSIVE_INSCRIPTION") {
+    //   const traitValues = await traitValueRepository.getByCollectionId(
+    //     collection.id
+    //   );
+
+    //   for (let i = 0; i < traitValues.length; i++)
+    //     orderItems.push({
+    //       orderId: order.id,
+    //       traitValueId: traitValues[i].id,
+    //       type: "TRAIT"
+    //     });
+
+    //   await orderItemRepository.bulkInsert(orderItems);
+    // }
+
+    // // producer.sendMessage(order.id, 5);
+    // logger.info(`Enqueued ${order.id} to the SQS`);
+    // // if collection.type === 'RECURSIVE_INSCRIPTION', then invoke the trait minting first
   },
   getByUserId: async (userId: string) => {
     const orders = await orderRepository.getByUserId(userId);

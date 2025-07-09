@@ -3,26 +3,13 @@ import logger from "../config/winston";
 import axios from "axios";
 
 export enum QueueType {
-  IPFS_UPLOAD = "ipfs_upload",
-  // VAULT_MINTING = "vault_minting",
-
-  // Inscription queue types
-  TRAIT_INSCRIPTION = "trait_inscription",
-  RECURSIVE_INSCRIPTION = "recursive_inscription",
-  ONE_OF_ONE_INSCRIPTION = "one_of_one_inscription"
+  IPFS_UPLOAD = "ipfs_upload"
 }
 
-export enum InscriptionPhase {
-  TRAIT = "trait",
-  RECURSIVE = "recursive",
-  ONE_OF_ONE = "one-of-one"
-}
-
-export interface QueueItem {
+export interface IpfsQueueItem {
   traitValueId?: string;
   collectibleId?: string;
   collectionId: string;
-  phase?: InscriptionPhase;
 }
 
 class QueueService {
@@ -37,21 +24,13 @@ class QueueService {
   }
 
   public async enqueueBatch(
-    items: QueueItem[],
+    items: IpfsQueueItem[],
     queueType: QueueType
   ): Promise<void> {
     console.log(items);
     console.log(queueType);
 
     if (items.length === 0) return;
-
-    items.map((item) => {
-      if (queueType === QueueType.TRAIT_INSCRIPTION && !item.traitValueId)
-        throw new Error("Invalid data format");
-
-      if (queueType !== QueueType.TRAIT_INSCRIPTION && !item.collectibleId)
-        throw new Error("Invalid data format");
-    });
 
     try {
       const response = await axios.post(

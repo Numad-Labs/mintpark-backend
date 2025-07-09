@@ -9,9 +9,9 @@ const traitValueRouter = Router();
 
 // Service-to-service APIs (internal)
 traitValueRouter.get(
-  "/service/:traitValueId",
+  "/service/:collectionId",
   apiKeyAuth,
-  traitValueController.getTraitValueByIdForService
+  traitValueController.getRandomTraitValueByCollectionIdForService
 );
 traitValueRouter.patch(
   "/service/update-inscription",

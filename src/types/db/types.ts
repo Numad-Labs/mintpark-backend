@@ -39,6 +39,7 @@ export type Collectible = {
   metadata: unknown | null;
   status: Generated<COLLECTIBLE_STATUS>;
   createdAt: Generated<Timestamp>;
+  onHoldUntil: Timestamp | null;
   mintingTxId: string | null;
   lockingAddress: string | null;
   lockingPrivateKey: string | null;
@@ -203,6 +204,7 @@ export type TraitValue = {
   fileKey: string;
   createdAt: Generated<Timestamp>;
   mintedAt: Timestamp | null;
+  onHoldUntil: Timestamp | null;
   lockingAddress: string | null;
   lockingPrivateKey: string | null;
   traitTypeId: string;

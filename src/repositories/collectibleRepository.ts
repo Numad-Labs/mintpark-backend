@@ -349,8 +349,8 @@ export const collectibleRepository = {
         // Add isOwnListing boolean
         userId
           ? sql`(CASE WHEN "CurrentList"."sellerId" = ${userId} THEN true ELSE false END)::boolean`.as(
-              "isOwnListing"
-            )
+            "isOwnListing"
+          )
           : sql`false`.as("isOwnListing")
       ])
       .where("Collectible.status", "=", "CONFIRMED")
@@ -501,8 +501,8 @@ export const collectibleRepository = {
         // Add isOwnListing boolean
         userId
           ? sql`(CASE WHEN "CurrentList"."sellerId" = ${userId} THEN true ELSE false END)::boolean`.as(
-              "isOwnListing"
-            )
+            "isOwnListing"
+          )
           : sql`false`.as("isOwnListing"),
         "Layer.id as layerId",
         "Layer.name as layerName",
@@ -765,5 +765,99 @@ export const collectibleRepository = {
       .executeTakeFirstOrThrow();
 
     return count.count;
+  },
+  countWithoutParent: async (collectionId: string) => {
+    const count = await db
+      .selectFrom("Collectible")
+      .select((eb) => [
+        eb.fn.count<number>("Collectible.id").$castTo<number>().as("count")
+      ])
+      .where("Collectible.collectionId", "=", collectionId)
+      .where("Collectible.parentCollectibleId", "is", null)
+      .executeTakeFirstOrThrow();
+
+    return count.count;
+  },
+  getRandomRecursiveItemByCollectionId: async (collectionId: string) => {
+    const currentDate = new Date().toISOString();
+
+    return await db
+      .selectFrom("Collectible")
+      .select([
+        "Collectible.id",
+        "Collectible.name",
+        "Collectible.cid",
+        "Collectible.status",
+        "Collectible.fileKey",
+        "Collectible.isOOOEdition",
+        "Collectible.uniqueIdx",
+        "Collectible.parentCollectibleId"
+      ])
+      .where("Collectible.collectionId", "=", collectionId)
+      .where("Collectible.parentCollectibleId", "is", null)
+      .where("Collectible.isOOOEdition", "=", false)
+      .where((eb) =>
+        eb.or([
+          eb("Collectible.onHoldUntil", "is", null),
+          sql`${eb.ref("onHoldUntil")} < ${currentDate}`.$castTo<boolean>()
+        ])
+      )
+      .orderBy(sql`RANDOM()`)
+      .limit(1)
+      .executeTakeFirst();
+  },
+  getRandomOOOEditionItemByCollectionId: async (collectionId: string) => {
+    const currentDate = new Date().toISOString();
+
+    return await db
+      .selectFrom("Collectible")
+      .select([
+        "Collectible.id",
+        "Collectible.name",
+        "Collectible.cid",
+        "Collectible.status",
+        "Collectible.fileKey",
+        "Collectible.isOOOEdition",
+        "Collectible.uniqueIdx",
+        "Collectible.parentCollectibleId"
+      ])
+      .where("Collectible.collectionId", "=", collectionId)
+      .where("Collectible.parentCollectibleId", "is", null)
+      .where("Collectible.isOOOEdition", "=", true)
+      .where((eb) =>
+        eb.or([
+          eb("Collectible.onHoldUntil", "is", null),
+          sql`${eb.ref("onHoldUntil")} < ${currentDate}`.$castTo<boolean>()
+        ])
+      )
+      .orderBy(sql`RANDOM()`)
+      .limit(1)
+      .executeTakeFirst();
+  },
+  setShortHoldById: async (id: string) => {
+    const twoMinutesFromNow = new Date(
+      Date.now() + 2 * 60 * 1000
+    ).toISOString();
+    const currentDate = new Date().toISOString();
+
+    const collectible = await db
+      .updateTable("Collectible")
+      .set({
+        onHoldUntil: twoMinutesFromNow
+      })
+      .returningAll()
+      .where("Collectible.id", "=", id)
+      .where("Collectible.parentCollectibleId", "is", null)
+      .where((eb) =>
+        eb.or([
+          eb("Collectible.onHoldUntil", "is", null),
+          sql`${eb.ref(
+            "Collectible.onHoldUntil"
+          )} < ${currentDate}`.$castTo<boolean>()
+        ])
+      )
+      .executeTakeFirst();
+
+    return collectible;
   }
 };

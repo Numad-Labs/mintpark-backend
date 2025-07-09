@@ -134,18 +134,15 @@ export const orderController = {
       next(e);
     }
   },
-  getByCollectionIdWithDetailForService: async (
+  getByIdWithDetailForService: async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {
     try {
-      const { collectionId } = req.params;
+      const { id } = req.params;
 
-      const order =
-        await orderRepository.getOrderByCollectionIdAndMintRecursiveCollectibleType(
-          collectionId
-        );
+      const order = await orderRepository.getById(db, id);
       if (!order) throw new CustomError("Order not found", 404);
 
       return res.status(200).json({ success: true, data: order });
