@@ -79,6 +79,7 @@ model Order {
   privateKey     String?
   createdAt      DateTime     @default(now())
   mintedAt       DateTime?
+  orderSplitCount Int @default(1)
   orderType      ORDER_TYPE   @default(MINT_COLLECTIBLE)
   orderStatus    ORDER_STATUS @default(PENDING)
   userId         String

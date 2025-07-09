@@ -4,7 +4,6 @@ import { layerServices } from "../services/layerServices";
 import { LAYER, NETWORK } from "../types/db/enums";
 import { CustomError } from "../exceptions/CustomError";
 import { REDIS_KEYS } from "../libs/constants";
-import { FEE_RATE_TYPES } from "../blockchain/bitcoin/constants";
 import logger from "../config/winston";
 
 export const layerController = {

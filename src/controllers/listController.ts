@@ -8,7 +8,6 @@ import { userRepository } from "../repositories/userRepository";
 import { serializeBigInt } from "../blockchain/evm/utils";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { db } from "../utils/db";
-import { MAX_SATOSHI_AMOUNT } from "../blockchain/bitcoin/constants";
 
 import subgraphService from "@blockchain/evm/services/subgraph/subgraphService";
 import { LAYER } from "@app-types/db/enums";
@@ -113,7 +112,7 @@ export const listController = {
         throw new CustomError("Could not retrieve id from the token.", 400);
       if (!collectibleId)
         throw new CustomError("Please provide a collectibleId.", 400);
-      if (!collectibleId || (price > MAX_SATOSHI_AMOUNT && price <= 0))
+      if (!collectibleId || price <= 0)
         throw new CustomError("Invalid price amount.", 400);
       const list = await listServices.listCollectible(
         price,

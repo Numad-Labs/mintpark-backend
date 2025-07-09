@@ -8,25 +8,23 @@ import { collectionServices } from "./collectionServices";
 import { CustomError } from "../exceptions/CustomError";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { Insertable } from "kysely";
-import { Collectible, OrderItem } from "../types/db/types";
+import { Collectible, Order, OrderItem } from "../types/db/types";
 
 import { EVM_CONFIG } from "../blockchain/evm/evm-config";
 import { TransactionConfirmationService } from "../blockchain/evm/services/transactionConfirmationService";
 import { db } from "../utils/db";
 import { layerServices } from "./layerServices";
 import { traitValueRepository } from "../repositories/traitValueRepository";
-import { getBalance, getEstimatedFee } from "../blockchain/bitcoin/libs";
+import { getBalance } from "../blockchain/bitcoin/libs";
 import { createFundingAddress } from "../blockchain/bitcoin/createFundingAddress";
-import {
-  COMMIT_TX_SIZE,
-  REVEAL_TX_SIZE
-} from "../blockchain/bitcoin/constants";
-// import { producer } from "..";
 import logger from "../config/winston";
 import { config } from "../config/config";
 import { getFeeRates } from "@blockchain/bitcoin/getFeeRates";
 import { InscriptionPhase, InscriptionQueueItem } from "@queue/sqsProducer";
 import { SQSProducer } from "@queue/sqsProducer";
+import { splitOrderFunding } from "@blockchain/bitcoin/splitOrderFunding";
+import { sendRawTransaction } from "@blockchain/bitcoin/sendTransaction";
+import { calculateFeeForOrderSplitTx } from "@blockchain/bitcoin/calculateFeeForOrderSplitTx";
 
 export const producer = new SQSProducer("eu-central-1", config.AWS_SQS_URL);
 
@@ -180,6 +178,7 @@ export const orderServices = {
   createMintOrder: async (
     estimatedFeeInSats: number,
     feeRate: number,
+    orderSplitCount: number,
     collectionId: string,
     userId: string,
     userLayerId: string,
@@ -362,12 +361,14 @@ export const orderServices = {
         400
       );
 
+    if (orderSplitCount > 10) throw new CustomError("Order split count cannot be greater than 10", 400);
+
     if (estimatedFeeInSats < 546)
       throw new CustomError("Invalid fee amount", 400);
     const feeRates = await getFeeRates();
-    if (feeRate < feeRates.FAST)
+    if (feeRate < feeRates.halfHourFee)
       throw new CustomError(
-        "Invalid fee rate: it must be greater than the FAST rate in Mempool.API",
+        "Invalid fee rate: it must be greater than the halfHourFee rate in Mempool.API",
         400
       );
 
@@ -383,6 +384,7 @@ export const orderServices = {
       orderType: "MINT_RECURSIVE_COLLECTIBLE",
       collectionId: collection.id,
       feeRate: feeRate,
+      orderSplitCount,
       userLayerId
     });
 
@@ -437,24 +439,115 @@ export const orderServices = {
       );
     if (!order.fundingAddress)
       throw new CustomError("Order does not have funding address", 400);
+    if (!order.privateKey)
+      throw new CustomError("Order does not have private key", 400);
 
     const balance = await getBalance(order.fundingAddress);
     if (balance < order.fundingAmount)
       throw new CustomError("Please fund the order first", 400);
 
-    // Enqueue orderId to Inscription SQS: {orderId, phase: 'trait'}
-    try {
-      const traitQueueItem: InscriptionQueueItem = {
+    if (order.orderSplitCount === 1) {
+      await producer.sendMessage({
         orderId: order.id,
         collectionId: order.collectionId,
         phase: InscriptionPhase.TRAIT
-      };
-      await producer.sendMessage(traitQueueItem);
-      logger.info(
-        `Enqueued inscription queue item: ${JSON.stringify(
+      }, 60);
+      console.log(`Enqueued inscription queue item: ${JSON.stringify(
+        {
+          orderId: order.id,
+          collectionId: order.collectionId,
+          phase: InscriptionPhase.TRAIT
+        }
+      )} at ${new Date().toISOString()} to Inscription Processor Queue`);
+
+      return { order }
+    }
+
+    const orders = await orderRepository.checkIfOrderHasBeenSplitByCollectionId(order.collectionId);
+    const hasBeenSplit = orders.length > 1
+    if (hasBeenSplit) {
+      const traitQueueItem: InscriptionQueueItem[] = []
+      traitQueueItem.push({
+        orderId: order.id,
+        collectionId: order.collectionId,
+        phase: InscriptionPhase.TRAIT
+      })
+
+      try {
+        const queuePromises = traitQueueItem.map((item) => {
+          producer.sendMessage(item, 60);
+        })
+        await Promise.all(queuePromises)
+        console.log(`Enqueued inscription queue item: ${JSON.stringify(
           traitQueueItem
-        )} at ${new Date().toISOString()} to Inscription Processor Queue`
-      );
+        )} at ${new Date().toISOString()} to Inscription Processor Queue`);
+      } catch (e) {
+        console.log(e);
+      }
+
+      return { order }
+    }
+
+    const traitQueueItems: InscriptionQueueItem[] = []
+    traitQueueItems.push({
+      orderId: order.id,
+      collectionId: order.collectionId,
+      phase: InscriptionPhase.TRAIT
+    })
+
+    const orderToCreate: Insertable<Order>[] = []
+    const fundingAmount = Math.floor((order.fundingAmount - calculateFeeForOrderSplitTx(1, order.orderSplitCount, order.feeRate) * 1.5) / order.orderSplitCount)
+
+    const addresses: string[] = []
+    addresses.push(order.fundingAddress)
+
+    for (let i = 1; i < order.orderSplitCount; i++) {
+      const funder = createFundingAddress('TESTNET')
+      const newOrderId = randomUUID()
+      orderToCreate.push({
+        id: newOrderId,
+        userId: userId,
+        fundingAmount,
+        fundingAddress: funder.address,
+        privateKey: funder.privateKey,
+        orderType: "MINT_RECURSIVE_COLLECTIBLE",
+        collectionId: order.collectionId,
+        feeRate: order.feeRate,
+        orderSplitCount: order.orderSplitCount,
+        userLayerId: order.userLayerId
+      })
+      traitQueueItems.push({
+        orderId: newOrderId,
+        collectionId: order.collectionId,
+        phase: InscriptionPhase.TRAIT
+      })
+      addresses.push(funder.address)
+    }
+
+    const txHex = await splitOrderFunding({
+      addresses,
+      amount: fundingAmount,
+      fundingAddress: order.fundingAddress,
+      fundingPrivateKey: order.privateKey
+    })
+
+    await db.transaction().execute(async (trx) => {
+      const txid = await sendRawTransaction(txHex)
+      console.log(`Order splitting tx has been sent: ${txid}`)
+
+      await orderRepository.bulkInsert(trx, orderToCreate)
+      await orderRepository.update(trx, order.id, { fundingAmount })
+    })
+    console.log(`DB Transaction successful`)
+
+    try {
+      const queuePromises = traitQueueItems.map((item) => {
+        producer.sendMessage(item, 60);
+      })
+      await Promise.all(queuePromises)
+      console.log(`Enqueued inscription queue item: ${JSON.stringify(
+        traitQueueItems
+      )} at ${new Date().toISOString()} to Inscription Processor Queue`);
     } catch (e) {
       console.log(e);
     }

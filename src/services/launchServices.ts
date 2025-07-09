@@ -24,7 +24,7 @@ import logger from "../config/winston";
 import { collectibleServices } from "./collectibleServices";
 import { serializeBigInt } from "../blockchain/evm/utils";
 import { createFundingAddress } from "../blockchain/bitcoin/createFundingAddress";
-import { IpfsQueueItem, queueService, QueueType } from "./queueService";
+import { IpfsQueueItem, queueService, QueueType } from "../queue/queueService";
 import { purchaseRepository } from "../repositories/purchaseRepository";
 import { hideSensitiveData } from "../libs/hideDataHelper";
 import { orderItemRepository } from "../repositories/orderItemRepository";
@@ -237,8 +237,7 @@ export const launchServices = {
       );
       await queueService.enqueueBatch(ipfsQueueItems, QueueType.IPFS_UPLOAD);
       logger.info(
-        `Enqueued ${
-          ipfsQueueItems.length
+        `Enqueued ${ipfsQueueItems.length
         } recursive collectibles at ${new Date().toISOString()} to IPFS Processor Queue`
       );
     } catch (e) {
@@ -319,8 +318,7 @@ export const launchServices = {
       );
       await queueService.enqueueBatch(ipfsQueueItems, QueueType.IPFS_UPLOAD);
       logger.info(
-        `Enqueued ${
-          ipfsQueueItems.length
+        `Enqueued ${ipfsQueueItems.length
         } 1-of-1 edition collectibles at ${new Date().toISOString()} to IPFS Processor Queue`
       );
     } catch (e) {
@@ -941,8 +939,7 @@ export const launchServices = {
 
     if (!tokenIdValidation.isValid) {
       throw new CustomError(
-        `Token validation failed: ${
-          tokenIdValidation.error || "Invalid token or owner"
+        `Token validation failed: ${tokenIdValidation.error || "Invalid token or owner"
         }`,
         400
       );

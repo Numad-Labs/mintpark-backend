@@ -45,6 +45,18 @@ collectionRouter.put(
   collectionController.updateDetails
 );
 
+collectionRouter.post(
+  "/:id/stop-and-withdraw",
+  authenticateToken,
+  collectionController.stopAndWithdraw
+);
+
+collectionRouter.post(
+  "/:id/withdraw",
+  authenticateToken,
+  collectionController.withdraw
+);
+
 // Service-to-service APIs (internal)
 collectionRouter.get("/:id/service", collectionController.getByIdForService);
 

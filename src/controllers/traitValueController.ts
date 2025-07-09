@@ -11,7 +11,7 @@ import { uploadToS3 } from "../utils/aws";
 import { randomUUID } from "crypto";
 import sharp from "sharp";
 import logger from "@config/winston";
-import { queueService, QueueType } from "../services/queueService";
+import { queueService, QueueType } from "../queue/queueService";
 import { AxiosError } from "axios";
 import { orderRepository } from "@repositories/orderRepostory";
 import { getBalance } from "@blockchain/bitcoin/libs";

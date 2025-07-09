@@ -165,6 +165,7 @@ export type Order = {
   privateKey: string | null;
   createdAt: Generated<Timestamp>;
   mintedAt: Timestamp | null;
+  orderSplitCount: Generated<number>;
   orderType: Generated<ORDER_TYPE>;
   orderStatus: Generated<ORDER_STATUS>;
   userId: string;

@@ -14,7 +14,7 @@ export const orderController = {
     next: NextFunction
   ) => {
     try {
-      const { collectionId, estimatedFeeInSats, feeRate, txid, userLayerId } =
+      const { estimatedFeeInSats, feeRate, orderSplitCount, collectionId, txid, userLayerId } =
         req.body;
 
       if (!req.user?.id)
@@ -35,6 +35,7 @@ export const orderController = {
       const { order, walletQrString } = await orderServices.createMintOrder(
         estimatedFeeInSats,
         Number(feeRate),
+        orderSplitCount,
         collectionId,
         req.user.id,
         userLayerId,

@@ -34,7 +34,7 @@ import { launchRepository } from "repositories/launchRepository";
 import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
 import { traitTypeRepository } from "../repositories/traitTypeRepository";
 import { capitalizeWords } from "../libs/capitalizeWords";
-import { queueService } from "./queueService";
+import { queueService } from "../queue/queueService";
 // import * as isIPFS from "is-ipfs";
 
 const validateCid = (cid: string): boolean => {
