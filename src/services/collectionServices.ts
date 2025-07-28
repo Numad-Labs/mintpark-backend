@@ -26,7 +26,11 @@ import { ethers } from "ethers";
 import { launchRepository } from "../repositories/launchRepository";
 import { DEFAULT_CONTRACT_VERSION } from "../blockchain/evm/contract-versions";
 import { TransactionConfirmationService } from "../blockchain/evm/services/transactionConfirmationService";
-import { isCollectionDone, isCollectionMarkedForRemoval, setCollectionForRemoval } from "@queue/queueProcessServiceAPIs";
+import {
+  isCollectionDone,
+  isCollectionMarkedForRemoval,
+  setCollectionForRemoval
+} from "@queue/queueProcessServiceAPIs";
 import { orderRepository } from "@repositories/orderRepostory";
 
 export const collectionServices = {
@@ -439,11 +443,12 @@ export const collectionServices = {
       if (hasOverlap) {
         throw new CustomError(
           `Phase time overlaps with existing ${otherPhase.phaseTypeName} phase (index ${i}). ` +
-          `It runs from ${new Date(otherStart * 1000).toLocaleString()} to ` +
-          `${otherEnd > 0
-            ? new Date(otherEnd * 1000).toLocaleString()
-            : "no end date"
-          }.`,
+            `It runs from ${new Date(otherStart * 1000).toLocaleString()} to ` +
+            `${
+              otherEnd > 0
+                ? new Date(otherEnd * 1000).toLocaleString()
+                : "no end date"
+            }.`,
           400
         );
       }
@@ -814,37 +819,45 @@ export const collectionServices = {
     if (!collection) {
       throw new CustomError("Collection not found", 404);
     }
-    if (collection.creatorId !== userId) throw new CustomError("You are not allowed to do this action", 400);
+    if (collection.creatorId !== userId)
+      throw new CustomError("You are not allowed to do this action", 400);
 
-    const orders = await orderRepository.getOrdersByCollectionIdAndMintRecursiveCollectibleType(id);
-    if (orders.length === 0) throw new CustomError("No corresponding orders found", 400);
+    const orders =
+      await orderRepository.getOrdersByCollectionIdAndMintRecursiveCollectibleType(
+        id
+      );
+    if (orders.length === 0)
+      throw new CustomError("No corresponding orders found", 400);
 
     const isAlreadyMarkedForRemoval = await isCollectionMarkedForRemoval(id);
-    console.log(isAlreadyMarkedForRemoval)
+    console.log(isAlreadyMarkedForRemoval);
     if (isAlreadyMarkedForRemoval) {
-      return { orders }
+      return { orders };
     }
 
     await setCollectionForRemoval(id);
 
-    return { orders }
+    return { orders };
   },
   withdraw: async (id: string, userId: string) => {
     const collection = await collectionRepository.getById(db, id);
     if (!collection) {
       throw new CustomError("Collection not found", 404);
     }
-    if (collection.creatorId !== userId) throw new CustomError("You are not allowed to do this action", 400);
+    if (collection.creatorId !== userId)
+      throw new CustomError("You are not allowed to do this action", 400);
 
     const isDone = await isCollectionDone(id);
     if (!isDone) throw new CustomError("Collection is not done", 400);
 
-    console.log(id)
+    const orders =
+      await orderRepository.getOrdersByCollectionIdAndMintRecursiveCollectibleType(
+        id
+      );
+    if (orders.length === 0)
+      throw new CustomError("No corresponding orders found", 400);
 
-    const orders = await orderRepository.getOrdersByCollectionIdAndMintRecursiveCollectibleType(id);
-    if (orders.length === 0) throw new CustomError("No corresponding orders found", 400);
-
-    return { orders }
+    return { orders };
   }
 
   // update: async (

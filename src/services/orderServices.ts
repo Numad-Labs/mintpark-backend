@@ -361,7 +361,8 @@ export const orderServices = {
         400
       );
 
-    if (orderSplitCount > 10) throw new CustomError("Order split count cannot be greater than 10", 400);
+    if (orderSplitCount > 10)
+      throw new CustomError("Order split count cannot be greater than 10", 400);
 
     if (estimatedFeeInSats < 546)
       throw new CustomError("Invalid fee amount", 400);
@@ -388,8 +389,9 @@ export const orderServices = {
       userLayerId
     });
 
-    const walletQrString = `bitcoin:${funder.address}?amount=${estimatedFeeInSats / 10 ** 8
-      }`;
+    const walletQrString = `bitcoin:${funder.address}?amount=${
+      estimatedFeeInSats / 10 ** 8
+    }`;
 
     // let orderItems, insertableOrderItems, nftUrls: any;
 
@@ -426,9 +428,7 @@ export const orderServices = {
   },
   invokeOrderForMinting: async (userId: string, id: string) => {
     const order =
-      await orderRepository.getOrderByIdAndMintRecursiveCollectibleType(
-        id
-      );
+      await orderRepository.getOrderByIdAndMintRecursiveCollectibleType(id);
     if (!order) throw new CustomError("Order not found.", 400);
     if (!order?.collectionId)
       throw new CustomError("Order does not have collectionId.", 400);
@@ -442,68 +442,91 @@ export const orderServices = {
     if (!order.privateKey)
       throw new CustomError("Order does not have private key", 400);
 
+    const user = await userRepository.getById(userId);
+    if (!user) throw new CustomError("User not found", 400);
+
+    const collection = await collectionRepository.getById(
+      db,
+      order.collectionId
+    );
+    if (!collection) throw new CustomError("Collection not found", 400);
+    if (collection.creatorId !== user.id && user.role !== "SUPER_ADMIN")
+      throw new CustomError("You are not allowed to do this action", 400);
+
     const balance = await getBalance(order.fundingAddress);
     if (balance < order.fundingAmount)
       throw new CustomError("Please fund the order first", 400);
 
     if (order.orderSplitCount === 1) {
-      await producer.sendMessage({
-        orderId: order.id,
-        collectionId: order.collectionId,
-        phase: InscriptionPhase.TRAIT
-      }, 60);
-      console.log(`Enqueued inscription queue item: ${JSON.stringify(
+      await producer.sendMessage(
         {
           orderId: order.id,
           collectionId: order.collectionId,
           phase: InscriptionPhase.TRAIT
-        }
-      )} at ${new Date().toISOString()} to Inscription Processor Queue`);
+        },
+        60
+      );
+      console.log(
+        `Enqueued inscription queue item: ${JSON.stringify({
+          orderId: order.id,
+          collectionId: order.collectionId,
+          phase: InscriptionPhase.TRAIT
+        })} at ${new Date().toISOString()} to Inscription Processor Queue`
+      );
 
-      return { order }
+      return { order };
     }
 
-    const orders = await orderRepository.checkIfOrderHasBeenSplitByCollectionId(order.collectionId);
-    const hasBeenSplit = orders.length > 1
+    const orders = await orderRepository.checkIfOrderHasBeenSplitByCollectionId(
+      order.collectionId
+    );
+    const hasBeenSplit = orders.length > 1;
     if (hasBeenSplit) {
-      const traitQueueItem: InscriptionQueueItem[] = []
+      const traitQueueItem: InscriptionQueueItem[] = [];
       traitQueueItem.push({
         orderId: order.id,
         collectionId: order.collectionId,
         phase: InscriptionPhase.TRAIT
-      })
+      });
 
       try {
         const queuePromises = traitQueueItem.map((item) => {
           producer.sendMessage(item, 60);
-        })
-        await Promise.all(queuePromises)
-        console.log(`Enqueued inscription queue item: ${JSON.stringify(
-          traitQueueItem
-        )} at ${new Date().toISOString()} to Inscription Processor Queue`);
+        });
+        await Promise.all(queuePromises);
+        console.log(
+          `Enqueued inscription queue item: ${JSON.stringify(
+            traitQueueItem
+          )} at ${new Date().toISOString()} to Inscription Processor Queue`
+        );
       } catch (e) {
         console.log(e);
       }
 
-      return { order }
+      return { order };
     }
 
-    const traitQueueItems: InscriptionQueueItem[] = []
+    const traitQueueItems: InscriptionQueueItem[] = [];
     traitQueueItems.push({
       orderId: order.id,
       collectionId: order.collectionId,
       phase: InscriptionPhase.TRAIT
-    })
+    });
 
-    const orderToCreate: Insertable<Order>[] = []
-    const fundingAmount = Math.floor((order.fundingAmount - calculateFeeForOrderSplitTx(1, order.orderSplitCount, order.feeRate) * 1.5) / order.orderSplitCount)
+    const orderToCreate: Insertable<Order>[] = [];
+    const fundingAmount = Math.floor(
+      (order.fundingAmount -
+        calculateFeeForOrderSplitTx(1, order.orderSplitCount, order.feeRate) *
+          1.5) /
+        order.orderSplitCount
+    );
 
-    const addresses: string[] = []
-    addresses.push(order.fundingAddress)
+    const addresses: string[] = [];
+    addresses.push(order.fundingAddress);
 
     for (let i = 1; i < order.orderSplitCount; i++) {
-      const funder = createFundingAddress('TESTNET')
-      const newOrderId = randomUUID()
+      const funder = createFundingAddress("TESTNET");
+      const newOrderId = randomUUID();
       orderToCreate.push({
         id: newOrderId,
         userId: userId,
@@ -515,13 +538,13 @@ export const orderServices = {
         feeRate: order.feeRate,
         orderSplitCount: order.orderSplitCount,
         userLayerId: order.userLayerId
-      })
+      });
       traitQueueItems.push({
         orderId: newOrderId,
         collectionId: order.collectionId,
         phase: InscriptionPhase.TRAIT
-      })
-      addresses.push(funder.address)
+      });
+      addresses.push(funder.address);
     }
 
     const txHex = await splitOrderFunding({
@@ -529,25 +552,24 @@ export const orderServices = {
       amount: fundingAmount,
       fundingAddress: order.fundingAddress,
       fundingPrivateKey: order.privateKey
-    })
+    });
 
     await db.transaction().execute(async (trx) => {
-      const txid = await sendRawTransaction(txHex)
-      console.log(`Order splitting tx has been sent: ${txid}`)
-
-      await orderRepository.bulkInsert(trx, orderToCreate)
-      await orderRepository.update(trx, order.id, { fundingAmount })
-    })
-    console.log(`DB Transaction successful`)
+      await orderRepository.bulkInsert(trx, orderToCreate);
+      await orderRepository.update(trx, order.id, { fundingAmount });
+      await sendRawTransaction(txHex);
+    });
 
     try {
       const queuePromises = traitQueueItems.map((item) => {
         producer.sendMessage(item, 60);
-      })
-      await Promise.all(queuePromises)
-      console.log(`Enqueued inscription queue item: ${JSON.stringify(
-        traitQueueItems
-      )} at ${new Date().toISOString()} to Inscription Processor Queue`);
+      });
+      await Promise.all(queuePromises);
+      console.log(
+        `Enqueued inscription queue item: ${JSON.stringify(
+          traitQueueItems
+        )} at ${new Date().toISOString()} to Inscription Processor Queue`
+      );
     } catch (e) {
       console.log(e);
     }

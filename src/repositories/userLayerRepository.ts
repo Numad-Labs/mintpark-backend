@@ -1,4 +1,4 @@
-import { Insertable } from "kysely";
+import { Insertable, sql } from "kysely";
 import { db } from "../utils/db";
 import { UserLayer } from "../types/db/types";
 
@@ -42,7 +42,7 @@ export const userLayerRepository = {
     const userLayer = await db
       .selectFrom("UserLayer")
       .selectAll()
-      .where("UserLayer.address", "=", address)
+      .where(sql`LOWER("UserLayer"."address")`, "=", address.toLowerCase())
       .where("UserLayer.layerId", "=", layerId)
       .where("UserLayer.isActive", "=", true)
       .executeTakeFirst();
