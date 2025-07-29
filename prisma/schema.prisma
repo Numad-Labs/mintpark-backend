@@ -43,6 +43,9 @@ model UserLayer {
   layer         Layer        @relation(fields: [layerId], references: [id])
   user          User         @relation(fields: [userId], references: [id])
 
+  // Manual indexes created outside Prisma:
+  // - idx_userlayer_lower_address_layer_active_created: LOWER(address), layerId, isActive, createdAt DESC
+
   @@unique([address, isActive, layerId, deactivatedAt])
   @@index([address, isActive])
 }
@@ -71,28 +74,28 @@ model Layer {
 }
 
 model Order {
-  id             String       @id @default(dbgenerated("gen_random_uuid()"))
-  feeRate        Float        @default(1)
-  fundingAddress String?
-  fundingAmount  Float
-  fundingTxId    String?
-  privateKey     String?
-  createdAt      DateTime     @default(now())
-  mintedAt       DateTime?
-  orderSplitCount Int @default(1)
-  orderType      ORDER_TYPE   @default(MINT_COLLECTIBLE)
-  orderStatus    ORDER_STATUS @default(PENDING)
-  userId         String
-  userLayerId    String
-  collectionId   String?
-  launchItemId   String?
-  purchaseId     String?
-  collection     Collection?  @relation(fields: [collectionId], references: [id])
-  launchItem     LaunchItem?  @relation(fields: [launchItemId], references: [id], onDelete: Cascade)
-  Purchase       Purchase?    @relation(fields: [purchaseId], references: [id])
-  user           User         @relation(fields: [userId], references: [id])
-  userLayer      UserLayer    @relation(fields: [userLayerId], references: [id])
-  orderItems     OrderItem[]
+  id              String       @id @default(dbgenerated("gen_random_uuid()"))
+  feeRate         Float        @default(1)
+  fundingAddress  String?
+  fundingAmount   Float
+  fundingTxId     String?
+  privateKey      String?
+  createdAt       DateTime     @default(now())
+  mintedAt        DateTime?
+  orderSplitCount Int          @default(1)
+  orderType       ORDER_TYPE   @default(MINT_COLLECTIBLE)
+  orderStatus     ORDER_STATUS @default(PENDING)
+  userId          String
+  userLayerId     String
+  collectionId    String?
+  launchItemId    String?
+  purchaseId      String?
+  collection      Collection?  @relation(fields: [collectionId], references: [id])
+  launchItem      LaunchItem?  @relation(fields: [launchItemId], references: [id], onDelete: Cascade)
+  Purchase        Purchase?    @relation(fields: [purchaseId], references: [id])
+  user            User         @relation(fields: [userId], references: [id])
+  userLayer       UserLayer    @relation(fields: [userLayerId], references: [id])
+  orderItems      OrderItem[]
 }
 
 model OrderItem {
