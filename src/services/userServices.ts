@@ -67,7 +67,7 @@ export const userServices = {
     if (!isExistingUserLayer) {
       let user = await userRepository.create({ role: "USER" });
       let userLayer = await userLayerRepository.create({
-        address: address.toString(),
+        address: address.toString().toLowerCase(),
         userId: user.id,
         layerId,
         pubkey
@@ -147,7 +147,7 @@ export const userServices = {
       };
 
     let userLayer = await userLayerRepository.create({
-      address: address.toString(),
+      address: address.toString().toLowerCase(),
       userId,
       layerId,
       pubkey
@@ -217,7 +217,7 @@ export const userServices = {
 
     await userLayerRepository.deactivateById(isExistingUserLayer.id);
     const userLayer = await userLayerRepository.create({
-      address: address.toString(),
+      address: address.toString().toLowerCase(),
       userId,
       layerId,
       pubkey
