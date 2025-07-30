@@ -27,6 +27,7 @@ contract Marketplace is Ownable, ReentrancyGuard {
     uint256 indexed listingId,
     address indexed nftContract,
     uint256 tokenId,
+    address indexed seller,
     uint256 price
   );
   event ListingSold(
@@ -70,7 +71,7 @@ contract Marketplace is Ownable, ReentrancyGuard {
       isActive: true
     });
 
-    emit ListingCreated(newListingId, nftContract, tokenId, price);
+    emit ListingCreated(newListingId, nftContract, tokenId, msg.sender, price);
   }
 
   // Purchase listing
