@@ -1,20 +1,30 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+
 import "@nomicfoundation/hardhat-verify";
 
-const config: HardhatUserConfig = {
-  solidity: "0.8.20",
-  typechain: {
-    outDir: "./src/blockchain/evm/typechain-types",
-    target: "ethers-v6"
-  },
+import * as dotenv from "dotenv";
 
+dotenv.config();
+const config: HardhatUserConfig = {
+  solidity: {
+    version: "0.8.26" // Updated to match your contract's version
+    // settings: {
+    //   optimizer: {
+    //     enabled: false, // Should match your original compilation settings
+    //     runs: 200
+    //   }
+    //   // evmVersion: "default"
+    //   // evmVersion: "shanghai" // Explicit EVM version for PUSH0 support
+    // }
+  },
   networks: {
-    hardhat: {
-      chainId: 5115
+    hemi: {
+      url: "https://rpc.hemi.network/rpc"
     },
-    "hemi-sepolia": {
-      url: "https://testnet.rpc.hemi.network/rpc" // Hemi testnet RPC URL
+    citrea: {
+      url: "https://rpc.testnet.citrea.xyz",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
     }
   },
   paths: {
@@ -25,21 +35,35 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: {
-      "hemi-sepolia": "blockscout" // Using "blockscout" as the API key
+      hemi: "blockscout",
+      citrea: "blockscout"
     },
     customChains: [
       {
-        network: "hemi-sepolia",
-        chainId: 743111,
+        network: "hemi",
+        chainId: 43111,
         urls: {
-          apiURL: "https://testnet.explorer.hemi.xyz/api",
-          browserURL: "https://testnet.explorer.hemi.xyz"
+          apiURL: "https://explorer.hemi.xyz/api",
+          browserURL: "https://explorer.hemi.xyz"
+        }
+      },
+      {
+        network: "citrea",
+        chainId: 5115,
+
+        urls: {
+          apiURL: "https://explorer.testnet.citrea.xyz/api",
+          browserURL: "https://explorer.testnet.citrea.xyz"
         }
       }
     ]
   },
   sourcify: {
-    enabled: false
+    enabled: true,
+    // Optional: specify a different Sourcify server
+    apiUrl: "https://sourcify.dev/server",
+    // Optional: specify a different Sourcify repository
+    browserUrl: "https://repo.sourcify.dev"
   }
 };
 

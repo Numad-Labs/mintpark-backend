@@ -1,8 +1,8 @@
 import { abi as NFT_CONTRACT_ABI } from "@artifacts/MPMNFT.sol/UnifiedNFT.json";
 import { bytecode as NFT_CONTRACT_BYTECODE } from "@artifacts/MPMNFT.sol/UnifiedNFT.json";
 
-import { abi as MARKETPLACE_ABI } from "@artifacts/MarketplaceWithPhase.sol/Marketplace.json";
-import { bytecode as MARKETPLACE_CONTRACT_BYTECODE } from "@artifacts/MarketplaceWithPhase.sol/Marketplace.json";
+import { abi as MARKETPLACE_ABI } from "@artifacts/Marketplace.sol/Marketplace.json";
+import { bytecode as MARKETPLACE_CONTRACT_BYTECODE } from "@artifacts/Marketplace.sol/Marketplace.json";
 import {
   CONTRACT_VERSIONS,
   DEFAULT_CONTRACT_VERSION
@@ -71,7 +71,7 @@ export const EVM_CONFIG: EVMConfig = {
     "5115": {
       RPC_URL: "https://rpc.testnet.citrea.xyz",
       CHAIN_ID: 5115,
-      MARKETPLACE_ADDRESS: "0x3415be106ea2680deDD2A6F1BB6B93d1111F44dC",
+      MARKETPLACE_ADDRESS: "0xdb6bFA2e6184EbdE089c314B1550f21C7FD93662",
       DEFAULT_PUBLIC_MAX_MINT,
       DEFAULT_ROYALTY_FEE,
       DEFAULT_PLATFORM_FEE,

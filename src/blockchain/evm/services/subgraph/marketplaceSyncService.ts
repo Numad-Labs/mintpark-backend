@@ -472,6 +472,37 @@ export class MarketplaceSyncService {
         `Listing ${listingId} status comparison: DB=${dbStatus}, On-chain=${onChainStatus}`
       );
 
+      // MOVED: Check for duplicates BEFORE doing status updates
+      // This ensures we always check for duplicates regardless of status matching
+      if (dbStatus === LIST_STATUS.PENDING) {
+        const duplicates = await this.db
+          .selectFrom("List")
+          .where((eb) =>
+            eb.or([
+              eb("List.privateKey", "=", expectedListingId),
+              eb("List.onchainListingId", "=", expectedListingId)
+            ])
+          )
+          .where("List.status", "in", [
+            LIST_STATUS.SOLD,
+            LIST_STATUS.CANCELLED,
+            LIST_STATUS.ACTIVE
+          ])
+          .where("List.id", "!=", listingId)
+          .execute();
+
+        if (duplicates.length > 0) {
+          await this.db
+            .deleteFrom("List")
+            .where("id", "=", listingId)
+            .execute();
+          logger.info(
+            `Deleted redundant PENDING listing ${listingId} because a correct-status listing already exists}`
+          );
+          return true;
+        }
+      }
+
       // If statuses are consistent, no update needed
       if (
         (dbStatus === LIST_STATUS.ACTIVE && onChainStatus === "ACTIVE") ||
@@ -532,7 +563,9 @@ export class MarketplaceSyncService {
                 eb("List.onchainListingId", "=", expectedListingId)
               ])
             )
+            .select("List.id")
             .where("List.status", "=", LIST_STATUS.ACTIVE)
+            .where("List.id", "!=", listingId)
             .executeTakeFirst();
 
           if (existingActiveList) {
@@ -566,6 +599,7 @@ export class MarketplaceSyncService {
               ])
             )
             .where("List.status", "=", LIST_STATUS.SOLD)
+            .where("List.id", "!=", listingId)
             .executeTakeFirst();
 
           if (existingSoldList) {
@@ -604,6 +638,7 @@ export class MarketplaceSyncService {
               ])
             )
             .where("List.status", "=", LIST_STATUS.CANCELLED)
+            .where("List.id", "!=", listingId)
             .executeTakeFirst();
 
           if (existingCancelledList) {
