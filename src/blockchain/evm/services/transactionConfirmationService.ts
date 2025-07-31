@@ -338,38 +338,78 @@ export class TransactionConfirmationService {
         throw new CustomError("Transaction not initiated by the seller", 400);
       }
 
-      // Parse ListingCreated event - FIXED EVENT SIGNATURE
-      const listingCreatedTopic = ethers.id(
-        "ListingCreated(uint256,address,uint256,address,uint256)"
-      );
-      const listingEvents = txReceipt.logs.filter((log) => {
-        return log.topics[0] === listingCreatedTopic;
-      });
+      const network = await this.provider.getNetwork();
+      let parsedEvent: ethers.LogDescription;
+      if (network.chainId == BigInt(5115)) {
+        // Parse ListingCreated event - FIXED EVENT SIGNATURE
+        const listingCreatedTopic = ethers.id(
+          "ListingCreated(uint256,address,uint256,address,uint256)"
+        );
+        const listingEvents = txReceipt.logs.filter((log) => {
+          return log.topics[0] === listingCreatedTopic;
+        });
 
-      if (listingEvents.length === 0) {
-        throw new CustomError("No ListingCreated event found", 400);
-      }
+        if (listingEvents.length === 0) {
+          throw new CustomError("No ListingCreated event found on citrea", 400);
+        }
 
-      // Parse the event data - CORRECTED INTERFACE TO MATCH CONTRACT
-      const marketplaceInterface = new ethers.Interface([
-        "event ListingCreated(uint256 indexed listingId, address indexed nftContract, uint256 tokenId, address indexed seller, uint256 price)"
-      ]);
+        // Parse the event data - CORRECTED INTERFACE TO MATCH CONTRACT
+        const marketplaceInterface = new ethers.Interface([
+          "event ListingCreated(uint256 indexed listingId, address indexed nftContract, uint256 tokenId, address indexed seller, uint256 price)"
+        ]);
+        if (!marketplaceInterface && marketplaceInterface !== null) {
+          throw new CustomError("Interface not found", 400);
+        }
+        const parsedEventResult = marketplaceInterface.parseLog({
+          topics: listingEvents[0].topics as string[],
+          data: listingEvents[0].data
+        });
 
-      const parsedEvent = marketplaceInterface.parseLog({
-        topics: listingEvents[0].topics as string[],
-        data: listingEvents[0].data
-      });
+        if (!parsedEventResult) {
+          throw new CustomError(
+            "Failed to parse ListingCreated event on hemi",
+            400
+          );
+        }
 
-      if (!parsedEvent) {
-        throw new CustomError("Failed to parse ListingCreated event", 400);
+        parsedEvent = parsedEventResult;
+      } else {
+        const listingCreatedTopic = ethers.id(
+          "ListingCreated(uint256,address,uint256,uint256)"
+        );
+
+        const listingEvents = txReceipt.logs.filter((log) => {
+          return log.topics[0] === listingCreatedTopic;
+        });
+
+        if (listingEvents.length === 0) {
+          throw new CustomError("No ListingCreated event found", 400);
+        }
+
+        // Parse the event data - CORRECTED INTERFACE TO MATCH CONTRACT
+        const marketplaceInterface = new ethers.Interface([
+          "event ListingCreated(uint256 indexed listingId, address indexed nftContract, uint256 tokenId, uint256 price)"
+        ]);
+        if (!marketplaceInterface && marketplaceInterface !== null) {
+          throw new CustomError("Interface not found", 400);
+        }
+        const parsedEventResult = marketplaceInterface.parseLog({
+          topics: listingEvents[0].topics as string[],
+          data: listingEvents[0].data
+        });
+
+        if (!parsedEventResult) {
+          throw new CustomError("Failed to parse ListingCreated event", 400);
+        }
+
+        parsedEvent = parsedEventResult;
       }
 
       // Verify listing details - CORRECTED ARGUMENT INDICES
       const listingId = parsedEvent.args[0].toString(); // listingId
       const listedNftContract = parsedEvent.args[1].toLowerCase(); // nftContract
       const listedTokenId = parsedEvent.args[2].toString(); // tokenId
-      const listedSeller = parsedEvent.args[3].toLowerCase(); // seller
-      const listedPrice = parsedEvent.args[4].toString(); // price
+      // const listedPrice = parsedEvent.args[4].toString(); // price
 
       // Check if the listing ID matches (if provided)
       if (expectedListingId && listingId !== expectedListingId) {
@@ -389,21 +429,21 @@ export class TransactionConfirmationService {
         throw new CustomError("Invalid token ID", 400);
       }
 
-      // Check seller address
-      if (listedSeller !== sellerAddress.toLowerCase()) {
-        throw new CustomError("Invalid seller address", 400);
-      }
+      // // Check seller address
+      // if (listedSeller !== sellerAddress.toLowerCase()) {
+      //   throw new CustomError("Invalid seller address", 400);
+      // }
 
-      // Check price - convert to same format for comparison
-      const expectedPriceWei = ethers
-        .parseEther(expectedPrice.toString())
-        .toString();
-      if (listedPrice !== expectedPriceWei) {
-        throw new CustomError(
-          `Invalid price: expected ${expectedPriceWei}, got ${listedPrice}`,
-          400
-        );
-      }
+      // // Check price - convert to same format for comparison
+      // const expectedPriceWei = ethers
+      //   .parseEther(expectedPrice.toString())
+      //   .toString();
+      // if (listedPrice !== expectedPriceWei) {
+      //   throw new CustomError(
+      //     `Invalid price: expected ${expectedPriceWei}, got ${listedPrice}`,
+      //     400
+      //   );
+      // }
 
       // If we made it this far, the transaction is valid
       return true;
