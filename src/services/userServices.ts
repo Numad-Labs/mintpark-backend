@@ -5,7 +5,7 @@ import { generateNonce } from "../libs/generateNonce";
 import { redis } from "..";
 import { generateTokens } from "../utils/jwt";
 import { layerRepository } from "../repositories/layerRepository";
-import { verifySignedMessage as citreaVerifySignedMessage } from "../blockchain/evm/utils";
+import { verifySignedMessage as EvmVerifySignedMessage } from "../blockchain/evm/utils";
 import { userLayerRepository } from "../repositories/userLayerRepository";
 import { verifyMessage as bitcoinVerifySignedMessage } from "@unisat/wallet-utils";
 import { isBitcoinTestnetAddress } from "../blockchain/bitcoin/libs";
@@ -34,7 +34,7 @@ export const userServices = {
     const message = await generateMessage(address, nonce);
 
     if (layer.layerType === "EVM") {
-      const isValid = await citreaVerifySignedMessage(
+      const isValid = await EvmVerifySignedMessage(
         message,
         signedMessage,
         address
@@ -95,16 +95,55 @@ export const userServices = {
     const user = await userRepository.getById(userId);
     if (!user) throw new CustomError("User not found.", 400);
 
-    const nonce = await redis.get(`nonce:${address}`);
-    if (!nonce) throw new CustomError("No recorded nonce found.", 400);
-
     const layer = await layerRepository.getById(layerId);
     if (!layer) throw new CustomError("Layer not found.", 400);
 
+    const isExistingUserLayer =
+      await userLayerRepository.getByAddressAndLayerId(address, layerId);
+    if (isExistingUserLayer && isExistingUserLayer.userId === userId)
+      return {
+        user,
+        userLayer: isExistingUserLayer,
+        hasAlreadyBeenLinkedToAnotherUser: false
+      };
+    else if (isExistingUserLayer)
+      return {
+        user,
+        userLayer: null,
+        hasAlreadyBeenLinkedToAnotherUser: true
+      };
+
+    const isLinkingSameAddress =
+      signedMessage === "" && layer.layerType === "EVM";
+    if (isLinkingSameAddress) {
+      const alreadyConnectedUserLayerWithSameAddress =
+        await userLayerRepository.getByAddressAndUserId(address, userId);
+      if (!alreadyConnectedUserLayerWithSameAddress)
+        throw new CustomError(
+          "Could not find the already connected user layer with given address",
+          400
+        );
+
+      const newUserLayer = await userLayerRepository.create({
+        address: address.toString().toLowerCase(),
+        userId,
+        layerId,
+        pubkey
+      });
+
+      return {
+        user,
+        userLayer: newUserLayer,
+        hasAlreadyBeenLinkedToAnotherUser: false
+      };
+    }
+
+    const nonce = await redis.get(`nonce:${address}`);
+    if (!nonce) throw new CustomError("No recorded nonce found.", 400);
     const message = await generateMessage(address, nonce);
 
     if (layer.layerType === "EVM") {
-      const isValid = await citreaVerifySignedMessage(
+      const isValid = await EvmVerifySignedMessage(
         message,
         signedMessage,
         address
@@ -130,21 +169,6 @@ export const userServices = {
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     } else throw new CustomError("Unsupported layer.", 400);
-
-    const isExistingUserLayer =
-      await userLayerRepository.getByAddressAndLayerId(address, layerId);
-    if (isExistingUserLayer && isExistingUserLayer.userId === userId)
-      return {
-        user,
-        userLayer: isExistingUserLayer,
-        hasAlreadyBeenLinkedToAnotherUser: false
-      };
-    else if (isExistingUserLayer)
-      return {
-        user,
-        userLayer: null,
-        hasAlreadyBeenLinkedToAnotherUser: true
-      };
 
     let userLayer = await userLayerRepository.create({
       address: address.toString().toLowerCase(),
@@ -176,7 +200,7 @@ export const userServices = {
     const message = await generateMessage(address, nonce);
 
     if (layer.layerType === "EVM") {
-      const isValid = await citreaVerifySignedMessage(
+      const isValid = await EvmVerifySignedMessage(
         message,
         signedMessage,
         address
