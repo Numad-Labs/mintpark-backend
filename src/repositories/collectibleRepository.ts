@@ -349,8 +349,8 @@ export const collectibleRepository = {
         // Add isOwnListing boolean
         userId
           ? sql`(CASE WHEN "CurrentList"."sellerId" = ${userId} THEN true ELSE false END)::boolean`.as(
-            "isOwnListing"
-          )
+              "isOwnListing"
+            )
           : sql`false`.as("isOwnListing")
       ])
       .where("Collectible.status", "=", "CONFIRMED")
@@ -501,8 +501,8 @@ export const collectibleRepository = {
         // Add isOwnListing boolean
         userId
           ? sql`(CASE WHEN "CurrentList"."sellerId" = ${userId} THEN true ELSE false END)::boolean`.as(
-            "isOwnListing"
-          )
+              "isOwnListing"
+            )
           : sql`false`.as("isOwnListing"),
         "Layer.id as layerId",
         "Layer.name as layerName",
@@ -514,7 +514,7 @@ export const collectibleRepository = {
       ])
       .where("Collectible.status", "=", "CONFIRMED")
       .where("Collectible.id", "=", id)
-      .execute();
+      .executeTakeFirst();
 
     return collectibles;
   },
