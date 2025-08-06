@@ -7,6 +7,7 @@ import { collectionRepository } from "../repositories/collectionRepository";
 import { v4 as uuidv4 } from "uuid";
 import { orderRepository } from "@repositories/orderRepostory";
 import { getBalance } from "@blockchain/bitcoin/libs";
+import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
 
 export const traitTypeController = {
   getTraitTypesByCollectionId: async (
@@ -54,9 +55,19 @@ export const traitTypeController = {
       if (!order) throw new CustomError("Order not found", 400);
       if (!order.fundingAddress)
         throw new CustomError("Order does not have funding address", 400);
-      const balance = await getBalance(order.fundingAddress);
-      if (balance < order.fundingAmount)
+
+      const collectionProgress = await collectionProgressRepository.getById(
+        collectionId
+      );
+      if (!collectionProgress)
+        throw new CustomError("Collection progress not found", 400);
+      if (!collectionProgress.paymentCompleted)
         throw new CustomError("Please fund the order first", 400);
+      if (collectionProgress.queued)
+        throw new CustomError(
+          "Collection has already been queued for processing.",
+          400
+        );
 
       // Fetch collection
       const collection = await collectionRepository.getById(db, collectionId);

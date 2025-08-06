@@ -34,6 +34,8 @@ import { LAUNCH_PHASE } from "@app-types/db/enums";
 import { DEFAULT_CONTRACT_VERSION } from "../blockchain/evm/contract-versions";
 import { ethers } from "ethers";
 import { getBalance } from "@blockchain/bitcoin/libs";
+import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
+import { collectionProgressServices } from "./collectionProgressServices";
 
 export const launchServices = {
   create: async (
@@ -140,6 +142,8 @@ export const launchServices = {
       contractAddress: transactionDetail.deployedContractAddress
     });
 
+    await collectionProgressRepository.create(db, collection.id);
+
     const launch = await launchRepository.create(db, data);
 
     return { launch };
@@ -214,9 +218,19 @@ export const launchServices = {
     if (!order) throw new CustomError("Order not found", 400);
     if (!order.fundingAddress)
       throw new CustomError("Order does not have funding address", 400);
-    const balance = await getBalance(order.fundingAddress);
-    if (balance < order.fundingAmount)
+
+    const collectionProgress = await collectionProgressRepository.getById(
+      collectionId
+    );
+    if (!collectionProgress)
+      throw new CustomError("Collection progress not found", 400);
+    if (!collectionProgress.paymentCompleted)
       throw new CustomError("Please fund the order first", 400);
+    if (collectionProgress.queued)
+      throw new CustomError(
+        "Collection has already been queued for processing.",
+        400
+      );
 
     const existingLaunchItemCount =
       await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
@@ -237,7 +251,8 @@ export const launchServices = {
       );
       await queueService.enqueueBatch(ipfsQueueItems, QueueType.IPFS_UPLOAD);
       logger.info(
-        `Enqueued ${ipfsQueueItems.length
+        `Enqueued ${
+          ipfsQueueItems.length
         } recursive collectibles at ${new Date().toISOString()} to IPFS Processor Queue`
       );
     } catch (e) {
@@ -294,9 +309,19 @@ export const launchServices = {
     if (!order) throw new CustomError("Order not found", 400);
     if (!order.fundingAddress)
       throw new CustomError("Order does not have funding address", 400);
-    const balance = await getBalance(order.fundingAddress);
-    if (balance < order.fundingAmount)
+
+    const collectionProgress = await collectionProgressRepository.getById(
+      collectionId
+    );
+    if (!collectionProgress)
+      throw new CustomError("Collection progress not found", 400);
+    if (!collectionProgress.paymentCompleted)
       throw new CustomError("Please fund the order first", 400);
+    if (collectionProgress.queued)
+      throw new CustomError(
+        "Collection has already been queued for processing.",
+        400
+      );
 
     const existingLaunchItemCount =
       await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
@@ -318,7 +343,8 @@ export const launchServices = {
       );
       await queueService.enqueueBatch(ipfsQueueItems, QueueType.IPFS_UPLOAD);
       logger.info(
-        `Enqueued ${ipfsQueueItems.length
+        `Enqueued ${
+          ipfsQueueItems.length
         } 1-of-1 edition collectibles at ${new Date().toISOString()} to IPFS Processor Queue`
       );
     } catch (e) {
@@ -939,7 +965,8 @@ export const launchServices = {
 
     if (!tokenIdValidation.isValid) {
       throw new CustomError(
-        `Token validation failed: ${tokenIdValidation.error || "Invalid token or owner"
+        `Token validation failed: ${
+          tokenIdValidation.error || "Invalid token or owner"
         }`,
         400
       );

@@ -112,6 +112,25 @@ model OrderItem {
   traitValue    TraitValue?       @relation(fields: [traitValueId], references: [id])
 }
 
+model CollectionProgress {
+  collectionId     String  @id
+
+  paymentCompleted      Boolean @default(false)
+  queued  Boolean @default(false)
+
+  ranOutOfFunds Boolean @default(false)
+  retopAmount   Float?  @default(0)
+
+  collectionCompleted Boolean @default(false)
+  leftoverClaimed     Boolean @default(false)
+  leftoverAmount      Float?  @default(0)
+
+  launchInReview  Boolean @default(false)
+  launchRejected  Boolean @default(false)
+
+  collection Collection @relation(fields: [collectionId], references: [id])
+}
+
 model Collection {
   id                 String            @id @default(dbgenerated("gen_random_uuid()"))
   name               String
@@ -144,20 +163,23 @@ model Collection {
 
   contractVersion String?
 
-  recursiveHeight  Int?
-  recursiveWidth   Int?
-  collectibles     Collectible[]
-  creator          User?         @relation(fields: [creatorId], references: [id])
-  creatorUserLayer UserLayer?    @relation(fields: [creatorUserLayerId], references: [id])
-  layer            Layer         @relation(fields: [layerId], references: [id])
-  parentCollection Collection?   @relation("ParentChild", fields: [parentCollectionId], references: [id])
-  childCollections Collection[]  @relation("ParentChild")
-  launches         Launch[]
-  orders           Order[]
-  TraitType        TraitType[]
+  recursiveHeight    Int?
+  recursiveWidth     Int?
+  collectibles       Collectible[]
+  creator            User?                @relation(fields: [creatorId], references: [id])
+  creatorUserLayer   UserLayer?           @relation(fields: [creatorUserLayerId], references: [id])
+  layer              Layer                @relation(fields: [layerId], references: [id])
+  parentCollection   Collection?          @relation("ParentChild", fields: [parentCollectionId], references: [id])
+  childCollections   Collection[]         @relation("ParentChild")
+  launches           Launch[]
+  orders             Order[]
+  TraitType          TraitType[]
+  CollectionProgress CollectionProgress[]
 
   @@index([status])
   @@index([layerId, status])
+
+  @@unique([contractAddress, layerId])
 }
 
 model Collectible {
@@ -439,6 +461,7 @@ enum LAYER {
   SEPOLIA
   POLYGON_ZK
   EDUCHAIN
+  CORE
 }
 
 enum LAYER_TYPE {

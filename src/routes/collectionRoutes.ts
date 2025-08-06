@@ -8,6 +8,18 @@ import { collectionRepository } from "@repositories/collectionRepository";
 const collectionRouter = Router();
 
 // Creator/Admin Priviledge APIs
+collectionRouter.get(
+  "/creator-owned",
+  authenticateToken,
+  collectionController.getCreatorOwnedCollections
+);
+
+collectionRouter.get(
+  "/:id/inscription-progress",
+  authenticateToken,
+  collectionController.getInscriptionProgress
+);
+
 collectionRouter.post(
   "/",
   authenticateToken,

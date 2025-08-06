@@ -122,6 +122,16 @@ export const traitValueRepository = {
 
     return Number(result?.count ?? 0);
   },
+  getCountByCollectionId: async (collectionId: string) => {
+    const result = await db
+      .selectFrom("TraitValue")
+      .innerJoin("TraitType", "TraitType.id", "TraitValue.traitTypeId")
+      .select((eb) => eb.fn.count("TraitValue.id").as("count"))
+      .where("TraitType.collectionId", "=", collectionId)
+      .executeTakeFirst();
+
+    return Number(result?.count ?? 0);
+  },
 
   getByTraitTypeIdAndValue: async (traitTypeId: string, value: string) => {
     const collectible = await db

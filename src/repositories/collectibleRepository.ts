@@ -778,6 +778,17 @@ export const collectibleRepository = {
 
     return count.count;
   },
+  countAllByCollectionId: async (collectionId: string) => {
+    const count = await db
+      .selectFrom("Collectible")
+      .select((eb) => [
+        eb.fn.count<number>("Collectible.id").$castTo<number>().as("count")
+      ])
+      .where("Collectible.collectionId", "=", collectionId)
+      .executeTakeFirstOrThrow();
+
+    return count.count;
+  },
   getRandomRecursiveItemByCollectionId: async (collectionId: string) => {
     const currentDate = new Date().toISOString();
 

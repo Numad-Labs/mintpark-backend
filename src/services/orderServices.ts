@@ -25,6 +25,8 @@ import { SQSProducer } from "@queue/sqsProducer";
 import { splitOrderFunding } from "@blockchain/bitcoin/splitOrderFunding";
 import { sendRawTransaction } from "@blockchain/bitcoin/sendTransaction";
 import { calculateFeeForOrderSplitTx } from "@blockchain/bitcoin/calculateFeeForOrderSplitTx";
+import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
+import { collectionProgressServices } from "./collectionProgressServices";
 
 export const producer = new SQSProducer("eu-central-1", config.AWS_SQS_URL);
 
@@ -178,7 +180,7 @@ export const orderServices = {
   createMintOrder: async (
     estimatedFeeInSats: number,
     feeRate: number,
-    orderSplitCount: number,
+    orderSplitCount = 5,
     collectionId: string,
     userId: string,
     userLayerId: string,
@@ -453,9 +455,17 @@ export const orderServices = {
     if (collection.creatorId !== user.id && user.role !== "SUPER_ADMIN")
       throw new CustomError("You are not allowed to do this action", 400);
 
-    const balance = await getBalance(order.fundingAddress);
-    if (balance < order.fundingAmount)
+    const collectionProgress = await collectionProgressRepository.getById(
+      order.collectionId
+    );
+    if (!collectionProgress)
+      throw new CustomError("Collection progress not found", 400);
+    if (!collectionProgress.paymentCompleted)
       throw new CustomError("Please fund the order first", 400);
+
+    await collectionProgressServices.update(order.collectionId, {
+      queued: true
+    });
 
     if (order.orderSplitCount === 1) {
       await producer.sendMessage(

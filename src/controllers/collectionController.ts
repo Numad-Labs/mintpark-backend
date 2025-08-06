@@ -7,6 +7,13 @@ import { collectionRepository } from "../repositories/collectionRepository";
 import { Insertable } from "kysely";
 import { Collection } from "../types/db/types";
 import { db } from "@utils/db";
+import { collectionProgressServices } from "@services/collectionProgressServices";
+import { userLayerRepository } from "@repositories/userLayerRepository";
+import { userRepository } from "@repositories/userRepository";
+import { collectibleRepository } from "@repositories/collectibleRepository";
+import { traitValueRepository } from "@repositories/traitValueRepository";
+import { orderRepository } from "@repositories/orderRepostory";
+import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
 
 export interface CollectionQueryParams {
   layerId: string;
@@ -29,6 +36,120 @@ export interface updateCollection {
 }
 
 export const collectionController = {
+  getCreatorOwnedCollections: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const userId = req.user?.id;
+    const { userLayerId, page, limit } = req.query;
+
+    try {
+      if (!userId) throw new CustomError("Cannot parse user from token", 401);
+      if (!userLayerId)
+        throw new CustomError("Please provide user layer id", 400);
+      if (!page || !limit)
+        throw new CustomError("Please provide pagination values", 400);
+
+      const userLayer = await userRepository.getByUserLayerId(
+        userLayerId.toString()
+      );
+      if (!userLayer) throw new CustomError("Invalid user layer id", 400);
+      if (userLayer.id !== userId)
+        throw new CustomError(
+          "You are not allowed to do this for this user.",
+          400
+        );
+
+      const collections = await collectionProgressServices.getByCreatorAddress(
+        userLayer.address,
+        Number(page),
+        Number(limit)
+      );
+
+      return res.status(200).json({ success: true, data: collections });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getInscriptionProgress: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const userId = req.user?.id;
+    const { id } = req.params;
+    const { userLayerId } = req.query;
+
+    try {
+      if (!userId) throw new CustomError("Cannot parse user from token", 401);
+      if (!id) throw new CustomError("Please provide id", 400);
+      if (!userLayerId)
+        throw new CustomError("Please provide user layer id", 400);
+
+      const userLayer = await userRepository.getByUserLayerId(
+        userLayerId.toString()
+      );
+      if (!userLayer) throw new CustomError("Invalid user layer id", 400);
+      if (userLayer.id !== userId)
+        throw new CustomError(
+          "You are not allowed to do this for this user.",
+          400
+        );
+
+      const collection = await collectionRepository.getById(db, id);
+      if (!collection) throw new CustomError("Collection not found", 400);
+      if (collection.type !== "RECURSIVE_INSCRIPTION")
+        throw new CustomError("Invalid type", 400);
+
+      const collectionProgress = await collectionProgressRepository.getById(id);
+      if (!collectionProgress)
+        throw new CustomError("Collection progress not found", 400);
+      if (!collectionProgress.queued)
+        throw new CustomError("Collection has not been queued.", 400);
+
+      const order = await orderRepository.getByCollectionId(id);
+      if (!order) throw new CustomError("Order not found", 400);
+
+      const totalTraitValueCount =
+        await traitValueRepository.getCountByCollectionId(id);
+      const notDoneTraitValueCount =
+        await traitValueRepository.getNotDoneCountByCollectionId(id);
+      const doneTraitValueCount = totalTraitValueCount - notDoneTraitValueCount;
+
+      const totalCollectibleCount =
+        await collectibleRepository.countAllByCollectionId(id);
+      const notDoneCollectibleCount =
+        await collectibleRepository.countWithoutParent(id);
+      const doneCollectibleCount =
+        totalCollectibleCount - notDoneCollectibleCount;
+
+      const inscriptionLimitPerBlock = 11;
+      const blockTimeInMinutes = 10;
+      const etaInMinutes =
+        ((notDoneTraitValueCount + notDoneCollectibleCount) /
+          inscriptionLimitPerBlock) *
+        order.orderSplitCount *
+        blockTimeInMinutes;
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          totalTraitValueCount,
+          doneTraitValueCount,
+
+          totalCollectibleCount,
+          doneCollectibleCount,
+
+          done: doneTraitValueCount + doneCollectibleCount,
+          total: totalTraitValueCount + totalCollectibleCount,
+          etaInMinutes
+        }
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
   create: async (
     req: AuthenticatedRequest,
     res: Response,
@@ -409,10 +530,7 @@ export const collectionController = {
       if (!userId) throw new CustomError("Cannot parse user from token", 401);
       if (!id) throw new CustomError("Collection ID is required", 400);
 
-      const orders = await collectionServices.stopAndWithdraw(
-        id,
-        userId
-      );
+      const orders = await collectionServices.stopAndWithdraw(id, userId);
 
       return res.status(200).json({
         success: true,
@@ -433,10 +551,7 @@ export const collectionController = {
       if (!userId) throw new CustomError("Cannot parse user from token", 401);
       if (!id) throw new CustomError("Collection ID is required", 400);
 
-      const orders = await collectionServices.withdraw(
-        id,
-        userId
-      );
+      const orders = await collectionServices.withdraw(id, userId);
 
       return res.status(200).json({
         success: true,
@@ -445,7 +560,7 @@ export const collectionController = {
     } catch (error) {
       next(error);
     }
-  },
+  }
 };
 
 // update: async (
@@ -495,4 +610,3 @@ export const collectionController = {
 //     next(e);
 //   }
 // },
-

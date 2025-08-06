@@ -6,6 +6,7 @@ import { hideSensitiveData } from "../libs/hideDataHelper";
 import { orderRepository } from "@repositories/orderRepostory";
 import { db } from "@utils/db";
 import { getBalance } from "@blockchain/bitcoin/libs";
+import { collectionProgressServices } from "@services/collectionProgressServices";
 
 export const orderController = {
   createMintOrder: async (
@@ -14,8 +15,14 @@ export const orderController = {
     next: NextFunction
   ) => {
     try {
-      const { estimatedFeeInSats, feeRate, orderSplitCount, collectionId, txid, userLayerId } =
-        req.body;
+      const {
+        estimatedFeeInSats,
+        feeRate,
+        orderSplitCount,
+        collectionId,
+        txid,
+        userLayerId
+      } = req.body;
 
       if (!req.user?.id)
         throw new CustomError("Cannot parse user from token", 401);
@@ -89,9 +96,16 @@ export const orderController = {
       if (!order) throw new CustomError("Order not found", 400);
       if (!order.fundingAddress)
         throw new CustomError("Order does not have funding address", 400);
+      if (!order.collectionId)
+        throw new CustomError("Order with no collection id", 400);
+
       const balance = await getBalance(order.fundingAddress);
       if (balance < order.fundingAmount)
         throw new CustomError("Please fund the order first", 400);
+
+      await collectionProgressServices.update(order.collectionId, {
+        paymentCompleted: true
+      });
 
       return res.status(200).json({ success: true, data: { isPaid: true } });
     } catch (e) {

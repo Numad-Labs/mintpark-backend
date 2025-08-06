@@ -85,6 +85,18 @@ export type Collection = {
   recursiveHeight: number | null;
   recursiveWidth: number | null;
 };
+export type CollectionProgress = {
+  collectionId: string;
+  paymentCompleted: Generated<boolean>;
+  queued: Generated<boolean>;
+  ranOutOfFunds: Generated<boolean>;
+  retopAmount: Generated<number | null>;
+  collectionCompleted: Generated<boolean>;
+  leftoverClaimed: Generated<boolean>;
+  leftoverAmount: Generated<number | null>;
+  launchInReview: Generated<boolean>;
+  launchRejected: Generated<boolean>;
+};
 export type Currency = {
   id: Generated<string>;
   ticker: string;
@@ -238,6 +250,7 @@ export type DB = {
   Collectible: Collectible;
   CollectibleTrait: CollectibleTrait;
   Collection: Collection;
+  CollectionProgress: CollectionProgress;
   Currency: Currency;
   FailedMint: FailedMint;
   Launch: Launch;
