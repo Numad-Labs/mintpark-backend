@@ -191,12 +191,48 @@ export const userServices = {
     const user = await userRepository.getById(userId);
     if (!user) throw new CustomError("User not found.", 400);
 
-    const nonce = await redis.get(`nonce:${address}`);
-    if (!nonce) throw new CustomError("No recorded nonce found.", 400);
-
     const layer = await layerRepository.getById(layerId);
     if (!layer) throw new CustomError("Layer not found.", 400);
 
+    const isExistingUserLayer =
+      await userLayerRepository.getByAddressAndLayerId(address, layerId);
+    if (!isExistingUserLayer)
+      throw new CustomError("This account has not been linked yet.", 400);
+    if (isExistingUserLayer.userId === userId)
+      throw new CustomError(
+        "This account has already been linked to you.",
+        400
+      );
+
+    const isLinkingSameAddress =
+      signedMessage === "" && layer.layerType === "EVM";
+    if (isLinkingSameAddress) {
+      const alreadyConnectedUserLayerWithSameAddress =
+        await userLayerRepository.getByAddressAndUserId(address, userId);
+      if (!alreadyConnectedUserLayerWithSameAddress)
+        throw new CustomError(
+          "Could not find the already connected user layer with given address",
+          400
+        );
+
+      const newUserLayer = await userLayerRepository.create({
+        address: address.toString().toLowerCase(),
+        userId,
+        layerId,
+        pubkey
+      });
+
+      await userLayerRepository.deactivateById(isExistingUserLayer.id);
+
+      return {
+        user,
+        userLayer: newUserLayer,
+        hasAlreadyBeenLinkedToAnotherUser: false
+      };
+    }
+
+    const nonce = await redis.get(`nonce:${address}`);
+    if (!nonce) throw new CustomError("No recorded nonce found.", 400);
     const message = await generateMessage(address, nonce);
 
     if (layer.layerType === "EVM") {
@@ -226,18 +262,6 @@ export const userServices = {
       );
       if (!isValid) throw new CustomError("Invalid signature.", 400);
     } else throw new CustomError("Unsupported layer.", 400);
-
-    const isExistingUserLayer =
-      await userLayerRepository.getByAddressAndLayerId(address, layerId);
-    if (!isExistingUserLayer)
-      throw new CustomError("This account has not been linked yet.", 400);
-    if (!isExistingUserLayer.isActive)
-      throw new CustomError("This account has already been deactivated.", 400);
-    if (isExistingUserLayer.userId === userId)
-      throw new CustomError(
-        "This account has already been linked to you.",
-        400
-      );
 
     await userLayerRepository.deactivateById(isExistingUserLayer.id);
     const userLayer = await userLayerRepository.create({

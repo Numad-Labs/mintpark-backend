@@ -94,7 +94,7 @@ export const userController = {
     const { address, signedMessage, pubkey, layerId } = req.body;
 
     try {
-      if (!address || !signedMessage || !layerId)
+      if (!address || signedMessage === undefined || !layerId)
         throw new CustomError(
           "Please provide a wallet address, signedMessage and layerId.",
           400
