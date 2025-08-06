@@ -3,11 +3,11 @@ const { ethers } = require("ethers");
 
 const encodedArgs = ethers.AbiCoder.defaultAbiCoder().encode(
   ["address", "uint256"],
-  ["0x62a64ad869909f0346023dbcecb6ff635dc93bb6", 10]
+  ["0xF3686bbF4E20273e19925a7dCE70d8169B039090", 250]
 );
 
 console.log(encodedArgs);
 
-module.exports = ["0x62a64ad869909f0346023dbcecb6ff635dc93bb6", 10];
+module.exports = ["0xF3686bbF4E20273e19925a7dCE70d8169B039090", 250];
 
 // module.exports = encodedArgs;

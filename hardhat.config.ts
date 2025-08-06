@@ -25,6 +25,14 @@ const config: HardhatUserConfig = {
     citrea: {
       url: "https://rpc.testnet.citrea.xyz",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
+    },
+    core_testnet: {
+      url: "https://rpc.test2.btcs.network",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
+    },
+    core_mainnet: {
+      url: "https://api.zan.top/core-mainnet",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
     }
   },
   paths: {
@@ -36,7 +44,9 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: {
       hemi: "blockscout",
-      citrea: "blockscout"
+      citrea: "blockscout",
+      core_testnet: "blockscout",
+      core_mainnet: "blockscout"
     },
     customChains: [
       {
@@ -54,6 +64,24 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://explorer.testnet.citrea.xyz/api",
           browserURL: "https://explorer.testnet.citrea.xyz"
+        }
+      },
+      {
+        network: "core_testnet",
+        chainId: 1114,
+
+        urls: {
+          apiURL: "https://rpc.test2.btcs.network/api",
+          browserURL: "https://rpc.test2.btcs.network"
+        }
+      },
+      {
+        network: "core_mainnet",
+        chainId: 1116,
+
+        urls: {
+          apiURL: "https://scan.coredao.org/api",
+          browserURL: "https://scan.coredao.org/"
         }
       }
     ]
