@@ -340,7 +340,11 @@ export class TransactionConfirmationService {
 
       const network = await this.provider.getNetwork();
       let parsedEvent: ethers.LogDescription;
-      if (network.chainId == BigInt(5115)) {
+      if (
+        network.chainId == BigInt(5115) ||
+        network.chainId == BigInt(1114) ||
+        network.chainId == BigInt(1116)
+      ) {
         // Parse ListingCreated event - FIXED EVENT SIGNATURE
         const listingCreatedTopic = ethers.id(
           "ListingCreated(uint256,address,uint256,address,uint256)"

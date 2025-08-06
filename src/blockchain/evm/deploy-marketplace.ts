@@ -11,7 +11,7 @@ async function main() {
   );
 
   // Contract constructor parameters
-  const initialOwner = deployer.address; // You can change this to a different address if needed
+  const initialOwner = "0xF3686bbF4E20273e19925a7dCE70d8169B039090"; // You can change this to a different address if needed
   const initialFee = 250; // 2.5% marketplace fee (250 basis points out of 10000)
 
   console.log("Deploying Marketplace contract...");

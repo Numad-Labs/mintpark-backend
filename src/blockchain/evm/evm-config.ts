@@ -100,6 +100,26 @@ export const EVM_CONFIG: EVMConfig = {
       useLegacyGas: true
       // gasPriceMultiplier: 1.1
     },
+    "1114": {
+      RPC_URL: "https://rpc.test2.btcs.network",
+      CHAIN_ID: 1114,
+      MARKETPLACE_ADDRESS: "0x6D95d0879da470305Af2418E8d34C6D12d23C7ea",
+      DEFAULT_PUBLIC_MAX_MINT,
+      DEFAULT_ROYALTY_FEE,
+      DEFAULT_PLATFORM_FEE,
+      MAX_FEE,
+      useLegacyGas: false
+    },
+    "1116": {
+      RPC_URL: "https://api.zan.top/core-mainnet",
+      CHAIN_ID: 1116,
+      MARKETPLACE_ADDRESS: "0xcbE3e05Af398bbBC3EfD549D6AfBc16b68F6AE3D",
+      DEFAULT_PUBLIC_MAX_MINT,
+      DEFAULT_ROYALTY_FEE,
+      DEFAULT_PLATFORM_FEE,
+      MAX_FEE,
+      useLegacyGas: false
+    },
     "743111": {
       RPC_URL: `https://testnet.rpc.hemi.network/rpc`,
       // SUBGRAPH_URL:
