@@ -239,7 +239,7 @@ export const orderController = {
 
       return res.status(200).json({
         success: true,
-        message: "Successfully expired incomplete orders"
+        message: "Successfully retopped the inscription queue"
       });
     } catch (e) {
       next(e);

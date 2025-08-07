@@ -30,7 +30,7 @@ orderRouter.post(
   orderController.expireIncompleteOrder
 );
 
-orderRouter.post(
+orderRouter.get(
   "/:collectionId/base",
   authenticateToken,
   orderController.getBaseOrderByCollectionIdForRetopping
