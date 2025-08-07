@@ -1,5 +1,6 @@
 import { CollectionProgress, DB } from "@app-types/db/types";
 import { db } from "@utils/db";
+import e from "express";
 import { Kysely, sql, Transaction, Updateable } from "kysely";
 
 export const collectionProgressRepository = {
@@ -42,11 +43,6 @@ export const collectionProgressRepository = {
       )
       .innerJoin("Layer", "Layer.id", "Collection.layerId")
       .innerJoin("UserLayer", "UserLayer.id", "Collection.creatorUserLayerId")
-      .leftJoin(
-        "Order",
-        "CollectionProgress.collectionId",
-        "Order.collectionId"
-      )
       .leftJoin("Launch", (join) =>
         join
           .onRef("CollectionProgress.collectionId", "=", "Launch.collectionId")
@@ -59,9 +55,15 @@ export const collectionProgressRepository = {
         "Layer.layer",
         "Layer.network",
 
-        sql<boolean>`CASE WHEN "Order"."id" IS NOT NULL THEN true ELSE false END`.as(
-          "paymentInitialized"
-        ),
+        (eb) =>
+          eb
+            .selectFrom("Order")
+            .select([eb.lit(true).as("paymentInitialized")])
+            .whereRef("Order.collectionId", "=", "Collection.id")
+            .where("Order.isBase", "=", true)
+            .limit(1)
+            .as("paymentInitialized"),
+
         "CollectionProgress.paymentCompleted",
 
         "CollectionProgress.queued",
@@ -84,23 +86,76 @@ export const collectionProgressRepository = {
       .limit(limit)
       .execute();
 
-    return collectionProgresses;
+    return collectionProgresses.map((collectionProgress) => {
+      return {
+        ...collectionProgress,
+        paymentInitialized:
+          String(collectionProgress.paymentInitialized) === "true"
+            ? true
+            : false
+      };
+    });
   },
+  // getByIdWithDetails: async (collectionId: string) => {
+  //   const collectionProgress = await db
+  //     .selectFrom("CollectionProgress")
+  //     .innerJoin(
+  //       "Collection",
+  //       "Collection.id",
+  //       "CollectionProgress.collectionId"
+  //     )
+  //     .innerJoin("Layer", "Layer.id", "Collection.layerId")
+  //     .innerJoin("UserLayer", "UserLayer.id", "Collection.creatorUserLayerId")
+  //     .leftJoin(
+  //       "Order",
+  //       "CollectionProgress.collectionId",
+  //       "Order.collectionId"
+  //     )
+  //     .leftJoin("Launch", (join) =>
+  //       join
+  //         .onRef("CollectionProgress.collectionId", "=", "Launch.collectionId")
+  //         .on("Launch.status", "=", "CONFIRMED")
+  //     )
+  //     .select([
+  //       "CollectionProgress.collectionId",
+  //       "Collection.name",
+  //       "Collection.logoKey",
+  //       "Layer.layer",
+  //       "Layer.network",
+
+  //       (eb) =>
+  //         eb
+  //           .selectFrom("Order")
+  //           .select([eb.lit(true).as("paymentInitialized")])
+  //           .whereRef("Order.collectionId", "=", "Collection.id")
+  //           .where("Order.isBase", "=", true)
+  //           .limit(1)
+  //           .as("paymentInitialized"),
+  //       "CollectionProgress.paymentCompleted",
+
+  //       "CollectionProgress.queued",
+  //       "CollectionProgress.ranOutOfFunds",
+  //       "CollectionProgress.retopAmount",
+
+  //       "CollectionProgress.collectionCompleted",
+  //       "CollectionProgress.leftoverClaimed",
+  //       "CollectionProgress.leftoverAmount",
+
+  //       "CollectionProgress.launchInReview",
+  //       "CollectionProgress.launchRejected",
+  //       sql<boolean>`CASE WHEN "Launch"."id" IS NOT NULL THEN true ELSE false END`.as(
+  //         "launchConfirmed"
+  //       )
+  //     ])
+  //     .where("CollectionProgress.collectionId", "=", collectionId)
+  //     .orderBy("Collection.createdAt desc")
+  //     .executeTakeFirst();
+
+  //   return collectionProgress;
+  // },
   getById: async (collectionId: string) => {
     const collectionProgress = await db
       .selectFrom("CollectionProgress")
-      .innerJoin(
-        "Collection",
-        "Collection.id",
-        "CollectionProgress.collectionId"
-      )
-      .innerJoin("Layer", "Layer.id", "Collection.layerId")
-      .innerJoin("UserLayer", "UserLayer.id", "Collection.creatorUserLayerId")
-      .leftJoin(
-        "Order",
-        "CollectionProgress.collectionId",
-        "Order.collectionId"
-      )
       .leftJoin("Launch", (join) =>
         join
           .onRef("CollectionProgress.collectionId", "=", "Launch.collectionId")
@@ -108,14 +163,19 @@ export const collectionProgressRepository = {
       )
       .select([
         "CollectionProgress.collectionId",
-        "Collection.name",
-        "Collection.logoKey",
-        "Layer.layer",
-        "Layer.network",
 
-        sql<boolean>`CASE WHEN "Order"."id" IS NOT NULL THEN true ELSE false END`.as(
-          "paymentInitialized"
-        ),
+        (eb) =>
+          eb
+            .selectFrom("Order")
+            .select([eb.lit(true).as("paymentInitialized")])
+            .whereRef(
+              "Order.collectionId",
+              "=",
+              "CollectionProgress.collectionId"
+            )
+            .where("Order.isBase", "=", true)
+            .limit(1)
+            .as("paymentInitialized"),
         "CollectionProgress.paymentCompleted",
 
         "CollectionProgress.queued",
@@ -128,12 +188,12 @@ export const collectionProgressRepository = {
 
         "CollectionProgress.launchInReview",
         "CollectionProgress.launchRejected",
+
         sql<boolean>`CASE WHEN "Launch"."id" IS NOT NULL THEN true ELSE false END`.as(
           "launchConfirmed"
         )
       ])
       .where("CollectionProgress.collectionId", "=", collectionId)
-      .orderBy("Collection.createdAt desc")
       .executeTakeFirst();
 
     return collectionProgress;

@@ -13,7 +13,10 @@ export const orderRepository = {
 
     return order;
   },
-  bulkInsert: async (db: Kysely<DB> | Transaction<DB>, data: Insertable<Order>[]) => {
+  bulkInsert: async (
+    db: Kysely<DB> | Transaction<DB>,
+    data: Insertable<Order>[]
+  ) => {
     const order = await db
       .insertInto("Order")
       .values(data)
@@ -32,6 +35,19 @@ export const orderRepository = {
       .returningAll()
       .set(data)
       .where("Order.id", "=", id)
+      .executeTakeFirstOrThrow(() => new Error("Couldnt update the order."));
+
+    return order;
+  },
+  expireByCollectionId: async (
+    db: Kysely<DB> | Transaction<DB>,
+    collectionId: string
+  ) => {
+    const order = await db
+      .updateTable("Order")
+      .returningAll()
+      .set({ orderStatus: "EXPIRED" })
+      .where("Order.collectionId", "=", collectionId)
       .executeTakeFirstOrThrow(() => new Error("Couldnt update the order."));
 
     return order;
@@ -92,6 +108,20 @@ export const orderRepository = {
       .selectAll()
       .where("Order.collectionId", "=", collectionId)
       .where("Order.orderType", "=", "MINT_RECURSIVE_COLLECTIBLE")
+      .where("Order.orderStatus", "!=", "EXPIRED")
+      .orderBy("createdAt asc")
+      .executeTakeFirst();
+
+    return order;
+  },
+  getBaseByCollectionId: async (collectionId: string) => {
+    const order = await db
+      .selectFrom("Order")
+      .selectAll()
+      .where("Order.collectionId", "=", collectionId)
+      .where("Order.orderType", "=", "MINT_RECURSIVE_COLLECTIBLE")
+      .where("Order.orderStatus", "!=", "EXPIRED")
+      .where("Order.isBase", "=", true)
       .orderBy("createdAt asc")
       .executeTakeFirst();
 
@@ -105,6 +135,7 @@ export const orderRepository = {
       .selectAll()
       .where("Order.collectionId", "=", collectionId)
       .where("Order.orderType", "=", "MINT_RECURSIVE_COLLECTIBLE")
+      .where("Order.orderStatus", "!=", "EXPIRED")
       .orderBy("createdAt asc")
       .executeTakeFirst();
 
@@ -118,19 +149,19 @@ export const orderRepository = {
       .selectAll()
       .where("Order.collectionId", "=", collectionId)
       .where("Order.orderType", "=", "MINT_RECURSIVE_COLLECTIBLE")
+      .where("Order.orderStatus", "!=", "EXPIRED")
       .orderBy("createdAt asc")
       .execute();
 
     return orders;
   },
-  getOrderByIdAndMintRecursiveCollectibleType: async (
-    id: string
-  ) => {
+  getOrderByIdAndMintRecursiveCollectibleType: async (id: string) => {
     const order = await db
       .selectFrom("Order")
       .selectAll()
       .where("Order.id", "=", id)
       .where("Order.orderType", "=", "MINT_RECURSIVE_COLLECTIBLE")
+      .where("Order.orderStatus", "!=", "EXPIRED")
       .orderBy("createdAt asc")
       .executeTakeFirst();
 
@@ -142,9 +173,10 @@ export const orderRepository = {
       .selectAll()
       .where("Order.collectionId", "=", collectionId)
       .where("Order.orderType", "=", "MINT_RECURSIVE_COLLECTIBLE")
+      .where("Order.orderStatus", "!=", "EXPIRED")
       .orderBy("createdAt asc")
       .execute();
 
-    return orders
+    return orders;
   }
-}
+};

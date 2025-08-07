@@ -7,6 +7,11 @@ import { orderRepository } from "@repositories/orderRepostory";
 import { db } from "@utils/db";
 import { getBalance } from "@blockchain/bitcoin/libs";
 import { collectionProgressServices } from "@services/collectionProgressServices";
+import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
+import {
+  deleteRanOutOfFundsFlagByOrderIds,
+  isCollectionRanOutOfFunds
+} from "@queue/queueProcessServiceAPIs";
 
 export const orderController = {
   createMintOrder: async (
@@ -16,8 +21,8 @@ export const orderController = {
   ) => {
     try {
       const {
-        estimatedFeeInSats,
-        feeRate,
+        estimatedTxSizeInVBytes,
+        totalDustValue,
         orderSplitCount,
         collectionId,
         txid,
@@ -26,8 +31,10 @@ export const orderController = {
 
       if (!req.user?.id)
         throw new CustomError("Cannot parse user from token", 401);
-      if (!feeRate)
-        throw new CustomError("Order type and fee rate are required.", 400);
+      if (!estimatedTxSizeInVBytes)
+        throw new CustomError("estimatedTxSizeInVbytes is required.", 400);
+      if (!totalDustValue)
+        throw new CustomError("totalDustValue is required.", 400);
       if (!collectionId)
         throw new CustomError(
           "CollectionId is required when creating mint order.",
@@ -40,8 +47,8 @@ export const orderController = {
         );
 
       const { order, walletQrString } = await orderServices.createMintOrder(
-        estimatedFeeInSats,
-        Number(feeRate),
+        Number(estimatedTxSizeInVBytes),
+        Number(totalDustValue),
         orderSplitCount,
         collectionId,
         req.user.id,
@@ -108,6 +115,132 @@ export const orderController = {
       });
 
       return res.status(200).json({ success: true, data: { isPaid: true } });
+    } catch (e) {
+      next(e);
+    }
+  },
+  expireIncompleteOrder: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user?.id)
+        throw new CustomError("Cannot parse user from token", 401);
+      const { collectionId } = req.params;
+
+      const order = await orderRepository.getByCollectionId(collectionId);
+      if (!order)
+        throw new CustomError("No orders found for this collections", 400);
+
+      const collectionProgress = await collectionProgressRepository.getById(
+        collectionId
+      );
+      if (!collectionProgress)
+        throw new CustomError("Collection progress not found", 400);
+      const isPaymentInitialized =
+        collectionProgress.paymentInitialized &&
+        !collectionProgress.paymentCompleted;
+      if (!isPaymentInitialized)
+        throw new CustomError("Invalid collection progress state", 400);
+
+      await orderRepository.expireByCollectionId(db, collectionId);
+
+      return res.status(200).json({
+        success: true,
+        message: "Successfully expired incomplete orders"
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getBaseOrderByCollectionIdForRetopping: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user?.id)
+        throw new CustomError("Cannot parse user from token", 401);
+      const { collectionId } = req.params;
+
+      const order = await orderRepository.getBaseByCollectionId(collectionId);
+      if (!order) throw new CustomError("Order not found", 400);
+      if (!order.fundingAddress)
+        throw new CustomError("Order does not have funding address", 400);
+      if (!order.collectionId)
+        throw new CustomError("Order with no collection id", 400);
+
+      const collectionProgress = await collectionProgressRepository.getById(
+        order.collectionId
+      );
+      if (!collectionProgress)
+        throw new CustomError("Collection progress not found", 400);
+      if (!collectionProgress.ranOutOfFunds || !collectionProgress.retopAmount)
+        throw new CustomError("Collection has not been ran out of funds.", 400);
+
+      const walletQrString = `bitcoin:${order.fundingAddress}?amount=${
+        collectionProgress.retopAmount / 10 ** 8
+      }`;
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          walletQrString,
+          fundingAddress: order.fundingAddress,
+          retopAmount: collectionProgress.retopAmount
+        }
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
+  retopFunding: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user?.id)
+        throw new CustomError("Cannot parse user from token", 401);
+      const { collectionId } = req.params;
+
+      const order = await orderRepository.getBaseByCollectionId(collectionId);
+      if (!order) throw new CustomError("Order not found", 400);
+      if (!order.fundingAddress)
+        throw new CustomError("Order does not have funding address", 400);
+      if (!order.collectionId)
+        throw new CustomError("Order with no collection id", 400);
+
+      const collectionProgress = await collectionProgressRepository.getById(
+        order.collectionId
+      );
+      if (!collectionProgress)
+        throw new CustomError("Collection progress not found", 400);
+      if (!collectionProgress.ranOutOfFunds || !collectionProgress.retopAmount)
+        throw new CustomError("Collection has not been ran out of funds.", 400);
+
+      const balance = await getBalance(order.fundingAddress);
+      if (balance < collectionProgress.retopAmount)
+        throw new CustomError("Please retop the balance first", 400);
+
+      const orders =
+        await orderRepository.getOrdersByCollectionIdAndMintRecursiveCollectibleType(
+          collectionId
+        );
+
+      // Use transactions
+      await collectionProgressServices.update(collectionId, {
+        ranOutOfFunds: false,
+        retopAmount: 0
+      });
+      await deleteRanOutOfFundsFlagByOrderIds(orders.map((order) => order.id));
+      // TODO: Split the collectionProgress.retopAmount to all the orders, do
+
+      return res.status(200).json({
+        success: true,
+        message: "Successfully expired incomplete orders"
+      });
     } catch (e) {
       next(e);
     }

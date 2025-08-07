@@ -74,28 +74,34 @@ model Layer {
 }
 
 model Order {
-  id              String       @id @default(dbgenerated("gen_random_uuid()"))
-  feeRate         Float        @default(1)
-  fundingAddress  String?
-  fundingAmount   Float
-  fundingTxId     String?
-  privateKey      String?
-  createdAt       DateTime     @default(now())
-  mintedAt        DateTime?
-  orderSplitCount Int          @default(1)
-  orderType       ORDER_TYPE   @default(MINT_COLLECTIBLE)
-  orderStatus     ORDER_STATUS @default(PENDING)
-  userId          String
-  userLayerId     String
-  collectionId    String?
-  launchItemId    String?
-  purchaseId      String?
-  collection      Collection?  @relation(fields: [collectionId], references: [id])
-  launchItem      LaunchItem?  @relation(fields: [launchItemId], references: [id], onDelete: Cascade)
-  Purchase        Purchase?    @relation(fields: [purchaseId], references: [id])
-  user            User         @relation(fields: [userId], references: [id])
-  userLayer       UserLayer    @relation(fields: [userLayerId], references: [id])
-  orderItems      OrderItem[]
+  id                       String       @id @default(dbgenerated("gen_random_uuid()"))
+  isBase                   Boolean      @default(false)
+  feeRate                  Float        @default(1)
+  fundingAddress           String?
+  fundingAmount            Float
+  serviceFeeInSats         Int          @default(0)
+  networkFeeInSats         Int          @default(0)
+  hasTransferredServiceFee Boolean      @default(false)
+  fundingTxId              String?
+  privateKey               String?
+  createdAt                DateTime     @default(now())
+  mintedAt                 DateTime?
+  orderSplitCount          Int          @default(1)
+  orderType                ORDER_TYPE   @default(MINT_COLLECTIBLE)
+  orderStatus              ORDER_STATUS @default(PENDING)
+
+  userId       String
+  userLayerId  String
+  collectionId String?
+  launchItemId String?
+  purchaseId   String?
+
+  collection Collection? @relation(fields: [collectionId], references: [id])
+  launchItem LaunchItem? @relation(fields: [launchItemId], references: [id], onDelete: Cascade)
+  Purchase   Purchase?   @relation(fields: [purchaseId], references: [id])
+  user       User        @relation(fields: [userId], references: [id])
+  userLayer  UserLayer   @relation(fields: [userLayerId], references: [id])
+  orderItems OrderItem[]
 }
 
 model OrderItem {
@@ -113,10 +119,10 @@ model OrderItem {
 }
 
 model CollectionProgress {
-  collectionId     String  @id
+  collectionId String @id
 
-  paymentCompleted      Boolean @default(false)
-  queued  Boolean @default(false)
+  paymentCompleted Boolean @default(false)
+  queued           Boolean @default(false)
 
   ranOutOfFunds Boolean @default(false)
   retopAmount   Float?  @default(0)
@@ -125,8 +131,19 @@ model CollectionProgress {
   leftoverClaimed     Boolean @default(false)
   leftoverAmount      Float?  @default(0)
 
-  launchInReview  Boolean @default(false)
-  launchRejected  Boolean @default(false)
+  launchInReview Boolean @default(false)
+  launchRejected Boolean @default(false)
+
+  collection Collection @relation(fields: [collectionId], references: [id])
+}
+
+model CollectionUploadSession {
+  collectionId        String   @id
+  expectedTraitTypes  Int
+  expectedTraitValues Int
+  expectedRecursive   Int
+  expectedOOOEditions Int?
+  startedAt           DateTime @default(now())
 
   collection Collection @relation(fields: [collectionId], references: [id])
 }
@@ -142,6 +159,7 @@ model Collection {
   iconUrl            String?
   inscriptionIcon    String?
   slug               String?
+  symbol             String?
   logoKey            String?
   supply             Int
   ownerCount         Int?
@@ -163,23 +181,23 @@ model Collection {
 
   contractVersion String?
 
-  recursiveHeight    Int?
-  recursiveWidth     Int?
-  collectibles       Collectible[]
-  creator            User?                @relation(fields: [creatorId], references: [id])
-  creatorUserLayer   UserLayer?           @relation(fields: [creatorUserLayerId], references: [id])
-  layer              Layer                @relation(fields: [layerId], references: [id])
-  parentCollection   Collection?          @relation("ParentChild", fields: [parentCollectionId], references: [id])
-  childCollections   Collection[]         @relation("ParentChild")
-  launches           Launch[]
-  orders             Order[]
-  TraitType          TraitType[]
-  CollectionProgress CollectionProgress[]
-
-  @@index([status])
-  @@index([layerId, status])
+  recursiveHeight         Int?
+  recursiveWidth          Int?
+  collectibles            Collectible[]
+  creator                 User?                     @relation(fields: [creatorId], references: [id])
+  creatorUserLayer        UserLayer?                @relation(fields: [creatorUserLayerId], references: [id])
+  layer                   Layer                     @relation(fields: [layerId], references: [id])
+  parentCollection        Collection?               @relation("ParentChild", fields: [parentCollectionId], references: [id])
+  childCollections        Collection[]              @relation("ParentChild")
+  launches                Launch[]
+  orders                  Order[]
+  TraitType               TraitType[]
+  CollectionProgress      CollectionProgress[]
+  CollectionUploadSession CollectionUploadSession[]
 
   @@unique([contractAddress, layerId])
+  @@index([status])
+  @@index([layerId, status])
 }
 
 model Collectible {
@@ -201,6 +219,7 @@ model Collectible {
   parentCollectibleId    String?
   collectionId           String
   fileName               String?
+  fileSizeInBytes        Int?
   collection             Collection         @relation(fields: [collectionId], references: [id])
   parentCollectible      Collectible?       @relation("ParentChild", fields: [parentCollectibleId], references: [id])
   childCollectibles      Collectible[]      @relation("ParentChild")
@@ -234,6 +253,7 @@ model TraitValue {
   value             String
   inscriptionId     String?
   fileKey           String
+  fileSizeInBytes   Int?
   createdAt         DateTime           @default(now())
   mintedAt          DateTime?
   onHoldUntil       DateTime?

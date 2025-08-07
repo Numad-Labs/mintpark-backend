@@ -17,6 +17,7 @@ import { orderRepository } from "@repositories/orderRepostory";
 import { getBalance } from "@blockchain/bitcoin/libs";
 import { InscriptionQueueItem } from "@queue/sqsProducer";
 import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
+import { collectionUploadSessionRepository } from "@repositories/collectionUploadSessionRepository";
 
 export interface traitValueParams {
   type: string;
@@ -183,6 +184,19 @@ export const traitValueController = {
       if (collectionProgress.queued)
         throw new CustomError(
           "Collection has already been queued for processing.",
+          400
+        );
+
+      const collectionUploadSession =
+        await collectionUploadSessionRepository.getById(collectionId);
+      if (!collectionUploadSession)
+        throw new CustomError("Collection upload session not found", 400);
+      if (
+        collectionUploadSession.expectedTraitValues <
+        Number(collectionUploadSession.traitValueCount) + files.length
+      )
+        throw new CustomError(
+          "Number of existing trait value exceeded the expected amount",
           400
         );
 

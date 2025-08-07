@@ -65,6 +65,8 @@ export const collectionProgressServices = {
           progressState = COLLECTION_PROGRESS_STATES.LAUNCH_CONFIRMED;
         else if (validProgress.launchInReview)
           progressState = COLLECTION_PROGRESS_STATES.LAUNCH_IN_REVIEW;
+        else if (validProgress.leftoverClaimed)
+          progressState = COLLECTION_PROGRESS_STATES.LEFTOVER_CLAIMED;
         else if (validProgress.collectionCompleted)
           progressState = COLLECTION_PROGRESS_STATES.COMPLETED;
         else if (validProgress.ranOutOfFunds)
@@ -80,7 +82,7 @@ export const collectionProgressServices = {
     return result;
   },
   validateProgress: (progress: {
-    paymentInitialized: boolean;
+    paymentInitialized: boolean | null;
     paymentCompleted: boolean;
     queued: boolean;
     ranOutOfFunds: boolean;

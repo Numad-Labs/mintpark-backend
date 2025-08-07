@@ -32,10 +32,11 @@ import { wlRepository } from "../repositories/wlRepository";
 import { DirectMintNFTService } from "../blockchain/evm/services/nftService/directNFTService";
 import { LAUNCH_PHASE } from "@app-types/db/enums";
 import { DEFAULT_CONTRACT_VERSION } from "../blockchain/evm/contract-versions";
-import { ethers } from "ethers";
+import { ethers, id } from "ethers";
 import { getBalance } from "@blockchain/bitcoin/libs";
 import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
 import { collectionProgressServices } from "./collectionProgressServices";
+import { collectionUploadSessionRepository } from "@repositories/collectionUploadSessionRepository";
 
 export const launchServices = {
   create: async (
@@ -232,6 +233,19 @@ export const launchServices = {
         400
       );
 
+    const collectionUploadSession =
+      await collectionUploadSessionRepository.getById(collection.id);
+    if (!collectionUploadSession)
+      throw new CustomError("Collection upload session not found", 400);
+    if (
+      collectionUploadSession.expectedRecursive <
+      Number(collectionUploadSession.recursiveCollectibleCount) + data.length
+    )
+      throw new CustomError(
+        "Number of existing recursive collectibles exceeded the expected amount",
+        400
+      );
+
     const existingLaunchItemCount =
       await launchRepository.getLaunchItemCountByLaunchId(db, launch.id);
     const result = await collectibleServices.createRecursiveInscriptions(
@@ -320,6 +334,24 @@ export const launchServices = {
     if (collectionProgress.queued)
       throw new CustomError(
         "Collection has already been queued for processing.",
+        400
+      );
+
+    const collectionUploadSession =
+      await collectionUploadSessionRepository.getById(collection.id);
+    if (!collectionUploadSession)
+      throw new CustomError("Collection upload session not found", 400);
+    if (!collectionUploadSession.expectedOOOEditions)
+      throw new CustomError(
+        "Collection upload session does not have expectedOOOEditions",
+        400
+      );
+    if (
+      collectionUploadSession.expectedOOOEditions <
+      Number(collectionUploadSession.oooEditionCount) + files.length
+    )
+      throw new CustomError(
+        "Number of existing 1-of-1 edition collectibles exceeded the expected amount",
         400
       );
 

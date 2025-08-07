@@ -14,6 +14,13 @@ import { collectibleRepository } from "@repositories/collectibleRepository";
 import { traitValueRepository } from "@repositories/traitValueRepository";
 import { orderRepository } from "@repositories/orderRepostory";
 import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
+import {
+  isCollectionDone,
+  isCollectionRanOutOfFunds,
+  isCollectionRanOutOfFundsByOrderIds
+} from "@queue/queueProcessServiceAPIs";
+import { collectionUploadSessionRepository } from "@repositories/collectionUploadSessionRepository";
+import logger from "@config/winston";
 
 export interface CollectionQueryParams {
   layerId: string;
@@ -99,8 +106,6 @@ export const collectionController = {
 
       const collection = await collectionRepository.getById(db, id);
       if (!collection) throw new CustomError("Collection not found", 400);
-      if (collection.type !== "RECURSIVE_INSCRIPTION")
-        throw new CustomError("Invalid type", 400);
 
       const collectionProgress = await collectionProgressRepository.getById(id);
       if (!collectionProgress)
@@ -115,22 +120,57 @@ export const collectionController = {
         await traitValueRepository.getCountByCollectionId(id);
       const notDoneTraitValueCount =
         await traitValueRepository.getNotDoneCountByCollectionId(id);
-      const doneTraitValueCount = totalTraitValueCount - notDoneTraitValueCount;
+      const doneTraitValueCount =
+        Number(totalTraitValueCount) - Number(notDoneTraitValueCount);
 
       const totalCollectibleCount =
         await collectibleRepository.countAllByCollectionId(id);
       const notDoneCollectibleCount =
         await collectibleRepository.countWithoutParent(id);
       const doneCollectibleCount =
-        totalCollectibleCount - notDoneCollectibleCount;
+        Number(totalCollectibleCount) - Number(notDoneCollectibleCount);
 
       const inscriptionLimitPerBlock = 11;
       const blockTimeInMinutes = 10;
-      const etaInMinutes =
+
+      const done = Number(doneTraitValueCount) + Number(doneCollectibleCount);
+      const total =
+        Number(totalTraitValueCount) + Number(totalCollectibleCount);
+
+      if (done === total) {
+        if (
+          (await isCollectionDone(collection.id)) &&
+          !collectionProgress.collectionCompleted
+        ) {
+          const collectionProgressData: {
+            collectionCompleted: boolean;
+            leftoverAmount?: number;
+            leftoverClaimed?: boolean;
+          } = { collectionCompleted: true };
+
+          // TODO: do the leftover calculation, leftoverAmount = 0 -> leftoverAmount += getBalances of all addresses
+          const leftoverAmount = 5000;
+          if (leftoverAmount < 1000) {
+            collectionProgressData.leftoverAmount = 0;
+            collectionProgressData.leftoverClaimed = true;
+          } else {
+            collectionProgressData.leftoverAmount = leftoverAmount;
+            collectionProgressData.leftoverClaimed = false;
+          }
+
+          await collectionProgressServices.update(collection.id, {
+            ...collectionProgressData
+          });
+        }
+      }
+
+      const etaInMinutes = Math.max(
         ((notDoneTraitValueCount + notDoneCollectibleCount) /
-          inscriptionLimitPerBlock) *
-        order.orderSplitCount *
-        blockTimeInMinutes;
+          inscriptionLimitPerBlock /
+          order.orderSplitCount) *
+          blockTimeInMinutes,
+        done !== total ? blockTimeInMinutes : 0
+      );
 
       return res.status(200).json({
         success: true,
@@ -138,11 +178,11 @@ export const collectionController = {
           totalTraitValueCount,
           doneTraitValueCount,
 
-          totalCollectibleCount,
+          totalCollectibleCount: Number(totalCollectibleCount),
           doneCollectibleCount,
 
-          done: doneTraitValueCount + doneCollectibleCount,
-          total: totalTraitValueCount + totalCollectibleCount,
+          done,
+          total,
           etaInMinutes
         }
       });
@@ -164,7 +204,8 @@ export const collectionController = {
       layerId,
       userLayerId,
       type,
-      isBadge
+      isBadge,
+      symbol
     } = req.body;
     const logo = req.file as Express.Multer.File;
     const data: Insertable<Collection> = {
@@ -175,7 +216,8 @@ export const collectionController = {
       logoKey: null,
       layerId,
       type,
-      isBadge: isBadge === "true"
+      isBadge: isBadge === "true",
+      symbol
     };
 
     try {
@@ -288,6 +330,27 @@ export const collectionController = {
         data: {
           unsignedTx
         }
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+  submitLaunchForReview: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const { id } = req.params;
+
+    try {
+      const userId = req.user?.id;
+      if (!userId) throw new CustomError("Cannot parse user from token", 401);
+
+      const result = await collectionServices.submitForReview(id, userId);
+
+      return res.status(200).json({
+        success: true,
+        data: result
       });
     } catch (error) {
       next(error);
@@ -548,17 +611,147 @@ export const collectionController = {
     try {
       const userId = req.user?.id;
       const { id } = req.params;
+      const { address } = req.body;
       if (!userId) throw new CustomError("Cannot parse user from token", 401);
       if (!id) throw new CustomError("Collection ID is required", 400);
 
-      const orders = await collectionServices.withdraw(id, userId);
+      const txid = await collectionServices.withdraw(id, address, userId);
 
       return res.status(200).json({
         success: true,
-        data: orders
+        data: { txid }
       });
     } catch (error) {
       next(error);
+    }
+  },
+  markAsRanOutOfFunds: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const { orderId } = req.params;
+
+    try {
+      const order = await orderRepository.getById(db, orderId);
+      if (!order) throw new CustomError("Order not found", 400);
+      if (!order.collectionId)
+        throw new CustomError("Order with no collectionId", 400);
+
+      const orders =
+        await orderRepository.getOrdersByCollectionIdAndMintRecursiveCollectibleType(
+          order.collectionId
+        );
+      const hasAllOrdersBeenMarkedAsOutOfFunds =
+        await isCollectionRanOutOfFundsByOrderIds(
+          orders.map((order) => order.id)
+        );
+      if (!hasAllOrdersBeenMarkedAsOutOfFunds)
+        throw new CustomError(
+          "Not all orders has been marked as ran out of funds",
+          400
+        );
+      logger.info(hasAllOrdersBeenMarkedAsOutOfFunds);
+
+      const collectionProgress = await collectionProgressRepository.getById(
+        order.collectionId
+      );
+      if (!collectionProgress)
+        throw new CustomError("Collection progress not found", 400);
+      if (collectionProgress.ranOutOfFunds || collectionProgress.retopAmount)
+        return res.status(200).json({ success: true });
+
+      // TODO: Estimate top up amount from traitValue & recursive/1-of-1 collectible count and fileSize
+      /* 
+        - validate state and authorizations
+        - get undone trait values
+            - count, average file size
+        - get undone recursive collectibles
+            - count, average trait count
+        - get undone 1-of-1 edition collectibles
+            - count, average file size
+      */
+      const estimatedTopupAmount = 25000;
+
+      const { paymentInitialized, launchConfirmed, ...rest } =
+        collectionProgress;
+
+      await collectionProgressServices.update(collectionProgress.collectionId, {
+        ranOutOfFunds: true,
+        retopAmount: estimatedTopupAmount
+      });
+
+      return res
+        .status(200)
+        .json({ success: true, data: "Succesfully marked" });
+    } catch (e) {
+      next(e);
+    }
+  },
+  initiateUploadSessions: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const { id } = req.params;
+    const {
+      expectedTraitTypes,
+      expectedTraitValues,
+      expectedRecursive,
+      expectedOOOEditions
+    } = req.body;
+
+    try {
+      if (!expectedTraitTypes || !expectedTraitValues || !expectedRecursive)
+        throw new CustomError("Invalid data", 400);
+      if (
+        !Number.isInteger(expectedTraitTypes) ||
+        !Number.isInteger(expectedTraitValues) ||
+        !Number.isInteger(expectedRecursive) ||
+        (expectedOOOEditions && !Number.isInteger(expectedOOOEditions))
+      )
+        throw new CustomError("Invalid data", 400);
+
+      const collectionProgress = await collectionProgressRepository.getById(id);
+      if (!collectionProgress)
+        throw new CustomError("Collection progress not found", 400);
+      if (!collectionProgress.paymentCompleted)
+        throw new CustomError("Please complete the funding process first", 400);
+
+      const collectionUploadSession =
+        await collectionUploadSessionRepository.create({
+          collectionId: id,
+          expectedTraitTypes,
+          expectedTraitValues,
+          expectedRecursive,
+          expectedOOOEditions
+        });
+
+      return res
+        .status(200)
+        .json({ success: true, data: collectionUploadSession });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getUploadSessionByCollectionId: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const { id } = req.params;
+
+    try {
+      const collectionUploadSession =
+        await collectionUploadSessionRepository.getById(id);
+      if (!collectionUploadSession)
+        throw new CustomError("Collection Upload Session not found", 400);
+
+      return res
+        .status(200)
+        .json({ success: true, data: collectionUploadSession });
+    } catch (e) {
+      next(e);
     }
   }
 };

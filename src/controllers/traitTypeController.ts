@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from "uuid";
 import { orderRepository } from "@repositories/orderRepostory";
 import { getBalance } from "@blockchain/bitcoin/libs";
 import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
+import { collectionUploadSessionRepository } from "@repositories/collectionUploadSessionRepository";
 
 export const traitTypeController = {
   getTraitTypesByCollectionId: async (
@@ -66,6 +67,19 @@ export const traitTypeController = {
       if (collectionProgress.queued)
         throw new CustomError(
           "Collection has already been queued for processing.",
+          400
+        );
+
+      const collectionUploadSession =
+        await collectionUploadSessionRepository.getById(collectionId);
+      if (!collectionUploadSession)
+        throw new CustomError("Collection upload session not found", 400);
+      if (
+        collectionUploadSession.expectedTraitTypes <
+        Number(collectionUploadSession.traitTypeCount) + data.length
+      )
+        throw new CustomError(
+          "Number of existing trait types exceeded the expected amount",
           400
         );
 

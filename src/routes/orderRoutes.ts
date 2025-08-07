@@ -24,6 +24,24 @@ orderRouter.get(
   authenticateToken,
   orderController.checkOrderIsPaid
 );
+orderRouter.post(
+  "/:collectionId/expire-incomplete-order",
+  authenticateToken,
+  orderController.expireIncompleteOrder
+);
+
+orderRouter.post(
+  "/:collectionId/base",
+  authenticateToken,
+  orderController.getBaseOrderByCollectionIdForRetopping
+);
+
+orderRouter.post(
+  "/:collectionId/retop-funding",
+  authenticateToken,
+  orderController.retopFunding
+);
+
 orderRouter.get(
   "/user/:userId",
   authenticateToken,

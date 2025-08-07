@@ -16,7 +16,7 @@ import { db } from "../utils/db";
 import { redis } from "..";
 import { v4 as uuidv4 } from "uuid";
 import { Insertable, Updateable } from "kysely";
-import { Collection } from "../types/db/types";
+import { Collection, Launch } from "../types/db/types";
 import { layerServices } from "./layerServices";
 import { generateSymbol, serializeBigInt } from "../blockchain/evm/utils";
 import { config } from "../config/config";
@@ -32,6 +32,10 @@ import {
   setCollectionForRemoval
 } from "@queue/queueProcessServiceAPIs";
 import { orderRepository } from "@repositories/orderRepostory";
+import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
+import { collectionProgressServices } from "./collectionProgressServices";
+import { isValidERC721Symbol } from "@libs/isValidERC721Symbol";
+import logger from "@config/winston";
 
 export const collectionServices = {
   create: async (
@@ -92,7 +96,12 @@ export const collectionServices = {
     // Check if this is an EVM chain
     if (layer.chainId && EVM_CONFIG.CHAINS[layer.chainId]) {
       const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
-      const symbol = generateSymbol(name);
+
+      if (data.symbol) {
+        data.symbol = data.symbol.toUpperCase();
+        if (!isValidERC721Symbol(data.symbol))
+          throw new CustomError("Invalid symbol format", 400);
+      } else data.symbol = generateSymbol(name);
 
       // // Use appropriate NFT service based on collection type
       // if (
@@ -141,7 +150,7 @@ export const collectionServices = {
         await directMintService.getUnsignedDeploymentTransaction(
           user.address, // contract owner
           name,
-          symbol,
+          data.symbol,
           chainConfig.DEFAULT_ROYALTY_FEE,
           chainConfig.DEFAULT_PLATFORM_FEE
         );
@@ -266,7 +275,7 @@ export const collectionServices = {
     const launch = await launchRepository.getByCollectionId(collection.id);
     if (!launch) throw new CustomError("Launch not found", 400);
     if (user.role !== "SUPER_ADMIN" && launch.status === "CONFIRMED")
-      throw new CustomError("Launch has already started", 400);
+      throw new CustomError("Launch has already been confirmed", 400);
 
     // if (!collection.creatorUserLayerId)
     //   throw new CustomError("Collection with no creator user layer id", 400);
@@ -297,6 +306,47 @@ export const collectionServices = {
       chainConfig.RPC_URL,
       contractVersion
     );
+    // Validate phase index
+    const phaseCount = await directMintService.getPhaseCount(
+      collection.contractAddress
+    );
+
+    // Get all phases to check for overlaps
+    const phasesResponse = await directMintService.getAllPhases(
+      collection.contractAddress
+    );
+    const allPhases = phasesResponse.phases;
+
+    // Check for time overlaps with other phases
+    for (let i = 0; i < allPhases.length; i++) {
+      const otherPhase = allPhases[i];
+      const otherStart = otherPhase.startTime;
+      const otherEnd = otherPhase.endTime;
+
+      if (otherPhase.phaseType === phaseType)
+        throw new CustomError(
+          "This phase has already been added on-chain",
+          400
+        );
+
+      // Check if there's an overlap
+      const hasOverlap =
+        (startTime <= otherEnd || otherEnd === 0) && // Our start is before other's end (or other has no end)
+        (endTime >= otherStart || endTime === 0); // Our end is after other's start (or we have no end)
+
+      if (hasOverlap) {
+        throw new CustomError(
+          `Phase time overlaps with existing ${otherPhase.phaseTypeName} phase (index ${i}). ` +
+            `It runs from ${new Date(otherStart * 1000).toLocaleString()} to ` +
+            `${
+              otherEnd > 0
+                ? new Date(otherEnd * 1000).toLocaleString()
+                : "no end date"
+            }.`,
+          400
+        );
+      }
+    }
 
     // Get unsigned transaction
     const unsignedTx = await directMintService.getUnsignedAddPhaseTransaction(
@@ -311,7 +361,86 @@ export const collectionServices = {
       user.address
     );
 
+    if (phaseType == 0) {
+      await launchRepository.update(launch.id, {
+        id: launch.id,
+        wlEndsAt: endTime.toString(),
+        wlStartsAt: startTime.toString(),
+        wlMintPrice: parseFloat(price),
+        wlMaxMintPerWallet: maxPerWallet,
+        updatedAt: new Date().toISOString()
+      });
+    } else if (phaseType == 1) {
+      await launchRepository.update(launch.id, {
+        id: launch.id,
+        fcfsEndsAt: endTime.toString(),
+        fcfsStartsAt: startTime.toString(),
+        fcfsMintPrice: parseFloat(price),
+        fcfsMaxMintPerWallet: maxPerWallet,
+        updatedAt: new Date().toISOString()
+      });
+    } else if (phaseType == 2) {
+      await launchRepository.update(launch.id, {
+        id: launch.id,
+        poEndsAt: endTime.toString(),
+        poStartsAt: startTime.toString(),
+        poMintPrice: parseFloat(price),
+        poMaxMintPerWallet: maxPerWallet,
+        updatedAt: new Date().toISOString()
+      });
+    } else {
+      throw new CustomError("Invalid phase type", 400);
+    }
+
     return serializeBigInt(unsignedTx);
+  },
+  submitForReview: async (id: string, issuerId: string) => {
+    // Get collection and verify ownership
+    const collection = await collectionRepository.getById(db, id);
+    if (!collection) {
+      throw new CustomError("Collection not found", 404);
+    }
+    if (collection.creatorId !== issuerId) {
+      throw new CustomError(
+        "You are not authorized to modify this collection",
+        403
+      );
+    }
+    if (!collection.contractAddress) {
+      throw new CustomError("Collection contract address not found", 400);
+    }
+    // Verify collection status
+    if (collection.status !== "UNCONFIRMED") {
+      throw new CustomError(
+        "Collection must be in UNCONFIRMED status to apply for review",
+        400
+      );
+    }
+
+    // Get user and validate
+    const user = await userRepository.getById(issuerId);
+    if (!user) {
+      throw new CustomError("User not found", 404);
+    }
+
+    const launch = await launchRepository.getByCollectionId(collection.id);
+    if (!launch) throw new CustomError("Launch not found", 400);
+    if (user.role !== "SUPER_ADMIN" && launch.status === "CONFIRMED")
+      throw new CustomError("Launch has already been confirmed", 400);
+
+    const collectionProgress = await collectionProgressRepository.getById(id);
+    if (!collectionProgress)
+      throw new CustomError("Collection progress not found", 400);
+    if (collectionProgress.launchInReview)
+      throw new CustomError("Launch is already in review", 400);
+    if (!collectionProgress.collectionCompleted)
+      throw new CustomError("Collection have to be completed first", 400);
+
+    await collectionProgressServices.update(id, {
+      launchInReview: true
+    });
+
+    return true;
   },
 
   updatePhase: async (
@@ -398,6 +527,14 @@ export const collectionServices = {
     //   collection.creatorUserLayerId !== userLayerId
     // )
     //   throw new CustomError("You are not allowed to do this action", 400);
+
+    const collectionProgress = await collectionProgressRepository.getById(
+      collection.id
+    );
+    if (!collectionProgress)
+      throw new CustomError("Collection progress not found", 400);
+    if (collectionProgress.launchInReview)
+      throw new CustomError("Launch is in review", 400);
 
     // Initialize NFT service
     const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
@@ -545,6 +682,14 @@ export const collectionServices = {
     if (collection.contractAddress !== phaseData.contractAddress) {
       throw new CustomError("Contract address mismatch", 400);
     }
+
+    const collectionProgress = await collectionProgressRepository.getById(
+      collection.id
+    );
+    if (!collectionProgress)
+      throw new CustomError("Collection progress not found", 400);
+    if (collectionProgress.launchInReview)
+      throw new CustomError("Launch is in review", 400);
 
     // Get the layer for the collection
     const layer = await layerRepository.getById(collection.layerId);
@@ -839,7 +984,7 @@ export const collectionServices = {
 
     return { orders };
   },
-  withdraw: async (id: string, userId: string) => {
+  withdraw: async (id: string, address: string, userId: string) => {
     const collection = await collectionRepository.getById(db, id);
     if (!collection) {
       throw new CustomError("Collection not found", 404);
@@ -850,6 +995,16 @@ export const collectionServices = {
     const isDone = await isCollectionDone(id);
     if (!isDone) throw new CustomError("Collection is not done", 400);
 
+    const collectionProgress = await collectionProgressRepository.getById(id);
+    if (!collectionProgress)
+      throw new CustomError("Collection progress not found", 400);
+    if (
+      collectionProgress.leftoverClaimed ||
+      !collectionProgress.leftoverAmount
+    )
+      throw new CustomError("Invalid state", 400);
+
+    // Transfer amount to to-be-given address & set collectionProgress.claimedLeftover to true and leftoverAmount to 0
     const orders =
       await orderRepository.getOrdersByCollectionIdAndMintRecursiveCollectibleType(
         id
@@ -857,7 +1012,16 @@ export const collectionServices = {
     if (orders.length === 0)
       throw new CustomError("No corresponding orders found", 400);
 
-    return { orders };
+    await collectionProgressServices.update(collection.id, {
+      leftoverClaimed: true
+    });
+
+    const txId = "DUMMY-BITCOIN-TXID";
+    logger.info(
+      `withdraw transaction sent at transaction: ${txId} to ${address}`
+    );
+
+    return txId;
   }
 
   // update: async (

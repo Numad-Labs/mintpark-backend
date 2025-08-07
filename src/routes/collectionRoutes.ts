@@ -4,6 +4,7 @@ import { collectionController } from "../controllers/collectionController";
 import { parseFiles } from "../middlewares/fileParser";
 import { authorize } from "../middlewares/authorize";
 import { collectionRepository } from "@repositories/collectionRepository";
+import { apiKeyAuth } from "@middlewares/apiKeyAuth";
 
 const collectionRouter = Router();
 
@@ -20,6 +21,24 @@ collectionRouter.get(
   collectionController.getInscriptionProgress
 );
 
+collectionRouter.put(
+  "/:orderId/mark-as-ran-out-of-funds",
+  apiKeyAuth,
+  collectionController.markAsRanOutOfFunds
+);
+
+collectionRouter.post(
+  "/:id/initiate-upload-session",
+  authenticateToken,
+  collectionController.initiateUploadSessions
+);
+
+collectionRouter.get(
+  "/:id/upload-session",
+  authenticateToken,
+  collectionController.getUploadSessionByCollectionId
+);
+
 collectionRouter.post(
   "/",
   authenticateToken,
@@ -32,6 +51,12 @@ collectionRouter.post(
   "/phase",
   authenticateToken,
   collectionController.addPhase
+);
+
+collectionRouter.post(
+  "/:id/submit-for-review",
+  authenticateToken,
+  collectionController.submitLaunchForReview
 );
 
 collectionRouter.put(
@@ -57,11 +82,11 @@ collectionRouter.put(
   collectionController.updateDetails
 );
 
-collectionRouter.post(
-  "/:id/stop-and-withdraw",
-  authenticateToken,
-  collectionController.stopAndWithdraw
-);
+// collectionRouter.post(
+//   "/:id/stop-and-withdraw",
+//   authenticateToken,
+//   collectionController.stopAndWithdraw
+// );
 
 collectionRouter.post(
   "/:id/withdraw",

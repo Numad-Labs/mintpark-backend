@@ -46,6 +46,7 @@ export type Collectible = {
   parentCollectibleId: string | null;
   collectionId: string;
   fileName: string | null;
+  fileSizeInBytes: number | null;
 };
 export type CollectibleTrait = {
   id: Generated<string>;
@@ -64,6 +65,7 @@ export type Collection = {
   iconUrl: string | null;
   inscriptionIcon: string | null;
   slug: string | null;
+  symbol: string | null;
   logoKey: string | null;
   supply: number;
   ownerCount: number | null;
@@ -96,6 +98,14 @@ export type CollectionProgress = {
   leftoverAmount: Generated<number | null>;
   launchInReview: Generated<boolean>;
   launchRejected: Generated<boolean>;
+};
+export type CollectionUploadSession = {
+  collectionId: string;
+  expectedTraitTypes: number;
+  expectedTraitValues: number;
+  expectedRecursive: number;
+  expectedOOOEditions: number | null;
+  startedAt: Generated<Timestamp>;
 };
 export type Currency = {
   id: Generated<string>;
@@ -170,9 +180,13 @@ export type List = {
 };
 export type Order = {
   id: Generated<string>;
+  isBase: Generated<boolean>;
   feeRate: Generated<number>;
   fundingAddress: string | null;
   fundingAmount: number;
+  serviceFeeInSats: Generated<number>;
+  networkFeeInSats: Generated<number>;
+  hasTransferredServiceFee: Generated<boolean>;
   fundingTxId: string | null;
   privateKey: string | null;
   createdAt: Generated<Timestamp>;
@@ -215,6 +229,7 @@ export type TraitValue = {
   value: string;
   inscriptionId: string | null;
   fileKey: string;
+  fileSizeInBytes: number | null;
   createdAt: Generated<Timestamp>;
   mintedAt: Timestamp | null;
   onHoldUntil: Timestamp | null;
@@ -251,6 +266,7 @@ export type DB = {
   CollectibleTrait: CollectibleTrait;
   Collection: Collection;
   CollectionProgress: CollectionProgress;
+  CollectionUploadSession: CollectionUploadSession;
   Currency: Currency;
   FailedMint: FailedMint;
   Launch: Launch;

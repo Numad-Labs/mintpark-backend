@@ -32,7 +32,9 @@ const envSchema = z.object({
   PLATFORM_FEE_RECIPIENT: z.string(),
   QUEUE_PROCESSOR_URL: z.string(),
   QUEUE_PROCESSOR_API_KEY: z.string(),
-  MARKETPLACE_SYNC_SECRET: z.string()
+  MARKETPLACE_SYNC_SECRET: z.string(),
+  MAINNET_SERVICE_FEE_RECIPIENT_ADDRESS: z.string(),
+  TESTNET_SERVICE_FEE_RECIPIENT_ADDRESS: z.string()
 });
 
 let env = envSchema.safeParse(process.env);
