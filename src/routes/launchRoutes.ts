@@ -10,7 +10,13 @@ const launchRouter = Router();
 launchRouter.get("/", launchController.getAllLaunchesByLayerId);
 launchRouter.get(
   "/collections/:collectionId",
-  launchController.getLaunchByCollectionId
+  launchController.getConfirmedLaunchByCollectionId
+);
+
+launchRouter.get(
+  "/:collectionId/collection",
+  authenticateToken,
+  launchController.getLaunchDetailsByCollectionId
 );
 
 launchRouter.post(

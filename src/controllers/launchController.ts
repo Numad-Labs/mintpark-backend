@@ -1,6 +1,9 @@
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../exceptions/CustomError";
-import { LaunchQueryParams } from "../repositories/collectionRepository";
+import {
+  collectionRepository,
+  LaunchQueryParams
+} from "../repositories/collectionRepository";
 import { AuthenticatedRequest } from "../../custom";
 import { launchServices } from "../services/launchServices";
 import { Insertable, sql, Updateable } from "kysely";
@@ -319,7 +322,7 @@ export const launchController = {
       next(e);
     }
   },
-  getLaunchByCollectionId: async (
+  getConfirmedLaunchByCollectionId: async (
     req: Request,
     res: Response,
     next: NextFunction
@@ -328,10 +331,40 @@ export const launchController = {
       const { collectionId } = req.params;
 
       try {
-        const launch = await launchRepository.getConfirmedLaunchById(
+        const launch = await launchRepository.getConfirmedLaunchByCollectionId(
           collectionId
         );
         if (!launch) throw new CustomError("Collection not found", 404);
+
+        return res.status(200).json({ success: true, data: launch });
+      } catch (e) {
+        next(e);
+      }
+    } catch (e) {
+      next(e);
+    }
+  },
+  getLaunchDetailsByCollectionId: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) throw new CustomError("Cannot parse userId from token", 400);
+
+      const { collectionId } = req.params;
+      console.log(collectionId);
+
+      try {
+        const collection = await collectionRepository.getById(db, collectionId);
+        console.log(collection);
+        if (!collection) throw new CustomError("Collection not found", 400);
+        if (collection.creatorId !== userId)
+          throw new CustomError("Not allowed", 400);
+
+        const launch = await launchRepository.getByCollectionId(collectionId);
+        if (!launch) throw new CustomError("Launch not found", 400);
 
         return res.status(200).json({ success: true, data: launch });
       } catch (e) {

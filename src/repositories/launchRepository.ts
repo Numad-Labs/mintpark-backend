@@ -215,7 +215,7 @@ export const launchRepository = {
       poEndsAt: Number(collection.poEndsAt)
     }));
   },
-  getConfirmedLaunchById: async (collectionId: string) => {
+  getConfirmedLaunchByCollectionId: async (collectionId: string) => {
     const collection = await db
       .selectFrom("Launch")
       .innerJoin(
