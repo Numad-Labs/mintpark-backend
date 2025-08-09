@@ -14,10 +14,11 @@ import logger from "@config/winston";
 import { queueService, QueueType } from "../queue/queueService";
 import { AxiosError } from "axios";
 import { orderRepository } from "@repositories/orderRepostory";
-import { getBalance } from "@blockchain/bitcoin/libs";
 import { InscriptionQueueItem } from "@queue/sqsProducer";
 import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
 import { collectionUploadSessionRepository } from "@repositories/collectionUploadSessionRepository";
+import { Insertable } from "kysely";
+import { TraitValue } from "@app-types/db/types";
 
 export interface traitValueParams {
   type: string;
@@ -215,21 +216,27 @@ export const traitValueController = {
           if (file) await uploadToS3(key, file);
           return {
             key,
-            fileName: file.originalname
+            fileName: file.originalname,
+            fileSize: file.size
           };
         })
       );
       // Parse and format values from file names
-      const traitValuesToInsert = fileKeys.map(({ key, fileName }) => {
-        const value = fileName.split(".")[0].replace(/\s+/g, "_").toLowerCase();
-        return {
-          value,
-          fileKey: key,
-          traitTypeId
-        };
-      });
+      const traitValuesToInsert: Insertable<TraitValue>[] = fileKeys.map(
+        ({ key, fileName, fileSize }) => {
+          const value = fileName
+            .split(".")[0]
+            .replace(/\s+/g, "_")
+            .toLowerCase();
+          return {
+            value,
+            fileKey: key,
+            traitTypeId,
+            fileSizeInBytes: fileSize
+          };
+        }
+      );
 
-      // Save to DB
       const result = await traitValueRepository.bulkInsert(traitValuesToInsert);
 
       return res

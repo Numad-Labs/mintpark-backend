@@ -149,11 +149,14 @@ export const traitValueRepository = {
     return await db
       .selectFrom("TraitValue")
       .innerJoin("TraitType", "TraitType.id", "TraitValue.traitTypeId")
+      .innerJoin("Collection", "Collection.id", "TraitType.collectionId")
+      .innerJoin("Layer", "Layer.id", "Collection.layerId")
       .select([
         "TraitValue.id",
         "TraitType.collectionId",
         "TraitValue.fileKey",
-        "TraitValue.inscriptionId"
+        "TraitValue.inscriptionId",
+        "Layer.network"
       ])
       .where("TraitType.collectionId", "=", collectionId)
       .where("TraitValue.inscriptionId", "is", null)

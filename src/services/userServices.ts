@@ -8,7 +8,7 @@ import { layerRepository } from "../repositories/layerRepository";
 import { verifySignedMessage as EvmVerifySignedMessage } from "../blockchain/evm/utils";
 import { userLayerRepository } from "../repositories/userLayerRepository";
 import { verifyMessage as bitcoinVerifySignedMessage } from "@unisat/wallet-utils";
-import { isBitcoinTestnetAddress } from "../blockchain/bitcoin/libs";
+import { isBitcoinTestnetAddress } from "@blockchain/bitcoin/isBitcoinTestnetAddress";
 
 export const userServices = {
   generateMessageToSign: async (address: string) => {

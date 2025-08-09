@@ -5,13 +5,15 @@ import { CustomError } from "../exceptions/CustomError";
 import { hideSensitiveData } from "../libs/hideDataHelper";
 import { orderRepository } from "@repositories/orderRepostory";
 import { db } from "@utils/db";
-import { getBalance } from "@blockchain/bitcoin/libs";
 import { collectionProgressServices } from "@services/collectionProgressServices";
 import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
 import {
   deleteRanOutOfFundsFlagByOrderIds,
   isCollectionRanOutOfFunds
 } from "@queue/queueProcessServiceAPIs";
+import { collectionRepository } from "@repositories/collectionRepository";
+import { layerRepository } from "@repositories/layerRepository";
+import { getPSBTBuilder } from "@blockchain/bitcoin/PSBTBuilder";
 
 export const orderController = {
   createMintOrder: async (
@@ -106,7 +108,20 @@ export const orderController = {
       if (!order.collectionId)
         throw new CustomError("Order with no collection id", 400);
 
-      const balance = await getBalance(order.fundingAddress);
+      const collection = await collectionRepository.getById(
+        db,
+        order.collectionId
+      );
+      if (!collection) throw new CustomError("Collection not found", 400);
+
+      const layer = await layerRepository.getById(collection.layerId);
+      if (!layer) throw new CustomError("Layer not found", 400);
+
+      const psbtBuilder = getPSBTBuilder(
+        layer.network === "MAINNET" ? "mainnet" : "testnet"
+      );
+
+      let balance = (await psbtBuilder.getBalance(order.fundingAddress)).total;
       if (balance < order.fundingAmount)
         throw new CustomError("Please fund the order first", 400);
 
@@ -220,9 +235,22 @@ export const orderController = {
       if (!collectionProgress.ranOutOfFunds || !collectionProgress.retopAmount)
         throw new CustomError("Collection has not been ran out of funds.", 400);
 
-      const balance = await getBalance(order.fundingAddress);
-      if (balance < collectionProgress.retopAmount)
-        throw new CustomError("Please retop the balance first", 400);
+      const collection = await collectionRepository.getById(
+        db,
+        order.collectionId
+      );
+      if (!collection) throw new CustomError("Collection not found", 400);
+
+      const layer = await layerRepository.getById(collection.layerId);
+      if (!layer) throw new CustomError("Layer not found", 400);
+
+      const psbtBuilder = getPSBTBuilder(
+        layer.network === "MAINNET" ? "mainnet" : "testnet"
+      );
+
+      let balance = (await psbtBuilder.getBalance(order.fundingAddress)).total;
+      if (balance < order.fundingAmount)
+        throw new CustomError("Please fund the order first", 400);
 
       const orders =
         await orderRepository.getOrdersByCollectionIdAndMintRecursiveCollectibleType(

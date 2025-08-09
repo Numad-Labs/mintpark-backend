@@ -27,7 +27,6 @@ import {
 import { orderItemRepository } from "../repositories/orderItemRepository";
 import { traitValueRepository } from "../repositories/traitValueRepository";
 import { collectibleTraitRepository } from "../repositories/collectibleTraitRepository";
-import { getBalance } from "../blockchain/bitcoin/libs";
 import logger from "../config/winston";
 import { BADGE_BATCH_SIZE } from "../libs/constants";
 import { launchRepository } from "repositories/launchRepository";
@@ -266,7 +265,8 @@ export const collectibleServices = {
         if (file) await uploadToS3(key, file);
         return {
           key,
-          fileName: file.originalname
+          fileName: file.originalname,
+          fileSize: file.size
         };
       })
     );
@@ -278,7 +278,8 @@ export const collectibleServices = {
         collectionId: collection.id,
         nftId: (startIndex + i).toString(),
         fileName: fileKeys[i].fileName,
-        isOOOEdition
+        isOOOEdition,
+        fileSizeInBytes: fileKeys[i].fileSize
       });
     const collectibles = await collectibleRepository.bulkInsert(
       collectiblesData

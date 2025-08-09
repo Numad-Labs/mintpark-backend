@@ -23,7 +23,6 @@ import { db } from "../utils/db";
 import logger from "../config/winston";
 import { collectibleServices } from "./collectibleServices";
 import { serializeBigInt } from "../blockchain/evm/utils";
-import { createFundingAddress } from "../blockchain/bitcoin/createFundingAddress";
 import { IpfsQueueItem, queueService, QueueType } from "../queue/queueService";
 import { purchaseRepository } from "../repositories/purchaseRepository";
 import { hideSensitiveData } from "../libs/hideDataHelper";
@@ -33,7 +32,6 @@ import { DirectMintNFTService } from "../blockchain/evm/services/nftService/dire
 import { LAUNCH_PHASE } from "@app-types/db/enums";
 import { DEFAULT_CONTRACT_VERSION } from "../blockchain/evm/contract-versions";
 import { ethers, id } from "ethers";
-import { getBalance } from "@blockchain/bitcoin/libs";
 import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
 import { collectionProgressServices } from "./collectionProgressServices";
 import { collectionUploadSessionRepository } from "@repositories/collectionUploadSessionRepository";
@@ -1058,76 +1056,76 @@ export const launchServices = {
       launchItem: result.launchItem
     };
   },
-  createOrderForReservedLaunchItems: async (
-    launchId: string,
-    issuerId: string,
-    userLayerId: string
-  ) => {
-    const issuer = await userRepository.getByUserLayerId(userLayerId);
-    if (!issuer) throw new CustomError("User not found.", 400);
-    if (issuer.id !== issuerId)
-      throw new CustomError(
-        "You are not allowed to do this actions behalf of this user.",
-        400
-      );
-    if (issuer.role !== "SUPER_ADMIN")
-      throw new CustomError(
-        "Only admins are allowed to do this opearation.",
-        400
-      );
-    if (!issuer.isActive)
-      throw new CustomError("This account is deactivated.", 400);
+  // createOrderForReservedLaunchItems: async (
+  //   launchId: string,
+  //   issuerId: string,
+  //   userLayerId: string
+  // ) => {
+  //   const issuer = await userRepository.getByUserLayerId(userLayerId);
+  //   if (!issuer) throw new CustomError("User not found.", 400);
+  //   if (issuer.id !== issuerId)
+  //     throw new CustomError(
+  //       "You are not allowed to do this actions behalf of this user.",
+  //       400
+  //     );
+  //   if (issuer.role !== "SUPER_ADMIN")
+  //     throw new CustomError(
+  //       "Only admins are allowed to do this opearation.",
+  //       400
+  //     );
+  //   if (!issuer.isActive)
+  //     throw new CustomError("This account is deactivated.", 400);
 
-    const launch = await launchRepository.getById(db, launchId);
-    if (!launch) throw new CustomError("Launch not found.", 400);
+  //   const launch = await launchRepository.getById(db, launchId);
+  //   if (!launch) throw new CustomError("Launch not found.", 400);
 
-    // const reservedLaunchItemsCount =
-    //   await launchRepository.getLaunchItemCountByLaunchIdAndStatus(
-    //     launch.id,
-    //     "RESERVED"
-    //   );
-    // if (!reservedLaunchItemsCount)
-    //   throw new CustomError("Could not count the reserved launch items.", 400);
+  //   // const reservedLaunchItemsCount =
+  //   //   await launchRepository.getLaunchItemCountByLaunchIdAndStatus(
+  //   //     launch.id,
+  //   //     "RESERVED"
+  //   //   );
+  //   // if (!reservedLaunchItemsCount)
+  //   //   throw new CustomError("Could not count the reserved launch items.", 400);
 
-    // const BATCH_SIZE = 50;
-    // const BATCH_COUNT = Math.ceil(
-    //   Number(reservedLaunchItemsCount) / BATCH_SIZE
-    // );
-    // for (let i = 0; i < BATCH_COUNT; i++) {
-    //   const offset = i * BATCH_SIZE;
-    // }
+  //   // const BATCH_SIZE = 50;
+  //   // const BATCH_COUNT = Math.ceil(
+  //   //   Number(reservedLaunchItemsCount) / BATCH_SIZE
+  //   // );
+  //   // for (let i = 0; i < BATCH_COUNT; i++) {
+  //   //   const offset = i * BATCH_SIZE;
+  //   // }
 
-    const reservedLaunchItems =
-      await launchItemRepository.getByLaunchIdAndStatus(launch.id, "RESERVED");
-    if (reservedLaunchItems.length === 0)
-      throw new CustomError("Could not get the reserved launch items.", 400);
+  //   const reservedLaunchItems =
+  //     await launchItemRepository.getByLaunchIdAndStatus(launch.id, "RESERVED");
+  //   if (reservedLaunchItems.length === 0)
+  //     throw new CustomError("Could not get the reserved launch items.", 400);
 
-    let funder = createFundingAddress("TESTNET");
-    const order = await orderRepository.create(db, {
-      userId: issuer.id,
-      fundingAmount: 0,
-      fundingAddress: funder.address,
-      privateKey: funder.privateKey,
-      orderType: "MINT_COLLECTIBLE",
-      collectionId: launch.collectionId,
-      feeRate: 1,
-      userLayerId
-    });
+  //   let funder = createFundingAddress("TESTNET");
+  //   const order = await orderRepository.create(db, {
+  //     userId: issuer.id,
+  //     fundingAmount: 0,
+  //     fundingAddress: funder.address,
+  //     privateKey: funder.privateKey,
+  //     orderType: "MINT_COLLECTIBLE",
+  //     collectionId: launch.collectionId,
+  //     feeRate: 1,
+  //     userLayerId
+  //   });
 
-    const orderItemsData: Insertable<OrderItem>[] = [];
-    for (let i = 0; i < reservedLaunchItems.length; i++) {
-      orderItemsData.push({
-        orderId: order.id,
-        type: "COLLECTIBLE",
-        collectibleId: reservedLaunchItems[i].collectibleId
-      });
-    }
-    const orderItems = await orderItemRepository.bulkInsert(orderItemsData);
-    if (orderItems.length === 0)
-      throw new CustomError("Order item not created.", 400);
+  //   const orderItemsData: Insertable<OrderItem>[] = [];
+  //   for (let i = 0; i < reservedLaunchItems.length; i++) {
+  //     orderItemsData.push({
+  //       orderId: order.id,
+  //       type: "COLLECTIBLE",
+  //       collectibleId: reservedLaunchItems[i].collectibleId
+  //     });
+  //   }
+  //   const orderItems = await orderItemRepository.bulkInsert(orderItemsData);
+  //   if (orderItems.length === 0)
+  //     throw new CustomError("Order item not created.", 400);
 
-    return { order, launch };
-  },
+  //   return { order, launch };
+  // },
   invokeMintingForReservedLaunchItems: async (
     orderId: string,
     launchId: string,

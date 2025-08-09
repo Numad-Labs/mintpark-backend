@@ -6,7 +6,6 @@ import { db } from "../utils/db";
 import { collectionRepository } from "../repositories/collectionRepository";
 import { v4 as uuidv4 } from "uuid";
 import { orderRepository } from "@repositories/orderRepostory";
-import { getBalance } from "@blockchain/bitcoin/libs";
 import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
 import { collectionUploadSessionRepository } from "@repositories/collectionUploadSessionRepository";
 

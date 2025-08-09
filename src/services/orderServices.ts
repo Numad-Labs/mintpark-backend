@@ -15,18 +15,13 @@ import { TransactionConfirmationService } from "../blockchain/evm/services/trans
 import { db } from "../utils/db";
 import { layerServices } from "./layerServices";
 import { traitValueRepository } from "../repositories/traitValueRepository";
-import { getBalance } from "../blockchain/bitcoin/libs";
-import { createFundingAddress } from "../blockchain/bitcoin/createFundingAddress";
 import logger from "../config/winston";
 import { config } from "../config/config";
-import { getFeeRates } from "@blockchain/bitcoin/getFeeRates";
 import { InscriptionPhase, InscriptionQueueItem } from "@queue/sqsProducer";
 import { SQSProducer } from "@queue/sqsProducer";
-import { splitOrderFunding } from "@blockchain/bitcoin/splitOrderFunding";
-import { sendRawTransaction } from "@blockchain/bitcoin/sendTransaction";
-import { calculateFeeForOrderSplitTx } from "@blockchain/bitcoin/calculateFeeForOrderSplitTx";
 import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
 import { collectionProgressServices } from "./collectionProgressServices";
+import { getPSBTBuilder } from "@blockchain/bitcoin/PSBTBuilder";
 
 export const producer = new SQSProducer("eu-central-1", config.AWS_SQS_URL);
 
@@ -241,17 +236,19 @@ export const orderServices = {
     if (estimatedTxSizeInVBytes < 546)
       throw new CustomError("Invalid fee amount", 400);
 
-    const feeRates = await getFeeRates();
-    const feeRate = feeRates.fastestFee;
+    const psbtBuilder = getPSBTBuilder(
+      parentCollectionLayer.network === "MAINNET" ? "mainnet" : "testnet"
+    );
+
+    const feeRates = await psbtBuilder.fetchRecommendedFees();
+    const funder = psbtBuilder.createFundingAddress();
+
+    const feeRate = feeRates.priority;
     const networkFeeInSats = Math.ceil(
       (estimatedTxSizeInVBytes * feeRate + totalDustValue) * 1.1
     );
     const serviceFeeInSats = Math.max(Math.ceil(networkFeeInSats * 0.1), 10000);
     const fundingAmount = networkFeeInSats + serviceFeeInSats;
-
-    let funder = createFundingAddress(
-      parentCollectionLayer.network === "MAINNET" ? "MAINNET" : "TESTNET"
-    );
 
     order = await orderRepository.create(db, {
       userId: userId,
@@ -300,6 +297,9 @@ export const orderServices = {
     if (!collection) throw new CustomError("Collection not found", 400);
     if (collection.creatorId !== user.id && user.role !== "SUPER_ADMIN")
       throw new CustomError("You are not allowed to do this action", 400);
+
+    const layer = await layerRepository.getById(collection.layerId);
+    if (!layer) throw new CustomError("Layer not found", 400);
 
     const collectionProgress = await collectionProgressRepository.getById(
       order.collectionId
@@ -376,25 +376,38 @@ export const orderServices = {
       phase: InscriptionPhase.TRAIT
     });
 
-    const orderToCreate: Insertable<Order>[] = [];
-    const fundingAmount = Math.floor(
-      (order.fundingAmount -
-        calculateFeeForOrderSplitTx(1, order.orderSplitCount, order.feeRate) *
-          1.5) /
-        order.orderSplitCount
+    const psbtBuilder = getPSBTBuilder(
+      layer.network === "MAINNET" ? "mainnet" : "testnet"
     );
 
-    const addresses: string[] = [];
-    addresses.push(order.fundingAddress);
+    const estimatedFee = psbtBuilder.estimateFee(
+      1,
+      order.orderSplitCount + 1,
+      "p2tr",
+      order.feeRate
+    );
+
+    const orderToCreate: Insertable<Order>[] = [];
+    const splitNetworkFeeInSats = Math.floor(
+      (order.networkFeeInSats - estimatedFee * 1.25) / order.orderSplitCount
+    );
+
+    const outputs: { address: string; amount: number }[] = [];
+    outputs.push({
+      address: order.fundingAddress,
+      amount: splitNetworkFeeInSats
+    });
 
     for (let i = 1; i < order.orderSplitCount; i++) {
-      const funder = createFundingAddress("TESTNET");
+      const funder = psbtBuilder.createFundingAddress();
       const newOrderId = randomUUID();
       orderToCreate.push({
         id: newOrderId,
         userId: userId,
-        fundingAmount,
+        fundingAmount: order.fundingAmount,
         fundingAddress: funder.address,
+        serviceFeeInSats: order.serviceFeeInSats,
+        networkFeeInSats: splitNetworkFeeInSats,
         privateKey: funder.privateKey,
         orderType: "MINT_RECURSIVE_COLLECTIBLE",
         collectionId: order.collectionId,
@@ -407,20 +420,32 @@ export const orderServices = {
         collectionId: order.collectionId,
         phase: InscriptionPhase.TRAIT
       });
-      addresses.push(funder.address);
+      outputs.push({ address: funder.address, amount: splitNetworkFeeInSats });
     }
 
-    const txHex = await splitOrderFunding({
-      addresses,
-      amount: fundingAmount,
+    const serviceFeeRecipient =
+      layer.network === "MAINNET"
+        ? config.MAINNET_SERVICE_FEE_RECIPIENT_ADDRESS
+        : config.TESTNET_SERVICE_FEE_RECIPIENT_ADDRESS;
+
+    outputs.push({
+      address: serviceFeeRecipient,
+      amount: order.serviceFeeInSats
+    });
+
+    const txHex = await psbtBuilder.generateTxHex({
+      outputs,
       fundingAddress: order.fundingAddress,
-      fundingPrivateKey: order.privateKey
+      fundingPrivateKey: order.privateKey,
+      feeRate: order.feeRate
     });
 
     await db.transaction().execute(async (trx) => {
       await orderRepository.bulkInsert(trx, orderToCreate);
-      await orderRepository.update(trx, order.id, { fundingAmount });
-      await sendRawTransaction(txHex);
+      await orderRepository.update(trx, order.id, {
+        networkFeeInSats: splitNetworkFeeInSats
+      });
+      await psbtBuilder.broadcastTransaction(txHex);
     });
 
     try {

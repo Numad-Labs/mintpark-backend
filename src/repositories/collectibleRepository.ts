@@ -794,6 +794,8 @@ export const collectibleRepository = {
 
     return await db
       .selectFrom("Collectible")
+      .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
+      .innerJoin("Layer", "Layer.id", "Collection.layerId")
       .select([
         "Collectible.id",
         "Collectible.name",
@@ -802,7 +804,8 @@ export const collectibleRepository = {
         "Collectible.fileKey",
         "Collectible.isOOOEdition",
         "Collectible.uniqueIdx",
-        "Collectible.parentCollectibleId"
+        "Collectible.parentCollectibleId",
+        "Layer.network"
       ])
       .where("Collectible.collectionId", "=", collectionId)
       .where("Collectible.parentCollectibleId", "is", null)
@@ -822,6 +825,8 @@ export const collectibleRepository = {
 
     return await db
       .selectFrom("Collectible")
+      .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
+      .innerJoin("Layer", "Layer.id", "Collection.layerId")
       .select([
         "Collectible.id",
         "Collectible.name",
@@ -830,7 +835,8 @@ export const collectibleRepository = {
         "Collectible.fileKey",
         "Collectible.isOOOEdition",
         "Collectible.uniqueIdx",
-        "Collectible.parentCollectibleId"
+        "Collectible.parentCollectibleId",
+        "Layer.network"
       ])
       .where("Collectible.collectionId", "=", collectionId)
       .where("Collectible.parentCollectibleId", "is", null)
