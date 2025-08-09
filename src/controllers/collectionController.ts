@@ -25,6 +25,8 @@ import {
   estimateRecursiveInscriptionVBytes,
   estimateRegularInscriptionVBytes
 } from "@blockchain/bitcoin/estimateInscriptionFee";
+import { getPSBTBuilder } from "@blockchain/bitcoin/PSBTBuilder";
+import { layerRepository } from "@repositories/layerRepository";
 
 export interface CollectionQueryParams {
   layerId: string;
@@ -111,6 +113,9 @@ export const collectionController = {
       const collection = await collectionRepository.getById(db, id);
       if (!collection) throw new CustomError("Collection not found", 400);
 
+      const layer = await layerRepository.getById(collection.layerId);
+      if (!layer) throw new CustomError("Layer not found", 400);
+
       const collectionProgress = await collectionProgressRepository.getById(id);
       if (!collectionProgress)
         throw new CustomError("Collection progress not found", 400);
@@ -153,7 +158,30 @@ export const collectionController = {
           } = { collectionCompleted: true };
 
           // TODO: do the leftover calculation, leftoverAmount = 0 -> leftoverAmount += getBalances of all addresses
-          const leftoverAmount = 5000;
+          const psbtBuilder = getPSBTBuilder(
+            layer.network === "MAINNET" ? "mainnet" : "testnet"
+          );
+          const orders =
+            await orderRepository.getOrdersByCollectionIdAndMintRecursiveCollectibleType(
+              collection.id
+            );
+          let totalBalance = 0;
+          for (let i = 0; i < orders.length; i++) {
+            const { total } = await psbtBuilder.getBalance(
+              orders[i].fundingAddress!
+            );
+            totalBalance += total;
+          }
+
+          const estimatedFee = psbtBuilder.estimateFee(
+            orders.length * 2,
+            1,
+            "p2tr",
+            order.feeRate
+          );
+          totalBalance -= Math.ceil(estimatedFee * 1.5);
+
+          const leftoverAmount = totalBalance;
           if (leftoverAmount < 1000) {
             collectionProgressData.leftoverAmount = 0;
             collectionProgressData.leftoverClaimed = true;
