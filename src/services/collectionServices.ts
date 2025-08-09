@@ -375,6 +375,7 @@ export const collectionServices = {
     if (phaseType == 0) {
       await launchRepository.update(launch.id, {
         id: launch.id,
+        isWhitelisted: true,
         wlEndsAt: endTime.toString(),
         wlStartsAt: startTime.toString(),
         wlMintPrice: parseFloat(price),
@@ -384,6 +385,7 @@ export const collectionServices = {
     } else if (phaseType == 1) {
       await launchRepository.update(launch.id, {
         id: launch.id,
+        hasFCFS: true,
         fcfsEndsAt: endTime.toString(),
         fcfsStartsAt: startTime.toString(),
         fcfsMintPrice: parseFloat(price),
