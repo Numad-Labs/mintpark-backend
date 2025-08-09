@@ -44,25 +44,36 @@ export const collectionProgressRepository = {
       .innerJoin("Layer", "Layer.id", "Collection.layerId")
       .innerJoin("UserLayer", "UserLayer.id", "Collection.creatorUserLayerId")
       .leftJoin("Launch", (join) =>
-        join
-          .onRef("CollectionProgress.collectionId", "=", "Launch.collectionId")
-          .on("Launch.status", "=", "CONFIRMED")
+        join.onRef(
+          "CollectionProgress.collectionId",
+          "=",
+          "Launch.collectionId"
+        )
       )
-      .select([
+      .select(({ eb, selectFrom }) => [
         "CollectionProgress.collectionId",
+        "Launch.id as launchId",
         "Collection.name",
         "Collection.logoKey",
         "Layer.layer",
         "Layer.network",
 
-        (eb) =>
-          eb
-            .selectFrom("Order")
-            .select([eb.lit(true).as("paymentInitialized")])
-            .whereRef("Order.collectionId", "=", "Collection.id")
-            .where("Order.isBase", "=", true)
-            .limit(1)
-            .as("paymentInitialized"),
+        selectFrom("Collectible")
+          .select([
+            sql<number>`COUNT("Collectible"."id")`
+              .$castTo<number>()
+              .as("confirmedSupply")
+          ])
+          .where("Collectible.collectionId", "=", eb.ref("Collection.id"))
+          .as("supply"),
+
+        eb
+          .selectFrom("Order")
+          .select([eb.lit(true).as("paymentInitialized")])
+          .whereRef("Order.collectionId", "=", "Collection.id")
+          .where("Order.isBase", "=", true)
+          .limit(1)
+          .as("paymentInitialized"),
 
         "CollectionProgress.paymentCompleted",
 
@@ -76,7 +87,7 @@ export const collectionProgressRepository = {
 
         "CollectionProgress.launchInReview",
         "CollectionProgress.launchRejected",
-        sql<boolean>`CASE WHEN "Launch"."id" IS NOT NULL THEN true ELSE false END`.as(
+        sql<boolean>`CASE WHEN "Launch"."status" = 'CONFIRMED' THEN true ELSE false END`.as(
           "launchConfirmed"
         )
       ])
