@@ -308,14 +308,39 @@ export const orderServices = {
       throw new CustomError("Collection progress not found", 400);
     if (!collectionProgress.paymentCompleted)
       throw new CustomError("Please fund the order first", 400);
+    // if (collectionProgress.queued)
+    //   throw new CustomError("Already been queued", 400);
 
     await collectionProgressServices.update(order.collectionId, {
       queued: true
     });
 
+    const psbtBuilder = getPSBTBuilder(
+      layer.network === "MAINNET" ? "mainnet" : "testnet"
+    );
+
+    const serviceFeeRecipient =
+      layer.network === "MAINNET"
+        ? config.MAINNET_SERVICE_FEE_RECIPIENT_ADDRESS
+        : config.TESTNET_SERVICE_FEE_RECIPIENT_ADDRESS;
+
     if (order.orderSplitCount === 1) {
-      if (order.hasTransferredServiceFee) {
-        // TODO: transfer service fee & set order.hasTransferredServiceFee to true
+      if (!order.hasTransferredServiceFee) {
+        const txHex = await psbtBuilder.generateTxHex({
+          outputs: [
+            { address: serviceFeeRecipient, amount: order.serviceFeeInSats }
+          ],
+          fundingAddress: order.fundingAddress,
+          fundingPrivateKey: order.privateKey,
+          feeRate: order.feeRate
+        });
+
+        await db.transaction().execute(async (trx) => {
+          await orderRepository.update(trx, order.id, {
+            hasTransferredServiceFee: true
+          });
+          await psbtBuilder.broadcastTransaction(txHex);
+        });
       }
 
       await producer.sendMessage(
@@ -376,10 +401,6 @@ export const orderServices = {
       phase: InscriptionPhase.TRAIT
     });
 
-    const psbtBuilder = getPSBTBuilder(
-      layer.network === "MAINNET" ? "mainnet" : "testnet"
-    );
-
     const estimatedFee = psbtBuilder.estimateFee(
       1,
       order.orderSplitCount + 1,
@@ -413,7 +434,8 @@ export const orderServices = {
         collectionId: order.collectionId,
         feeRate: order.feeRate,
         orderSplitCount: order.orderSplitCount,
-        userLayerId: order.userLayerId
+        userLayerId: order.userLayerId,
+        hasTransferredServiceFee: true
       });
       traitQueueItems.push({
         orderId: newOrderId,
@@ -422,11 +444,6 @@ export const orderServices = {
       });
       outputs.push({ address: funder.address, amount: splitNetworkFeeInSats });
     }
-
-    const serviceFeeRecipient =
-      layer.network === "MAINNET"
-        ? config.MAINNET_SERVICE_FEE_RECIPIENT_ADDRESS
-        : config.TESTNET_SERVICE_FEE_RECIPIENT_ADDRESS;
 
     outputs.push({
       address: serviceFeeRecipient,
@@ -443,7 +460,8 @@ export const orderServices = {
     await db.transaction().execute(async (trx) => {
       await orderRepository.bulkInsert(trx, orderToCreate);
       await orderRepository.update(trx, order.id, {
-        networkFeeInSats: splitNetworkFeeInSats
+        networkFeeInSats: splitNetworkFeeInSats,
+        hasTransferredServiceFee: true
       });
       await psbtBuilder.broadcastTransaction(txHex);
     });

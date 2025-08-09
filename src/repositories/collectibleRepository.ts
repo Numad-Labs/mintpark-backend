@@ -876,5 +876,64 @@ export const collectibleRepository = {
       .executeTakeFirst();
 
     return collectible;
+  },
+  getUndoneRecursiveCollectiblesStatsByCollectionId: async (
+    collectionId: string
+  ) => {
+    // First, get the count of undone recursive collectibles
+    const countResult = await db
+      .selectFrom("Collectible")
+      .select([db.fn.count("id").as("count")])
+      .where("collectionId", "=", collectionId)
+      .where("parentCollectibleId", "is", null)
+      .where("isOOOEdition", "=", false)
+      .executeTakeFirst();
+
+    // Then, get the average trait count using a subquery with raw SQL
+    const avgTraitResult = await db
+      .selectFrom(
+        db
+          .selectFrom("Collectible")
+          .leftJoin(
+            "CollectibleTrait",
+            "Collectible.id",
+            "CollectibleTrait.collectibleId"
+          )
+          .select([
+            "Collectible.id",
+            db.fn.count("CollectibleTrait.id").as("traitCount")
+          ])
+          .where("Collectible.collectionId", "=", collectionId)
+          .where("Collectible.parentCollectibleId", "is", null)
+          .where("Collectible.isOOOEdition", "=", false)
+          .groupBy("Collectible.id")
+          .as("subquery")
+      )
+      .select([sql<number>`avg(subquery."traitCount")`.as("avgTraitCount")])
+      .executeTakeFirst();
+
+    return {
+      count: Number(countResult?.count || 0),
+      avgTraitCount: Number(avgTraitResult?.avgTraitCount || 0)
+    };
+  },
+  getUndoneOOOEditionCollectiblesStatsByCollectionId: async (
+    collectionId: string
+  ) => {
+    const undoneOOOEditionCollectibles = await db
+      .selectFrom("Collectible")
+      .select([
+        db.fn.count("id").as("count"),
+        db.fn.avg("fileSizeInBytes").as("avgFileSize")
+      ])
+      .where("collectionId", "=", collectionId)
+      .where("parentCollectibleId", "is", null)
+      .where("isOOOEdition", "=", true)
+      .executeTakeFirst();
+
+    return {
+      count: Number(undoneOOOEditionCollectibles?.count || 0),
+      avgFileSize: Number(undoneOOOEditionCollectibles?.avgFileSize || 0)
+    };
   }
 };

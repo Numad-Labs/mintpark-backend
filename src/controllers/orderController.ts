@@ -14,6 +14,8 @@ import {
 import { collectionRepository } from "@repositories/collectionRepository";
 import { layerRepository } from "@repositories/layerRepository";
 import { getPSBTBuilder } from "@blockchain/bitcoin/PSBTBuilder";
+import { traitValueRepository } from "@repositories/traitValueRepository";
+import { collectibleRepository } from "@repositories/collectibleRepository";
 
 export const orderController = {
   createMintOrder: async (
@@ -169,7 +171,7 @@ export const orderController = {
       next(e);
     }
   },
-  getBaseOrderByCollectionIdForRetopping: async (
+  getBaseOrderByCollectionId: async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
@@ -191,16 +193,15 @@ export const orderController = {
       );
       if (!collectionProgress)
         throw new CustomError("Collection progress not found", 400);
-      if (!collectionProgress.ranOutOfFunds || !collectionProgress.retopAmount)
-        throw new CustomError("Collection has not been ran out of funds.", 400);
 
       const walletQrString = `bitcoin:${order.fundingAddress}?amount=${
-        collectionProgress.retopAmount / 10 ** 8
+        Number(collectionProgress.retopAmount ?? 0) / 10 ** 8
       }`;
 
       return res.status(200).json({
         success: true,
         data: {
+          id: order.id,
           walletQrString,
           fundingAddress: order.fundingAddress,
           retopAmount: collectionProgress.retopAmount
@@ -222,8 +223,11 @@ export const orderController = {
 
       const order = await orderRepository.getBaseByCollectionId(collectionId);
       if (!order) throw new CustomError("Order not found", 400);
-      if (!order.fundingAddress)
-        throw new CustomError("Order does not have funding address", 400);
+      if (!order.fundingAddress || !order.privateKey)
+        throw new CustomError(
+          "Order does not have funding address or private key",
+          400
+        );
       if (!order.collectionId)
         throw new CustomError("Order with no collection id", 400);
 
@@ -249,21 +253,82 @@ export const orderController = {
       );
 
       let balance = (await psbtBuilder.getBalance(order.fundingAddress)).total;
-      if (balance < order.fundingAmount)
+      if (balance < collectionProgress.retopAmount)
         throw new CustomError("Please fund the order first", 400);
+
+      const [
+        undoneTraitValuesStats,
+        undoneRecursiveCollectiblesStats,
+        undoneOOOEditionCollectiblesStats
+      ] = await Promise.all([
+        traitValueRepository.getUndoneTraitValuesStatsByCollectionId(
+          order.collectionId
+        ),
+        collectibleRepository.getUndoneRecursiveCollectiblesStatsByCollectionId(
+          order.collectionId
+        ),
+        collectibleRepository.getUndoneOOOEditionCollectiblesStatsByCollectionId(
+          order.collectionId
+        )
+      ]);
 
       const orders =
         await orderRepository.getOrdersByCollectionIdAndMintRecursiveCollectibleType(
           collectionId
         );
+      const outputs: { address: string; amount: number }[] = [];
+      const totalUndoneItemCount =
+        undoneTraitValuesStats.count +
+        undoneRecursiveCollectiblesStats.count +
+        undoneOOOEditionCollectiblesStats.count;
 
-      // Use transactions
+      // If totalUndoneItemCount is low, don't split to prevent inefficient fee splitting
+      if (totalUndoneItemCount < order.orderSplitCount * 5) {
+        const estimatedFee = psbtBuilder.estimateFee(
+          1,
+          1,
+          "p2tr",
+          order.feeRate
+        );
+        const retopAmountInSats = Math.floor(
+          collectionProgress.retopAmount - estimatedFee * 1.25
+        );
+        outputs.push({
+          address: order.fundingAddress,
+          amount: retopAmountInSats
+        });
+      } else {
+        const estimatedFee = psbtBuilder.estimateFee(
+          1,
+          order.orderSplitCount,
+          "p2tr",
+          order.feeRate
+        );
+        const splitRetopAmountInSats = Math.floor(
+          (collectionProgress.retopAmount - estimatedFee * 1.25) /
+            order.orderSplitCount
+        );
+        orders.forEach((order) =>
+          outputs.push({
+            address: order.fundingAddress!,
+            amount: splitRetopAmountInSats
+          })
+        );
+      }
+
+      const txHex = await psbtBuilder.generateTxHex({
+        outputs,
+        fundingAddress: order.fundingAddress,
+        fundingPrivateKey: order.privateKey,
+        feeRate: order.feeRate
+      });
+
       await collectionProgressServices.update(collectionId, {
         ranOutOfFunds: false,
         retopAmount: 0
       });
       await deleteRanOutOfFundsFlagByOrderIds(orders.map((order) => order.id));
-      // TODO: Split the collectionProgress.retopAmount to all the orders, do
+      await psbtBuilder.broadcastTransaction(txHex);
 
       return res.status(200).json({
         success: true,

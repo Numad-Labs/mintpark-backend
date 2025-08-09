@@ -195,5 +195,22 @@ export const traitValueRepository = {
       .executeTakeFirst();
 
     return traitValue;
+  },
+  getUndoneTraitValuesStatsByCollectionId: async (collectionId: string) => {
+    const undoneTraitValues = await db
+      .selectFrom("TraitValue")
+      .innerJoin("TraitType", "TraitValue.traitTypeId", "TraitType.id")
+      .select([
+        db.fn.count("TraitValue.id").as("count"),
+        db.fn.avg("TraitValue.fileSizeInBytes").as("avgFileSize")
+      ])
+      .where("TraitType.collectionId", "=", collectionId)
+      .where("TraitValue.inscriptionId", "is", null)
+      .executeTakeFirst();
+
+    return {
+      count: Number(undoneTraitValues?.count || 0),
+      avgFileSize: Number(undoneTraitValues?.avgFileSize || 0)
+    };
   }
 };

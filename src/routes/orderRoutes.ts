@@ -33,7 +33,7 @@ orderRouter.post(
 orderRouter.get(
   "/:collectionId/base",
   authenticateToken,
-  orderController.getBaseOrderByCollectionIdForRetopping
+  orderController.getBaseOrderByCollectionId
 );
 
 orderRouter.post(

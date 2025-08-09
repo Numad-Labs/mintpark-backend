@@ -21,6 +21,10 @@ import {
 } from "@queue/queueProcessServiceAPIs";
 import { collectionUploadSessionRepository } from "@repositories/collectionUploadSessionRepository";
 import logger from "@config/winston";
+import {
+  estimateRecursiveInscriptionVBytes,
+  estimateRegularInscriptionVBytes
+} from "@blockchain/bitcoin/estimateInscriptionFee";
 
 export interface CollectionQueryParams {
   layerId: string;
@@ -651,7 +655,9 @@ export const collectionController = {
           "Not all orders has been marked as ran out of funds",
           400
         );
-      logger.info(hasAllOrdersBeenMarkedAsOutOfFunds);
+      logger.info(
+        `hasAllOrdersBeenMarkedAsOutOfFunds: ${hasAllOrdersBeenMarkedAsOutOfFunds}, ${new Date().toISOString()}`
+      );
 
       const collectionProgress = await collectionProgressRepository.getById(
         order.collectionId
@@ -661,21 +667,58 @@ export const collectionController = {
       if (collectionProgress.ranOutOfFunds || collectionProgress.retopAmount)
         return res.status(200).json({ success: true });
 
-      // TODO: Estimate top up amount from traitValue & recursive/1-of-1 collectible count and fileSize
-      /* 
-        - validate state and authorizations
-        - get undone trait values
-            - count, average file size
-        - get undone recursive collectibles
-            - count, average trait count
-        - get undone 1-of-1 edition collectibles
-            - count, average file size
-      */
-      const estimatedTopupAmount = 25000;
+      const [
+        undoneTraitValuesStats,
+        undoneRecursiveCollectiblesStats,
+        undoneOOOEditionCollectiblesStats
+      ] = await Promise.all([
+        traitValueRepository.getUndoneTraitValuesStatsByCollectionId(
+          order.collectionId
+        ),
+        collectibleRepository.getUndoneRecursiveCollectiblesStatsByCollectionId(
+          order.collectionId
+        ),
+        collectibleRepository.getUndoneOOOEditionCollectiblesStatsByCollectionId(
+          order.collectionId
+        )
+      ]);
 
-      const { paymentInitialized, launchConfirmed, ...rest } =
-        collectionProgress;
+      const averageTraitValueInscription = estimateRegularInscriptionVBytes(
+        Math.ceil(undoneTraitValuesStats.avgFileSize)
+      );
+      const totalTraitValueInscriptionVBytes =
+        averageTraitValueInscription.totalVBytes * undoneTraitValuesStats.count;
 
+      const averageRecursiveCollectibleInscription =
+        estimateRecursiveInscriptionVBytes(
+          Math.ceil(undoneRecursiveCollectiblesStats.avgTraitCount)
+        );
+      const totalRecursiveCollectibleInscriptionVBytes =
+        averageRecursiveCollectibleInscription.totalVBytes *
+        undoneRecursiveCollectiblesStats.count;
+
+      const averageOOOEditionCollectibleInscriptions =
+        estimateRegularInscriptionVBytes(
+          Math.ceil(undoneOOOEditionCollectiblesStats.avgFileSize)
+        );
+      const totalOOOEditionCollectibleInscriptionVBytes =
+        averageOOOEditionCollectibleInscriptions.totalVBytes *
+        undoneOOOEditionCollectiblesStats.count;
+
+      // Total value calculation
+      const totalDustValue =
+        (undoneTraitValuesStats.count +
+          undoneRecursiveCollectiblesStats.count +
+          undoneOOOEditionCollectiblesStats.count) *
+        546;
+      const totalNetworkFee =
+        (totalTraitValueInscriptionVBytes +
+          totalRecursiveCollectibleInscriptionVBytes +
+          totalOOOEditionCollectibleInscriptionVBytes) *
+        order.feeRate;
+
+      // 10% buffer for network fee estimation
+      const estimatedTopupAmount = totalNetworkFee * 1.1 + totalDustValue;
       await collectionProgressServices.update(collectionProgress.collectionId, {
         ranOutOfFunds: true,
         retopAmount: estimatedTopupAmount

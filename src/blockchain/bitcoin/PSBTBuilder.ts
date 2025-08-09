@@ -422,16 +422,6 @@ export class PSBTBuilder {
   }
 
   /**
-   * Add output to PSBT
-   */
-  private addOutput(psbt: bitcoin.Psbt, address: string, amount: number): void {
-    psbt.addOutput({
-      address: address,
-      value: BigInt(amount)
-    });
-  }
-
-  /**
    * Fetch recommended fee rates from Mempool API
    */
   public async fetchRecommendedFees(): Promise<FeeRates> {
