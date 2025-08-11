@@ -212,5 +212,21 @@ export const traitValueRepository = {
       count: Number(undoneTraitValues?.count || 0),
       avgFileSize: Number(undoneTraitValues?.avgFileSize || 0)
     };
+  },
+  getByTraitTypeAndValueAndCollectionId: async (
+    collectionId: string,
+    traitType: string,
+    value: string
+  ) => {
+    const traitValue = await db
+      .selectFrom("TraitValue")
+      .innerJoin("TraitType", "TraitType.id", "TraitValue.traitTypeId")
+      .select(["TraitValue.id"])
+      .where("TraitType.collectionId", "=", collectionId)
+      .where("TraitType.name", "=", traitType)
+      .where("TraitValue.value", "=", value)
+      .executeTakeFirst();
+
+    return traitValue;
   }
 };

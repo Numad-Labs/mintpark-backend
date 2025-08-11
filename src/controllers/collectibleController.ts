@@ -9,13 +9,14 @@ import { z } from "zod";
 import { collectionRepository } from "@repositories/collectionRepository";
 import { db } from "@utils/db";
 import subgraphService from "@blockchain/evm/services/subgraph/subgraphService";
-import { LAYER } from "@app-types/db/enums";
+import { COLLECTIBLE_STATUS, LAYER } from "@app-types/db/enums";
 import { sql } from "kysely";
 import axios from "axios";
 import { config } from "@config/config";
 import { getObjectFromS3, uploadToS3 } from "@utils/aws";
 import sharp from "sharp";
 import SubgraphService from "@blockchain/evm/services/subgraph/subgraphService";
+import { layerRepository } from "@repositories/layerRepository";
 
 const DEFAULT_LIMIT = 30,
   MAX_LIMIT = 50;
@@ -663,10 +664,10 @@ export const collectibleControllers = {
   },
 
   /**
- * Get a collectible by ID for interservice communication
- * This endpoint returns a collectible regardless of its status (including UNCONFIRMED)
- * It requires API key authentication instead of user authentication
- */
+   * Get a collectible by ID for interservice communication
+   * This endpoint returns a collectible regardless of its status (including UNCONFIRMED)
+   * It requires API key authentication instead of user authentication
+   */
   getCollectibleByIdForService: async (
     req: Request,
     res: Response,
@@ -1166,6 +1167,92 @@ export const collectibleControllers = {
       );
 
       return res.status(200).json({ success: true, data: { count } });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getCollectibleByUniqueIdxAndLayerIdForService: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      // The apiKeyAuth middleware already validated the API key
+      const { uniqueIdx } = req.params;
+      if (!uniqueIdx) {
+        throw new CustomError("uniqueIdx is required", 400);
+      }
+
+      const { layerId } = req.query;
+      if (!layerId) throw new CustomError("Please provide the layer id", 400);
+
+      const collectible =
+        await collectibleRepository.getCollectibleByUniqueIdxAndLayerIdForService(
+          uniqueIdx,
+          layerId.toString()
+        );
+
+      return res.status(200).json({
+        success: true,
+        data: collectible
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
+  createL2OnlyCollectible: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { fileKey, collectionId, name, uniqueIdx, nftId, status } =
+        req.body;
+
+      if (!fileKey || !collectionId || !name || !uniqueIdx || !nftId)
+        throw new CustomError("Invalid input", 400);
+
+      if (
+        (status as COLLECTIBLE_STATUS) !== "BURNED" &&
+        (status as COLLECTIBLE_STATUS) !== "CONFIRMED"
+      )
+        throw new CustomError("Invalid status", 400);
+
+      const result = await collectibleRepository.create(db, {
+        name,
+        nftId,
+        uniqueIdx,
+        fileKey,
+        collectionId,
+        status
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
+  markCollectibleAsBurnedByCollectibleId: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { collectibleId } = req.params;
+
+      const collectible = await collectibleRepository.update(
+        db,
+        collectibleId,
+        {
+          status: "BURNED"
+        }
+      );
+      if (!collectible) throw new CustomError("Collectible not found", 400);
+
+      return res.status(200).json({ success: true, data: collectible });
     } catch (e) {
       next(e);
     }

@@ -7,13 +7,27 @@ import { AuthenticatedRequest } from "../../custom";
 // Validation schema for createBatchTraits request
 const createBatchTraitsSchema = z.object({
   collectionId: z.string(),
-  batchData: z.array(z.object({
-    collectibleId: z.string(),
-    traits: z.array(z.object({
-      trait_type: z.string(),
-      value: z.string()
-    }))
-  }))
+  batchData: z.array(
+    z.object({
+      collectibleId: z.string(),
+      traits: z.array(
+        z.object({
+          trait_type: z.string(),
+          value: z.string()
+        })
+      )
+    })
+  )
+});
+
+const createTraitsSchema = z.object({
+  collectibleId: z.string(),
+  traits: z.array(
+    z.object({
+      trait_type: z.string().trim(),
+      value: z.string().trim()
+    })
+  )
 });
 
 export const collectibleTraitController = {
@@ -24,9 +38,10 @@ export const collectibleTraitController = {
   ) => {
     try {
       const { collectibleId } = req.params;
-      const traits = await collectibleTraitRepository.getByCollectibleIdWithInscription(
-        collectibleId
-      );
+      const traits =
+        await collectibleTraitRepository.getByCollectibleIdWithInscription(
+          collectibleId
+        );
       return res.status(200).json({ success: true, data: { traits } });
     } catch (e) {
       next(e);
@@ -78,6 +93,35 @@ export const collectibleTraitController = {
       next(error);
     }
   },
+
+  insertTraits: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const validatedData = createTraitsSchema.parse(req.body);
+
+      const result = await collectibleTraitServices.insertTraits(
+        validatedData.collectibleId,
+        validatedData.traits
+      );
+
+      return res.status(201).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid request data",
+          details: error.errors
+        });
+      }
+      next(error);
+    }
+  }
   // getByCollectionId: async (
   //   req: Request,
   //   res: Response,
@@ -110,5 +154,4 @@ export const collectibleTraitController = {
   //     next(e);
   //   }
   // },
-
 };

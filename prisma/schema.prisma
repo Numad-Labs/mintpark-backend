@@ -96,9 +96,9 @@ model Order {
   launchItemId String?
   purchaseId   String?
 
-  collection Collection? @relation(fields: [collectionId], references: [id])
+  collection Collection? @relation(fields: [collectionId], references: [id], onDelete: Cascade)
   launchItem LaunchItem? @relation(fields: [launchItemId], references: [id], onDelete: Cascade)
-  Purchase   Purchase?   @relation(fields: [purchaseId], references: [id])
+  Purchase   Purchase?   @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   user       User        @relation(fields: [userId], references: [id])
   userLayer  UserLayer   @relation(fields: [userLayerId], references: [id])
   orderItems OrderItem[]
@@ -134,7 +134,7 @@ model CollectionProgress {
   launchInReview Boolean @default(false)
   launchRejected Boolean @default(false)
 
-  collection Collection @relation(fields: [collectionId], references: [id])
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
 }
 
 model CollectionUploadSession {
@@ -145,7 +145,7 @@ model CollectionUploadSession {
   expectedOOOEditions Int?
   startedAt           DateTime @default(now())
 
-  collection Collection @relation(fields: [collectionId], references: [id])
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
 }
 
 model Collection {
@@ -220,7 +220,7 @@ model Collectible {
   collectionId           String
   fileName               String?
   fileSizeInBytes        Int?
-  collection             Collection         @relation(fields: [collectionId], references: [id])
+  collection             Collection         @relation(fields: [collectionId], references: [id], onDelete: Cascade)
   parentCollectible      Collectible?       @relation("ParentChild", fields: [parentCollectibleId], references: [id])
   childCollectibles      Collectible[]      @relation("ParentChild")
   CollectibleTrait       CollectibleTrait[]
@@ -242,7 +242,7 @@ model TraitType {
   zIndex       Int
   createdAt    DateTime     @default(now())
   collectionId String
-  collection   Collection   @relation(fields: [collectionId], references: [id])
+  collection   Collection   @relation(fields: [collectionId], references: [id], onDelete: Cascade)
   TraitValue   TraitValue[]
 
   @@unique([name, collectionId])
@@ -262,7 +262,7 @@ model TraitValue {
   traitTypeId       String
   CollectibleTrait  CollectibleTrait[]
   OrderItem         OrderItem[]
-  traitType         TraitType          @relation(fields: [traitTypeId], references: [id])
+  traitType         TraitType          @relation(fields: [traitTypeId], references: [id], onDelete: Cascade)
 
   @@unique([value, traitTypeId])
 }
@@ -272,7 +272,7 @@ model CollectibleTrait {
   createdAt     DateTime    @default(now())
   collectibleId String
   traitValueId  String
-  collectible   Collectible @relation(fields: [collectibleId], references: [id])
+  collectible   Collectible @relation(fields: [collectibleId], references: [id], onDelete: Cascade)
   traitValue    TraitValue  @relation(fields: [traitValueId], references: [id])
 
   @@unique([collectibleId, traitValueId])
@@ -302,7 +302,7 @@ model Launch {
   fcfsMintPrice        Float?
   fcfsStartsAt         BigInt?
   hasFCFS              Boolean       @default(false)
-  collection           Collection    @relation(fields: [collectionId], references: [id])
+  collection           Collection    @relation(fields: [collectionId], references: [id], onDelete: Cascade)
   User                 User?         @relation(fields: [userId], references: [id])
   userLayer            UserLayer     @relation(fields: [userLayerId], references: [id])
   launchItems          LaunchItem[]
@@ -318,8 +318,8 @@ model LaunchItem {
   collectibleId String
   onHoldBy      String?
   FailedMint    FailedMint[]
-  collectible   Collectible        @relation(fields: [collectibleId], references: [id])
-  launch        Launch             @relation(fields: [launchId], references: [id])
+  collectible   Collectible        @relation(fields: [collectibleId], references: [id], onDelete: Cascade)
+  launch        Launch             @relation(fields: [launchId], references: [id], onDelete: Cascade)
   User          User?              @relation(fields: [onHoldBy], references: [id])
   Order         Order[]
   purchases     Purchase[]
@@ -340,7 +340,7 @@ model Purchase {
   purchasedAt      DateTime   @default(now())
   purchasedAddress String?
   Order            Order[]
-  launchItem       LaunchItem @relation(fields: [launchItemId], references: [id])
+  launchItem       LaunchItem @relation(fields: [launchItemId], references: [id], onDelete: Cascade)
   user             User       @relation(fields: [userId], references: [id])
 
   @@index([userId])
@@ -356,7 +356,7 @@ model WlAddress {
   address   String
   createdAt DateTime     @default(now())
   phase     LAUNCH_PHASE @default(WHITELIST)
-  launch    Launch       @relation(fields: [launchId], references: [id])
+  launch    Launch       @relation(fields: [launchId], references: [id], onDelete: Cascade)
 
   @@index([launchId, address, phase])
 }
@@ -379,7 +379,7 @@ model List {
   soldTxid        String?
   soldAt          DateTime?
   status          LIST_STATUS @default(PENDING)
-  collectible     Collectible @relation(fields: [collectibleId], references: [id])
+  collectible     Collectible @relation(fields: [collectibleId], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([collectibleId, status])

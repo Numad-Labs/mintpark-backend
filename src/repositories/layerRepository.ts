@@ -1,7 +1,7 @@
 import { Insertable, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { Layer } from "../types/db/types";
-import { NETWORK } from "../types/db/enums";
+import { LAYER, NETWORK } from "../types/db/enums";
 
 export const layerRepository = {
   create: async (data: Insertable<Layer>) => {
@@ -74,5 +74,15 @@ export const layerRepository = {
       .executeTakeFirstOrThrow();
 
     return layer;
+  },
+  getByLayerAndNetwork: async (layer: LAYER, network: NETWORK) => {
+    const data = await db
+      .selectFrom("Layer")
+      .selectAll()
+      .where("Layer.layer", "=", layer)
+      .where("Layer.network", "=", network)
+      .executeTakeFirstOrThrow();
+
+    return data;
   }
 };

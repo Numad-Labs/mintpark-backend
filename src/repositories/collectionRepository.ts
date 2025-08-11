@@ -88,7 +88,14 @@ export const collectionRepository = {
       .select([
         "Collection.id",
         "Collection.recursiveHeight",
-        "Collection.recursiveWidth"
+        "Collection.recursiveWidth",
+
+        "Collection.name",
+        "Collection.isBadge",
+        "Collection.badgeCid",
+        "Collection.logoKey",
+        "Collection.contractAddress",
+        "Collection.layerId"
       ])
       .where("Collection.id", "=", id)
       .executeTakeFirst();

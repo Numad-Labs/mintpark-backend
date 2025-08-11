@@ -935,5 +935,30 @@ export const collectibleRepository = {
       count: Number(undoneOOOEditionCollectibles?.count || 0),
       avgFileSize: Number(undoneOOOEditionCollectibles?.avgFileSize || 0)
     };
+  },
+  getCollectibleByUniqueIdxAndLayerIdForService: async (
+    uniqueIdx: string,
+    layerId: string
+  ) => {
+    const collectible = await db
+      .selectFrom("Collectible")
+      .innerJoin("Collection", "Collection.id", "Collectible.collectionId")
+      .innerJoin("Layer", "Layer.id", "Collection.layerId")
+      .select([
+        "Collectible.id",
+        "Collectible.name",
+        "Collectible.cid",
+        "Collectible.status",
+        "Collectible.fileKey",
+        "Collectible.isOOOEdition",
+        "Collectible.uniqueIdx",
+        "Collectible.parentCollectibleId",
+        "Layer.network"
+      ])
+      .where("Collectible.uniqueIdx", "=", uniqueIdx)
+      .where("Collection.layerId", "=", layerId)
+      .executeTakeFirst();
+
+    return collectible;
   }
 };

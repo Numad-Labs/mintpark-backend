@@ -123,6 +123,25 @@ collectibleRouter.post(
   collectibleControllers.createRecursiveCollectible
 );
 
+// Event & Collection Listing Processor
+collectibleRouter.get(
+  "/service/:uniqueIdx/unique-index",
+  apiKeyAuth,
+  collectibleControllers.getCollectibleByUniqueIdxAndLayerIdForService
+);
+
+collectibleRouter.post(
+  "/service/l2-only",
+  apiKeyAuth,
+  collectibleControllers.createL2OnlyCollectible
+);
+
+collectibleRouter.put(
+  "/service/:collectibleId/mark-as-burned",
+  apiKeyAuth,
+  collectibleControllers.markCollectibleAsBurnedByCollectibleId
+);
+
 // Script APIs
 collectibleRouter.get(
   "/collectibles-for-ipfs-upload",

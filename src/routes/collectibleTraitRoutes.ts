@@ -6,6 +6,12 @@ import { apiKeyAuth } from "@middlewares/apiKeyAuth";
 const collectibleTraitRouter = Router();
 
 collectibleTraitRouter.post(
+  "/",
+  apiKeyAuth,
+  collectibleTraitController.insertTraits
+);
+
+collectibleTraitRouter.post(
   "/batch",
   authenticateToken,
   collectibleTraitController.createBatchTraits

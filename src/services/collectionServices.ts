@@ -71,6 +71,10 @@ export const collectionServices = {
         400
       );
 
+    if (name.length > 50) {
+      throw new Error("Collection name must be 50 characters or fewer.");
+    }
+
     // Validate contract version
     try {
       // Check if the provided contract version is supported

@@ -9,6 +9,8 @@ import { TraitType, TraitValue, CollectibleTrait } from "../types/db/types";
 import { collectibleRepository } from "@repositories/collectibleRepository";
 import { userRepository } from "@repositories/userRepository";
 import logger from "@config/winston";
+import { redis } from "../";
+import { randomUUID } from "crypto";
 
 export interface BatchTraitData {
   collectibleId: string;
@@ -19,6 +21,120 @@ export interface BatchTraitData {
 }
 
 export const collectibleTraitServices = {
+  insertTraits: async (
+    collectibleId: string,
+    traits: {
+      trait_type: string;
+      value: string;
+    }[]
+  ) => {
+    const collectible = await collectibleRepository.getById(db, collectibleId);
+    if (!collectible) throw new CustomError("Collectible not found", 400);
+
+    const traitTypesToInsert: Insertable<TraitType>[] = [];
+    const traitValuesToInsert: Insertable<TraitValue>[] = [];
+    const collectibleTraitsToInsert: Insertable<CollectibleTrait>[] = [];
+
+    // Redis TTL for trait caching (24 hours)
+    const TRAIT_CACHE_TTL = 24 * 60 * 60;
+
+    for (let trait of traits) {
+      const traitValueCacheKey = `trait_value:${collectible.collectionId}:${trait.trait_type}:${trait.value}`;
+
+      // Check Redis cache first
+      let traitValueId = await redis.get(traitValueCacheKey);
+
+      if (!traitValueId) {
+        // Check if trait value exists in database
+        const existingTraitValue =
+          await traitValueRepository.getByTraitTypeAndValueAndCollectionId(
+            collectible.collectionId,
+            trait.trait_type,
+            trait.value
+          );
+
+        if (existingTraitValue) {
+          traitValueId = existingTraitValue.id;
+          // Cache the existing trait value ID
+          await redis.setex(traitValueCacheKey, TRAIT_CACHE_TTL, traitValueId);
+        } else {
+          // Need to create trait value, first check/create trait type
+          const traitTypeCacheKey = `trait_type:${collectible.collectionId}:${trait.trait_type}`;
+          let traitTypeId = await redis.get(traitTypeCacheKey);
+
+          if (!traitTypeId) {
+            const existingTraitType =
+              await traitTypeRepository.getByNameAndCollectionId(
+                trait.trait_type,
+                collectible.collectionId
+              );
+
+            if (existingTraitType) {
+              traitTypeId = existingTraitType.id;
+              // Cache the existing trait type ID
+              await redis.setex(
+                traitTypeCacheKey,
+                TRAIT_CACHE_TTL,
+                traitTypeId
+              );
+            } else {
+              // Generate new trait type ID and cache it
+              traitTypeId = randomUUID(); // or whatever ID generation method you use
+
+              traitTypesToInsert.push({
+                id: traitTypeId,
+                name: trait.trait_type,
+                collectionId: collectible.collectionId,
+                zIndex: 0
+              });
+
+              // Cache the new trait type ID (will be valid after insert)
+              await redis.setex(
+                traitTypeCacheKey,
+                TRAIT_CACHE_TTL,
+                traitTypeId
+              );
+            }
+          }
+
+          // Generate new trait value ID
+          traitValueId = randomUUID(); // or whatever ID generation method you use
+
+          traitValuesToInsert.push({
+            id: traitValueId,
+            value: trait.value,
+            traitTypeId: traitTypeId,
+            fileKey: ""
+          });
+
+          // Cache the new trait value ID (will be valid after insert)
+          await redis.setex(traitValueCacheKey, TRAIT_CACHE_TTL, traitValueId);
+        }
+      }
+
+      collectibleTraitsToInsert.push({
+        collectibleId,
+        traitValueId
+      });
+    }
+
+    // Perform bulk inserts in transaction for consistency
+    await db.transaction().execute(async (trx) => {
+      if (traitTypesToInsert.length > 0) {
+        await traitTypeRepository.bulkInsert(traitTypesToInsert);
+      }
+
+      if (traitValuesToInsert.length > 0) {
+        await traitValueRepository.bulkInsert(traitValuesToInsert);
+      }
+
+      if (collectibleTraitsToInsert.length > 0) {
+        await collectibleTraitRepository.bulkInsert(collectibleTraitsToInsert);
+      }
+    });
+
+    return true;
+  },
   createBatchTraits: async (
     collectionId: string,
     batchData: BatchTraitData[],
@@ -37,21 +153,21 @@ export const collectibleTraitServices = {
       throw new CustomError("Collection has no creator", 403);
     }
 
-    // Check if user is admin/super_admin or the creator of the collection
-    if (!issuerId) {
-      throw new CustomError("Requester ID is required", 400);
-    }
-    const user = await userRepository.getById(issuerId);
-    if (!user) {
-      throw new CustomError("User not found", 404);
-    }
-    // Only allow non-users or collection
-    if (collection.creatorId !== user.id && user.role === "USER") {
-      throw new CustomError(
-        "You don't have permission to update this collection",
-        403
-      );
-    }
+    // // Check if user is admin/super_admin or the creator of the collection
+    // if (!issuerId) {
+    //   throw new CustomError("Requester ID is required", 400);
+    // }
+    // const user = await userRepository.getById(issuerId);
+    // if (!user) {
+    //   throw new CustomError("User not found", 404);
+    // }
+    // // Only allow non-users or collection
+    // if (collection.creatorId !== user.id && user.role === "USER") {
+    //   throw new CustomError(
+    //     "You don't have permission to update this collection",
+    //     403
+    //   );
+    // }
 
     // Process all collectibles and their traits in a transaction
     return await db.transaction().execute(async (trx) => {
