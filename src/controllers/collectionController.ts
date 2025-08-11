@@ -746,7 +746,9 @@ export const collectionController = {
         order.feeRate;
 
       // 10% buffer for network fee estimation
-      const estimatedTopupAmount = totalNetworkFee * 1.1 + totalDustValue;
+      const estimatedTopupAmount = Math.ceil(
+        totalNetworkFee * 1.1 + totalDustValue
+      );
       await collectionProgressServices.update(collectionProgress.collectionId, {
         ranOutOfFunds: true,
         retopAmount: estimatedTopupAmount
