@@ -348,8 +348,8 @@ export const collectionServices = {
 
       // Check if there's an overlap
       const hasOverlap =
-        (startTime <= otherEnd || otherEnd === 0) && // Our start is before other's end (or other has no end)
-        (endTime >= otherStart || endTime === 0); // Our end is after other's start (or we have no end)
+        (startTime < otherEnd || otherEnd === 0) && // Our start is before other's end (or other has no end)
+        (endTime > otherStart || endTime === 0); // Our end is after other's start (or we have no end)
 
       if (hasOverlap) {
         throw new CustomError(
@@ -370,7 +370,7 @@ export const collectionServices = {
       collection.contractAddress,
       phaseType,
       price,
-      startTime,
+      startTime + 1,
       endTime,
       maxSupply,
       maxPerWallet,
@@ -593,8 +593,8 @@ export const collectionServices = {
 
       // Check if there's an overlap
       const hasOverlap =
-        (startTime <= otherEnd || otherEnd === 0) && // Our start is before other's end (or other has no end)
-        (endTime >= otherStart || endTime === 0); // Our end is after other's start (or we have no end)
+        (startTime < otherEnd || otherEnd === 0) && // Our start is before other's end (or other has no end)
+        (endTime > otherStart || endTime === 0); // Our end is after other's start (or we have no end)
 
       if (hasOverlap) {
         throw new CustomError(

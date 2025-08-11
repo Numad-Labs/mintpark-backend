@@ -181,7 +181,7 @@ export const collectionController = {
           // 25% buffer for fee
           totalBalance -= Math.ceil(estimatedFee * 1.25);
 
-          const leftoverAmount = totalBalance;
+          const leftoverAmount = Math.ceil(totalBalance);
           if (leftoverAmount < 1000) {
             collectionProgressData.leftoverAmount = 0;
             collectionProgressData.leftoverClaimed = true;

@@ -275,7 +275,7 @@ export const orderServices = {
     const order =
       await orderRepository.getOrderByIdAndMintRecursiveCollectibleType(id);
     if (!order) throw new CustomError("Order not found.", 400);
-    if (!order?.collectionId)
+    if (!order.collectionId)
       throw new CustomError("Order does not have collectionId.", 400);
     if (order?.userId !== userId)
       throw new CustomError(
@@ -308,12 +308,8 @@ export const orderServices = {
       throw new CustomError("Collection progress not found", 400);
     if (!collectionProgress.paymentCompleted)
       throw new CustomError("Please fund the order first", 400);
-    // if (collectionProgress.queued)
-    //   throw new CustomError("Already been queued", 400);
-
-    await collectionProgressServices.update(db, order.collectionId, {
-      queued: true
-    });
+    if (collectionProgress.queued)
+      throw new CustomError("Already been queued", 400);
 
     const psbtBuilder = getPSBTBuilder(
       layer.network === "MAINNET" ? "mainnet" : "testnet"
@@ -338,6 +334,9 @@ export const orderServices = {
         await db.transaction().execute(async (trx) => {
           await orderRepository.update(trx, order.id, {
             hasTransferredServiceFee: true
+          });
+          await collectionProgressServices.update(db, order.collectionId!, {
+            queued: true
           });
           await psbtBuilder.broadcastTransaction(txHex);
         });
@@ -462,6 +461,9 @@ export const orderServices = {
       await orderRepository.update(trx, order.id, {
         networkFeeInSats: splitNetworkFeeInSats,
         hasTransferredServiceFee: true
+      });
+      await collectionProgressServices.update(db, order.collectionId!, {
+        queued: true
       });
       await psbtBuilder.broadcastTransaction(txHex);
     });
