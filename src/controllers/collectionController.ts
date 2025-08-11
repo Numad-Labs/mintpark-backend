@@ -157,7 +157,6 @@ export const collectionController = {
             leftoverClaimed?: boolean;
           } = { collectionCompleted: true };
 
-          // TODO: do the leftover calculation, leftoverAmount = 0 -> leftoverAmount += getBalances of all addresses
           const psbtBuilder = getPSBTBuilder(
             layer.network === "MAINNET" ? "mainnet" : "testnet"
           );
@@ -179,7 +178,8 @@ export const collectionController = {
             "p2tr",
             order.feeRate
           );
-          totalBalance -= Math.ceil(estimatedFee * 1.5);
+          // 25% buffer for fee
+          totalBalance -= Math.ceil(estimatedFee * 1.25);
 
           const leftoverAmount = totalBalance;
           if (leftoverAmount < 1000) {
@@ -190,7 +190,7 @@ export const collectionController = {
             collectionProgressData.leftoverClaimed = false;
           }
 
-          await collectionProgressServices.update(collection.id, {
+          await collectionProgressServices.update(db, collection.id, {
             ...collectionProgressData
           });
         }
@@ -749,10 +749,14 @@ export const collectionController = {
       const estimatedTopupAmount = Math.ceil(
         totalNetworkFee * 1.1 + totalDustValue
       );
-      await collectionProgressServices.update(collectionProgress.collectionId, {
-        ranOutOfFunds: true,
-        retopAmount: estimatedTopupAmount
-      });
+      await collectionProgressServices.update(
+        db,
+        collectionProgress.collectionId,
+        {
+          ranOutOfFunds: true,
+          retopAmount: estimatedTopupAmount
+        }
+      );
 
       return res
         .status(200)

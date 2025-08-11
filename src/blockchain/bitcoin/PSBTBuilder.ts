@@ -194,7 +194,6 @@ export class PSBTBuilder {
     const node = bip32.fromPrivateKey(privateKey, Buffer.alloc(32), network);
     const pubkey = node.publicKey;
     const internalPubKey = toXOnly(pubkey);
-
     const utxos = await this.fetchUTXOs(fundingAddress);
     if (!utxos || utxos.length === 0) {
       throw new Error("Not funded. Utxos not found.");
@@ -255,6 +254,188 @@ export class PSBTBuilder {
     const txHex = tx.toHex();
 
     return txHex;
+  }
+
+  /**
+   * Transfer maximum possible amount from multiple P2TR addresses to a target address
+   */
+  async transferMaxAmount({
+    funders,
+    targetAddress,
+    feeRate = "normal"
+  }: {
+    funders: { address: string; privateKey: string }[];
+    targetAddress: string;
+    feeRate?: FeeRateType | number;
+  }): Promise<PSBTResult> {
+    // Validate inputs
+    if (funders.length === 0) {
+      throw new CustomError("At least one funding address is required", 400);
+    }
+
+    // Validate addresses and private keys
+    funders.forEach((funder) => {
+      if (this.getAddressInfo(funder.address).type !== "p2tr") {
+        throw new CustomError("All funding addresses must be P2TR", 400);
+      }
+      // Validate private key format and match with address
+      try {
+        const keyPair = ECPair.fromPrivateKey(
+          Buffer.from(funder.privateKey, "hex"),
+          {
+            network: this.network
+          }
+        );
+        const node = bip32.fromPrivateKey(
+          keyPair.privateKey!,
+          Buffer.alloc(32),
+          this.network
+        );
+        const internalPubKey = toXOnly(node.publicKey);
+        const p2tr = bitcoin.payments.p2tr({
+          internalPubkey: internalPubKey,
+          network: this.network
+        });
+        if (p2tr.address !== funder.address) {
+          throw new CustomError(
+            `Private key does not match address ${funder.address}`,
+            400
+          );
+        }
+      } catch (e) {
+        throw new CustomError(
+          `Invalid private key for address ${funder.address}`,
+          400
+        );
+      }
+    });
+
+    if (this.getAddressInfo(targetAddress).type !== "p2tr") {
+      throw new CustomError("Target address must be P2TR", 400);
+    }
+
+    // Get fee rate
+    const satPerByte =
+      typeof feeRate === "number" ? feeRate : this.feeRates[feeRate];
+    if (satPerByte < 1) {
+      throw new CustomError("Fee rate too low", 400);
+    }
+
+    // Fetch UTXOs for all funding addresses
+    const allUtxos: { address: string; utxos: UTXO[] }[] = [];
+    for (const funder of funders) {
+      const utxos = await this.fetchUTXOs(funder.address);
+      if (utxos.length > 0) {
+        allUtxos.push({ address: funder.address, utxos });
+      }
+    }
+
+    if (allUtxos.length === 0) {
+      throw new CustomError("No UTXOs found for any funding address", 400);
+    }
+
+    // Create key pairs and nodes for signing
+    const signers = funders.map((funder) => {
+      const keyPair = ECPair.fromPrivateKey(
+        Buffer.from(funder.privateKey, "hex"),
+        {
+          network: this.network
+        }
+      );
+      const node = bip32.fromPrivateKey(
+        keyPair.privateKey!,
+        Buffer.alloc(32),
+        this.network
+      );
+      const internalPubKey = toXOnly(node.publicKey);
+      const tweakedSigner = node.tweak(
+        Buffer.from(bitcoin.crypto.taggedHash("TapTweak", internalPubKey))
+      );
+      return { address: funder.address, node, tweakedSigner, internalPubKey };
+    });
+
+    // Create PSBT
+    const psbt = new bitcoin.Psbt({ network: this.network });
+
+    // Calculate total available amount and add inputs
+    let totalInput = 0;
+    const selectedUtxos: { utxo: UTXO; address: string }[] = [];
+
+    for (const { address, utxos } of allUtxos) {
+      const signer = signers.find((s) => s.address === address);
+      if (!signer) {
+        throw new CustomError(`No signer found for address ${address}`, 500);
+      }
+
+      for (const utxo of utxos) {
+        const p2tr = bitcoin.payments.p2tr({
+          internalPubkey: signer.internalPubKey,
+          network: this.network
+        });
+        psbt.addInput({
+          hash: utxo.txid,
+          index: utxo.vout,
+          witnessUtxo: {
+            script: p2tr.output!,
+            value: BigInt(utxo.value)
+          },
+          tapInternalKey: signer.internalPubKey,
+          sequence: 0xfffffffd
+        });
+        selectedUtxos.push({ utxo, address });
+        totalInput += utxo.value;
+      }
+    }
+
+    // Estimate transaction size
+    let estimatedSize = this.estimateBaseSize(1, "p2tr"); // 1 output for target address
+    estimatedSize += selectedUtxos.length * this.getInputSize("p2tr");
+
+    // Calculate fee with 25% buffer
+    const estimatedFee = Math.ceil(estimatedSize * satPerByte * 1.25);
+
+    // Calculate maximum transferable amount
+    const maxAmount = totalInput - estimatedFee;
+    if (maxAmount < 546) {
+      throw new CustomError("Insufficient funds after fees", 400);
+    }
+
+    // Add output for maximum amount
+    psbt.addOutput({
+      address: targetAddress,
+      value: BigInt(maxAmount)
+    });
+
+    // Sign inputs with correct tweaked signer
+    for (let i = 0; i < selectedUtxos.length; i++) {
+      const { address } = selectedUtxos[i];
+      const signer = signers.find((s) => s.address === address);
+      if (!signer) {
+        throw new CustomError(
+          `No signer found for address ${address} at input ${i}`,
+          500
+        );
+      }
+      psbt.signInput(i, signer.tweakedSigner);
+    }
+
+    // Finalize and extract transaction
+    psbt.finalizeAllInputs();
+    const tx = psbt.extractTransaction();
+    const txHex = tx.toHex();
+    const txid = tx.getId();
+
+    return {
+      psbt: psbt.toBase64(),
+      hex: txHex,
+      txid,
+      fee: estimatedFee,
+      virtualSize: tx.virtualSize(),
+      weight: tx.weight(),
+      inputs: selectedUtxos.length,
+      outputs: 1,
+      changeAmount: 0
+    };
   }
 
   /**

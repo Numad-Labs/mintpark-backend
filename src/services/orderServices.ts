@@ -311,7 +311,7 @@ export const orderServices = {
     // if (collectionProgress.queued)
     //   throw new CustomError("Already been queued", 400);
 
-    await collectionProgressServices.update(order.collectionId, {
+    await collectionProgressServices.update(db, order.collectionId, {
       queued: true
     });
 

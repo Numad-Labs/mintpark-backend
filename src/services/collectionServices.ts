@@ -36,6 +36,8 @@ import { collectionProgressRepository } from "@repositories/collectionProgressRe
 import { collectionProgressServices } from "./collectionProgressServices";
 import { isValidERC721Symbol } from "@libs/isValidERC721Symbol";
 import logger from "@config/winston";
+import { getPSBTBuilder } from "@blockchain/bitcoin/PSBTBuilder";
+import { add } from "winston";
 
 export const collectionServices = {
   create: async (
@@ -453,7 +455,7 @@ export const collectionServices = {
     if (!collectionProgress.collectionCompleted)
       throw new CustomError("Collection have to be completed first", 400);
 
-    await collectionProgressServices.update(id, {
+    await collectionProgressServices.update(db, id, {
       launchInReview: true
     });
 
@@ -1009,6 +1011,9 @@ export const collectionServices = {
     if (collection.creatorId !== userId)
       throw new CustomError("You are not allowed to do this action", 400);
 
+    const layer = await layerRepository.getById(collection.layerId);
+    if (!layer) throw new CustomError("Layer not found", 400);
+
     const isDone = await isCollectionDone(id);
     if (!isDone) throw new CustomError("Collection is not done", 400);
 
@@ -1020,8 +1025,9 @@ export const collectionServices = {
       !collectionProgress.leftoverAmount
     )
       throw new CustomError("Invalid state", 400);
+    if (collectionProgress.leftoverClaimed)
+      throw new CustomError("Leftover fee already claimed", 400);
 
-    // Transfer amount to to-be-given address & set collectionProgress.claimedLeftover to true and leftoverAmount to 0
     const orders =
       await orderRepository.getOrdersByCollectionIdAndMintRecursiveCollectibleType(
         id
@@ -1029,16 +1035,34 @@ export const collectionServices = {
     if (orders.length === 0)
       throw new CustomError("No corresponding orders found", 400);
 
-    await collectionProgressServices.update(collection.id, {
-      leftoverClaimed: true
+    const psbtBuilder = getPSBTBuilder(
+      layer.network === "MAINNET" ? "mainnet" : "testnet"
+    );
+    const funders = orders.map((order) => {
+      return {
+        address: order.fundingAddress!,
+        privateKey: order.privateKey!
+      };
+    });
+    const { hex } = await psbtBuilder.transferMaxAmount({
+      funders,
+      targetAddress: address,
+      feeRate: orders[0].feeRate
     });
 
-    const txId = "DUMMY-BITCOIN-TXID";
+    const txid = await db.transaction().execute(async (trx) => {
+      await collectionProgressServices.update(trx, collection.id, {
+        leftoverClaimed: true
+      });
+      const txid = await psbtBuilder.broadcastTransaction(hex);
+      return txid;
+    });
+
     logger.info(
-      `withdraw transaction sent at transaction: ${txId} to ${address}`
+      `withdraw transaction sent at transaction: ${txid} to ${address}`
     );
 
-    return txId;
+    return txid;
   }
 
   // update: async (

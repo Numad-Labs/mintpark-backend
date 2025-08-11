@@ -1,9 +1,10 @@
-import { CollectionProgress } from "@app-types/db/types";
+import { CollectionProgress, DB } from "@app-types/db/types";
 import logger from "@config/winston";
 import { CustomError } from "@exceptions/CustomError";
 import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
 import { db } from "@utils/db";
-import { Updateable } from "kysely";
+
+import { Kysely, Transaction, Updateable } from "kysely";
 
 enum COLLECTION_PROGRESS_STATES {
   CONTRACT_DEPLOYED = "CONTRACT_DEPLOYED",
@@ -19,6 +20,7 @@ enum COLLECTION_PROGRESS_STATES {
 
 export const collectionProgressServices = {
   update: async (
+    db: Kysely<DB> | Transaction<DB>,
     collectionId: string,
     data: Updateable<CollectionProgress>
   ) => {

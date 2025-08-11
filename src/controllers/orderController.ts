@@ -127,7 +127,7 @@ export const orderController = {
       if (balance < order.fundingAmount)
         throw new CustomError("Please fund the order first", 400);
 
-      await collectionProgressServices.update(order.collectionId, {
+      await collectionProgressServices.update(db, order.collectionId, {
         paymentCompleted: true
       });
 
@@ -323,7 +323,7 @@ export const orderController = {
         feeRate: order.feeRate
       });
 
-      await collectionProgressServices.update(collectionId, {
+      await collectionProgressServices.update(db, collectionId, {
         ranOutOfFunds: false,
         retopAmount: 0
       });
