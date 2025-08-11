@@ -124,12 +124,12 @@ export const launchRepository = {
           WHERE "LaunchItem"."launchId" = "Launch"."id"
           AND ("LaunchItem"."status" = 'SOLD' OR "LaunchItem"."status" = 'RESERVED')
         ), 0)`.as("mintedAmount"),
-        // sql<number>`COALESCE((
-        //       SELECT COUNT(*)::integer
-        //       FROM "LaunchItem"
-        //       WHERE "LaunchItem"."launchId" = "Launch"."id"
-        //     ), 0)`.as("supply"),
-        "parentCollection.supply",
+        sql<number>`COALESCE((
+              SELECT COUNT(*)::integer
+              FROM "LaunchItem"
+              WHERE "LaunchItem"."launchId" = "Launch"."id"
+            ), 0)`.as("supply"),
+        // "parentCollection.supply",
         "parentCollection.badgeSupply",
         "parentCollection.isBadge"
       ])
@@ -266,12 +266,12 @@ export const launchRepository = {
         WHERE "LaunchItem"."launchId" = "Launch"."id"
         AND ("LaunchItem"."status" = 'SOLD' OR "LaunchItem"."status" = 'RESERVED')
       ), 0)`.as("mintedAmount"),
-        //   sql<number>`COALESCE((
-        //   SELECT COUNT(*)::integer
-        //   FROM "LaunchItem"
-        //   WHERE "LaunchItem"."launchId" = "Launch"."id"
-        // ), 0)`.as("supply"),
-        "parentCollection.supply",
+        sql<number>`COALESCE((
+          SELECT COUNT(*)::integer
+          FROM "LaunchItem"
+          WHERE "LaunchItem"."launchId" = "Launch"."id"
+        ), 0)`.as("supply"),
+        // "parentCollection.supply",
         "parentCollection.badgeSupply",
         "parentCollection.isBadge"
       ])
