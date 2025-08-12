@@ -2,7 +2,6 @@ import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../exceptions/CustomError";
 import logger from "../config/winston";
 import { config } from "../config/config";
-import { encryptionHelper } from "./encryptionHelper";
 import { redis } from "..";
 import { AuthenticatedRequest } from "../../custom";
 

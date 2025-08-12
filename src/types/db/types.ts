@@ -43,6 +43,8 @@ export type Collectible = {
   mintingTxId: string | null;
   lockingAddress: string | null;
   lockingPrivateKey: string | null;
+  iv: string | null;
+  authTag: string | null;
   parentCollectibleId: string | null;
   collectionId: string;
   fileName: string | null;
@@ -189,6 +191,8 @@ export type Order = {
   hasTransferredServiceFee: Generated<boolean>;
   fundingTxId: string | null;
   privateKey: string | null;
+  iv: string | null;
+  authTag: string | null;
   createdAt: Generated<Timestamp>;
   mintedAt: Timestamp | null;
   orderSplitCount: Generated<number>;
@@ -235,6 +239,8 @@ export type TraitValue = {
   onHoldUntil: Timestamp | null;
   lockingAddress: string | null;
   lockingPrivateKey: string | null;
+  iv: string | null;
+  authTag: string | null;
   traitTypeId: string;
 };
 export type User = {

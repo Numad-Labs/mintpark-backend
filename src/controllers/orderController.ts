@@ -16,6 +16,8 @@ import { layerRepository } from "@repositories/layerRepository";
 import { getPSBTBuilder } from "@blockchain/bitcoin/PSBTBuilder";
 import { traitValueRepository } from "@repositories/traitValueRepository";
 import { collectibleRepository } from "@repositories/collectibleRepository";
+import { config } from "@config/config";
+import { encryption } from "@utils/KeyEncryption";
 
 export const orderController = {
   createMintOrder: async (
@@ -89,6 +91,31 @@ export const orderController = {
       return res
         .status(200)
         .json({ success: true, data: { order: sanitizedOrder } });
+    } catch (e) {
+      next(e);
+    }
+  },
+  encryptTest: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { data } = req.body;
+
+      const encryptedData = encryption.encrypt(data);
+
+      console.log(`Encrypted data: ${encryptedData.encrypted}`);
+      console.log(`Encrypted data: ${encryptedData.authTag}`);
+      console.log(`Encrypted data: ${encryptedData.iv}`);
+
+      const decryptedData = encryption.decrypt({
+        encrypted: encryptedData.encrypted,
+        iv: encryptedData.iv,
+        authTag: encryptedData.authTag
+      });
+
+      return res.json(decryptedData);
     } catch (e) {
       next(e);
     }
@@ -221,18 +248,25 @@ export const orderController = {
         throw new CustomError("Cannot parse user from token", 401);
       const { collectionId } = req.params;
 
-      const order = await orderRepository.getBaseByCollectionId(collectionId);
-      if (!order) throw new CustomError("Order not found", 400);
-      if (!order.fundingAddress || !order.privateKey)
+      const baseOrder = await orderRepository.getBaseByCollectionId(
+        collectionId
+      );
+      if (!baseOrder) throw new CustomError("Base order not found", 400);
+      if (
+        !baseOrder.fundingAddress ||
+        !baseOrder.privateKey ||
+        !baseOrder.iv ||
+        !baseOrder.authTag
+      )
         throw new CustomError(
-          "Order does not have funding address or private key",
+          "Base order does not have funding address or private key",
           400
         );
-      if (!order.collectionId)
-        throw new CustomError("Order with no collection id", 400);
+      if (!baseOrder.collectionId)
+        throw new CustomError("Base order with no collection id", 400);
 
       const collectionProgress = await collectionProgressRepository.getById(
-        order.collectionId
+        baseOrder.collectionId
       );
       if (!collectionProgress)
         throw new CustomError("Collection progress not found", 400);
@@ -241,7 +275,7 @@ export const orderController = {
 
       const collection = await collectionRepository.getById(
         db,
-        order.collectionId
+        baseOrder.collectionId
       );
       if (!collection) throw new CustomError("Collection not found", 400);
 
@@ -252,7 +286,8 @@ export const orderController = {
         layer.network === "MAINNET" ? "mainnet" : "testnet"
       );
 
-      let balance = (await psbtBuilder.getBalance(order.fundingAddress)).total;
+      let balance = (await psbtBuilder.getBalance(baseOrder.fundingAddress))
+        .total;
       if (balance < collectionProgress.retopAmount)
         throw new CustomError("Please fund the order first", 400);
 
@@ -262,13 +297,13 @@ export const orderController = {
         undoneOOOEditionCollectiblesStats
       ] = await Promise.all([
         traitValueRepository.getUndoneTraitValuesStatsByCollectionId(
-          order.collectionId
+          baseOrder.collectionId
         ),
         collectibleRepository.getUndoneRecursiveCollectiblesStatsByCollectionId(
-          order.collectionId
+          baseOrder.collectionId
         ),
         collectibleRepository.getUndoneOOOEditionCollectiblesStatsByCollectionId(
-          order.collectionId
+          baseOrder.collectionId
         )
       ]);
 
@@ -283,30 +318,30 @@ export const orderController = {
         undoneOOOEditionCollectiblesStats.count;
 
       // If totalUndoneItemCount is low, don't split to prevent inefficient fee splitting
-      if (totalUndoneItemCount < order.orderSplitCount * 5) {
+      if (totalUndoneItemCount < baseOrder.orderSplitCount * 5) {
         const estimatedFee = psbtBuilder.estimateFee(
           1,
           1,
           "p2tr",
-          order.feeRate
+          baseOrder.feeRate
         );
         const retopAmountInSats = Math.floor(
           collectionProgress.retopAmount - estimatedFee * 1.25
         );
         outputs.push({
-          address: order.fundingAddress,
+          address: baseOrder.fundingAddress,
           amount: retopAmountInSats
         });
       } else {
         const estimatedFee = psbtBuilder.estimateFee(
           1,
-          order.orderSplitCount,
+          baseOrder.orderSplitCount,
           "p2tr",
-          order.feeRate
+          baseOrder.feeRate
         );
         const splitRetopAmountInSats = Math.floor(
           (collectionProgress.retopAmount - estimatedFee * 1.25) /
-            order.orderSplitCount
+            baseOrder.orderSplitCount
         );
         orders.forEach((order) =>
           outputs.push({
@@ -316,19 +351,25 @@ export const orderController = {
         );
       }
 
+      const decryptedPrivateKey = encryption.decrypt({
+        encrypted: baseOrder.privateKey,
+        iv: baseOrder.iv,
+        authTag: baseOrder.authTag
+      });
+
       const txHex = await psbtBuilder.generateTxHex({
         outputs,
-        fundingAddress: order.fundingAddress,
-        fundingPrivateKey: order.privateKey,
-        feeRate: order.feeRate
+        fundingAddress: baseOrder.fundingAddress,
+        fundingPrivateKey: decryptedPrivateKey,
+        feeRate: baseOrder.feeRate
       });
 
       await collectionProgressServices.update(db, collectionId, {
         ranOutOfFunds: false,
         retopAmount: 0
       });
-      await deleteRanOutOfFundsFlagByOrderIds(orders.map((order) => order.id));
       await psbtBuilder.broadcastTransaction(txHex);
+      await deleteRanOutOfFundsFlagByOrderIds(orders.map((order) => order.id));
 
       return res.status(200).json({
         success: true,
@@ -385,6 +426,22 @@ export const orderController = {
 
       const order = await orderRepository.getById(db, id);
       if (!order) throw new CustomError("Order not found", 404);
+      if (order.orderType === "MINT_RECURSIVE_COLLECTIBLE")
+        throw new CustomError("Invalid order type", 404);
+      if (
+        !order.fundingAddress ||
+        !order.privateKey ||
+        !order.iv ||
+        !order.authTag
+      )
+        throw new CustomError("Order not found", 400);
+
+      const decryptedPrivateKey = encryption.decrypt({
+        encrypted: order.privateKey,
+        iv: order.iv,
+        authTag: order.authTag
+      });
+      order.privateKey = decryptedPrivateKey;
 
       return res.status(200).json({ success: true, data: order });
     } catch (e) {

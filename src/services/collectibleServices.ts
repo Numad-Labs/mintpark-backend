@@ -34,6 +34,7 @@ import { DirectMintNFTService } from "../blockchain/evm/services/nftService/dire
 import { traitTypeRepository } from "../repositories/traitTypeRepository";
 import { capitalizeWords } from "../libs/capitalizeWords";
 import { queueService } from "../queue/queueService";
+import { encryption } from "@utils/KeyEncryption";
 // import * as isIPFS from "is-ipfs";
 
 const validateCid = (cid: string): boolean => {
@@ -752,6 +753,8 @@ export const collectibleServices = {
         throw new CustomError(`Parent collection not found`, 400);
       }
 
+      const encryptedData = encryption.encrypt(lockingPrivateKey);
+
       // 3. Create new collectible in parent collection
       const newCollectible = await collectibleRepository.create(trx, {
         name: originalCollectible.name,
@@ -761,8 +764,12 @@ export const collectibleServices = {
         uniqueIdx: inscriptionId,
         nftId: originalCollectible.nftId,
         createdAt: new Date().toISOString(),
+
         lockingAddress,
-        lockingPrivateKey,
+        lockingPrivateKey: encryptedData.encrypted,
+        iv: encryptedData.iv,
+        authTag: encryptedData.authTag,
+
         mintingTxId: inscriptionId.slice(0, -2),
         isOOOEdition: originalCollectible.isOOOEdition
       });

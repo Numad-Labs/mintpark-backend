@@ -74,21 +74,25 @@ model Layer {
 }
 
 model Order {
-  id                       String       @id @default(dbgenerated("gen_random_uuid()"))
-  isBase                   Boolean      @default(false)
-  feeRate                  Float        @default(1)
+  id                       String  @id @default(dbgenerated("gen_random_uuid()"))
+  isBase                   Boolean @default(false)
+  feeRate                  Float   @default(1)
   fundingAddress           String?
   fundingAmount            Float
-  serviceFeeInSats         Int          @default(0)
-  networkFeeInSats         Int          @default(0)
-  hasTransferredServiceFee Boolean      @default(false)
+  serviceFeeInSats         Int     @default(0)
+  networkFeeInSats         Int     @default(0)
+  hasTransferredServiceFee Boolean @default(false)
   fundingTxId              String?
-  privateKey               String?
-  createdAt                DateTime     @default(now())
-  mintedAt                 DateTime?
-  orderSplitCount          Int          @default(1)
-  orderType                ORDER_TYPE   @default(MINT_COLLECTIBLE)
-  orderStatus              ORDER_STATUS @default(PENDING)
+
+  privateKey String?
+  iv         String?
+  authTag    String?
+
+  createdAt       DateTime     @default(now())
+  mintedAt        DateTime?
+  orderSplitCount Int          @default(1)
+  orderType       ORDER_TYPE   @default(MINT_COLLECTIBLE)
+  orderStatus     ORDER_STATUS @default(PENDING)
 
   userId       String
   userLayerId  String
@@ -214,19 +218,23 @@ model Collectible {
   createdAt              DateTime           @default(now())
   onHoldUntil            DateTime?
   mintingTxId            String?
-  lockingAddress         String?
-  lockingPrivateKey      String?
-  parentCollectibleId    String?
-  collectionId           String
-  fileName               String?
-  fileSizeInBytes        Int?
-  collection             Collection         @relation(fields: [collectionId], references: [id], onDelete: Cascade)
-  parentCollectible      Collectible?       @relation("ParentChild", fields: [parentCollectibleId], references: [id])
-  childCollectibles      Collectible[]      @relation("ParentChild")
-  CollectibleTrait       CollectibleTrait[]
-  LaunchItem             LaunchItem[]
-  List                   List[]
-  OrderItem              OrderItem[]
+
+  lockingAddress    String?
+  lockingPrivateKey String?
+  iv                String?
+  authTag           String?
+
+  parentCollectibleId String?
+  collectionId        String
+  fileName            String?
+  fileSizeInBytes     Int?
+  collection          Collection         @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  parentCollectible   Collectible?       @relation("ParentChild", fields: [parentCollectibleId], references: [id])
+  childCollectibles   Collectible[]      @relation("ParentChild")
+  CollectibleTrait    CollectibleTrait[]
+  LaunchItem          LaunchItem[]
+  List                List[]
+  OrderItem           OrderItem[]
 
   @@index([uniqueIdx])
   @@index([status, uniqueIdx])
@@ -249,20 +257,24 @@ model TraitType {
 }
 
 model TraitValue {
-  id                String             @id @default(dbgenerated("gen_random_uuid()"))
-  value             String
-  inscriptionId     String?
-  fileKey           String
-  fileSizeInBytes   Int?
-  createdAt         DateTime           @default(now())
-  mintedAt          DateTime?
-  onHoldUntil       DateTime?
+  id              String    @id @default(dbgenerated("gen_random_uuid()"))
+  value           String
+  inscriptionId   String?
+  fileKey         String
+  fileSizeInBytes Int?
+  createdAt       DateTime  @default(now())
+  mintedAt        DateTime?
+  onHoldUntil     DateTime?
+
   lockingAddress    String?
   lockingPrivateKey String?
-  traitTypeId       String
-  CollectibleTrait  CollectibleTrait[]
-  OrderItem         OrderItem[]
-  traitType         TraitType          @relation(fields: [traitTypeId], references: [id], onDelete: Cascade)
+  iv                String?
+  authTag           String?
+
+  traitTypeId      String
+  CollectibleTrait CollectibleTrait[]
+  OrderItem        OrderItem[]
+  traitType        TraitType          @relation(fields: [traitTypeId], references: [id], onDelete: Cascade)
 
   @@unique([value, traitTypeId])
 }

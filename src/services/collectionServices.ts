@@ -38,6 +38,7 @@ import { isValidERC721Symbol } from "@libs/isValidERC721Symbol";
 import logger from "@config/winston";
 import { getPSBTBuilder } from "@blockchain/bitcoin/PSBTBuilder";
 import { add } from "winston";
+import { encryption } from "@utils/KeyEncryption";
 
 export const collectionServices = {
   create: async (
@@ -1039,9 +1040,23 @@ export const collectionServices = {
       layer.network === "MAINNET" ? "mainnet" : "testnet"
     );
     const funders = orders.map((order) => {
+      if (
+        !order.fundingAddress ||
+        !order.privateKey ||
+        !order.iv ||
+        !order.authTag
+      )
+        throw new CustomError("Order does not have private key.", 400);
+
+      const decryptedPrivateKey = encryption.decrypt({
+        encrypted: order.privateKey,
+        iv: order.iv,
+        authTag: order.authTag
+      });
+
       return {
-        address: order.fundingAddress!,
-        privateKey: order.privateKey!
+        address: order.fundingAddress,
+        privateKey: decryptedPrivateKey
       };
     });
     const { hex } = await psbtBuilder.transferMaxAmount({

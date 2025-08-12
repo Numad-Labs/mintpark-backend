@@ -19,6 +19,7 @@ orderRouter.post(
   authenticateToken,
   orderController.invokeOrderForMinting
 );
+orderRouter.post("/encrypt-test", orderController.encryptTest);
 orderRouter.get(
   "/:id/check-paid",
   authenticateToken,

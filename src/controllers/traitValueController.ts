@@ -19,6 +19,7 @@ import { collectionProgressRepository } from "@repositories/collectionProgressRe
 import { collectionUploadSessionRepository } from "@repositories/collectionUploadSessionRepository";
 import { Insertable } from "kysely";
 import { TraitValue } from "@app-types/db/types";
+import { encryption } from "@utils/KeyEncryption";
 
 export interface traitValueParams {
   type: string;
@@ -87,10 +88,14 @@ export const traitValueController = {
       )
         throw new CustomError("Trait value has already been processed", 400);
 
+      const encryptedData = encryption.encrypt(lockingPrivateKey);
+
       const updated = await traitValueRepository.updateById(traitValueId, {
         inscriptionId,
         lockingAddress,
-        lockingPrivateKey
+        lockingPrivateKey: encryptedData.encrypted,
+        iv: encryptedData.iv,
+        authTag: encryptedData.authTag
       });
 
       return res.status(200).json({ success: true, data: updated });

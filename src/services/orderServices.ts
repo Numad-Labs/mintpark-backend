@@ -22,6 +22,7 @@ import { SQSProducer } from "@queue/sqsProducer";
 import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
 import { collectionProgressServices } from "./collectionProgressServices";
 import { getPSBTBuilder } from "@blockchain/bitcoin/PSBTBuilder";
+import { encryption } from "@utils/KeyEncryption";
 
 export const producer = new SQSProducer("eu-central-1", config.AWS_SQS_URL);
 
@@ -250,13 +251,19 @@ export const orderServices = {
     const serviceFeeInSats = Math.max(Math.ceil(networkFeeInSats * 0.1), 10000);
     const fundingAmount = networkFeeInSats + serviceFeeInSats;
 
+    const encryptedData = encryption.encrypt(funder.privateKey);
+
     order = await orderRepository.create(db, {
       userId: userId,
       fundingAmount,
       networkFeeInSats,
       serviceFeeInSats,
+
       fundingAddress: funder.address,
-      privateKey: funder.privateKey,
+      privateKey: encryptedData.encrypted,
+      iv: encryptedData.iv,
+      authTag: encryptedData.authTag,
+
       orderType: "MINT_RECURSIVE_COLLECTIBLE",
       collectionId: collection.id,
       feeRate: feeRate,
@@ -284,7 +291,7 @@ export const orderServices = {
       );
     if (!order.fundingAddress)
       throw new CustomError("Order does not have funding address", 400);
-    if (!order.privateKey)
+    if (!order.privateKey || !order.iv || !order.authTag)
       throw new CustomError("Order does not have private key", 400);
 
     const user = await userRepository.getById(userId);
@@ -320,6 +327,12 @@ export const orderServices = {
         ? config.MAINNET_SERVICE_FEE_RECIPIENT_ADDRESS
         : config.TESTNET_SERVICE_FEE_RECIPIENT_ADDRESS;
 
+    const decryptedPrivateKey = encryption.decrypt({
+      encrypted: order.privateKey,
+      iv: order.iv,
+      authTag: order.authTag
+    });
+
     if (order.orderSplitCount === 1) {
       if (!order.hasTransferredServiceFee) {
         const txHex = await psbtBuilder.generateTxHex({
@@ -327,7 +340,7 @@ export const orderServices = {
             { address: serviceFeeRecipient, amount: order.serviceFeeInSats }
           ],
           fundingAddress: order.fundingAddress,
-          fundingPrivateKey: order.privateKey,
+          fundingPrivateKey: decryptedPrivateKey,
           feeRate: order.feeRate
         });
 
@@ -421,14 +434,20 @@ export const orderServices = {
     for (let i = 1; i < order.orderSplitCount; i++) {
       const funder = psbtBuilder.createFundingAddress();
       const newOrderId = randomUUID();
+      const encryptedData = encryption.encrypt(funder.privateKey);
+
       orderToCreate.push({
         id: newOrderId,
         userId: userId,
         fundingAmount: order.fundingAmount,
-        fundingAddress: funder.address,
         serviceFeeInSats: order.serviceFeeInSats,
         networkFeeInSats: splitNetworkFeeInSats,
-        privateKey: funder.privateKey,
+
+        fundingAddress: funder.address,
+        privateKey: encryptedData.encrypted,
+        iv: encryptedData.iv,
+        authTag: encryptedData.authTag,
+
         orderType: "MINT_RECURSIVE_COLLECTIBLE",
         collectionId: order.collectionId,
         feeRate: order.feeRate,
@@ -452,7 +471,7 @@ export const orderServices = {
     const txHex = await psbtBuilder.generateTxHex({
       outputs,
       fundingAddress: order.fundingAddress,
-      fundingPrivateKey: order.privateKey,
+      fundingPrivateKey: decryptedPrivateKey,
       feeRate: order.feeRate
     });
 
