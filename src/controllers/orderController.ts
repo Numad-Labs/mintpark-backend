@@ -426,7 +426,7 @@ export const orderController = {
 
       const order = await orderRepository.getById(db, id);
       if (!order) throw new CustomError("Order not found", 404);
-      if (order.orderType === "MINT_RECURSIVE_COLLECTIBLE")
+      if (order.orderType !== "MINT_RECURSIVE_COLLECTIBLE")
         throw new CustomError("Invalid order type", 404);
       if (
         !order.fundingAddress ||
