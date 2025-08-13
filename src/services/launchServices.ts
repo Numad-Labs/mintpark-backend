@@ -423,8 +423,27 @@ export const launchServices = {
     const collectibles = await collectibleServices.createCollectiblesByFiles(
       { id: collection.id, name: collection.name },
       Number(existingLaunchItemCount),
-      files
+      files,
+      true
     );
+    try {
+      const ipfsQueueItems: IpfsQueueItem[] = collectibles.map(
+        (collectible) => {
+          return {
+            collectibleId: collectible.id,
+            collectionId: collection.id
+          };
+        }
+      );
+      await queueService.enqueueBatch(ipfsQueueItems, QueueType.IPFS_UPLOAD);
+      logger.info(
+        `Enqueued ${
+          ipfsQueueItems.length
+        } IPFS_FILE collectibles at ${new Date().toISOString()} to IPFS Processor Queue`
+      );
+    } catch (e) {
+      console.log(`IPFS_FILE Enqueue failed: ${e}`);
+    }
 
     const launchItemsData: Insertable<LaunchItem>[] = [];
     for (let i = 0; i < collectibles.length; i++)

@@ -14,7 +14,6 @@ import logger from "@config/winston";
 import { queueService, QueueType } from "../queue/queueService";
 import { AxiosError } from "axios";
 import { orderRepository } from "@repositories/orderRepostory";
-import { InscriptionQueueItem } from "@queue/sqsProducer";
 import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
 import { collectionUploadSessionRepository } from "@repositories/collectionUploadSessionRepository";
 import { Insertable } from "kysely";

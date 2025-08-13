@@ -359,7 +359,8 @@ export const orderServices = {
         {
           orderId: order.id,
           collectionId: order.collectionId,
-          phase: InscriptionPhase.TRAIT
+          phase: InscriptionPhase.TRAIT,
+          network: layer.network === "MAINNET" ? "mainnet" : "testnet"
         },
         60
       );
@@ -384,7 +385,8 @@ export const orderServices = {
         traitQueueItem.push({
           orderId: order.id,
           collectionId: order.collectionId!,
-          phase: InscriptionPhase.TRAIT
+          phase: InscriptionPhase.TRAIT,
+          network: layer.network === "MAINNET" ? "mainnet" : "testnet"
         });
       });
 
@@ -410,7 +412,8 @@ export const orderServices = {
     traitQueueItems.push({
       orderId: order.id,
       collectionId: order.collectionId,
-      phase: InscriptionPhase.TRAIT
+      phase: InscriptionPhase.TRAIT,
+      network: layer.network === "MAINNET" ? "mainnet" : "testnet"
     });
 
     const estimatedFee = psbtBuilder.estimateFee(
@@ -458,7 +461,8 @@ export const orderServices = {
       traitQueueItems.push({
         orderId: newOrderId,
         collectionId: order.collectionId,
-        phase: InscriptionPhase.TRAIT
+        phase: InscriptionPhase.TRAIT,
+        network: layer.network === "MAINNET" ? "mainnet" : "testnet"
       });
       outputs.push({ address: funder.address, amount: splitNetworkFeeInSats });
     }

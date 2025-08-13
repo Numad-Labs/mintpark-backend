@@ -849,12 +849,22 @@ export const collectionController = {
         );
       if (orders.length === 0) throw new CustomError("Orders not found", 400);
 
+      const collection = await collectionRepository.getById(
+        db,
+        orders[0].collectionId ?? ""
+      );
+      if (!collection) throw new CustomError("No collection found", 400);
+
+      const layer = await layerRepository.getById(collection.layerId);
+      if (!layer) throw new CustomError("No layer found", 400);
+
       const traitQueueItem: InscriptionQueueItem[] = [];
       orders.forEach((order) => {
         traitQueueItem.push({
           orderId: order.id,
           collectionId: order.collectionId!,
-          phase: InscriptionPhase.TRAIT
+          phase: InscriptionPhase.TRAIT,
+          network: layer.network === "MAINNET" ? "mainnet" : "testnet"
         });
       });
 

@@ -5,6 +5,7 @@ import {
   SendMessageBatchRequestEntry
 } from "@aws-sdk/client-sqs";
 import { SQSClientFactory } from "./sqsClient";
+import { NetworkType } from "@blockchain/bitcoin/PSBTBuilder";
 
 export enum InscriptionPhase {
   TRAIT = "trait",
@@ -16,6 +17,7 @@ export interface InscriptionQueueItem {
   collectionId: string;
   orderId: string;
   phase: InscriptionPhase;
+  network: NetworkType;
 }
 
 export class SQSProducer {

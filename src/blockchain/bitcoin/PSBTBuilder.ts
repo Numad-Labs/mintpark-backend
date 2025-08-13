@@ -180,7 +180,6 @@ export class PSBTBuilder {
     if (feeRate < 1) throw new CustomError("Fee too low", 400);
 
     const network = this.network;
-    console.log(Buffer.from(fundingPrivateKey, "hex"));
     const keyPair = ECPair.fromPrivateKey(
       Buffer.from(fundingPrivateKey, "hex"),
       {
