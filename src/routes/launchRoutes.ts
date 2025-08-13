@@ -48,13 +48,14 @@ launchRouter.post(
 launchRouter.post(
   "/ipfs-file",
   authenticateToken,
+  authorize("SUPER_ADMIN"),
   parseFiles("files", false),
   launchController.createIpfsFileAndLaunchItemsInBatch
 );
-// list of CIDs
 launchRouter.post(
   "/ipfs",
   authenticateToken,
+  authorize("SUPER_ADMIN"),
   launchController.createIpfsNftAndLaunchItemsInBatch
 );
 launchRouter.post(
@@ -72,7 +73,6 @@ launchRouter.post(
 launchRouter.post(
   "/whitelist-addresses",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
   launchController.addWhitelistAddress
 );
 

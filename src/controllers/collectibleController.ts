@@ -504,14 +504,11 @@ export const collectibleControllers = {
   //   }
   // },
   getCollectiblesForIpfsUpload: async (
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) => {
     try {
-      if (!req.user?.id)
-        throw new CustomError("Could not parse the id from the token.", 400);
-
       const { offset, limit } = req.query;
       const { collectionId } = req.query;
 

@@ -19,7 +19,6 @@ orderRouter.post(
   authenticateToken,
   orderController.invokeOrderForMinting
 );
-orderRouter.post("/encrypt-test", orderController.encryptTest);
 orderRouter.get(
   "/:id/check-paid",
   authenticateToken,
@@ -85,6 +84,12 @@ orderRouter.get(
 //   apiKeyAuth,
 //   orderController.getByCollectionIdWithDetailForService
 // );
+
+orderRouter.get(
+  "/service/:collectionId/collection",
+  apiKeyAuth,
+  orderController.getAllOrdersByCollectionId
+);
 
 orderRouter.get(
   "/:id/details",

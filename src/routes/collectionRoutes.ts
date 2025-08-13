@@ -82,6 +82,13 @@ collectionRouter.put(
   collectionController.updateDetails
 );
 
+collectionRouter.post(
+  "/:id/restart-inscription",
+  authenticateToken,
+  authorize("SUPER_ADMIN"),
+  collectionController.restartInscriptionQueue
+);
+
 // collectionRouter.post(
 //   "/:id/stop-and-withdraw",
 //   authenticateToken,

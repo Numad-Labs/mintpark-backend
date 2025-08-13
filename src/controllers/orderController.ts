@@ -95,31 +95,6 @@ export const orderController = {
       next(e);
     }
   },
-  encryptTest: async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      const { data } = req.body;
-
-      const encryptedData = encryption.encrypt(data);
-
-      console.log(`Encrypted data: ${encryptedData.encrypted}`);
-      console.log(`Encrypted data: ${encryptedData.authTag}`);
-      console.log(`Encrypted data: ${encryptedData.iv}`);
-
-      const decryptedData = encryption.decrypt({
-        encrypted: encryptedData.encrypted,
-        iv: encryptedData.iv,
-        authTag: encryptedData.authTag
-      });
-
-      return res.json(decryptedData);
-    } catch (e) {
-      next(e);
-    }
-  },
   checkOrderIsPaid: async (
     req: AuthenticatedRequest,
     res: Response,
@@ -444,6 +419,24 @@ export const orderController = {
       order.privateKey = decryptedPrivateKey;
 
       return res.status(200).json({ success: true, data: order });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getAllOrdersByCollectionId: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { collectionId } = req.params;
+
+      const orders =
+        await orderRepository.getOrdersByCollectionIdAndMintRecursiveCollectibleType(
+          collectionId
+        );
+
+      return res.status(200).json({ success: true, data: orders });
     } catch (e) {
       next(e);
     }

@@ -27,6 +27,8 @@ import {
 } from "@blockchain/bitcoin/estimateInscriptionFee";
 import { getPSBTBuilder } from "@blockchain/bitcoin/PSBTBuilder";
 import { layerRepository } from "@repositories/layerRepository";
+import { InscriptionPhase, InscriptionQueueItem } from "@queue/sqsProducer";
+import { producer } from "@services/orderServices";
 
 export interface CollectionQueryParams {
   layerId: string;
@@ -827,6 +829,52 @@ export const collectionController = {
       return res
         .status(200)
         .json({ success: true, data: collectionUploadSession });
+    } catch (e) {
+      next(e);
+    }
+  },
+  restartInscriptionQueue: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const { id } = req.params;
+
+    try {
+      if (!id) throw new CustomError("Please provide id", 400);
+
+      const orders =
+        await orderRepository.getOrdersByCollectionIdAndMintRecursiveCollectibleType(
+          id
+        );
+      if (orders.length === 0) throw new CustomError("Orders not found", 400);
+
+      const traitQueueItem: InscriptionQueueItem[] = [];
+      orders.forEach((order) => {
+        traitQueueItem.push({
+          orderId: order.id,
+          collectionId: order.collectionId!,
+          phase: InscriptionPhase.TRAIT
+        });
+      });
+
+      try {
+        const queuePromises = traitQueueItem.map((item) => {
+          producer.sendMessage(item, 60);
+        });
+        await Promise.all(queuePromises);
+        console.log(
+          `Enqueued inscription queue item: ${JSON.stringify(
+            traitQueueItem
+          )} at ${new Date().toISOString()} to Inscription Processor Queue`
+        );
+      } catch (e) {
+        console.log(e);
+      }
+
+      return res
+        .status(200)
+        .json({ message: "Successfully restarted inscription progress" });
     } catch (e) {
       next(e);
     }

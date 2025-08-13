@@ -73,7 +73,6 @@ collectibleRouter.get(
 );
 
 // Service-to-service APIs (internal)
-
 // IPFS Queue
 collectibleRouter.post(
   "/update-ipfs",
@@ -91,6 +90,12 @@ collectibleRouter.get(
   "/service/:collectibleId/build-from-traits",
   apiKeyAuth,
   collectibleControllers.buildNftImageFromTraits
+);
+
+collectibleRouter.get(
+  "/collectibles-for-ipfs-upload/for-restart",
+  apiKeyAuth,
+  collectibleControllers.getCollectiblesForIpfsUpload
 );
 
 // Inscription Queue
@@ -143,13 +148,6 @@ collectibleRouter.put(
 );
 
 // Script APIs
-collectibleRouter.get(
-  "/collectibles-for-ipfs-upload",
-  authenticateToken,
-  authorize("SUPER_ADMIN"),
-  collectibleControllers.getCollectiblesForIpfsUpload
-);
-
 collectibleRouter.post(
   "/ipfs-file-upload",
   authenticateToken,
