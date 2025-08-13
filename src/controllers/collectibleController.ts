@@ -598,7 +598,7 @@ export const collectibleControllers = {
 
         // Update the collectible with the new CID and optionally fileKey
         const updateData = {
-          cid: ipfsUri.replace("ipfs://", "")
+          cid: ipfsUri
         };
 
         let updatedCollectible: any;
