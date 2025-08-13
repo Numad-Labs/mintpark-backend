@@ -305,16 +305,16 @@ export const collectionServices = {
       throw new CustomError("Invalid layer for phase setup", 400);
     }
 
-    const collectionProgress = await collectionProgressRepository.getById(
-      collection.id
-    );
-    if (!collectionProgress)
-      throw new CustomError("Collection progress not found", 400);
-    if (!collectionProgress.collectionCompleted)
-      throw new CustomError(
-        "Collection processing has not been completed.",
-        400
-      );
+    // const collectionProgress = await collectionProgressRepository.getById(
+    //   collection.id
+    // );
+    // if (!collectionProgress)
+    //   throw new CustomError("Collection progress not found", 400);
+    // if (!collectionProgress.collectionCompleted)
+    //   throw new CustomError(
+    //     "Collection processing has not been completed.",
+    //     400
+    //   );
 
     // Initialize NFT service
     const chainConfig = EVM_CONFIG.CHAINS[layer.chainId];
