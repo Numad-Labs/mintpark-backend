@@ -14,7 +14,7 @@ export const wlRepository = {
       .selectFrom("WlAddress")
       .selectAll()
       .where("WlAddress.launchId", "=", launchId)
-      .where("WlAddress.address", "=", address)
+      .where("WlAddress.address", "=", address.toLowerCase())
       .where("WlAddress.phase", "=", phase)
       .executeTakeFirst();
 
