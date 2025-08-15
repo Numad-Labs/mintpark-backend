@@ -22,7 +22,7 @@ The background worker that processes IPFS uploads and Bitcoin inscriptions lives
 ## Worker integration
 
 - IPFS upload worker calls the inter‑service endpoints above to get collectible details, build images, and persist `ipfsUri`.
-- Inscription worker consumes SQS events and drives the TRAIT → RECURSIVE → ONE_OF_ONE phases, calling the endpoints above to fetch inputs and persist results.
+- Inscription worker consumes SQS events and drives the TRAIT → RECURSIVE → ONE_OF_ONE phases, calling the inter-service communication APIs to fetch inputs and persist results.
 
 ## Prerequisites
 
@@ -46,7 +46,7 @@ PGHOST=localhost
 PGDATABASE=mintpark
 PGUSER=postgres
 PGPASSWORD=postgres
-PGPOOL_MAX=10
+PGPOOL_MAX=30
 
 # JWT
 JWT_ACCESS_SECRET=access-secret
@@ -80,8 +80,8 @@ QUEUE_PROCESSOR_API_KEY=super-secret-shared-key
 
 # Marketplace sync and fee recipients
 MARKETPLACE_SYNC_SECRET=sync-secret
-MAINNET_SERVICE_FEE_RECIPIENT_ADDRESS=0x...
-TESTNET_SERVICE_FEE_RECIPIENT_ADDRESS=0x...
+MAINNET_SERVICE_FEE_RECIPIENT_ADDRESS=bc1p...
+TESTNET_SERVICE_FEE_RECIPIENT_ADDRESS=tb1p...
 ```
 
 Notes:
