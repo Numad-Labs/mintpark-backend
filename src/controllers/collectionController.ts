@@ -794,8 +794,8 @@ export const collectionController = {
       const collectionProgress = await collectionProgressRepository.getById(id);
       if (!collectionProgress)
         throw new CustomError("Collection progress not found", 400);
-      if (!collectionProgress.paymentCompleted)
-        throw new CustomError("Please complete the funding process first", 400);
+      // if (!collectionProgress.paymentCompleted)
+      //   throw new CustomError("Please complete the funding process first", 400);
 
       const collectionUploadSession =
         await collectionUploadSessionRepository.create({
