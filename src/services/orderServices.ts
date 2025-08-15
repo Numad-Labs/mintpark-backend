@@ -23,6 +23,7 @@ import { collectionProgressRepository } from "@repositories/collectionProgressRe
 import { collectionProgressServices } from "./collectionProgressServices";
 import { getPSBTBuilder } from "@blockchain/bitcoin/PSBTBuilder";
 import { encryption } from "@utils/KeyEncryption";
+import { collectionUploadSessionRepository } from "@repositories/collectionUploadSessionRepository";
 
 export const producer = new SQSProducer("eu-central-1", config.AWS_SQS_URL);
 
@@ -237,6 +238,16 @@ export const orderServices = {
     if (estimatedTxSizeInVBytes < 546)
       throw new CustomError("Invalid fee amount", 400);
 
+    const collectionUploadSession =
+      await collectionUploadSessionRepository.getById(collection.id);
+    if (!collectionUploadSession)
+      throw new CustomError("Upload session not found", 400);
+
+    const totalItemCount =
+      Number(collectionUploadSession.expectedTraitValues) +
+      Number(collectionUploadSession.expectedRecursive) +
+      Number(collectionUploadSession.expectedOOOEditions ?? 0);
+
     const psbtBuilder = getPSBTBuilder(
       parentCollectionLayer.network === "MAINNET" ? "mainnet" : "testnet"
     );
@@ -244,11 +255,13 @@ export const orderServices = {
     const feeRates = await psbtBuilder.fetchRecommendedFees();
     const funder = psbtBuilder.createFundingAddress();
 
-    const feeRate = feeRates.priority;
+    // using 25% fee rate above current mempool 'priority' fee rate
+    const feeRate = feeRates.priority * 1.25;
+    // Adding 10% buffer to total network fee in sats
     const networkFeeInSats = Math.ceil(
       (estimatedTxSizeInVBytes * feeRate + totalDustValue) * 1.1
     );
-    const serviceFeeInSats = Math.max(Math.ceil(networkFeeInSats * 0.1), 10000);
+    const serviceFeeInSats = Math.ceil(totalItemCount * 1000);
     const fundingAmount = networkFeeInSats + serviceFeeInSats;
 
     const encryptedData = encryption.encrypt(funder.privateKey);

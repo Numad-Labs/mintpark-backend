@@ -42,7 +42,6 @@ collectionRouter.get(
 collectionRouter.post(
   "/",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
   parseFiles("logo", true),
   collectionController.create
 );

@@ -66,18 +66,15 @@ export const collectionController = {
       if (!page || !limit)
         throw new CustomError("Please provide pagination values", 400);
 
-      const userLayer = await userRepository.getByUserLayerId(
+      const user = await userRepository.getByUserLayerId(
         userLayerId.toString()
       );
-      if (!userLayer) throw new CustomError("Invalid user layer id", 400);
-      if (userLayer.id !== userId)
-        throw new CustomError(
-          "You are not allowed to do this for this user.",
-          400
-        );
+      if (!user) throw new CustomError("Invalid user layer id", 400);
+      if (user.id !== userId && user.role !== "SUPER_ADMIN")
+        throw new CustomError("Not allowed", 400);
 
       const collections = await collectionProgressServices.getByCreatorAddress(
-        userLayer.address,
+        user.address,
         Number(page),
         Number(limit)
       );
@@ -114,6 +111,16 @@ export const collectionController = {
 
       const collection = await collectionRepository.getById(db, id);
       if (!collection) throw new CustomError("Collection not found", 400);
+      if (!collection.creatorUserLayerId)
+        throw new CustomError("Creator not found", 400);
+
+      const creatorUserLayer = await userLayerRepository.getById(
+        collection.creatorUserLayerId
+      );
+      const isNotCreator =
+        !creatorUserLayer || creatorUserLayer.address !== userLayer.address;
+      if (isNotCreator && userLayer.role !== "SUPER_ADMIN")
+        throw new CustomError("Not allowed", 400);
 
       const layer = await layerRepository.getById(collection.layerId);
       if (!layer) throw new CustomError("Layer not found", 400);
@@ -199,10 +206,12 @@ export const collectionController = {
       }
 
       const etaInMinutes = Math.max(
-        ((notDoneTraitValueCount + notDoneCollectibleCount) /
-          inscriptionLimitPerBlock /
-          order.orderSplitCount) *
-          blockTimeInMinutes,
+        Math.max(
+          (notDoneTraitValueCount + notDoneCollectibleCount) /
+            inscriptionLimitPerBlock /
+            order.orderSplitCount,
+          1
+        ) * blockTimeInMinutes,
         done !== total ? blockTimeInMinutes : 0
       );
 
@@ -768,7 +777,7 @@ export const collectionController = {
     }
   },
   initiateUploadSessions: async (
-    req: Request,
+    req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {
@@ -791,9 +800,21 @@ export const collectionController = {
       )
         throw new CustomError("Invalid data", 400);
 
+      // TODO: user layer address validation
+
       const collectionProgress = await collectionProgressRepository.getById(id);
       if (!collectionProgress)
         throw new CustomError("Collection progress not found", 400);
+
+      const isExistingCollectionUploadSession =
+        await collectionUploadSessionRepository.getById(
+          collectionProgress.collectionId
+        );
+      if (isExistingCollectionUploadSession)
+        throw new CustomError(
+          "Collection already has existing upload session",
+          400
+        );
       // if (!collectionProgress.paymentCompleted)
       //   throw new CustomError("Please complete the funding process first", 400);
 
@@ -814,7 +835,7 @@ export const collectionController = {
     }
   },
   getUploadSessionByCollectionId: async (
-    req: Request,
+    req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {

@@ -3,6 +3,15 @@ import { db } from "../utils/db";
 import { UserLayer } from "../types/db/types";
 
 export const userLayerRepository = {
+  getById: async (id: string) => {
+    const userLayer = await db
+      .selectFrom("UserLayer")
+      .selectAll()
+      .where("UserLayer.id", "=", id)
+      .executeTakeFirst();
+
+    return userLayer;
+  },
   create: async (data: Insertable<UserLayer>) => {
     const userLayer = await db
       .insertInto("UserLayer")

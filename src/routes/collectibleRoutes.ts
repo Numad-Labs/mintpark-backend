@@ -4,7 +4,6 @@ import {
   authenticateToken,
   optionalAuth
 } from "../middlewares/authenticateToken";
-import { parseFiles } from "../middlewares/fileParser";
 import { authorize } from "../middlewares/authorize";
 import { apiKeyAuth } from "../middlewares/apiKeyAuth";
 
@@ -37,11 +36,11 @@ collectibleRouter.get(
 );
 
 // Creator APIs
-collectibleRouter.get(
-  "/:collectibleId/build-image",
-  authenticateToken,
-  collectibleControllers.buildNftImageFromTraits
-);
+// collectibleRouter.get(
+//   "/:collectibleId/build-image",
+//   authenticateToken,
+//   collectibleControllers.buildNftImageFromTraits
+// );
 
 // Admin Priviledge APIs, will later be allowed
 // collectibleRouter.post(
@@ -64,13 +63,13 @@ collectibleRouter.get(
 //   collectibleControllers.createIpfsNftInBatch
 // );
 
-// Admin Queue Priviledge APIs
-collectibleRouter.get(
-  "/:collectionId/no-cid/enqueue",
-  authenticateToken,
-  authorize("SUPER_ADMIN"),
-  collectibleControllers.getCollectiblesWithNoCidAndEnqueue
-);
+// // Admin Queue Priviledge APIs
+// collectibleRouter.get(
+//   "/:collectionId/no-cid/enqueue",
+//   authenticateToken,
+//   authorize("SUPER_ADMIN"),
+//   collectibleControllers.getCollectiblesWithNoCidAndEnqueue
+// );
 
 // Service-to-service APIs (internal)
 // IPFS Queue

@@ -2,6 +2,10 @@
 
 TypeScript/Node.js backend that powers the Launchpad and Marketplace functionality, exposes public and admin APIs, and coordinates with background workers for IPFS uploads and Bitcoin inscriptions.
 
+### Companion service
+
+The background worker that processes IPFS uploads and Bitcoin inscriptions lives in a separate repository: [Numad-Labs/queue-processor-service](https://github.com/Numad-Labs/queue-processor-service).
+
 ## Responsibilities
 
 - Launchpad: deploy collections, configure phases (whitelist, FCFS, public), generate/verify mint signatures
@@ -14,44 +18,6 @@ TypeScript/Node.js backend that powers the Launchpad and Marketplace functionali
 - EVM services: unsigned tx builders and helpers for Marketplace and Direct Mint NFT
 - Background sync: marketplace subgraph synchronization
 - Redis caching for active phase data
-
-## Public routes (selected)
-
-- `GET /api/v1/launchpad/...` — Launchpad operations
-- `GET /api/v1/collections/...` — Collection CRUD & queries
-- `GET /api/v1/collectibles/:id` — Collectible by id
-- `GET /api/v1/collectibles/:collectionId/collection/listable` — Listable tokens
-- `GET /api/v1/collectible-traits/...` — Collectible trait operations
-- `GET /api/v1/lists/...` — Lists
-
-Authentication varies per route: JWT bearer for user/creator/admin endpoints.
-
-## Inter‑service routes (used by workers)
-
-These are protected by `X-API-KEY` or `Authorization: Bearer <QUEUE_PROCESSOR_API_KEY>` according to middleware.
-
-- Collectibles
-
-  - `POST /api/v1/collectibles/update-ipfs` — Update a collectible with `ipfsUri` (used after IPFS upload)
-  - `GET /api/v1/collectibles/service/:collectibleId` — Fetch collectible (including UNCONFIRMED)
-  - `GET /api/v1/collectibles/service/:collectibleId/build-from-traits` — Build PNG from traits and return binary
-  - `GET /api/v1/collectibles/count-without-parent-and-not-ooo/for-service` — Count remaining recursives
-  - `GET /api/v1/collectibles/count-without-parent/for-service` — Count remaining 1-of-1
-  - `GET /api/v1/collectibles/service/:collectionId/1-of-1` — Random 1-of-1 collectible
-  - `GET /api/v1/collectibles/service/:collectionId/recursive` — Random recursive collectible
-  - `POST /api/v1/collectibles/:collectibleId/recursive` — Create recursive collectible and set parent
-  - `GET /api/v1/collectible-traits/:collectibleId/collectible-with-inscriptions` — Traits with inscriptionIds
-  - Event helpers: `GET /api/v1/collectibles/service/:uniqueIdx/unique-index`, `POST /api/v1/collectibles/service/l2-only`, `PUT /api/v1/collectibles/service/:collectibleId/mark-as-burned`
-
-- Trait Values
-
-  - `GET /api/v1/trait-values/service/:collectionId` — Random trait value
-  - `PATCH /api/v1/trait-values/service/update-inscription` — Update inscription for a trait value
-  - `GET /api/v1/trait-values/service/:collectionId/not-done-count` — Remaining trait values
-
-- Orders/Collections (used during inscription processing)
-  - `GET /api/v1/orders/:id/details` — Funding address, private key, feeRate
-  - `PUT /api/v1/collections/:orderId/mark-as-ran-out-of-funds` — Mark state when funds are insufficient
 
 ## Worker integration
 
@@ -199,7 +165,7 @@ curl -H "Authorization: Bearer super-secret-shared-key" \
 ## Run together (backend + queue processor)
 
 - Start backend on `:3001` (this project)
-- Start queue processor on `:4000` (`../queue-processor-service`)
+- Start queue processor on `:4000` (see [Numad-Labs/queue-processor-service](https://github.com/Numad-Labs/queue-processor-service))
 - Ensure `.env` API keys match for inter‑service calls
 
 ## Scripts

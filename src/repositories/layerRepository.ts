@@ -2,6 +2,7 @@ import { Insertable, Updateable } from "kysely";
 import { db } from "../utils/db";
 import { Layer } from "../types/db/types";
 import { LAYER, NETWORK } from "../types/db/enums";
+import { CustomError } from "@exceptions/CustomError";
 
 export const layerRepository = {
   create: async (data: Insertable<Layer>) => {
@@ -84,5 +85,17 @@ export const layerRepository = {
       .executeTakeFirstOrThrow();
 
     return data;
+  },
+  getByTraitValueId: async (traitValueId: string) => {
+    const layer = await db
+      .selectFrom("Layer")
+      .innerJoin("Collection", "Collection.layerId", "Layer.id")
+      .innerJoin("TraitType", "TraitType.collectionId", "Collection.id")
+      .innerJoin("TraitValue", "TraitValue.traitTypeId", "TraitType.id")
+      .select(["Layer.id", "Layer.name", "Layer.layer", "Layer.network"])
+      .where("TraitValue.id", "=", traitValueId)
+      .executeTakeFirstOrThrow(() => new CustomError("Layer not found", 404));
+
+    return layer;
   }
 };

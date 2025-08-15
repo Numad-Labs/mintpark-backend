@@ -1,8 +1,9 @@
-import { CustomError } from "@exceptions/CustomError";
 import BIP32Factory from "bip32";
 import * as bitcoin from "bitcoinjs-lib";
 import { ECPairFactory } from "ecpair";
 import * as ecc from "tiny-secp256k1";
+import axios from "axios";
+import { CustomError } from "@exceptions/CustomError";
 
 bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);
@@ -83,6 +84,7 @@ export interface NetworkConfig {
     transaction: string;
     fees: string;
     address: string;
+    blockHeight: string;
   };
 }
 
@@ -126,7 +128,8 @@ export class PSBTBuilder {
           utxo: "https://mempool.space/api/address",
           transaction: "https://mempool.space/api/tx",
           fees: "https://mempool.space/api/v1/fees/recommended",
-          address: "https://mempool.space/api/address"
+          address: "https://mempool.space/api/address",
+          blockHeight: "https://mempool.space/api/blocks/tip/height"
         }
       };
     } else {
@@ -137,7 +140,8 @@ export class PSBTBuilder {
           utxo: "https://mempool.space/testnet4/api/address",
           transaction: "https://mempool.space/testnet4/api/tx",
           fees: "https://mempool.space/testnet4/api/v1/fees/recommended",
-          address: "https://mempool.space/testnet4/api/address"
+          address: "https://mempool.space/testnet4/api/address",
+          blockHeight: "https://mempool.space/testnet4/api/blocks/tip/height"
         }
       };
     }
@@ -172,12 +176,12 @@ export class PSBTBuilder {
     feeRate: number;
   }) {
     if (this.getAddressInfo(fundingAddress).type !== "p2tr")
-      throw new CustomError("Please provide p2tr address", 400);
+      throw new Error("Please provide p2tr address");
     outputs.forEach((output) => {
       if (this.getAddressInfo(output.address).type !== "p2tr")
-        throw new CustomError("Please provide p2tr address", 400);
+        throw new Error("Please provide p2tr address");
     });
-    if (feeRate < 1) throw new CustomError("Fee too low", 400);
+    if (feeRate < 1) throw new Error("Fee too low");
 
     const network = this.network;
     const keyPair = ECPair.fromPrivateKey(
@@ -193,6 +197,7 @@ export class PSBTBuilder {
     const node = bip32.fromPrivateKey(privateKey, Buffer.alloc(32), network);
     const pubkey = node.publicKey;
     const internalPubKey = toXOnly(pubkey);
+
     const utxos = await this.fetchUTXOs(fundingAddress);
     if (!utxos || utxos.length === 0) {
       throw new Error("Not funded. Utxos not found.");
@@ -254,7 +259,6 @@ export class PSBTBuilder {
 
     return txHex;
   }
-
   /**
    * Transfer maximum possible amount from multiple P2TR addresses to a target address
    */
@@ -557,6 +561,54 @@ export class PSBTBuilder {
     throw new Error("Insufficient funds for transaction");
   }
 
+  public async getBlockHeight() {
+    try {
+      const response = await axios.get(
+        `${this.networkConfig.apiEndpoints.blockHeight}`,
+        {
+          headers: { accept: "application/json" },
+          timeout: 5000 // 5 second timeout
+        }
+      );
+
+      const height = parseInt(response.data, 10);
+      if (isNaN(height)) {
+        throw new Error("Invalid block height received");
+      }
+
+      return height;
+    } catch (error) {
+      console.log(error);
+      throw new Error("Error fetching block height");
+    }
+  }
+
+  public async getTransaction(txid: string) {
+    try {
+      const response = await axios.get(
+        `${this.networkConfig.apiEndpoints.transaction}/${txid}`,
+        {
+          headers: { accept: "application/json" },
+          timeout: 5000 // 5 second timeout
+        }
+      );
+
+      const result = response.data;
+      if (!result.txid) {
+        throw new Error("Transaction not found");
+      }
+
+      return result.txid;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.warn(
+          `Axios Error on getTransaction. status: ${error.status} message: ${error.message}, response: ${error.response?.data}`
+        );
+      } else console.error(`Error on getTransaction: ${error}`);
+      throw new Error("Error fetching transaction");
+    }
+  }
+
   /**
    * Get input size for different address types (in vBytes)
    */
@@ -608,12 +660,8 @@ export class PSBTBuilder {
     const url = this.networkConfig.apiEndpoints.fees;
 
     try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch fees: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const response = await axios.get(url);
+      const data = response.data;
 
       // Mempool returns fastestFee, halfHourFee, hourFee, economyFee, minimumFee
       return {
@@ -622,9 +670,16 @@ export class PSBTBuilder {
         priority: data.fastestFee || 1
       };
     } catch (error) {
-      console.warn(
-        `Error fetching fee rates, using defaults: ${(error as Error).message}`
-      );
+      if (axios.isAxiosError(error)) {
+        console.warn(
+          `Error fetching fee rates, axios error. status: ${error.status} message: ${error.message}, response: ${error.response?.data}`
+        );
+      } else
+        console.warn(
+          `Error fetching fee rates, using defaults: ${
+            (error as Error).message
+          }`
+        );
       return this.feeRates;
     }
   }
@@ -644,12 +699,12 @@ export class PSBTBuilder {
     const url = `${this.networkConfig.apiEndpoints.utxo}/${address}/utxo`;
 
     try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch UTXOs: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const response = await axios.get(url, {
+        headers: {
+          accept: "application/json"
+        }
+      });
+      const data = response.data;
 
       return data.map((utxo: any) => ({
         txid: utxo.txid,
@@ -659,49 +714,14 @@ export class PSBTBuilder {
         status: utxo.status // Mempool provides confirmation status
       }));
     } catch (error) {
-      throw new Error(`Error fetching UTXOs: ${(error as Error).message}`);
-    }
-  }
-
-  /**
-   * Fetch raw transaction from Mempool API
-   */
-  public async fetchRawTransaction(txid: string): Promise<string> {
-    const url = `${this.networkConfig.apiEndpoints.transaction}/${txid}/hex`;
-
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch transaction: ${response.statusText}`);
-      }
-
-      return await response.text();
-    } catch (error) {
-      throw new Error(
-        `Error fetching transaction: ${(error as Error).message}`
-      );
-    }
-  }
-
-  /**
-   * Fetch detailed transaction info from Mempool API
-   */
-  public async fetchTransactionInfo(txid: string): Promise<any> {
-    const url = `${this.networkConfig.apiEndpoints.transaction}/${txid}`;
-
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fetch transaction info: ${response.statusText}`
+      if (axios.isAxiosError(error)) {
+        console.warn(
+          `Error fetching UTXOs, axios error. status: ${error.status} message: ${error.message}, response: ${error.response?.data}}`
         );
-      }
+      } else console.error("Error fetching UTXOs:", error);
 
-      return await response.json();
-    } catch (error) {
-      throw new Error(
-        `Error fetching transaction info: ${(error as Error).message}`
-      );
+      // This will be caught and re-enqueued
+      throw new Error("Error fetching UTXOs");
     }
   }
 
@@ -728,16 +748,21 @@ export class PSBTBuilder {
     const url = `${this.networkConfig.apiEndpoints.address}/${address}`;
 
     try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch address info: ${response.statusText}`);
-      }
+      const response = await axios.get(url);
+      const data = response.data;
 
-      return await response.json();
+      return data;
     } catch (error) {
-      throw new Error(
-        `Error fetching address info: ${(error as Error).message}`
-      );
+      if (axios.isAxiosError(error)) {
+        console.warn(
+          `Error on fetchAddressInfo, axios error. status: ${error.status} message: ${error.message}, response: ${error.response?.data}}`
+        );
+      } else
+        console.error(
+          `Error fetching address info: ${(error as Error).message}`
+        );
+
+      throw new Error(`Error fetching address info for address ${address}`);
     }
   }
 
@@ -768,23 +793,22 @@ export class PSBTBuilder {
    */
   public async broadcastTransaction(hexTx: string): Promise<string> {
     try {
-      const response = await fetch(this.networkConfig.apiEndpoints.broadcast, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: hexTx
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Broadcast failed: ${error}`);
-      }
-
-      const txid = await response.text();
-      return txid.trim();
-    } catch (error) {
-      throw new Error(
-        `Error broadcasting transaction: ${(error as Error).message}`
+      const response = await axios.post(
+        this.networkConfig.apiEndpoints.broadcast,
+        hexTx,
+        {
+          headers: { "Content-Type": "text/plain" }
+        }
       );
+
+      return response.data.trim();
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.warn(
+          `Error on broadcastTransaction, axios error. status: ${error.status} message: ${error.message}, response: ${error.response?.data}}`
+        );
+      } else console.error(`Error sending raw transaction: ${error}`);
+      throw new Error(`Error sending raw transaction`);
     }
   }
 

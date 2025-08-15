@@ -10,7 +10,6 @@ const orderRouter = Router();
 orderRouter.post(
   "/",
   authenticateToken,
-  authorize("SUPER_ADMIN"),
   parseFiles("badge", true),
   orderController.createMintOrder
 );

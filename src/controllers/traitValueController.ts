@@ -19,6 +19,9 @@ import { collectionUploadSessionRepository } from "@repositories/collectionUploa
 import { Insertable } from "kysely";
 import { TraitValue } from "@app-types/db/types";
 import { encryption } from "@utils/KeyEncryption";
+import { layerRepository } from "@repositories/layerRepository";
+import { PSBTBuilder } from "@blockchain/bitcoin/PSBTBuilder";
+import { deleteStoredInscriptionId } from "@queue/queueProcessServiceAPIs";
 
 export interface traitValueParams {
   type: string;
@@ -87,8 +90,19 @@ export const traitValueController = {
       )
         throw new CustomError("Trait value has already been processed", 400);
 
-      const encryptedData = encryption.encrypt(lockingPrivateKey);
+      const layer = await layerRepository.getByTraitValueId(traitValue.id);
 
+      const psbtBuilder = new PSBTBuilder(
+        layer.network === "MAINNET" ? "mainnet" : "testnet"
+      );
+      const txid = inscriptionId.slice(0, 64);
+      const isExistingTransaction = await psbtBuilder.getTransaction(txid);
+      if (!isExistingTransaction) {
+        await deleteStoredInscriptionId(inscriptionId);
+        throw new CustomError(`Inscribing transaction not found: ${txid}`, 400);
+      }
+
+      const encryptedData = encryption.encrypt(lockingPrivateKey);
       const updated = await traitValueRepository.updateById(traitValueId, {
         inscriptionId,
         lockingAddress,
