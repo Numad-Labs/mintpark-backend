@@ -289,7 +289,9 @@ export const launchItemRepository = {
       .where("LaunchItem.status", "=", "ACTIVE")
       .where("LaunchItem.onHoldUntil", "is not", null)
       .where((eb) =>
-        sql`${eb.ref("onHoldUntil")} < ${fiveMinutesAgo}`.$castTo<boolean>()
+        sql`${eb.ref(
+          "LaunchItem.onHoldUntil"
+        )} < ${fiveMinutesAgo}`.$castTo<boolean>()
       )
       .orderBy("LaunchItem.onHoldUntil desc")
       .offset(offset)

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { collectibleTraitController } from "../controllers/collectibleTraitController";
 import { authenticateToken } from "../middlewares/authenticateToken";
 import { apiKeyAuth } from "@middlewares/apiKeyAuth";
+import { authorize } from "@middlewares/authorize";
 
 const collectibleTraitRouter = Router();
 
@@ -14,6 +15,7 @@ collectibleTraitRouter.post(
 collectibleTraitRouter.post(
   "/batch",
   authenticateToken,
+  authorize("SUPER_ADMIN"),
   collectibleTraitController.createBatchTraits
 );
 
