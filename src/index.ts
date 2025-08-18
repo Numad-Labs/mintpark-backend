@@ -4,7 +4,6 @@ import express, { Request, Response } from "express";
 import { config } from "./config/config";
 import helmet from "helmet";
 import cors from "cors";
-import { Redis } from "ioredis";
 require("dotenv").config();
 
 import userRouter from "./routes/userRoutes";
@@ -30,8 +29,7 @@ import { version } from "../package.json";
 import traitTypeRouter from "./routes/traitTypeRoutes";
 import SubgraphService from "@blockchain/evm/services/subgraph/subgraphService";
 import { MarketplaceSyncService } from "@blockchain/evm/services/subgraph/marketplaceSyncService";
-
-export const redis = new Redis(config.REDIS_CONNECTION_STRING);
+import { redis } from "@utils/redis";
 
 const app = express();
 

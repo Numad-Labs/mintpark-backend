@@ -2,8 +2,8 @@ import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../exceptions/CustomError";
 import logger from "../config/winston";
 import { config } from "../config/config";
-import { redis } from "..";
 import { AuthenticatedRequest } from "../../custom";
+import { redis } from "@utils/redis";
 
 interface RateLimiterOptions {
   keyPrefix: string;

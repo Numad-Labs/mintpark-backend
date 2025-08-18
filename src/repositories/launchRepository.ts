@@ -117,7 +117,7 @@ export const launchRepository = {
 
         "Launch.createdAt",
         "Launch.status",
-        "childCollection.layerId as layerId",
+        // "childCollection.layerId as layerId",
         sql<number>`COALESCE((
           SELECT COUNT(*)::integer
           FROM "LaunchItem"
@@ -133,12 +133,12 @@ export const launchRepository = {
         "parentCollection.badgeSupply",
         "parentCollection.isBadge"
       ])
-      .where((eb) =>
-        eb.or([
-          eb("childCollection.layerId", "=", layerId),
-          eb("parentCollection.layerId", "=", layerId)
-        ])
-      )
+      // .where((eb) =>
+      //   eb.or([
+      //     eb("childCollection.layerId", "=", layerId),
+      //     eb("parentCollection.layerId", "=", layerId)
+      //   ])
+      // )
       .where("Launch.status", "=", "CONFIRMED");
 
     if (interval !== "all") {

@@ -1,9 +1,9 @@
 // transactionConfirmationService.ts
 import { ethers } from "ethers";
-import { redis } from "../../..";
 import { CustomError } from "../../../exceptions/CustomError";
 import logger from "../../../config/winston";
 import { EVM_CONFIG } from "../evm-config";
+import { redis } from "@utils/redis";
 // import { redis } from "../../../src";
 interface TransactionStatus {
   status: "pending" | "confirmed" | "failed";

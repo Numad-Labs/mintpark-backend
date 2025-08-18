@@ -9,8 +9,8 @@ import { TraitType, TraitValue, CollectibleTrait } from "../types/db/types";
 import { collectibleRepository } from "@repositories/collectibleRepository";
 import { userRepository } from "@repositories/userRepository";
 import logger from "@config/winston";
-import { redis } from "../";
 import { randomUUID } from "crypto";
+import { redis } from "@utils/redis";
 
 export interface BatchTraitData {
   collectibleId: string;

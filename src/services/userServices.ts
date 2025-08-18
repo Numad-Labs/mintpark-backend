@@ -2,13 +2,13 @@ import { userRepository } from "../repositories/userRepository";
 import { CustomError } from "../exceptions/CustomError";
 import { generateMessage } from "../libs/generateMessage";
 import { generateNonce } from "../libs/generateNonce";
-import { redis } from "..";
 import { generateTokens } from "../utils/jwt";
 import { layerRepository } from "../repositories/layerRepository";
 import { verifySignedMessage as EvmVerifySignedMessage } from "../blockchain/evm/utils";
 import { userLayerRepository } from "../repositories/userLayerRepository";
 import { verifyMessage as bitcoinVerifySignedMessage } from "@unisat/wallet-utils";
 import { isBitcoinTestnetAddress } from "@blockchain/bitcoin/isBitcoinTestnetAddress";
+import { redis } from "@utils/redis";
 
 export const userServices = {
   generateMessageToSign: async (address: string) => {

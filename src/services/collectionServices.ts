@@ -13,7 +13,6 @@ import { layerRepository } from "../repositories/layerRepository";
 import { CustomError } from "../exceptions/CustomError";
 import { EVM_CONFIG } from "../blockchain/evm/evm-config";
 import { db } from "../utils/db";
-import { redis } from "..";
 import { v4 as uuidv4 } from "uuid";
 import { Insertable, Updateable } from "kysely";
 import { Collection, Launch } from "../types/db/types";
@@ -39,6 +38,7 @@ import logger from "@config/winston";
 import { getPSBTBuilder } from "@blockchain/bitcoin/PSBTBuilder";
 import { add } from "winston";
 import { encryption } from "@utils/KeyEncryption";
+import { redis } from "@utils/redis";
 
 export const collectionServices = {
   create: async (

@@ -3,7 +3,6 @@ import { CustomError } from "../../../../exceptions/CustomError";
 import { EVM_CONFIG } from "../../evm-config";
 import { config } from "../../../../config/config";
 import { BaseNFTService } from "./baseNFTService";
-import { redis } from "../../../../index";
 import logger from "../../../../config/winston";
 import {
   getContractVersionConfig,
@@ -11,6 +10,7 @@ import {
   CONTRACT_VERSIONS,
   CONTRACT_VERSIONS_ENUM
 } from "../../contract-versions";
+import { redis } from "@utils/redis";
 
 export class DirectMintNFTService extends BaseNFTService {
   private readonly DOMAIN_NAME = "UnifiedNFT";
