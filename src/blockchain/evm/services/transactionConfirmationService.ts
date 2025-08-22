@@ -320,7 +320,15 @@ export class TransactionConfirmationService {
     sellerAddress: string,
     expectedPrice: string,
     expectedListingId?: string
-  ): Promise<boolean> {
+  ): Promise<{
+    isValid: boolean;
+    listingId?: string;
+    contractAddress?: string;
+    tokenId?: string;
+    seller?: string;
+    price?: string;
+    error?: string;
+  }> {
     try {
       // Get transaction receipt
       const txReceipt = await this.provider.getTransactionReceipt(txHash);
@@ -409,51 +417,58 @@ export class TransactionConfirmationService {
         parsedEvent = parsedEventResult;
       }
 
-      // Verify listing details - CORRECTED ARGUMENT INDICES
-      const listingId = parsedEvent.args[0].toString(); // listingId
-      const listedNftContract = parsedEvent.args[1].toLowerCase(); // nftContract
-      const listedTokenId = parsedEvent.args[2].toString(); // tokenId
-      // const listedPrice = parsedEvent.args[4].toString(); // price
+      const listingId = parsedEvent.args[0].toString();
+      const listedNftContract = parsedEvent.args[1].toLowerCase();
+      const listedTokenId = parsedEvent.args[2].toString();
+      const listedPrice =
+        parsedEvent.args[parsedEvent.args.length - 1].toString();
+      const listedSeller =
+        parsedEvent.args.length === 5
+          ? parsedEvent.args[3].toLowerCase()
+          : txReceipt.from.toLowerCase();
 
-      // Check if the listing ID matches (if provided)
-      if (expectedListingId && listingId !== expectedListingId) {
-        throw new CustomError(
-          `Invalid listing ID: expected ${expectedListingId}, got ${listingId}`,
-          400
-        );
-      }
-
-      // Check NFT contract address
+      // 5. Validation checks
       if (listedNftContract !== nftContractAddress.toLowerCase()) {
-        throw new CustomError("Invalid NFT contract address", 400);
+        return { isValid: false, error: "Invalid NFT contract address" };
       }
 
-      // Check token ID
       if (listedTokenId !== tokenId) {
-        throw new CustomError("Invalid token ID", 400);
+        return { isValid: false, error: "Invalid token ID" };
       }
 
-      // // Check seller address
-      // if (listedSeller !== sellerAddress.toLowerCase()) {
-      //   throw new CustomError("Invalid seller address", 400);
-      // }
+      if (listedSeller !== sellerAddress.toLowerCase()) {
+        return { isValid: false, error: "Invalid seller address" };
+      }
 
-      // // Check price - convert to same format for comparison
-      // const expectedPriceWei = ethers
-      //   .parseEther(expectedPrice.toString())
-      //   .toString();
-      // if (listedPrice !== expectedPriceWei) {
-      //   throw new CustomError(
-      //     `Invalid price: expected ${expectedPriceWei}, got ${listedPrice}`,
-      //     400
+      const expectedPriceWei = ethers.parseEther(expectedPrice).toString();
+      if (listedPrice !== expectedPriceWei) {
+        return {
+          isValid: false,
+          error: `Invalid price: expected ${expectedPriceWei}, got ${listedPrice}`
+        };
+      }
+
+      // // ✅ Soft check: log a warning but don’t fail
+      // if (expectedListingId && listingId !== expectedListingId) {
+      //   logger.warn(
+      //     `Listing ID mismatch (expected ${expectedListingId}, got ${listingId}). Using onchain ID.`
       //   );
       // }
 
-      // If we made it this far, the transaction is valid
-      return true;
+      return {
+        isValid: true,
+        listingId,
+        contractAddress: listedNftContract,
+        tokenId: listedTokenId,
+        seller: listedSeller,
+        price: listedPrice
+      };
     } catch (error) {
-      console.error("Listing validation error:", error);
-      throw error;
+      logger.error("Listing validation error:", error);
+      return {
+        isValid: false,
+        error: error instanceof Error ? error.message : "Unknown error"
+      };
     }
   }
   async validateListingCancellation(
