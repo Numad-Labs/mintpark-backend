@@ -255,7 +255,7 @@ export const listServices = {
           collectibleId: collectible.id,
           sellerId: issuer.id,
           address: issuer.address,
-          onchainListingId: expectedListingId,
+          // onchainListingId: expectedListingId,
           price: price
 
           // inscribedAmount: price,
@@ -308,26 +308,33 @@ export const listServices = {
       if (list.layerType === "EVM") {
         if (!txid) throw new CustomError("txid is missing", 400);
 
-        let onchainListingId = list.privateKey
-          ? list.privateKey
-          : list.onchainListingId;
-        if (!onchainListingId)
-          throw new Error("Listing with no onchainListingId.");
+        // let onchainListingId = list.privateKey
+        //   ? list.privateKey
+        //   : list.onchainListingId;
 
-        await confirmationService.validateCreateListingTransaction(
-          txid,
-          contractAddress,
-          tokenId,
-          list.address,
-          list.price.toString(),
-          onchainListingId
-        );
+        // if (!onchainListingId)
+        //   throw new CustomError("Listing with no onchainListingId.");
+
+        // console.log("onchainListingId", onchainListingId);
+
+        const { isValid, listingId, error } =
+          await confirmationService.validateCreateListingTransaction(
+            txid,
+            contractAddress,
+            tokenId,
+            list.address,
+            list.price.toString()
+            // onchainListingId
+          );
+
+        if (!isValid && error) throw new CustomError(error, 400);
 
         const updatedList = await listRepository.update(trx, list.id, {
           status: "ACTIVE",
           vaultTxid: txid,
           vaultVout: 0,
-          inscribedAmount: inscribedAmount
+          inscribedAmount: inscribedAmount,
+          onchainListingId: listingId
         });
 
         const sanitizedList = hideSensitiveData(updatedList, [
