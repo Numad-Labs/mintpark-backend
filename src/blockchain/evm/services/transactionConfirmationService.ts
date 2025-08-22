@@ -448,13 +448,6 @@ export class TransactionConfirmationService {
         };
       }
 
-      // // ✅ Soft check: log a warning but don’t fail
-      // if (expectedListingId && listingId !== expectedListingId) {
-      //   logger.warn(
-      //     `Listing ID mismatch (expected ${expectedListingId}, got ${listingId}). Using onchain ID.`
-      //   );
-      // }
-
       return {
         isValid: true,
         listingId,
