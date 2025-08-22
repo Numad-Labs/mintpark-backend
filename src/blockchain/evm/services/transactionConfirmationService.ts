@@ -510,7 +510,6 @@ export class TransactionConfirmationService {
         throw new CustomError("Failed to parse ListingCancelled event", 400);
       }
 
-      // Verify listing ID
       const cancelledListingId = parsedEvent.args[0].toString();
 
       // Check if the listing ID matches
