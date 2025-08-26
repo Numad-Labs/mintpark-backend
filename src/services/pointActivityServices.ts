@@ -2,6 +2,7 @@ import { ACTIVITY_TYPE, NETWORK } from "@app-types/db/enums";
 import logger from "@config/winston";
 import { activityTypeRepository } from "@repositories/activityTypeRepository";
 import { pointActivityRepository } from "@repositories/pointActivityRepository";
+import { getPointMultiplier } from "@utils/multiplierHelper";
 
 export const pointActivityServices = {
   award: async (
@@ -23,7 +24,7 @@ export const pointActivityServices = {
     if (network !== "MAINNET") return;
 
     // if holding --> Hemi Bros || Mintpark Genesis, multiplier += 0.2...
-    let multiplier = 1;
+    const multiplier = await getPointMultiplier(address);
 
     const activityType = await activityTypeRepository.getByType(type);
     if (!activityType) {

@@ -42,8 +42,6 @@ class SubgraphService {
         `Initialized subgraph client for ${layer} (${chainIdStr}): ${chainConfig.SUBGRAPH_URL}`
       );
     });
-
-    logger.info(`Initialized ${this.clients.size} subgraph clients`);
   }
 
   /**
@@ -752,9 +750,6 @@ class SubgraphService {
         tokenId
       };
     } catch (error) {
-      logger.error(
-        `Error fetching token activity for ${layer} (${chainId}): ${error}`
-      );
       throw new Error(`Error fetching token activity: ${error}`);
     }
   }
