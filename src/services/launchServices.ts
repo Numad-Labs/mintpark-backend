@@ -1072,15 +1072,14 @@ export const launchServices = {
       };
     });
 
-    if (layer.network === "MAINNET") {
-      pointActivityServices.award(
-        { userLayerId, address: user.address },
-        "MINT",
-        {
-          purchaseId: result.purchase.id
-        }
-      );
-    }
+    pointActivityServices.award(
+      { userLayerId, address: user.address },
+      "MINT",
+      {
+        purchaseId: result.purchase.id
+      },
+      layer.network
+    );
 
     return {
       launchItem: result.launchItem

@@ -95,6 +95,7 @@ export const userRepository = {
         "User.id",
         "User.role",
         "User.createdAt",
+        "UserLayer.id as userLayerId",
         "UserLayer.layerId",
         "UserLayer.address",
         "UserLayer.pubkey",

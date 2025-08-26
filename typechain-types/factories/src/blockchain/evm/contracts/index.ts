@@ -2,7 +2,6 @@
 /* tslint:disable */
 /* eslint-disable */
 export * as mpmnftSol from "./MPMNFT.sol";
-export * as marketplaceWithPhaseSol from "./MarketplaceWithPhase.sol";
 export { LaunchNFTV2__factory } from "./LaunchNFTV2__factory";
 export { LaunchNFTV3__factory } from "./LaunchNFTV3__factory";
 export { Marketplace__factory } from "./Marketplace__factory";

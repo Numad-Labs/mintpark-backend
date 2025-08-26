@@ -21,7 +21,7 @@ userRouter.get(
 );
 userRouter.get(
   "/:userLayerId/point-activity-balance",
-  authenticateToken,
+  // authenticateToken,
   userController.getPointActivityBalance
 );
 userRouter.get(

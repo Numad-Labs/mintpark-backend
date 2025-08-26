@@ -1,6 +1,7 @@
 export const ACTIVITY_TYPE = {
   MINT: "MINT",
   LIST: "LIST",
+  SELL: "SELL",
   BUY: "BUY"
 } as const;
 export type ACTIVITY_TYPE = (typeof ACTIVITY_TYPE)[keyof typeof ACTIVITY_TYPE];

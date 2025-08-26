@@ -397,15 +397,14 @@ export const listServices = {
       // return sanitizedList;
     });
 
-    if (list.network === "MAINNET") {
-      pointActivityServices.award(
-        { userLayerId: issuer.userLayerId, address: issuer.address },
-        "LIST",
-        {
-          listId: id
-        }
-      );
-    }
+    pointActivityServices.award(
+      { userLayerId: issuer.userLayerId, address: issuer.address },
+      "LIST",
+      {
+        listId: id
+      },
+      list.network
+    );
 
     return result;
   },
@@ -562,6 +561,12 @@ export const listServices = {
     if (list.status !== "ACTIVE")
       throw new CustomError("This list is could not be bought.", 400);
 
+    const seller = await userRepository.getByIdAndLayerId(
+      list.sellerId,
+      list.layerId
+    );
+    if (!seller) throw new CustomError("Seller not found", 400);
+
     const collectible = await collectibleRepository.getById(
       db,
       list.collectibleId
@@ -638,15 +643,21 @@ export const listServices = {
       else throw new CustomError("Unsupported layer.", 400);
     });
 
-    if (list.network === "MAINNET") {
-      pointActivityServices.award(
-        { userLayerId: userLayerId, address: buyer.address },
-        "BUY",
-        {
-          listId: id
-        }
-      );
-    }
+    pointActivityServices.award(
+      { userLayerId: buyer.userLayerId, address: buyer.address },
+      "BUY",
+      {
+        listId: id
+      },
+      list.network
+    );
+
+    pointActivityServices.award(
+      { userLayerId: seller.userLayerId, address: seller.address },
+      "SELL",
+      { listId: id },
+      list.network
+    );
 
     return result;
   },

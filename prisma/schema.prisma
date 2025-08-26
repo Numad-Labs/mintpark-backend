@@ -462,6 +462,7 @@ model PointActivity {
 enum ACTIVITY_TYPE {
   MINT
   LIST
+  SELL
   BUY
 }
 
