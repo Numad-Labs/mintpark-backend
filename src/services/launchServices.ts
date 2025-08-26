@@ -33,8 +33,8 @@ import { LAUNCH_PHASE } from "@app-types/db/enums";
 import { DEFAULT_CONTRACT_VERSION } from "../blockchain/evm/contract-versions";
 import { ethers, id } from "ethers";
 import { collectionProgressRepository } from "@repositories/collectionProgressRepository";
-import { collectionProgressServices } from "./collectionProgressServices";
 import { collectionUploadSessionRepository } from "@repositories/collectionUploadSessionRepository";
+import { pointActivityServices } from "./pointActivityServices";
 
 export const launchServices = {
   create: async (
@@ -1051,7 +1051,7 @@ export const launchServices = {
           status: "SOLD"
         }
       );
-      await purchaseRepository.create(trx, {
+      const purchase = await purchaseRepository.create(trx, {
         userId: user.id,
         launchItemId: soldLaunchItem.id,
         purchasedAddress: user.address
@@ -1067,9 +1067,20 @@ export const launchServices = {
       // }
 
       return {
-        launchItem: soldLaunchItem
+        launchItem: soldLaunchItem,
+        purchase
       };
     });
+
+    if (layer.network === "MAINNET") {
+      pointActivityServices.award(
+        { userLayerId, address: user.address },
+        "MINT",
+        {
+          purchaseId: result.purchase.id
+        }
+      );
+    }
 
     return {
       launchItem: result.launchItem

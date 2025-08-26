@@ -75,7 +75,8 @@ export const listRepository = {
         "Layer.network",
         "Layer.chainId",
         "Layer.layerType",
-        "Collectible.uniqueIdx"
+        "Collectible.uniqueIdx",
+        "Collection.layerId"
       ])
       .where("List.id", "=", id)
       .executeTakeFirst();

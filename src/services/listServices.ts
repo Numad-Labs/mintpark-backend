@@ -17,6 +17,7 @@ import logger from "../config/winston";
 import subgraphService from "@blockchain/evm/services/subgraph/subgraphService";
 import { LAYER, LIST_STATUS } from "@app-types/db/enums";
 import SubgraphService from "@blockchain/evm/services/subgraph/subgraphService";
+import { pointActivityServices } from "./pointActivityServices";
 
 export const listServices = {
   checkAndPrepareRegistration: async (
@@ -289,6 +290,16 @@ export const listServices = {
       );
     if (!list.chainId) throw new CustomError("chainid not found", 400);
 
+    const issuer = await userRepository.getByIdAndLayerId(
+      issuerId,
+      list.layerId
+    );
+    if (!issuer || !issuer.isActive)
+      throw new CustomError(
+        "Please connect to appropriate L2 for this listing.",
+        400
+      );
+
     const collectible = await collectibleRepository.getById(
       db,
       list.collectibleId
@@ -304,7 +315,7 @@ export const listServices = {
       chainConfig.RPC_URL
     );
 
-    return await db.transaction().execute(async (trx) => {
+    const result = await db.transaction().execute(async (trx) => {
       if (list.layerType === "EVM") {
         if (!txid) throw new CustomError("txid is missing", 400);
 
@@ -345,6 +356,7 @@ export const listServices = {
 
         return sanitizedList;
       }
+
       // else if (list.layer === "FRACTAL") {
       //   if (!list.uniqueIdx)
       //     throw new CustomError(
@@ -384,6 +396,18 @@ export const listServices = {
 
       // return sanitizedList;
     });
+
+    if (list.network === "MAINNET") {
+      pointActivityServices.award(
+        { userLayerId: issuer.userLayerId, address: issuer.address },
+        "LIST",
+        {
+          listId: id
+        }
+      );
+    }
+
+    return result;
   },
   generateBuyTxHex: async (
     id: string,
@@ -560,7 +584,7 @@ export const listServices = {
       chainConfig.RPC_URL
     );
 
-    return await db.transaction().execute(async (trx) => {
+    const result = await db.transaction().execute(async (trx) => {
       if (list.layerType === "EVM") {
         if (!txid) throw new CustomError("txid is missing", 400);
         const isConfirmed = await confirmationService.validateBuyTransaction(
@@ -591,8 +615,10 @@ export const listServices = {
           soldAt: new Date().toISOString()
         });
         const buyTxId = txid;
+
         return { txid: buyTxId, confirmedList };
       }
+
       // else if (list.layer === "FRACTAL") {
       //   const buyTxId = await validateSignAndBroadcastBuyPsbtHex(
       //     hex,
@@ -611,6 +637,18 @@ export const listServices = {
       // }
       else throw new CustomError("Unsupported layer.", 400);
     });
+
+    if (list.network === "MAINNET") {
+      pointActivityServices.award(
+        { userLayerId: userLayerId, address: buyer.address },
+        "BUY",
+        {
+          listId: id
+        }
+      );
+    }
+
+    return result;
   },
   generateListingCancelTx: async (issuerId: string, id: string) => {
     const list = await listRepository.getById(id);
@@ -781,8 +819,9 @@ export const listServices = {
 
     try {
       // Get basic transaction details first
-      const transactionDetail =
-        await confirmationService.getTransactionDetails(txid);
+      const transactionDetail = await confirmationService.getTransactionDetails(
+        txid
+      );
       if (transactionDetail.status !== 1) {
         throw new CustomError(
           "Transaction not confirmed. Please try again.",

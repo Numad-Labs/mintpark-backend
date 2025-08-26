@@ -5,6 +5,7 @@ import { userServices } from "../services/userServices";
 import { CustomError } from "../exceptions/CustomError";
 import { AuthenticatedRequest } from "../../custom";
 import { JsonWebTokenError, TokenExpiredError } from "jsonwebtoken";
+import { pointActivityRepository } from "@repositories/pointActivityRepository";
 
 export const userController = {
   generateMessageToSign: async (
@@ -167,6 +168,34 @@ export const userController = {
       if (!user) return res.status(200).json({ success: true, data: null });
 
       return res.status(200).json({ success: true, data: { user } });
+    } catch (e) {
+      next(e);
+    }
+  },
+  getPointActivityBalance: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const { userLayerId } = req.params;
+
+    try {
+      const user = await userRepository.getByUserLayerId(userLayerId);
+      if (!user) throw new CustomError("User not found", 400);
+
+      if (req.user?.id !== user.id)
+        throw new CustomError("You are not allowed to fetch this data.", 400);
+
+      const balance = await pointActivityRepository.getBalanceByAddress(
+        user.address
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          balance: Number(balance)
+        }
+      });
     } catch (e) {
       next(e);
     }

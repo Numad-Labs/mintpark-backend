@@ -5,6 +5,7 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 import type {
+  ACTIVITY_TYPE,
   ORDER_TYPE,
   ORDER_STATUS,
   ORDER_ITEM_TYPE,
@@ -22,6 +23,12 @@ import type {
   LAUNCH_PHASE
 } from "./enums";
 
+export type ActivityType = {
+  id: Generated<string>;
+  type: ACTIVITY_TYPE;
+  point: number;
+  createdAt: Generated<Timestamp>;
+};
 export type Airdrop = {
   id: Generated<string>;
   createdAt: Generated<Timestamp>;
@@ -214,6 +221,16 @@ export type OrderItem = {
   collectibleId: string | null;
   traitValueId: string | null;
 };
+export type PointActivity = {
+  id: Generated<string>;
+  userLayerId: string;
+  activityTypeId: string;
+  multiplier: Generated<number>;
+  awardedPoints: number;
+  purchaseId: string | null;
+  listId: string | null;
+  createdAt: Generated<Timestamp>;
+};
 export type Purchase = {
   id: Generated<string>;
   userId: string;
@@ -267,6 +284,7 @@ export type WlAddress = {
   phase: Generated<LAUNCH_PHASE>;
 };
 export type DB = {
+  ActivityType: ActivityType;
   Airdrop: Airdrop;
   Collectible: Collectible;
   CollectibleTrait: CollectibleTrait;
@@ -281,6 +299,7 @@ export type DB = {
   List: List;
   Order: Order;
   OrderItem: OrderItem;
+  PointActivity: PointActivity;
   Purchase: Purchase;
   TraitType: TraitType;
   TraitValue: TraitValue;

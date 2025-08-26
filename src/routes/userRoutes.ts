@@ -20,6 +20,11 @@ userRouter.get(
   userController.getByUserLayerId
 );
 userRouter.get(
+  "/:userLayerId/point-activity-balance",
+  authenticateToken,
+  userController.getPointActivityBalance
+);
+userRouter.get(
   "/:id/accounts",
   authenticateToken,
   userController.getAccountsByUserId

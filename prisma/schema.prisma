@@ -40,6 +40,7 @@ model UserLayer {
   Collection    Collection[]
   Launch        Launch[]
   Order         Order[]
+  PointActivity PointActivity[]
   layer         Layer        @relation(fields: [layerId], references: [id])
   user          User         @relation(fields: [userId], references: [id])
 
@@ -346,14 +347,15 @@ model LaunchItem {
 }
 
 model Purchase {
-  id               String     @id @default(dbgenerated("gen_random_uuid()"))
+  id               String          @id @default(dbgenerated("gen_random_uuid()"))
   userId           String
   launchItemId     String
-  purchasedAt      DateTime   @default(now())
+  purchasedAt      DateTime        @default(now())
   purchasedAddress String?
   Order            Order[]
-  launchItem       LaunchItem @relation(fields: [launchItemId], references: [id], onDelete: Cascade)
-  user             User       @relation(fields: [userId], references: [id])
+  launchItem       LaunchItem      @relation(fields: [launchItemId], references: [id], onDelete: Cascade)
+  user             User            @relation(fields: [userId], references: [id])
+  PointActivity    PointActivity[]
 
   @@index([userId])
   @@index([purchasedAddress])
@@ -385,13 +387,14 @@ model List {
 
   vaultTxid       String?
   vaultVout       Int?
-  inscribedAmount Int?        @default(546)
+  inscribedAmount Int?            @default(546)
   price           Float
-  listedAt        DateTime    @default(now())
+  listedAt        DateTime        @default(now())
   soldTxid        String?
   soldAt          DateTime?
-  status          LIST_STATUS @default(PENDING)
-  collectible     Collectible @relation(fields: [collectibleId], references: [id], onDelete: Cascade)
+  status          LIST_STATUS     @default(PENDING)
+  collectible     Collectible     @relation(fields: [collectibleId], references: [id], onDelete: Cascade)
+  PointActivity   PointActivity[]
 
   @@index([status])
   @@index([collectibleId, status])
@@ -418,6 +421,48 @@ model Airdrop {
   address   String
 
   @@index([address])
+}
+
+model ActivityType {
+  id   String        @id @default(dbgenerated("gen_random_uuid()"))
+  type ACTIVITY_TYPE @unique
+
+  point     Float
+  createdAt DateTime @default(now())
+
+  PointActivity PointActivity[]
+}
+
+model PointActivity {
+  id String @id @default(dbgenerated("gen_random_uuid()"))
+
+  userLayerId String
+  userLayer   UserLayer @relation(fields: [userLayerId], references: [id], onDelete: Cascade)
+
+  activityTypeId String
+  activityType   ActivityType @relation(fields: [activityTypeId], references: [id], onDelete: Restrict)
+
+  multiplier Float @default(1)
+
+  awardedPoints Float
+
+  purchaseId String?
+  purchase   Purchase? @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+  listId     String?
+  list       List?     @relation(fields: [listId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([userLayerId, createdAt])
+  @@index([activityTypeId])
+  @@index([purchaseId])
+  @@index([listId])
+}
+
+enum ACTIVITY_TYPE {
+  MINT
+  LIST
+  BUY
 }
 
 enum ORDER_TYPE {
