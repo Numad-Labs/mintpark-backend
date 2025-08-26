@@ -702,8 +702,8 @@ export const listServices = {
     );
     if (!collection || !collection.contractAddress)
       throw new CustomError("Collection not found", 400);
-    if (collection.status !== "CONFIRMED")
-      throw new CustomError("Collection is not confirmed", 400);
+    // if (collection.status !== "CONFIRMED")
+    //   throw new CustomError("Collection is not confirmed", 400);
 
     const layer = await layerRepository.getById(collection.layerId);
     if (!layer || !layer.chainId)
