@@ -23,7 +23,6 @@ export const pointActivityServices = {
 
     if (network !== "MAINNET") return;
 
-    // if holding --> Hemi Bros || Mintpark Genesis, multiplier += 0.2...
     const multiplier = await getPointMultiplier(address);
 
     const activityType = await activityTypeRepository.getByType(type);
