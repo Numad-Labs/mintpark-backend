@@ -2,8 +2,8 @@ import { createRateLimiter } from "../libs/createRateLimiter";
 
 export const launchRatelimiter = createRateLimiter({
   keyPrefix: "ratelimiter-launch",
-  limit: 10,
-  window: 3 * 60
+  limit: 50,
+  window: 5 * 60
 });
 
 export const collectibleslimiter = createRateLimiter({
