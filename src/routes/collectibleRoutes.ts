@@ -6,6 +6,7 @@ import {
 } from "../middlewares/authenticateToken";
 import { authorize } from "../middlewares/authorize";
 import { apiKeyAuth } from "../middlewares/apiKeyAuth";
+import { parseFiles } from "@middlewares/fileParser";
 
 const collectibleRouter = Router();
 
@@ -159,6 +160,13 @@ collectibleRouter.post(
   authenticateToken,
   authorize("SUPER_ADMIN"),
   collectibleControllers.insertTraits
+);
+
+collectibleRouter.post(
+  "/custom-collectible-and-launch-items",
+  apiKeyAuth,
+  parseFiles("file", true),
+  collectibleControllers.createCustomCollectibleAndLaunchItem
 );
 
 export = collectibleRouter;

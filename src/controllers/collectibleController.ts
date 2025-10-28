@@ -17,6 +17,9 @@ import { getObjectFromS3, uploadToS3 } from "@utils/aws";
 import sharp from "sharp";
 import SubgraphService from "@blockchain/evm/services/subgraph/subgraphService";
 import { layerRepository } from "@repositories/layerRepository";
+import { launchRepository } from "@repositories/launchRepository";
+import { launchItemRepository } from "@repositories/launchItemRepository";
+import { randomUUID } from "crypto";
 
 const DEFAULT_LIMIT = 30,
   MAX_LIMIT = 50;
@@ -1250,6 +1253,71 @@ export const collectibleControllers = {
       if (!collectible) throw new CustomError("Collectible not found", 400);
 
       return res.status(200).json({ success: true, data: collectible });
+    } catch (e) {
+      next(e);
+    }
+  },
+  createCustomCollectibleAndLaunchItem: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { collectionId, name, nftId, isOOOEdition, metadataCid } = req.body;
+      const image = req.file as Express.Multer.File;
+
+      if (!collectionId || !name || !isOOOEdition || !nftId)
+        throw new CustomError("Invalid input", 400);
+      if (Number.isNaN(nftId)) throw new CustomError("Invalid nftId", 400);
+
+      const collection = await collectionRepository.getById(db, collectionId);
+      if (!collection) throw new CustomError("Collection not found", 400);
+      if (collection.status === "CONFIRMED")
+        throw new CustomError("Cannot add item to confirmed collection", 400);
+
+      const launch = await launchRepository.getByCollectionId(collection.id);
+      if (!launch) throw new CustomError("Launch not found", 400);
+      if (launch.status === "CONFIRMED")
+        throw new CustomError("Cannot add item to confirmed launch", 400);
+
+      const uniqueIdx = `${collection.contractAddress}i${nftId}`;
+
+      const isExistingCollectible = await collectibleRepository.getByUniqueIdx(
+        uniqueIdx
+      );
+      if (isExistingCollectible)
+        throw new CustomError("Collectible already processed", 400);
+
+      const fileKey = randomUUID();
+      await uploadToS3(fileKey, image);
+
+      const { collectible, launchItem } = await db
+        .transaction()
+        .execute(async (trx) => {
+          const collectible = await collectibleRepository.create(trx, {
+            name,
+            nftId,
+            uniqueIdx,
+            fileKey,
+            isOOOEdition,
+            cid: metadataCid,
+            collectionId
+          });
+
+          const launchItem = await launchItemRepository.bulkInsert(trx, [
+            {
+              collectibleId: collectible.id,
+              launchId: launch.id
+            }
+          ]);
+
+          return { collectible, launchItem };
+        });
+
+      return res.status(200).json({
+        success: true,
+        data: collectible
+      });
     } catch (e) {
       next(e);
     }

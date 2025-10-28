@@ -3,6 +3,7 @@ import { collectibleTraitRepository } from "../repositories/collectibleTraitRepo
 import { collectibleTraitServices } from "../services/collectibleTraitServices";
 import { z } from "zod";
 import { AuthenticatedRequest } from "../../custom";
+import { CustomError } from "@exceptions/CustomError";
 
 // Validation schema for createBatchTraits request
 const createBatchTraitsSchema = z.object({
@@ -101,6 +102,13 @@ export const collectibleTraitController = {
   ) => {
     try {
       const validatedData = createTraitsSchema.parse(req.body);
+
+      const existingCollectibleTraits =
+        await collectibleTraitRepository.getByCollectibleId(
+          validatedData.collectibleId
+        );
+      if (existingCollectibleTraits.length > 0)
+        throw new CustomError("Already has existing trait", 400);
 
       const result = await collectibleTraitServices.insertTraits(
         validatedData.collectibleId,
