@@ -35,6 +35,7 @@ import { traitTypeRepository } from "../repositories/traitTypeRepository";
 import { capitalizeWords } from "../libs/capitalizeWords";
 import { queueService } from "../queue/queueService";
 import { encryption } from "@utils/KeyEncryption";
+import { firstSqueezerIndexer } from "../blockchain/evm/services/firstSqueezerIndexer";
 // import * as isIPFS from "is-ipfs";
 
 const validateCid = (cid: string): boolean => {
@@ -57,8 +58,8 @@ export const collectibleServices = {
 
     const user = await userRepository.getByUserLayerId(params.userLayerId);
     if (!user) throw new CustomError("User not found.", 400);
-    if (user.id !== userId)
-      throw new CustomError("Differing user and user layer.", 400);
+    // if (user.id !== userId)
+    //   throw new CustomError("Differing user and user layer.", 400);
     if (!user.isActive)
       throw new CustomError("This account is deactivated.", 400);
 
@@ -85,18 +86,59 @@ export const collectibleServices = {
         const validCollections = collections
           .filter((c) => c.contractAddress)
           .map((c) => c.contractAddress!);
-        // Process collections in batches using the new method
-        const tokenResults = await evmCollectibleService.processCollections(
-          validCollections,
-          user.address
+
+        // Separate First Squeezer collection from other collections
+        const firstSqueezerCollections = validCollections.filter((address) =>
+          firstSqueezerIndexer.isFirstSqueezerContract(address)
         );
-        // Convert the results into the required format
-        for (const [contractAddress, tokenIds] of Object.entries(
-          tokenResults
-        )) {
+        console.log("firstSqueezerCollections", firstSqueezerCollections);
+        const otherCollections = validCollections.filter(
+          (address) => !firstSqueezerIndexer.isFirstSqueezerContract(address)
+        );
+
+        // Process both in parallel
+        const [firstSqueezerResults, regularResults] = await Promise.all([
+          // Process First Squeezer collections with custom indexer
+          firstSqueezerCollections.length > 0
+            ? Promise.all(
+                firstSqueezerCollections.map(async (contractAddress) => ({
+                  contractAddress,
+                  tokenIds: await firstSqueezerIndexer.getOwnedTokens(
+                    // "0xcf066990bf36B88A43E358d1f8c1850daDd89aCC".toLowerCase() test owner address
+                    user.address
+                  )
+                }))
+              )
+            : Promise.resolve([]),
+          // Process other collections with regular indexer
+          otherCollections.length > 0
+            ? evmCollectibleService.processCollections(
+                otherCollections,
+                user.address
+              )
+            : Promise.resolve({})
+        ]);
+
+        // Combine results from First Squeezer custom indexer
+        for (const { contractAddress, tokenIds } of firstSqueezerResults) {
           if (tokenIds.length) {
+            logger.info(
+              `First Squeezer: Found ${tokenIds.length} tokens for ${contractAddress}`
+            );
             const formattedTokens = tokenIds.map(
               (tokenId) => `${contractAddress}i${tokenId}`
+            );
+            uniqueIdxs.push(...formattedTokens);
+          }
+        }
+
+        // Combine results from regular EVM indexer
+        for (const [contractAddress, tokenIds] of Object.entries(
+          regularResults
+        )) {
+          if (Array.isArray(tokenIds) && tokenIds.length) {
+            const formattedTokens = tokenIds.map(
+              (tokenId: string) => `${contractAddress}i${tokenId}`
             );
             uniqueIdxs.push(...formattedTokens);
           }
@@ -282,9 +324,8 @@ export const collectibleServices = {
         isOOOEdition,
         fileSizeInBytes: fileKeys[i].fileSize
       });
-    const collectibles = await collectibleRepository.bulkInsert(
-      collectiblesData
-    );
+    const collectibles =
+      await collectibleRepository.bulkInsert(collectiblesData);
     return collectibles;
   },
   // createInscriptionAndOrderItemInBatch: async (
@@ -363,12 +404,10 @@ export const collectibleServices = {
       }
     }
 
-    const collectibles = await collectibleRepository.bulkInsert(
-      collectiblesData
-    );
-    const collectibleTraits = await collectibleTraitRepository.bulkInsert(
-      collectibleTraitData
-    );
+    const collectibles =
+      await collectibleRepository.bulkInsert(collectiblesData);
+    const collectibleTraits =
+      await collectibleTraitRepository.bulkInsert(collectibleTraitData);
 
     return { collectibles, collectibleTraits };
   },
@@ -449,9 +488,8 @@ export const collectibleServices = {
         nftId: (startIndex + i).toString()
       });
     }
-    const collectibles = await collectibleRepository.bulkInsert(
-      collectiblesData
-    );
+    const collectibles =
+      await collectibleRepository.bulkInsert(collectiblesData);
 
     return collectibles;
   },
@@ -547,9 +585,8 @@ export const collectibleServices = {
         cid,
         fileKey
       });
-    const collectibles = await collectibleRepository.bulkInsert(
-      collectiblesData
-    );
+    const collectibles =
+      await collectibleRepository.bulkInsert(collectiblesData);
 
     return collectibles;
   },
